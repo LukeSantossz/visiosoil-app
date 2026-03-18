@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/home/home_page.dart';
 
 void main(){
@@ -10,10 +11,10 @@ class VisioSoilApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context){
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'VisioSoil',
       debugShowCheckedModeBanner: false,
-      home: const HomePage(),
+      routerConfig: appRouter,
     );
   }
 }

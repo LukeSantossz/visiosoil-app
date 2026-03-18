@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -32,6 +34,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: (){
+                context.push('/capture');
                 print('Botão Capturar Solo Pressionado');
               },
               child: const Text('Capturar Solo'),
