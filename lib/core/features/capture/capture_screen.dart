@@ -7,10 +7,18 @@ import 'package:visiosoil_app/providers/image_provider.dart';
 class CaptureScreen extends ConsumerWidget {
   const CaptureScreen({super.key});
 
-  Future<void> _pickImage(WidgetRef ref) async {
+  Future<void> _pickFromCamera(WidgetRef ref) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      debugPrint('Imagem selecionada: ${image.path}');
+      ref.read(imageProvider.notifier).setImage(File(image.path));
+    }
+  }
 
+Future<void> _pickFromGallery(WidgetRef ref) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery); 
     if (image != null) {
       debugPrint('Imagem selecionada: ${image.path}');
       ref.read(imageProvider.notifier).setImage(File(image.path));
@@ -23,24 +31,39 @@ class CaptureScreen extends ConsumerWidget {
 
     Widget buildImage() {
       if (image == null) {
-        return ElevatedButton(
-          onPressed: () => _pickImage(ref),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.camera, size: 50.0),
-              const SizedBox(height: 16.0),
-              const Text('Capture aqui!'),
-            ],
-          ),
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () => _pickFromCamera(ref),
+              icon: const Icon(Icons.camera),
+              label: const Text('Capturar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _pickFromGallery(ref),
+              icon: const Icon(Icons.photo),
+              label: const Text('Galeria'),  
+            ),
+          ],
         );
       } else {
         return Column(
           children: [
             Image.file(image),
-            ElevatedButton(
-              onPressed: () => _pickImage(ref),
-              child: const Text('Capturar outra imagem'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _pickFromCamera(ref),
+                  icon: const Icon(Icons.camera),
+                  label: const Text('Capturar'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _pickFromGallery(ref),
+                  icon: const Icon(Icons.photo),
+                  label: const Text('Galeria'),  
+                ),
+              ],
             ),
           ],
         );
