@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../providers/example_providers.dart';
-
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final figTitle = ref.watch(grayTitleProvider);
+    const String figTitle = 'VisioSoil';
     return Scaffold(
       appBar: AppBar(title: const Text('VisioSoil'), centerTitle: true),
       body: Center(
@@ -26,11 +24,19 @@ class HomePage extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
+              
               onPressed: () {
                 context.push('/capture');
-                print('Botão Capturar Solo Pressionado');
+                debugPrint('Botão Capturar Solo Pressionado');
               },
               child: const Text('Capturar Solo'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                context.push('/history');
+                debugPrint('Botão Acessar Histórico Pressionado');
+              },
+              child: const Text('Acessando Histórico'),
             ),
           ],
         ),

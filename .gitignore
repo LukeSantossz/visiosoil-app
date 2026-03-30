@@ -67,3 +67,4 @@ Thumbs.db
 # AI
 .agent/
 .claude/
+/tutor.md

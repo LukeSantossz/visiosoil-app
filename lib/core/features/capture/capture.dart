@@ -1,21 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 
 class CapturePage extends StatelessWidget {
   const CapturePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Capture a amostra aqui'),
-        centerTitle: true,
-      ),
-      body: const Center(
-        child: Text(
-          'Texto de captura aqui',
-          style:TextStyle(fontSize: 18),
-        ),
-      ),
-    );
+    return const CaptureScreen();
   }
 }
