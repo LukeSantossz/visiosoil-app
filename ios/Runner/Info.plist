@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Acesso à câmera para captura de imagens</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Acesso à galeria para seleção de imagens</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Acesso à localização para marcação de amostras</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Acesso à localização para marcação de amostras</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
