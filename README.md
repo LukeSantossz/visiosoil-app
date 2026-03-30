@@ -20,7 +20,7 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 | Navigation | GoRouter |
 | Typography | google_fonts |
 | Image loading | cached_network_image |
-| Camera / Gallery | image_picker *(planned — Phase 1)* |
+| Camera / Gallery | image_picker |
 | GPS | geolocator *(planned — Phase 1)* |
 | Reverse geocoding | geocoding *(planned — Phase 1)* |
 | Local persistence | Hive *(planned — Phase 1)* |
@@ -79,33 +79,41 @@ lib/
 │       └── main/
 │           └── main_screen.dart  # Tab host with BottomNavigationBar
 └── providers/
-    └── soil_providers.dart       # Riverpod providers (records, capture state, filters)
+    └── image_provider.dart       # Riverpod provider for captured image state
 ```
 
 ## Current Status
 
 **Status: In development — Phase 1 (mobile foundation)**
 
-| Feature | Status |
-|---------|--------|
-| Custom theme (`AppTheme`, `AppColors`) | Done ✅ |
-| `SoilRecord` data model | Done ✅ |
-| Riverpod state management | Done ✅ |
-| GoRouter navigation (3 tabs + details) | Done ✅ |
-| `BottomNavigationBar` (Home / Capture / History) | Done ✅ |
-| Home screen — field health dashboard + AI insight + map + recent list | Done ✅ |
-| Capture screen — viewfinder UI + GPS display + composition panel + capture button | Done ✅ |
-| History screen — archive list with filter chips and search bar | Done ✅ |
-| Details screen — individual record view | Done ✅ |
-| Real camera integration (`image_picker`) | Pending ⏳ |
-| Real GPS integration (`geolocator` + `geocoding`) | Pending ⏳ |
-| Local persistence (`Hive`) | Pending ⏳ |
-| Android + iOS permission handling | Pending ⏳ |
-| On-device soil classification (TensorFlow Lite) | Pending ⏳ *(Phase 2)* |
+### Done
+
+- [x] Custom theme (`AppTheme`, `AppColors`)
+- [x] Riverpod state management
+- [x] GoRouter navigation (4 routes)
+- [x] `BottomNavigationBar` (Home / History)
+- [x] Home screen with navigation buttons
+- [x] Capture screen with camera and gallery buttons
+- [x] History screen with list placeholder
+- [x] Details screen layout
+- [x] Real camera integration (`image_picker`)
+- [x] Image preview after capture
+- [x] Android + iOS permission handling
+- [x] `ImageNotifier` provider for image state
+
+### Pending (Phase 1)
+
+- [ ] Real GPS integration (`geolocator` + `geocoding`)
+- [ ] Local persistence (`Hive`)
+- [ ] `SoilRecord` data model
+- [ ] History populated with real data
+
+### Pending (Phase 2)
+
+- [ ] On-device soil classification (TensorFlow Lite)
 
 ## Known Issues
 
-- **GPS**: coordinates shown in the Capture screen are hardcoded mock values — real `geolocator` integration is not yet connected.
-- **Camera**: the viewfinder uses a static placeholder image — real `image_picker` integration is pending.
-- **Persistence**: the capture button saves records to in-memory Riverpod state only; data does not survive app restarts (`Hive` integration pending).
-- **Records**: all soil records on the Home and History screens are mock data seeded in the provider's initial state.
+- **GPS**: coordinates are not yet captured — `geolocator` integration is pending.
+- **Persistence**: captured images are stored in memory only; data does not survive app restarts (`Hive` integration pending).
+- **Records**: History screen displays placeholder data — will be populated after Hive integration.
