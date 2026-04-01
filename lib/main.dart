@@ -8,6 +8,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   Hive.registerAdapter(SoilRecordAdapter());
+  await Hive.openBox<SoilRecord>('soil_records');
   runApp(const ProviderScope(child: VisioSoilApp()));
 }
 
