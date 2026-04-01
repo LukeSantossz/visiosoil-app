@@ -3,14 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
+import 'package:visiosoil_app/core/utils/location_service.dart';
 
 class CaptureScreen extends ConsumerWidget {
   const CaptureScreen({super.key});
-
-  Future<void> _pickFromCamera(WidgetRef ref) async {
+  Future<void> _pickFromCamera(BuildContext context, WidgetRef ref) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.camera);
-    if (image != null) {
+    if (image != null) 
+    {
+      try {
+        final position = await LocationService.getCurrentLocation();
+        final address = await LocationService.getAddressFromPosition(position);
+        debugPrint('Latitude: ${position.latitude}, Longitude: ${position.longitude}');
+        debugPrint('Endereço: $address');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sua Localização não será registrada.')),
+        );
+      }
+      
       debugPrint('Imagem selecionada: ${image.path}');
       ref.read(imageProvider.notifier).setImage(File(image.path));
     }
@@ -19,7 +31,8 @@ class CaptureScreen extends ConsumerWidget {
 Future<void> _pickFromGallery(WidgetRef ref) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery); 
-    if (image != null) {
+    if (image != null) 
+    {
       debugPrint('Imagem selecionada: ${image.path}');
       ref.read(imageProvider.notifier).setImage(File(image.path));
     }
@@ -35,7 +48,7 @@ Future<void> _pickFromGallery(WidgetRef ref) async {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             ElevatedButton.icon(
-              onPressed: () => _pickFromCamera(ref),
+              onPressed: () => _pickFromCamera(context, ref),
               icon: const Icon(Icons.camera),
               label: const Text('Capturar'),
             ),
@@ -54,7 +67,7 @@ Future<void> _pickFromGallery(WidgetRef ref) async {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () => _pickFromCamera(ref),
+                  onPressed: () => _pickFromCamera(context, ref),
                   icon: const Icon(Icons.camera),
                   label: const Text('Capturar'),
                 ),
