@@ -1,105 +1,121 @@
-# VisioSoil App
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
-## O que isso faz?
+# VisioSoil — Soil Analysis Mobile App
 
-Aplicativo mobile para classificação de textura do solo por imagem. Funcionalidades planejadas:
+> Cross-platform mobile app for geolocated soil texture analysis, built with Flutter.
 
-- Captura de fotos de amostras de solo via câmera ou importação da galeria
-- Registro automático de coordenadas GPS no momento da captura
-- Geocodificação reversa (conversão de coordenadas em endereço legível)
-- Armazenamento local dos registros no dispositivo
-- Histórico de capturas com visualização detalhada de cada registro
-- Classificação de textura do solo por modelo de IA embarcado (fase futura)
+## Overview
 
-## O que é?
+VisioSoil lets agronomists and field professionals photograph soil samples, record GPS coordinates, and review captured data — with on-device AI classification planned for a future phase. The app is the production-mobile evolution of academic research presented at ConBAP, which benchmarked the SqueezeNet architecture against manual feature extraction methods (FFT, Gabor, LBP) for soil texture classification.
 
-Aplicativo mobile multiplataforma (Android + iOS) desenvolvido com Flutter. Codebase única em Dart que compila nativamente para ambas as plataformas. O app é voltado para uso em campo no agronegócio, onde o usuário fotografa amostras de solo e obtém dados geolocalizados para análise.
+## Tech Stack
 
-## Quais tecnologias são usadas?
+| Layer | Technology |
+|-------|-----------|
+| Framework | Flutter (Android + iOS) |
+| Language | Dart |
+| State management | Riverpod |
+| Navigation | GoRouter |
+| Typography | google_fonts |
+| Image loading | cached_network_image |
+| Camera / Gallery | image_picker |
+| GPS | geolocator ^14.0.2 |
+| Reverse geocoding | geocoding ^4.0.0 |
+| Local persistence | Hive *(planned — Phase 1)* |
+| AI classification | TensorFlow Lite *(planned — Phase 2)* |
 
-| Tecnologia | Função |
-|---|---|
-| **Flutter** | Framework multiplataforma (Android + iOS) |
-| **Dart** | Linguagem de programação nativa do Flutter |
-| **Riverpod** | Gerenciamento de estado (type-safe, escalável) |
-| **Hive** | Persistência local NoSQL (leve, sem dependência nativa) |
-| **GoRouter** | Navegação declarativa com deep linking |
-| **image_picker** | Captura de fotos via câmera e importação da galeria |
-| **geolocator** | Obtenção de coordenadas GPS |
-| **geocoding** | Conversão reversa de coordenadas para endereço |
-| **TensorFlow Lite** | Classificação de textura do solo on-device (Fase 2) |
+## Getting Started
 
-## Qual é a ambição do projeto?
+### Prerequisites
 
-O VisioSoil é a evolução para produção mobile de um trabalho acadêmico apresentado na conferência ConBAP, onde comparou-se a arquitetura SqueezeNet contra métodos manuais (FFT, Gabor, LBP) para classificação de textura do solo. O objetivo é transformar essa pesquisa em um produto real e funcional para uso no campo por profissionais do agronegócio.
+- Flutter SDK 3.x
+- Android Studio with an Android emulator, or a connected device
+- Xcode (for iOS builds)
 
-## Qual é o estágio do projeto?
+### Installation
 
-**Status: em desenvolvimento — Fase 1 (fundação mobile)**
-
-### Concluído
-
-- Flutter SDK instalado e configurado
-- Android Studio com emulador funcional
-- Repositório Git criado e publicado no GitHub
-- Estrutura de pastas feature-first implementada
-- Fundamentos Dart (variáveis, tipos, funções, classes, null safety)
-- Tela inicial com MaterialApp, Scaffold, AppBar, widgets de texto e botão
-
-### Pendente (Fase 1)
-
-- Extração da HomeScreen para arquivo dedicado
-- Navegação com GoRouter (4 rotas declarativas)
-- Gerenciamento de estado com Riverpod
-- Telas de Captura, Histórico e Detalhes
-- BottomNavigationBar
-- Integração com image_picker (câmera e galeria)
-- Permissões Android e iOS
-- Preview de imagem capturada
-- Integração com geolocator e geocoding
-- Persistência local com Hive e modelo SoilRecord
-- Histórico populado com dados reais
-
-### Pendente (Fase 2)
-
-- Integração de modelo classificador de textura do solo via TensorFlow Lite on-device
-
-## Existem problemas conhecidos?
-
-- O app está na fase inicial de desenvolvimento. Atualmente exibe apenas a tela principal com UI placeholder (textos e botão sem funcionalidade real).
-- Nenhum pacote externo (Riverpod, Hive, GoRouter, image_picker, etc.) foi integrado ainda. As dependências listadas acima refletem a arquitetura alvo, não o estado atual.
-- O botão "Capturar Solo" na tela inicial apenas imprime uma mensagem no console como placeholder — a funcionalidade real de câmera será implementada na Semana 3.
-
-## Como executar
-
-```powershell
-# Clonar o repositório
+```bash
+# Clone the repository
 git clone https://github.com/com.visiosoil/visiosoil-app.git
-
-# Entrar no diretório
 cd visiosoil-app
 
-# Instalar dependências
+# Install dependencies
 flutter pub get
+```
 
-# Executar no emulador ou dispositivo conectado
+### Running
+
+```bash
+# Run on a connected emulator or device
 flutter run
 ```
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 lib/
-  main.dart             — ponto de entrada do app
-  core/
-    constants/          — cores, strings, dimensões
-    theme/              — ThemeData customizado
-    utils/              — funções utilitárias
-    features/
-      home/             — tela principal
-      capture/          — captura de imagem
-      history/          — histórico de registros
-      details/          — detalhes de registro individual
-  models/               — classes de dados (SoilRecord)
-  providers/            — Riverpod providers
+├── main.dart                     # App entry point (ProviderScope + MaterialApp.router)
+├── core/
+│   ├── theme/
+│   │   └── app_theme.dart        # ThemeData, AppColors
+│   ├── routes/
+│   │   └── app_router.dart       # GoRouter configuration
+│   ├── widgets/
+│   │   ├── visio_app_bar.dart    # Shared AppBar
+│   │   └── custom_bottom_nav.dart
+│   ├── models/
+│   │   └── soil_record.dart      # SoilRecord, GpsCoordinates, SoilComposition, BiologicalIndicators
+│   └── features/
+│       ├── home/
+│       │   └── home_page.dart    # Dashboard screen
+│       ├── capture/
+│       │   └── capture_screen.dart  # Camera + GPS capture screen
+│       ├── history/
+│       │   └── history_screen.dart  # Archive list with filters
+│       ├── details/
+│       │   └── details_screen.dart  # Individual record detail view
+│       └── main/
+│           └── main_screen.dart  # Tab host with BottomNavigationBar
+├── core/
+│   └── utils/
+│       └── location_service.dart  # GPS capture and reverse geocoding (static)
+└── providers/
+    └── image_provider.dart       # Riverpod provider for captured image state
 ```
+
+## Current Status
+
+**Status: In development — Phase 1 (mobile foundation)**
+
+### Done
+
+- [x] Custom theme (`AppTheme`, `AppColors`)
+- [x] Riverpod state management
+- [x] GoRouter navigation (4 routes)
+- [x] `BottomNavigationBar` (Home / History)
+- [x] Home screen with navigation buttons
+- [x] Capture screen with camera and gallery buttons
+- [x] History screen with list placeholder
+- [x] Details screen layout
+- [x] Real camera integration (`image_picker`)
+- [x] Image preview after capture
+- [x] Android + iOS permission handling
+- [x] `ImageNotifier` provider for image state
+- [x] Real GPS integration (`geolocator` + `geocoding`)
+
+### Pending (Phase 1)
+
+- [ ] Local persistence (`Hive`)
+- [ ] `SoilRecord` data model
+- [ ] History populated with real data
+
+### Pending (Phase 2)
+
+- [ ] On-device soil classification (TensorFlow Lite)
+
+## Known Issues
+
+- **Persistence**: captured images are stored in memory only; data does not survive app restarts (`Hive` integration pending).
+- **Records**: History screen displays placeholder data — will be populated after Hive integration.
