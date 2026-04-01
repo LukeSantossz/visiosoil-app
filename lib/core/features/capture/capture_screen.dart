@@ -16,8 +16,6 @@ class CaptureScreen extends ConsumerWidget {
       try {
         final position = await LocationService.getCurrentLocation();
         final address = await LocationService.getAddressFromPosition(position);
-
-        await Hive.openBox<SoilRecord>('soil_records');
         final box = Hive.box<SoilRecord>('soil_records');
         box.add(
           SoilRecord(
