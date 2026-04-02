@@ -15,13 +15,15 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 | Layer | Technology |
 |-------|-----------|
 | Framework | Flutter (Android + iOS) |
-| Language | Dart 3.10+ |
-| State management | Riverpod 3.3.1 |
-| Navigation | GoRouter 17.1.0 |
-| Camera / Gallery | image_picker 1.2.1 |
-| GPS | geolocator 14.0.2 |
-| Reverse geocoding | geocoding 4.0.0 |
-| Local persistence | Hive 2.2.3 + hive_flutter 1.1.0 |
+| Language | Dart |
+| State management | Riverpod |
+| Navigation | GoRouter |
+| Typography | google_fonts |
+| Image loading | cached_network_image |
+| Camera / Gallery | image_picker |
+| GPS | geolocator *(planned — Phase 1)* |
+| Reverse geocoding | geocoding *(planned — Phase 1)* |
+| Local persistence | Hive *(planned — Phase 1)* |
 | AI classification | TensorFlow Lite *(planned — Phase 2)* |
 
 ## Getting Started
@@ -41,9 +43,6 @@ cd visiosoil-app
 
 # Install dependencies
 flutter pub get
-
-# Generate Hive adapters (if needed)
-flutter pub run build_runner build
 ```
 
 ### Running
@@ -57,101 +56,64 @@ flutter run
 
 ```
 lib/
-├── main.dart                        # App entry point (ProviderScope + MaterialApp.router)
-├── models/
-│   └── soil_record.dart             # SoilRecord model with Hive adapter
-├── providers/
-│   └── image_provider.dart          # Riverpod provider for captured image state
-└── core/
-    ├── constants/
-    │   └── storage_keys.dart        # Hive box names and storage constants
-    ├── theme/
-    │   ├── app_theme.dart           # ThemeData configuration
-    │   ├── app_colors.dart          # Material Design 3 color palette
-    │   ├── app_spacing.dart         # Spacing constants
-    │   └── app_typography.dart      # Typography scale
-    ├── routes/
-    │   └── app_router.dart          # GoRouter configuration
-    ├── utils/
-    │   ├── location_service.dart    # GPS capture and reverse geocoding
-    │   └── formatters.dart          # Date/time and coordinate formatters
-    ├── widgets/
-    │   ├── visio_app_bar.dart       # Shared AppBar
-    │   ├── visio_button.dart        # Primary/secondary button variants
-    │   ├── visio_card.dart          # Card wrapper component
-    │   ├── loading_indicator.dart   # Styled loading spinner
-    │   └── empty_state.dart         # Empty state placeholder
-    └── features/
-        ├── home/
-        │   └── home_page.dart       # Dashboard with last capture card
-        ├── capture/
-        │   └── capture_screen.dart  # Camera + GPS capture with location options
-        ├── history/
-        │   └── history_screen.dart  # Grid archive with multi-select delete
-        ├── preview/
-        │   └── image_preview_screen.dart  # Full image viewer with info panel
-        ├── details/
-        │   └── details.dart         # Record detail view with delete
-        └── main/
-            └── main_screen.dart     # Tab host with NavigationBar (MD3)
+├── main.dart                     # App entry point (ProviderScope + MaterialApp.router)
+├── core/
+│   ├── theme/
+│   │   └── app_theme.dart        # ThemeData, AppColors
+│   ├── routes/
+│   │   └── app_router.dart       # GoRouter configuration
+│   ├── widgets/
+│   │   ├── visio_app_bar.dart    # Shared AppBar
+│   │   └── custom_bottom_nav.dart
+│   ├── models/
+│   │   └── soil_record.dart      # SoilRecord, GpsCoordinates, SoilComposition, BiologicalIndicators
+│   └── features/
+│       ├── home/
+│       │   └── home_page.dart    # Dashboard screen
+│       ├── capture/
+│       │   └── capture_screen.dart  # Camera + GPS capture screen
+│       ├── history/
+│       │   └── history_screen.dart  # Archive list with filters
+│       ├── details/
+│       │   └── details_screen.dart  # Individual record detail view
+│       └── main/
+│           └── main_screen.dart  # Tab host with BottomNavigationBar
+└── providers/
+    └── image_provider.dart       # Riverpod provider for captured image state
 ```
-
-## Features
-
-### Capture Flow
-- **Camera capture**: Takes photo and automatically records GPS location
-- **Gallery import**: Select existing photos with manual or GPS-based location
-- **Location options**: Toggle between current GPS or manual address entry
-
-### History & Management
-- **Grid view**: Thumbnails with timestamp overlay
-- **Multi-select**: Long press to enter selection mode
-- **Bulk delete**: Delete multiple records at once
-- **Preview**: Full-screen image viewer with zoom/pan
-
-### Data Persistence
-- **Hive storage**: Local database for soil records
-- **SoilRecord model**: Image path, coordinates, address, timestamp
 
 ## Current Status
 
-**Status: In development — Phase 1 complete**
+**Status: In development — Phase 1 (mobile foundation)**
 
 ### Done
 
-- [x] Material Design 3 theme system (`AppTheme`, `AppColors`, `AppSpacing`)
+- [x] Custom theme (`AppTheme`, `AppColors`)
 - [x] Riverpod state management
-- [x] GoRouter navigation (5 routes)
-- [x] `NavigationBar` (MD3) with Home / History tabs
-- [x] Home screen with last capture card
-- [x] Capture screen with camera and gallery options
-- [x] Location handling (auto GPS for camera, manual option for gallery)
-- [x] History screen with grid layout
-- [x] Multi-select deletion mode
-- [x] Image preview screen with info panel
-- [x] Details screen with record information
+- [x] GoRouter navigation (4 routes)
+- [x] `BottomNavigationBar` (Home / History)
+- [x] Home screen with navigation buttons
+- [x] Capture screen with camera and gallery buttons
+- [x] History screen with list placeholder
+- [x] Details screen layout
 - [x] Real camera integration (`image_picker`)
-- [x] Real GPS integration (`geolocator` + `geocoding`)
-- [x] Local persistence (`Hive`)
-- [x] `SoilRecord` data model with computed properties
-- [x] Clean Code refactoring (DRY, SRP, centralized formatters)
+- [x] Image preview after capture
+- [x] Android + iOS permission handling
+- [x] `ImageNotifier` provider for image state
+
+### Pending (Phase 1)
+
+- [ ] Real GPS integration (`geolocator` + `geocoding`)
+- [ ] Local persistence (`Hive`)
+- [ ] `SoilRecord` data model
+- [ ] History populated with real data
 
 ### Pending (Phase 2)
 
 - [ ] On-device soil classification (TensorFlow Lite)
-- [ ] Classification results display
-- [ ] Export/share functionality
 
-## Architecture
+## Known Issues
 
-The app follows Clean Code principles:
-
-- **Centralized constants**: `StorageKeys` for Hive box names
-- **Centralized formatters**: `Formatters` class for date/time and coordinates
-- **Model enrichment**: `SoilRecord` with computed getters (`hasCoordinates`, `formattedTimestamp`, etc.)
-- **Small, focused widgets**: Each widget does one thing well
-- **Consistent naming**: Intention-revealing names throughout
-
-## License
-
-This project is proprietary software developed for VisioSoil.
+- **GPS**: coordinates are not yet captured — `geolocator` integration is pending.
+- **Persistence**: captured images are stored in memory only; data does not survive app restarts (`Hive` integration pending).
+- **Records**: History screen displays placeholder data — will be populated after Hive integration.
