@@ -10,28 +10,40 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _presentscreen = 0;
+  int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomePage(),
-    const HistoryScreen()
+  final List<Widget> _screens = const [
+    HomePage(),
+    HistoryScreen(),
   ];
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_presentscreen],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _presentscreen,
-        onTap: (int clicked) {
-          setState(() {
-            _presentscreen = clicked;
-          });
-        },
-
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Histórico'),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _screens[_currentIndex],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _onTabTapped,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.photo_library_outlined),
+            selectedIcon: Icon(Icons.photo_library),
+            label: 'Histórico',
+          ),
         ],
       ),
     );
