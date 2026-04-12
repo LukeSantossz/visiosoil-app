@@ -8,10 +8,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 class ImagePreviewScreen extends StatelessWidget {
-  const ImagePreviewScreen({
-    super.key,
-    required this.recordIndex,
-  });
+  const ImagePreviewScreen({super.key, required this.recordIndex});
 
   final int recordIndex;
 
@@ -67,10 +64,7 @@ class _RecordNotFoundView extends StatelessWidget {
 }
 
 class _PreviewContent extends StatelessWidget {
-  const _PreviewContent({
-    required this.record,
-    required this.recordIndex,
-  });
+  const _PreviewContent({required this.record, required this.recordIndex});
 
   final SoilRecord record;
   final int recordIndex;
@@ -81,7 +75,9 @@ class _PreviewContent extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Column(
         children: [
-          Expanded(child: _ImageViewer(record: record, recordIndex: recordIndex)),
+          Expanded(
+            child: _ImageViewer(record: record, recordIndex: recordIndex),
+          ),
           _InfoPanel(record: record),
         ],
       ),
@@ -90,10 +86,7 @@ class _PreviewContent extends StatelessWidget {
 }
 
 class _ImageViewer extends StatelessWidget {
-  const _ImageViewer({
-    required this.record,
-    required this.recordIndex,
-  });
+  const _ImageViewer({required this.record, required this.recordIndex});
 
   final SoilRecord record;
   final int recordIndex;
@@ -111,7 +104,11 @@ class _ImageViewer extends StatelessWidget {
           child: Center(
             child: imageFile.existsSync()
                 ? Image.file(imageFile, fit: BoxFit.contain)
-                : const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                : const Icon(
+                    Icons.broken_image,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
           ),
         ),
         _TopBar(recordIndex: recordIndex),
@@ -155,10 +152,7 @@ class _TopBar extends StatelessWidget {
 }
 
 class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _CircleIconButton({required this.icon, required this.onPressed});
 
   final IconData icon;
   final VoidCallback onPressed;
@@ -203,16 +197,16 @@ class _InfoPanel extends StatelessWidget {
                 label: 'Capturado em',
                 value: record.formattedTimestamp,
               ),
-              if (record.hasValidAddress || record.hasCoordinates) ...[
-                const SizedBox(height: AppSpacing.md),
-                _InfoRow(
-                  icon: Icons.location_on,
-                  label: 'Localização',
-                  value: record.hasValidAddress
-                      ? record.address
-                      : record.formattedCoordinates,
-                ),
-              ],
+              const SizedBox(height: AppSpacing.md),
+              _InfoRow(
+                icon: Icons.location_on,
+                label: 'Localização',
+                value: record.hasValidAddress
+                    ? record.address!
+                    : (record.hasCoordinates
+                          ? record.formattedCoordinates
+                          : 'Indisponível para imagens da galeria'),
+              ),
               if (record.hasCoordinates && record.hasValidAddress) ...[
                 const SizedBox(height: AppSpacing.sm),
                 _CoordinatesSubtext(coordinates: record.formattedCoordinates),

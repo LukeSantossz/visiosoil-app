@@ -11,10 +11,7 @@ import 'package:visiosoil_app/core/widgets/visio_card.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 class DetailsPage extends StatelessWidget {
-  const DetailsPage({
-    super.key,
-    required this.recordIndex,
-  });
+  const DetailsPage({super.key, required this.recordIndex});
 
   final int recordIndex;
 
@@ -60,10 +57,7 @@ class _RecordNotFoundView extends StatelessWidget {
 }
 
 class _DetailsContent extends StatelessWidget {
-  const _DetailsContent({
-    required this.record,
-    required this.recordIndex,
-  });
+  const _DetailsContent({required this.record, required this.recordIndex});
 
   final SoilRecord record;
   final int recordIndex;
@@ -189,32 +183,39 @@ class _LocationCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(record.displayAddress, style: theme.textTheme.bodyLarge),
+                    Text(
+                      record.hasValidAddress
+                          ? record.displayAddress
+                          : 'Indisponível para imagens da galeria',
+                      style: theme.textTheme.bodyLarge,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _CoordinateItem(
-                  label: 'Latitude',
-                  value: record.latitude.toStringAsFixed(6),
+          if (record.hasCoordinates) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _CoordinateItem(
+                    label: 'Latitude',
+                    value: record.latitude!.toStringAsFixed(6),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _CoordinateItem(
-                  label: 'Longitude',
-                  value: record.longitude.toStringAsFixed(6),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _CoordinateItem(
+                    label: 'Longitude',
+                    value: record.longitude!.toStringAsFixed(6),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -222,10 +223,7 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _CoordinateItem extends StatelessWidget {
-  const _CoordinateItem({
-    required this.label,
-    required this.value,
-  });
+  const _CoordinateItem({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -300,9 +298,9 @@ class _DeleteButton extends StatelessWidget {
     }
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro excluído.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
       // Volta para o histórico, pulando a tela de preview
       context.go('/');
     }
