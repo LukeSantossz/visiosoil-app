@@ -1,4 +1,4 @@
-[![CI](https://github.com/com.visiosoil/visiosoil-app/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/com.visiosoil/visiosoil-app/actions)
+[![CI](https://github.com/LukeSantossz/visiosoil-app/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
@@ -40,7 +40,7 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 
 ```bash
 # Clone the repository
-git clone https://github.com/com.visiosoil/visiosoil-app.git
+git clone https://github.com/LukeSantossz/visiosoil-app.git
 cd visiosoil-app
 
 # Install dependencies
