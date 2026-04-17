@@ -1,3 +1,5 @@
+[![CI](https://github.com/com.visiosoil/visiosoil-app/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/com.visiosoil/visiosoil-app/actions)
+
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
