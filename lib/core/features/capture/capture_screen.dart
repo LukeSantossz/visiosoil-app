@@ -29,6 +29,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
+    // TODO(v2): reativar galeria
+    // await picker.pickImage(source: ImageSource.gallery);
     final XFile? image = await picker.pickImage(source: source);
 
     if (image == null) return;
@@ -41,10 +43,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
       _longitude = null;
     });
 
-    // Apenas imagens da câmera devem acionar geolocalização.
-    if (source == ImageSource.camera) {
-      await _fetchCurrentLocation();
-    }
+    // TODO(v2): reativar galeria — Task 15: geolocalização somente para `ImageSource.camera`.
+    // if (source == ImageSource.camera) {
+    await _fetchCurrentLocation();
+    // }
   }
 
   Future<void> _fetchCurrentLocation() async {
@@ -79,13 +81,17 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     final image = selectedImage.file;
     if (image == null) return;
 
-    final isGallery = selectedImage.source == ImageSource.gallery;
-
-    final String? finalAddress = isGallery
-        ? null
-        : (_address ?? 'Localização não disponível');
-    final double? finalLatitude = isGallery ? null : _latitude;
-    final double? finalLongitude = isGallery ? null : _longitude;
+    // TODO(v2): reativar galeria — Task 15: sem coordenadas quando a origem é galeria.
+    // final isGallery = selectedImage.source == ImageSource.gallery;
+    // final String? finalAddress = isGallery
+    //     ? null
+    //     : (_address ?? 'Localização não disponível');
+    // final double? finalLatitude = isGallery ? null : _latitude;
+    // final double? finalLongitude = isGallery ? null : _longitude;
+    final String finalAddress =
+        _address ?? 'Localização não disponível';
+    final double? finalLatitude = _latitude;
+    final double? finalLongitude = _longitude;
 
     final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
     box.add(
@@ -122,7 +128,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     final selectedImage = ref.watch(imageProvider);
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
-    final isFromGallery = selectedImage.source == ImageSource.gallery;
+    // TODO(v2): reativar galeria
+    // final isFromGallery = selectedImage.source == ImageSource.gallery;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Nova Captura'),
@@ -138,31 +145,37 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
                   image: image,
                   isLoading: _isLoading,
                   address: _address,
-                  isFromGallery: isFromGallery,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               // Botões de ação
               if (!hasImage) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: VisioButton(
-                        label: 'Câmera',
-                        icon: Icons.camera_alt,
-                        onPressed: () => _pickImage(ImageSource.camera),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: VisioButton(
-                        label: 'Galeria',
-                        icon: Icons.photo_library,
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                        variant: VisioButtonVariant.secondary,
-                      ),
-                    ),
-                  ],
+                // TODO(v2): reativar galeria — opção `ImageSource.gallery` na UI.
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: VisioButton(
+                //         label: 'Câmera',
+                //         icon: Icons.camera_alt,
+                //         onPressed: () => _pickImage(ImageSource.camera),
+                //       ),
+                //     ),
+                //     const SizedBox(width: AppSpacing.md),
+                //     Expanded(
+                //       child: VisioButton(
+                //         label: 'Galeria',
+                //         icon: Icons.photo_library,
+                //         onPressed: () => _pickImage(ImageSource.gallery),
+                //         variant: VisioButtonVariant.secondary,
+                //       ),
+                //     ),
+                //   ],
+                // ),
+                VisioButton(
+                  label: 'Câmera',
+                  icon: Icons.camera_alt,
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  expanded: true,
                 ),
               ] else ...[
                 VisioButton(
@@ -193,14 +206,12 @@ class _ImagePreview extends StatelessWidget {
   const _ImagePreview({
     required this.image,
     required this.isLoading,
-    required this.isFromGallery,
     this.address,
   });
 
   final File? image;
   final bool isLoading;
   final String? address;
-  final bool isFromGallery;
 
   @override
   Widget build(BuildContext context) {
@@ -259,68 +270,69 @@ class _ImagePreview extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isFromGallery) ...[
+              // TODO(v2): reativar galeria — UI quando `isFromGallery` (origem galeria).
+              // if (isFromGallery) ...[
+              //   Row(
+              //     children: [
+              //       Icon(
+              //         Icons.info_outline,
+              //         size: 20,
+              //         color: theme.colorScheme.primary,
+              //       ),
+              //       const SizedBox(width: AppSpacing.sm),
+              //       Text(
+              //         'Localização indisponível',
+              //         style: theme.textTheme.titleSmall,
+              //       ),
+              //     ],
+              //   ),
+              //   const SizedBox(height: AppSpacing.sm),
+              //   Text(
+              //     'Imagens da galeria não recebem coordenadas GPS para preservar a confiabilidade do registro.',
+              //     style: theme.textTheme.bodyMedium?.copyWith(
+              //       color: theme.colorScheme.onSurfaceVariant,
+              //     ),
+              //   ),
+              // ] else ...[
+              if (isLoading)
                 Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: theme.colorScheme.primary,
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: LoadingIndicator(size: 20, strokeWidth: 2),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'Localização indisponível',
-                      style: theme.textTheme.titleSmall,
+                      'Obtendo localização...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 20,
+                      color: address != null
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        address ?? 'Localização não disponível',
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Imagens da galeria não recebem coordenadas GPS para preservar a confiabilidade do registro.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ] else ...[
-                if (isLoading)
-                  Row(
-                    children: [
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: LoadingIndicator(size: 20, strokeWidth: 2),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Obtendo localização...',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 20,
-                        color: address != null
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.error,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          address ?? 'Localização não disponível',
-                          style: theme.textTheme.bodyMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
+              // ],
             ],
           ),
         ),
