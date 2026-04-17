@@ -1,4 +1,4 @@
-[![CI](https://github.com/LukeSantossz/visiosoil-app/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LukeSantossz/visiosoil-app/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=dev&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
