@@ -14,15 +14,15 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/details',
       builder: (context, state) {
-        final index = state.extra as int? ?? 0;
-        return DetailsPage(recordIndex: index);
+        final id = state.extra as int;
+        return DetailsPage(recordId: id);
       },
     ),
     GoRoute(
       path: '/preview',
       builder: (context, state) {
-        final index = state.extra as int? ?? 0;
-        return ImagePreviewScreen(recordIndex: index);
+        final id = state.extra as int;
+        return ImagePreviewScreen(recordId: id);
       },
     ),
   ],

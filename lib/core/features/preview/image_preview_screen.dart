@@ -1,32 +1,34 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:visiosoil_app/core/constants/storage_keys.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-class ImagePreviewScreen extends StatelessWidget {
-  const ImagePreviewScreen({super.key, required this.recordIndex});
+class ImagePreviewScreen extends ConsumerWidget {
+  const ImagePreviewScreen({super.key, required this.recordId});
 
-  final int recordIndex;
+  final int recordId;
 
   @override
-  Widget build(BuildContext context) {
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRecord = ref.watch(soilRecordByIdProvider(recordId));
 
-    // Valida se o índice ainda é válido (pode ter sido deletado)
-    if (recordIndex < 0 || recordIndex >= box.length) {
-      return _RecordNotFoundView(onBack: () => context.pop());
-    }
-
-    final record = box.getAt(recordIndex);
-    if (record == null) {
-      return _RecordNotFoundView(onBack: () => context.pop());
-    }
-
-    return _PreviewContent(record: record, recordIndex: recordIndex);
+    return asyncRecord.when(
+      loading: () => const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => _RecordNotFoundView(onBack: () => context.pop()),
+      data: (record) {
+        if (record == null) {
+          return _RecordNotFoundView(onBack: () => context.pop());
+        }
+        return _PreviewContent(record: record, recordId: recordId);
+      },
+    );
   }
 }
 
@@ -64,10 +66,10 @@ class _RecordNotFoundView extends StatelessWidget {
 }
 
 class _PreviewContent extends StatelessWidget {
-  const _PreviewContent({required this.record, required this.recordIndex});
+  const _PreviewContent({required this.record, required this.recordId});
 
   final SoilRecord record;
-  final int recordIndex;
+  final int recordId;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +78,7 @@ class _PreviewContent extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: _ImageViewer(record: record, recordIndex: recordIndex),
+            child: _ImageViewer(record: record, recordId: recordId),
           ),
           _InfoPanel(record: record),
         ],
@@ -86,10 +88,10 @@ class _PreviewContent extends StatelessWidget {
 }
 
 class _ImageViewer extends StatelessWidget {
-  const _ImageViewer({required this.record, required this.recordIndex});
+  const _ImageViewer({required this.record, required this.recordId});
 
   final SoilRecord record;
-  final int recordIndex;
+  final int recordId;
 
   @override
   Widget build(BuildContext context) {
@@ -111,16 +113,16 @@ class _ImageViewer extends StatelessWidget {
                   ),
           ),
         ),
-        _TopBar(recordIndex: recordIndex),
+        _TopBar(recordId: recordId),
       ],
     );
   }
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.recordIndex});
+  const _TopBar({required this.recordId});
 
-  final int recordIndex;
+  final int recordId;
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +143,7 @@ class _TopBar extends StatelessWidget {
               ),
               _CircleIconButton(
                 icon: Icons.info_outline,
-                onPressed: () => context.push('/details', extra: recordIndex),
+                onPressed: () => context.push('/details', extra: recordId),
               ),
             ],
           ),

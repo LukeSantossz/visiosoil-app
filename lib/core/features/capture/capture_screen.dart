@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:visiosoil_app/core/constants/storage_keys.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -13,6 +11,7 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({super.key});
@@ -93,16 +92,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     final double? finalLatitude = _latitude;
     final double? finalLongitude = _longitude;
 
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
-    box.add(
-      SoilRecord(
-        imagePath: image.path,
-        latitude: finalLatitude,
-        longitude: finalLongitude,
-        address: finalAddress,
-        timestamp: DateTime.now().toIso8601String(),
-      ),
-    );
+    await ref.read(soilRecordRepositoryProvider).create(
+          SoilRecord(
+            imagePath: image.path,
+            latitude: finalLatitude,
+            longitude: finalLongitude,
+            address: finalAddress,
+            timestamp: DateTime.now().toIso8601String(),
+          ),
+        );
 
     ref.read(imageProvider.notifier).clearImage();
 

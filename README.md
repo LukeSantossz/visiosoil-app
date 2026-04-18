@@ -22,10 +22,10 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 | Navigation | GoRouter |
 | Typography | google_fonts |
 | Image loading | cached_network_image |
-| Camera / Gallery | image_picker |
-| GPS | geolocator *(planned — Phase 1)* |
-| Reverse geocoding | geocoding *(planned — Phase 1)* |
-| Local persistence | Hive *(planned — Phase 1)* |
+| Camera / Gallery | image_picker *(camera-only por ora)* |
+| GPS | geolocator |
+| Reverse geocoding | geocoding |
+| Local persistence | Drift + SQLite (`sqlite3_flutter_libs`) |
 | AI classification | TensorFlow Lite *(planned — Phase 2)* |
 
 ## Getting Started
@@ -45,6 +45,9 @@ cd visiosoil-app
 
 # Install dependencies
 flutter pub get
+
+# Generate Drift adapters (required after changes to DB tables / models)
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 ### Running
@@ -52,6 +55,12 @@ flutter pub get
 ```bash
 # Run on a connected emulator or device
 flutter run
+
+# Static analysis
+flutter analyze
+
+# Run tests (unit + repository)
+flutter test
 ```
 
 ## Project Structure
@@ -60,28 +69,37 @@ flutter run
 lib/
 ├── main.dart                     # App entry point (ProviderScope + MaterialApp.router)
 ├── core/
-│   ├── theme/
-│   │   └── app_theme.dart        # ThemeData, AppColors
+│   ├── theme/                    # AppTheme, AppColors, AppTypography, AppSpacing
 │   ├── routes/
-│   │   └── app_router.dart       # GoRouter configuration
-│   ├── widgets/
-│   │   ├── visio_app_bar.dart    # Shared AppBar
-│   │   └── custom_bottom_nav.dart
-│   ├── models/
-│   │   └── soil_record.dart      # SoilRecord, GpsCoordinates, SoilComposition, BiologicalIndicators
+│   │   └── app_router.dart       # GoRouter — routes use int id (not list index)
+│   ├── widgets/                  # VisioAppBar, VisioButton, VisioCard, EmptyState
+│   ├── utils/                    # LocationService, formatters
+│   ├── database/
+│   │   ├── app_database.dart             # Drift DB class (schemaVersion = 1)
+│   │   ├── app_database.g.dart           # generated
+│   │   └── tables/
+│   │       └── soil_records_table.dart   # @DataClassName('SoilRecordRow')
+│   ├── data/
+│   │   └── repositories/
+│   │       ├── soil_record_repository.dart         # abstract interface
+│   │       └── drift_soil_record_repository.dart   # Drift implementation
 │   └── features/
-│       ├── home/
-│       │   └── home_page.dart    # Dashboard screen
-│       ├── capture/
-│       │   └── capture_screen.dart  # Camera + GPS capture screen
-│       ├── history/
-│       │   └── history_screen.dart  # Archive list with filters
-│       ├── details/
-│       │   └── details_screen.dart  # Individual record detail view
-│       └── main/
-│           └── main_screen.dart  # Tab host with BottomNavigationBar
+│       ├── home/home_page.dart          # Home with latest capture card
+│       ├── capture/capture_screen.dart  # Camera + GPS + save (repository.create)
+│       ├── history/history_screen.dart  # Grid + multi-select deleteByIds
+│       ├── details/details.dart         # FutureProvider getById + deleteById
+│       ├── preview/image_preview_screen.dart  # Zoomable viewer (by id)
+│       └── main/main_screen.dart        # Tab host
+├── models/
+│   └── soil_record.dart          # Plain Dart class (id, copyWith, getters)
 └── providers/
-    └── image_provider.dart       # Riverpod provider for captured image state
+    ├── image_provider.dart                      # Selected image state
+    ├── database_provider.dart                   # AppDatabase singleton
+    └── soil_record_repository_provider.dart     # Repository + stream/future providers
+
+docs/
+└── adr/
+    └── 0001-drift-over-hive.md   # ADR: why Drift over Hive
 ```
 
 ## Current Status
@@ -90,32 +108,32 @@ lib/
 
 ### Done
 
-- [x] Custom theme (`AppTheme`, `AppColors`)
-- [x] Riverpod state management
-- [x] GoRouter navigation (4 routes)
+- [x] Custom Material 3 theme (`AppTheme`, `AppColors`, `AppTypography`, `AppSpacing`)
+- [x] Riverpod state management (stream + future providers)
+- [x] GoRouter navigation (5 routes — `/details` and `/preview` take a record `id`)
 - [x] `BottomNavigationBar` (Home / History)
-- [x] Home screen with navigation buttons
-- [x] Capture screen with camera and gallery buttons
-- [x] History screen with list placeholder
-- [x] Details screen layout
-- [x] Real camera integration (`image_picker`)
+- [x] Home screen with "last capture" card
+- [x] Capture screen (camera-only, `image_picker`)
 - [x] Image preview after capture
+- [x] History screen with grid, multi-select and batch delete
+- [x] Details screen with delete action
+- [x] Image preview (zoomable) screen
 - [x] Android + iOS permission handling
 - [x] `ImageNotifier` provider for image state
-
-### Pending (Phase 1)
-
-- [ ] Real GPS integration (`geolocator` + `geocoding`)
-- [ ] Local persistence (`Hive`)
-- [ ] `SoilRecord` data model
-- [ ] History populated with real data
+- [x] Real GPS integration (`geolocator` + `geocoding`, via `LocationService`)
+- [x] Persistence on **Drift + SQLite** via a `SoilRecordRepository` interface
+- [x] `SoilRecord` domain model (plain Dart with `id` + `copyWith`)
+- [x] Repository tests with `NativeDatabase.memory()`
+- [x] CI pipeline (analyze + test + APK build)
+- [x] ADR 0001 documenting Drift adoption
 
 ### Pending (Phase 2)
 
 - [ ] On-device soil classification (TensorFlow Lite)
+- [ ] Re-enable gallery source (currently camera-only; kept in code behind `TODO(v2)`)
+- [ ] Remote sync (the repository interface already leaves room for a `sync_status` column)
 
 ## Known Issues
 
-- **GPS**: coordinates are not yet captured — `geolocator` integration is pending.
-- **Persistence**: captured images are stored in memory only; data does not survive app restarts (`Hive` integration pending).
-- **Records**: History screen displays placeholder data — will be populated after Hive integration.
+- Gallery capture is temporarily disabled in the UI (camera-only flow). The code paths remain behind `TODO(v2)` comments.
+- The first launch of this version starts with an **empty** database. Pre-production Hive data is **not migrated** — see `docs/adr/0001-drift-over-hive.md`.
