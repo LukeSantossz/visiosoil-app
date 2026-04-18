@@ -101,11 +101,28 @@ docs/
     └── 0001-drift-over-hive.md   # ADR: why Drift over Hive
 ```
 
+## Features
+
+### Capture Flow
+- **Camera capture**: Takes photo and automatically records GPS location
+- **Gallery import**: Select existing photos with manual or GPS-based location
+- **Location options**: Toggle between current GPS or manual address entry
+
+### History & Management
+- **Grid view**: Thumbnails with timestamp overlay
+- **Multi-select**: Long press to enter selection mode
+- **Bulk delete**: Delete multiple records at once
+- **Preview**: Full-screen image viewer with zoom/pan
+
+### Data Persistence
+- **Hive storage**: Local database for soil records
+- **SoilRecord model**: Image path, coordinates, address, timestamp
+
 ## Current Status
 
-**Status: In development — Phase 1 (mobile foundation)**
+**Status: v1.0.0 — Phase 1 complete**
 
-### Done
+### Done (v1.0.0)
 
 - [x] Custom Material 3 theme (`AppTheme`, `AppColors`, `AppTypography`, `AppSpacing`)
 - [x] Riverpod state management (stream + future providers)
@@ -132,6 +149,6 @@ docs/
 - [ ] Re-enable gallery source (currently camera-only; kept in code behind `TODO(v2)`)
 - [ ] Remote sync (the repository interface already leaves room for a `sync_status` column)
 
-## Known Issues
+## License
 
 - Gallery capture is temporarily disabled in the UI (camera-only flow). The code paths remain behind `TODO(v2)` comments.
