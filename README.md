@@ -1,8 +1,7 @@
-[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=dev&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
-
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
+[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=dev&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
 # VisioSoil — Soil Analysis Mobile App
 
@@ -136,4 +135,3 @@ docs/
 ## Known Issues
 
 - Gallery capture is temporarily disabled in the UI (camera-only flow). The code paths remain behind `TODO(v2)` comments.
-- The first launch of this version starts with an **empty** database. Pre-production Hive data is **not migrated** — see `docs/adr/0001-drift-over-hive.md`.
