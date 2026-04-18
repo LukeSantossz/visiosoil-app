@@ -11,6 +11,8 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+/tutor.md
+/review.md
 
 # IntelliJ related
 *.iml
@@ -67,4 +69,3 @@ Thumbs.db
 # AI
 .agent/
 .claude/
-/tutor.md

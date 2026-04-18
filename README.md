@@ -1,6 +1,7 @@
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
-![Status](https://img.shields.io/badge/status-v1.0.0-green)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
+[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=dev&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
 # VisioSoil — Soil Analysis Mobile App
 
@@ -8,20 +9,22 @@
 
 ## Overview
 
-VisioSoil lets agronomists and field professionals photograph soil samples, record GPS coordinates, and review captured data — with on-device AI classification planned for a future phase. The app is the production-mobile evolution of academic research presented at ConBAP, which benchmarked the SqueezeNet architecture against manual feature extraction methods (FFT, Gabor, LBP) for soil texture classification.
+VisioSoil lets agronomists and field professionals photograph soil samples, record GPS coordinates, and review captured data — with on-device AI classification planned for a future phase. The app is the production-mobile evolution of academic research for soil texture classification.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Framework | Flutter (Android + iOS) |
-| Language | Dart 3.10+ |
-| State management | Riverpod 3.3.1 |
-| Navigation | GoRouter 17.1.0 |
-| Camera / Gallery | image_picker 1.2.1 |
-| GPS | geolocator 14.0.2 |
-| Reverse geocoding | geocoding 4.0.0 |
-| Local persistence | Hive 2.2.3 + hive_flutter 1.1.0 |
+| Language | Dart |
+| State management | Riverpod |
+| Navigation | GoRouter |
+| Typography | google_fonts |
+| Image loading | cached_network_image |
+| Camera / Gallery | image_picker *(camera-only por ora)* |
+| GPS | geolocator |
+| Reverse geocoding | geocoding |
+| Local persistence | Drift + SQLite (`sqlite3_flutter_libs`) |
 | AI classification | TensorFlow Lite *(planned — Phase 2)* |
 
 ## Getting Started
@@ -36,14 +39,14 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 
 ```bash
 # Clone the repository
-git clone https://github.com/com.visiosoil/visiosoil-app.git
+git clone https://github.com/LukeSantossz/visiosoil-app.git
 cd visiosoil-app
 
 # Install dependencies
 flutter pub get
 
-# Generate Hive adapters (if needed)
-flutter pub run build_runner build
+# Generate Drift adapters (required after changes to DB tables / models)
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 ### Running
@@ -51,49 +54,51 @@ flutter pub run build_runner build
 ```bash
 # Run on a connected emulator or device
 flutter run
+
+# Static analysis
+flutter analyze
+
+# Run tests (unit + repository)
+flutter test
 ```
 
 ## Project Structure
 
 ```
 lib/
-├── main.dart                        # App entry point (ProviderScope + MaterialApp.router)
+├── main.dart                     # App entry point (ProviderScope + MaterialApp.router)
+├── core/
+│   ├── theme/                    # AppTheme, AppColors, AppTypography, AppSpacing
+│   ├── routes/
+│   │   └── app_router.dart       # GoRouter — routes use int id (not list index)
+│   ├── widgets/                  # VisioAppBar, VisioButton, VisioCard, EmptyState
+│   ├── utils/                    # LocationService, formatters
+│   ├── database/
+│   │   ├── app_database.dart             # Drift DB class (schemaVersion = 1)
+│   │   ├── app_database.g.dart           # generated
+│   │   └── tables/
+│   │       └── soil_records_table.dart   # @DataClassName('SoilRecordRow')
+│   ├── data/
+│   │   └── repositories/
+│   │       ├── soil_record_repository.dart         # abstract interface
+│   │       └── drift_soil_record_repository.dart   # Drift implementation
+│   └── features/
+│       ├── home/home_page.dart          # Home with latest capture card
+│       ├── capture/capture_screen.dart  # Camera + GPS + save (repository.create)
+│       ├── history/history_screen.dart  # Grid + multi-select deleteByIds
+│       ├── details/details.dart         # FutureProvider getById + deleteById
+│       ├── preview/image_preview_screen.dart  # Zoomable viewer (by id)
+│       └── main/main_screen.dart        # Tab host
 ├── models/
-│   └── soil_record.dart             # SoilRecord model with Hive adapter
-├── providers/
-│   └── image_provider.dart          # Riverpod provider for captured image state
-└── core/
-    ├── constants/
-    │   └── storage_keys.dart        # Hive box names and storage constants
-    ├── theme/
-    │   ├── app_theme.dart           # ThemeData configuration
-    │   ├── app_colors.dart          # Material Design 3 color palette
-    │   ├── app_spacing.dart         # Spacing constants
-    │   └── app_typography.dart      # Typography scale
-    ├── routes/
-    │   └── app_router.dart          # GoRouter configuration
-    ├── utils/
-    │   ├── location_service.dart    # GPS capture and reverse geocoding
-    │   └── formatters.dart          # Date/time and coordinate formatters
-    ├── widgets/
-    │   ├── visio_app_bar.dart       # Shared AppBar
-    │   ├── visio_button.dart        # Primary/secondary button variants
-    │   ├── visio_card.dart          # Card wrapper component
-    │   ├── loading_indicator.dart   # Styled loading spinner
-    │   └── empty_state.dart         # Empty state placeholder
-    └── features/
-        ├── home/
-        │   └── home_page.dart       # Dashboard with last capture card
-        ├── capture/
-        │   └── capture_screen.dart  # Camera + GPS capture with location options
-        ├── history/
-        │   └── history_screen.dart  # Grid archive with multi-select delete
-        ├── preview/
-        │   └── image_preview_screen.dart  # Full image viewer with info panel
-        ├── details/
-        │   └── details.dart         # Record detail view with delete
-        └── main/
-            └── main_screen.dart     # Tab host with NavigationBar (MD3)
+│   └── soil_record.dart          # Plain Dart class (id, copyWith, getters)
+└── providers/
+    ├── image_provider.dart                      # Selected image state
+    ├── database_provider.dart                   # AppDatabase singleton
+    └── soil_record_repository_provider.dart     # Repository + stream/future providers
+
+docs/
+└── adr/
+    └── 0001-drift-over-hive.md   # ADR: why Drift over Hive
 ```
 
 ## Features
@@ -119,41 +124,31 @@ lib/
 
 ### Done (v1.0.0)
 
-- [x] Material Design 3 theme system (`AppTheme`, `AppColors`, `AppSpacing`)
-- [x] Riverpod state management
-- [x] GoRouter navigation (5 routes)
-- [x] `NavigationBar` (MD3) with Home / History tabs
-- [x] Home screen with last capture card
-- [x] Capture screen with camera and gallery options
-- [x] Location handling (auto GPS for camera, manual option for gallery)
-- [x] History screen with grid layout
-- [x] Multi-select deletion mode
-- [x] Image preview screen with info panel
-- [x] Details screen with record information
-- [x] Real camera integration (`image_picker`)
-- [x] Real GPS integration (`geolocator` + `geocoding`)
-- [x] Local persistence (`Hive`)
-- [x] `SoilRecord` data model with computed properties
-- [x] Clean Code refactoring (DRY, SRP, centralized formatters)
+- [x] Custom Material 3 theme (`AppTheme`, `AppColors`, `AppTypography`, `AppSpacing`)
+- [x] Riverpod state management (stream + future providers)
+- [x] GoRouter navigation (5 routes — `/details` and `/preview` take a record `id`)
+- [x] `BottomNavigationBar` (Home / History)
+- [x] Home screen with "last capture" card
+- [x] Capture screen (camera-only, `image_picker`)
+- [x] Image preview after capture
+- [x] History screen with grid, multi-select and batch delete
+- [x] Details screen with delete action
+- [x] Image preview (zoomable) screen
+- [x] Android + iOS permission handling
+- [x] `ImageNotifier` provider for image state
+- [x] Real GPS integration (`geolocator` + `geocoding`, via `LocationService`)
+- [x] Persistence on **Drift + SQLite** via a `SoilRecordRepository` interface
+- [x] `SoilRecord` domain model (plain Dart with `id` + `copyWith`)
+- [x] Repository tests with `NativeDatabase.memory()`
+- [x] CI pipeline (analyze + test + APK build)
+- [x] ADR 0001 documenting Drift adoption
 
 ### Pending (Phase 2)
 
 - [ ] On-device soil classification (TensorFlow Lite)
-- [ ] Classification results display
-- [ ] Export/share functionality
-- [ ] History filters and search
-- [ ] Dark mode support
-
-## Architecture
-
-The app follows Clean Code principles:
-
-- **Centralized constants**: `StorageKeys` for Hive box names
-- **Centralized formatters**: `Formatters` class for date/time and coordinates
-- **Model enrichment**: `SoilRecord` with computed getters (`hasCoordinates`, `formattedTimestamp`, etc.)
-- **Small, focused widgets**: Each widget does one thing well
-- **Consistent naming**: Intention-revealing names throughout
+- [ ] Re-enable gallery source (currently camera-only; kept in code behind `TODO(v2)`)
+- [ ] Remote sync (the repository interface already leaves room for a `sync_status` column)
 
 ## License
 
-This project is proprietary software developed for VisioSoil.
+- Gallery capture is temporarily disabled in the UI (camera-only flow). The code paths remain behind `TODO(v2)` comments.

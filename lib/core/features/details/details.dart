@@ -1,38 +1,37 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:visiosoil_app/core/constants/storage_keys.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_card.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-class DetailsPage extends StatelessWidget {
-  const DetailsPage({
-    super.key,
-    required this.recordIndex,
-  });
+class DetailsPage extends ConsumerWidget {
+  const DetailsPage({super.key, required this.recordId});
 
-  final int recordIndex;
+  final int recordId;
 
   @override
-  Widget build(BuildContext context) {
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRecord = ref.watch(soilRecordByIdProvider(recordId));
 
-    // Valida se o índice ainda é válido (pode ter sido deletado)
-    if (recordIndex < 0 || recordIndex >= box.length) {
-      return const _RecordNotFoundView();
-    }
-
-    final record = box.getAt(recordIndex);
-    if (record == null) {
-      return const _RecordNotFoundView();
-    }
-
-    return _DetailsContent(record: record, recordIndex: recordIndex);
+    return asyncRecord.when(
+      loading: () => const Scaffold(
+        appBar: VisioAppBar(title: 'Detalhes'),
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => const _RecordNotFoundView(),
+      data: (record) {
+        if (record == null) {
+          return const _RecordNotFoundView();
+        }
+        return _DetailsContent(record: record, recordId: recordId);
+      },
+    );
   }
 }
 
@@ -60,13 +59,10 @@ class _RecordNotFoundView extends StatelessWidget {
 }
 
 class _DetailsContent extends StatelessWidget {
-  const _DetailsContent({
-    required this.record,
-    required this.recordIndex,
-  });
+  const _DetailsContent({required this.record, required this.recordId});
 
   final SoilRecord record;
-  final int recordIndex;
+  final int recordId;
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +82,7 @@ class _DetailsContent extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   _LocationCard(record: record),
                   const SizedBox(height: AppSpacing.xl),
-                  _DeleteButton(recordIndex: recordIndex),
+                  _DeleteButton(recordId: recordId),
                 ],
               ),
             ),
@@ -189,32 +185,39 @@ class _LocationCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(record.displayAddress, style: theme.textTheme.bodyLarge),
+                    Text(
+                      record.hasValidAddress
+                          ? record.displayAddress
+                          : 'Indisponível para imagens da galeria',
+                      style: theme.textTheme.bodyLarge,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _CoordinateItem(
-                  label: 'Latitude',
-                  value: record.latitude.toStringAsFixed(6),
+          if (record.hasCoordinates) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _CoordinateItem(
+                    label: 'Latitude',
+                    value: record.latitude!.toStringAsFixed(6),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _CoordinateItem(
-                  label: 'Longitude',
-                  value: record.longitude.toStringAsFixed(6),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _CoordinateItem(
+                    label: 'Longitude',
+                    value: record.longitude!.toStringAsFixed(6),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -222,10 +225,7 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _CoordinateItem extends StatelessWidget {
-  const _CoordinateItem({
-    required this.label,
-    required this.value,
-  });
+  const _CoordinateItem({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -253,16 +253,16 @@ class _CoordinateItem extends StatelessWidget {
   }
 }
 
-class _DeleteButton extends StatelessWidget {
-  const _DeleteButton({required this.recordIndex});
+class _DeleteButton extends ConsumerWidget {
+  const _DeleteButton({required this.recordId});
 
-  final int recordIndex;
+  final int recordId;
 
-  Future<void> _confirmAndDelete(BuildContext context) async {
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await _showDeleteConfirmation(context);
 
     if (confirmed == true && context.mounted) {
-      await _deleteRecord(context);
+      await _deleteRecord(context, ref);
     }
   }
 
@@ -291,29 +291,24 @@ class _DeleteButton extends StatelessWidget {
     );
   }
 
-  Future<void> _deleteRecord(BuildContext context) async {
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
-
-    // Verifica se o índice ainda é válido antes de deletar
-    if (recordIndex >= 0 && recordIndex < box.length) {
-      await box.deleteAt(recordIndex);
-    }
+  Future<void> _deleteRecord(BuildContext context, WidgetRef ref) async {
+    await ref.read(soilRecordRepositoryProvider).deleteById(recordId);
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro excluído.')),
-      );
-      // Volta para o histórico, pulando a tela de preview
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
+      // Volta para a home, pulando a tela de preview.
       context.go('/');
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return VisioButton(
       label: 'Excluir Registro',
       icon: Icons.delete_outline,
-      onPressed: () => _confirmAndDelete(context),
+      onPressed: () => _confirmAndDelete(context, ref),
       variant: VisioButtonVariant.secondary,
       expanded: true,
     );

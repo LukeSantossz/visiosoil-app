@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:visiosoil_app/core/constants/storage_keys.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -13,6 +11,7 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({super.key});
@@ -26,39 +25,27 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   String? _address;
   double? _latitude;
   double? _longitude;
-  bool _isFromGallery = false;
-  bool _useCurrentLocation = true;
-  final _addressController = TextEditingController();
-
-  @override
-  void dispose() {
-    _addressController.dispose();
-    super.dispose();
-  }
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
+    // TODO(v2): reativar galeria
+    // await picker.pickImage(source: ImageSource.gallery);
     final XFile? image = await picker.pickImage(source: source);
 
     if (image == null) return;
 
-    ref.read(imageProvider.notifier).setImage(File(image.path));
-
-    final isGallery = source == ImageSource.gallery;
+    ref.read(imageProvider.notifier).setImage(File(image.path), source);
 
     setState(() {
-      _isFromGallery = isGallery;
-      _useCurrentLocation = !isGallery; // Câmera usa GPS, galeria não
       _address = null;
       _latitude = null;
       _longitude = null;
-      _addressController.clear();
     });
 
-    // Para câmera, obtém localização automaticamente
-    if (!isGallery) {
-      await _fetchCurrentLocation();
-    }
+    // TODO(v2): reativar galeria — Task 15: geolocalização somente para `ImageSource.camera`.
+    // if (source == ImageSource.camera) {
+    await _fetchCurrentLocation();
+    // }
   }
 
   Future<void> _fetchCurrentLocation() async {
@@ -88,52 +75,32 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     }
   }
 
-  void _toggleLocationMode(bool useCurrentLocation) {
-    setState(() {
-      _useCurrentLocation = useCurrentLocation;
-      if (useCurrentLocation) {
-        _addressController.clear();
-        _fetchCurrentLocation();
-      } else {
-        _address = null;
-        _latitude = null;
-        _longitude = null;
-      }
-    });
-  }
-
   Future<void> _saveRecord() async {
-    final image = ref.read(imageProvider);
+    final selectedImage = ref.read(imageProvider);
+    final image = selectedImage.file;
     if (image == null) return;
 
-    // Determina o endereço final
-    String finalAddress;
-    double finalLatitude;
-    double finalLongitude;
+    // TODO(v2): reativar galeria — Task 15: sem coordenadas quando a origem é galeria.
+    // final isGallery = selectedImage.source == ImageSource.gallery;
+    // final String? finalAddress = isGallery
+    //     ? null
+    //     : (_address ?? 'Localização não disponível');
+    // final double? finalLatitude = isGallery ? null : _latitude;
+    // final double? finalLongitude = isGallery ? null : _longitude;
+    final String finalAddress =
+        _address ?? 'Localização não disponível';
+    final double? finalLatitude = _latitude;
+    final double? finalLongitude = _longitude;
 
-    if (_useCurrentLocation) {
-      finalAddress = _address ?? 'Localização não disponível';
-      finalLatitude = _latitude ?? 0;
-      finalLongitude = _longitude ?? 0;
-    } else {
-      final manualAddress = _addressController.text.trim();
-      finalAddress = manualAddress.isNotEmpty
-          ? manualAddress
-          : 'Localização não informada';
-      finalLatitude = 0;
-      finalLongitude = 0;
-    }
-
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
-    box.add(
-      SoilRecord(
-        imagePath: image.path,
-        latitude: finalLatitude,
-        longitude: finalLongitude,
-        address: finalAddress,
-        timestamp: DateTime.now().toIso8601String(),
-      ),
-    );
+    await ref.read(soilRecordRepositoryProvider).create(
+          SoilRecord(
+            imagePath: image.path,
+            latitude: finalLatitude,
+            longitude: finalLongitude,
+            address: finalAddress,
+            timestamp: DateTime.now().toIso8601String(),
+          ),
+        );
 
     ref.read(imageProvider.notifier).clearImage();
 
@@ -151,16 +118,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
       _address = null;
       _latitude = null;
       _longitude = null;
-      _isFromGallery = false;
-      _useCurrentLocation = true;
-      _addressController.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final image = ref.watch(imageProvider);
-    final hasImage = image != null;
+    final selectedImage = ref.watch(imageProvider);
+    final image = selectedImage.file;
+    final hasImage = selectedImage.hasImage;
+    // TODO(v2): reativar galeria
+    // final isFromGallery = selectedImage.source == ImageSource.gallery;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Nova Captura'),
@@ -176,34 +143,37 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
                   image: image,
                   isLoading: _isLoading,
                   address: _address,
-                  isFromGallery: _isFromGallery,
-                  useCurrentLocation: _useCurrentLocation,
-                  addressController: _addressController,
-                  onLocationModeChanged: _toggleLocationMode,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               // Botões de ação
               if (!hasImage) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: VisioButton(
-                        label: 'Câmera',
-                        icon: Icons.camera_alt,
-                        onPressed: () => _pickImage(ImageSource.camera),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: VisioButton(
-                        label: 'Galeria',
-                        icon: Icons.photo_library,
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                        variant: VisioButtonVariant.secondary,
-                      ),
-                    ),
-                  ],
+                // TODO(v2): reativar galeria — opção `ImageSource.gallery` na UI.
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: VisioButton(
+                //         label: 'Câmera',
+                //         icon: Icons.camera_alt,
+                //         onPressed: () => _pickImage(ImageSource.camera),
+                //       ),
+                //     ),
+                //     const SizedBox(width: AppSpacing.md),
+                //     Expanded(
+                //       child: VisioButton(
+                //         label: 'Galeria',
+                //         icon: Icons.photo_library,
+                //         onPressed: () => _pickImage(ImageSource.gallery),
+                //         variant: VisioButtonVariant.secondary,
+                //       ),
+                //     ),
+                //   ],
+                // ),
+                VisioButton(
+                  label: 'Câmera',
+                  icon: Icons.camera_alt,
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  expanded: true,
                 ),
               ] else ...[
                 VisioButton(
@@ -234,20 +204,12 @@ class _ImagePreview extends StatelessWidget {
   const _ImagePreview({
     required this.image,
     required this.isLoading,
-    required this.isFromGallery,
-    required this.useCurrentLocation,
-    required this.addressController,
-    required this.onLocationModeChanged,
     this.address,
   });
 
   final File? image;
   final bool isLoading;
   final String? address;
-  final bool isFromGallery;
-  final bool useCurrentLocation;
-  final TextEditingController addressController;
-  final ValueChanged<bool> onLocationModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -266,7 +228,9 @@ class _ImagePreview extends StatelessWidget {
               Icon(
                 Icons.add_a_photo,
                 size: 64,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.5,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
@@ -304,177 +268,73 @@ class _ImagePreview extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Opções de localização para galeria
-              if (isFromGallery) ...[
+              // TODO(v2): reativar galeria — UI quando `isFromGallery` (origem galeria).
+              // if (isFromGallery) ...[
+              //   Row(
+              //     children: [
+              //       Icon(
+              //         Icons.info_outline,
+              //         size: 20,
+              //         color: theme.colorScheme.primary,
+              //       ),
+              //       const SizedBox(width: AppSpacing.sm),
+              //       Text(
+              //         'Localização indisponível',
+              //         style: theme.textTheme.titleSmall,
+              //       ),
+              //     ],
+              //   ),
+              //   const SizedBox(height: AppSpacing.sm),
+              //   Text(
+              //     'Imagens da galeria não recebem coordenadas GPS para preservar a confiabilidade do registro.',
+              //     style: theme.textTheme.bodyMedium?.copyWith(
+              //       color: theme.colorScheme.onSurfaceVariant,
+              //     ),
+              //   ),
+              // ] else ...[
+              if (isLoading)
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: LoadingIndicator(size: 20, strokeWidth: 2),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Obtendo localização...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                )
+              else
                 Row(
                   children: [
                     Icon(
                       Icons.location_on,
                       size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Localização',
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                // Toggle entre GPS e manual
-                Row(
-                  children: [
-                    Expanded(
-                      child: _LocationOptionChip(
-                        label: 'GPS atual',
-                        icon: Icons.my_location,
-                        isSelected: useCurrentLocation,
-                        onTap: () => onLocationModeChanged(true),
-                      ),
+                      color: address != null
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: _LocationOptionChip(
-                        label: 'Manual',
-                        icon: Icons.edit_location_alt,
-                        isSelected: !useCurrentLocation,
-                        onTap: () => onLocationModeChanged(false),
+                      child: Text(
+                        address ?? 'Localização não disponível',
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              // Conteúdo baseado no modo
-              if (useCurrentLocation) ...[
-                if (isLoading)
-                  Row(
-                    children: [
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: LoadingIndicator(size: 20, strokeWidth: 2),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Obtendo localização...',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      if (!isFromGallery) ...[
-                        Icon(
-                          Icons.location_on,
-                          size: 20,
-                          color: address != null
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.error,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                      ],
-                      Expanded(
-                        child: Text(
-                          address ?? 'Localização não disponível',
-                          style: theme.textTheme.bodyMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-              ] else ...[
-                TextField(
-                  controller: addressController,
-                  decoration: InputDecoration(
-                    hintText: 'Digite o endereço ou descrição do local',
-                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                    isDense: true,
-                  ),
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 2,
-                  textInputAction: TextInputAction.done,
-                ),
-              ],
+              // ],
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _LocationOptionChip extends StatelessWidget {
-  const _LocationOptionChip({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

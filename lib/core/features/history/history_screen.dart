@@ -1,49 +1,48 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:visiosoil_app/core/constants/storage_keys.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static const int _maxRecords = 150;
 
-  final Set<int> _selectedIndices = {};
+  final Set<int> _selectedIds = {};
 
-  bool get _isSelectionMode => _selectedIndices.isNotEmpty;
+  bool get _isSelectionMode => _selectedIds.isNotEmpty;
 
-  void _toggleSelection(int index) {
+  void _toggleSelection(int id) {
     setState(() {
-      if (_selectedIndices.contains(index)) {
-        _selectedIndices.remove(index);
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
       } else {
-        _selectedIndices.add(index);
+        _selectedIds.add(id);
       }
     });
   }
 
-  void _enterSelectionMode(int index) {
-    setState(() => _selectedIndices.add(index));
+  void _enterSelectionMode(int id) {
+    setState(() => _selectedIds.add(id));
   }
 
   void _cancelSelection() {
-    setState(() => _selectedIndices.clear());
+    setState(() => _selectedIds.clear());
   }
 
   Future<void> _deleteSelected() async {
-    final count = _selectedIndices.length;
+    final count = _selectedIds.length;
     final confirmed = await _showDeleteConfirmation(count);
 
     if (confirmed == true && mounted) {
@@ -80,15 +79,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _performDeletion() async {
-    final box = Hive.box<SoilRecord>(StorageKeys.soilRecordsBox);
-    final sortedIndices = _selectedIndices.toList()
-      ..sort((a, b) => b.compareTo(a));
-
-    for (final index in sortedIndices) {
-      await box.deleteAt(index);
-    }
-
-    setState(() => _selectedIndices.clear());
+    final ids = _selectedIds.toList();
+    await ref.read(soilRecordRepositoryProvider).deleteByIds(ids);
+    setState(() => _selectedIds.clear());
   }
 
   void _showDeletionSnackbar(int count) {
@@ -106,7 +99,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: _buildAppBar(),
       body: _HistoryGrid(
         maxRecords: _maxRecords,
-        selectedIndices: _selectedIndices,
+        selectedIds: _selectedIds,
         isSelectionMode: _isSelectionMode,
         onTap: _handleTap,
         onLongPress: _enterSelectionMode,
@@ -116,7 +109,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   AppBar _buildAppBar() {
     final theme = Theme.of(context);
-    final count = _selectedIndices.length;
+    final count = _selectedIds.length;
 
     return AppBar(
       title: Text(_isSelectionMode
@@ -130,7 +123,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ? [
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: _selectedIndices.isNotEmpty ? _deleteSelected : null,
+                onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                 color: theme.colorScheme.error,
               ),
             ]
@@ -138,46 +131,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _handleTap(int index) {
+  void _handleTap(int id) {
     if (_isSelectionMode) {
-      _toggleSelection(index);
+      _toggleSelection(id);
     } else {
-      context.push('/preview', extra: index);
+      context.push('/preview', extra: id);
     }
   }
 }
 
-class _HistoryGrid extends StatelessWidget {
+class _HistoryGrid extends ConsumerWidget {
   const _HistoryGrid({
     required this.maxRecords,
-    required this.selectedIndices,
+    required this.selectedIds,
     required this.isSelectionMode,
     required this.onTap,
     required this.onLongPress,
   });
 
   final int maxRecords;
-  final Set<int> selectedIndices;
+  final Set<int> selectedIds;
   final bool isSelectionMode;
   final ValueChanged<int> onTap;
   final ValueChanged<int> onLongPress;
 
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<SoilRecord>(StorageKeys.soilRecordsBox).listenable(),
-      builder: (context, Box<SoilRecord> box, _) {
-        if (box.isEmpty) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRecords = ref.watch(soilRecordsStreamProvider);
+
+    return asyncRecords.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Text(
+          'Não foi possível carregar o histórico.',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      ),
+      data: (records) {
+        if (records.isEmpty) {
           return _EmptyHistoryState();
         }
-
-        return _buildGrid(box);
+        return _buildGrid(records);
       },
     );
   }
 
-  Widget _buildGrid(Box<SoilRecord> box) {
-    final itemCount = math.min(box.length, maxRecords);
+  Widget _buildGrid(List<SoilRecord> records) {
+    final visible = records.length > maxRecords
+        ? records.sublist(0, maxRecords)
+        : records;
 
     return GridView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -187,19 +189,17 @@ class _HistoryGrid extends StatelessWidget {
         mainAxisSpacing: AppSpacing.md,
         childAspectRatio: 1,
       ),
-      itemCount: itemCount,
+      itemCount: visible.length,
       itemBuilder: (context, index) {
-        final reverseIndex = box.length - 1 - index;
-        final record = box.getAt(reverseIndex);
-
-        if (record == null) return const SizedBox.shrink();
+        final record = visible[index];
+        final id = record.id!;
 
         return _ThumbnailCard(
           record: record,
-          isSelected: selectedIndices.contains(reverseIndex),
+          isSelected: selectedIds.contains(id),
           isSelectionMode: isSelectionMode,
-          onTap: () => onTap(reverseIndex),
-          onLongPress: () => onLongPress(reverseIndex),
+          onTap: () => onTap(id),
+          onLongPress: () => onLongPress(id),
         );
       },
     );
