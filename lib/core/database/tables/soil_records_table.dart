@@ -15,4 +15,6 @@ class SoilRecords extends Table {
   RealColumn get longitude => real().nullable()();
   TextColumn get address => text().nullable()();
   TextColumn get timestamp => text()();
+  TextColumn get textureClass => text().named('texture_class').nullable()();
+  RealColumn get confidenceScore => real().named('confidence_score').nullable()();
 }
