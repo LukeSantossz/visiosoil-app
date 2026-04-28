@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# pre-commit hook — Detecta debug logs e merge conflicts em arquivos staged
+# Lê padrões de .claude/enforcement.conf (se existir)
+# Instalação: git config core.hooksPath .claude/hooks
+
+set -euo pipefail
+
+CONF_FILE="$(git rev-parse --show-toplevel)/.claude/enforcement.conf"
+ALL_STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+
+# Excluir arquivos de governança (hooks e config contêm padrões literais)
+STAGED_FILES=""
+for f in $ALL_STAGED; do
+  case "$f" in
+    .claude/hooks/*|.claude/enforcement.conf) continue ;;
+    *) STAGED_FILES="$STAGED_FILES $f" ;;
+  esac
+done
+STAGED_FILES=$(echo "$STAGED_FILES" | xargs)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+ERRORS=0
+
+# Função: verificar padrão em arquivo
+check_pattern() {
+  local file="$1"
+  local pattern="$2"
+  local label="$3"
+
+  if git show ":$file" 2>/dev/null | grep -nE "$pattern" > /dev/null 2>&1; then
+    local matches
+    matches=$(git show ":$file" 2>/dev/null | grep -nE "$pattern" 2>/dev/null || true)
+    echo "  AVISO [$file]: padrão '$label' encontrado:"
+    echo "$matches" | while IFS= read -r line; do
+      echo "    $line"
+    done
+    return 1
+  fi
+  return 0
+}
+
+# 1. Verificar merge conflicts (sempre, independente de config)
+for file in $STAGED_FILES; do
+  if ! check_pattern "$file" "<<<<<<<|=======|>>>>>>>" "merge conflict marker"; then
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+# 2. Verificar padrões do enforcement.conf
+if [ -f "$CONF_FILE" ]; then
+  while IFS= read -r line; do
+    # Ignorar comentários e linhas vazias
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+
+    EXT=$(echo "$line" | cut -d: -f1)
+    PATTERN=$(echo "$line" | cut -d: -f2-)
+
+    [ -z "$PATTERN" ] && continue
+
+    for file in $STAGED_FILES; do
+      # Verificar extensão (* = todas)
+      if [ "$EXT" = "*" ] || [[ "$file" == *".$EXT" ]]; then
+        if ! check_pattern "$file" "$PATTERN" "$PATTERN"; then
+          ERRORS=$((ERRORS + 1))
+        fi
+      fi
+    done
+  done < "$CONF_FILE"
+fi
+
+if [ "$ERRORS" -gt 0 ]; then
+  echo ""
+  echo "AVISO [pre-commit]: $ERRORS padrão(ões) de debug/conflito detectado(s)."
+  echo "  Revise os avisos acima. Se for intencional, use --no-verify."
+  echo ""
+  # Warning mode: não bloqueia (conforme 09-enforcement.md: "não-bloqueante em caso de dúvida")
+  # Exceção: merge conflicts sempre bloqueiam
+  for file in $STAGED_FILES; do
+    if git show ":$file" 2>/dev/null | grep -qE "<<<<<<<|>>>>>>>" 2>/dev/null; then
+      echo "ERRO [pre-commit]: Merge conflict markers detectados — commit bloqueado."
+      exit 1
+    fi
+  done
+fi
+
+exit 0
