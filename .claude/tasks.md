@@ -31,7 +31,7 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pausada
+- **Status:** backlog
 - **Branch:** feat/TASK-001-squeezenet-lr-integration
 - **Escopo Técnico:**
   - `lib/core/services/inference_service.dart` — atualizar labels, preprocessing (ImageNet normalization), output shape
@@ -46,7 +46,7 @@
   - [ ] Contrato `InferenceResult` inalterado
 - **Log de Andamento:**
   - [2026-04-27] — Task registrada. Reconhecimento concluído. Implementação parcial iniciada e revertida — prioridade alterada pelo usuário.
-- **Resultado:** [pendente — pausada por prioridade]
+- **Resultado:** [backlog — aguardando dataset e definição de classes pelo usuário]
 
 ---
 
@@ -97,6 +97,27 @@
 - **Log de Andamento:**
   - [2026-04-28] — Validação realizada. Revertida junto com TASK-003.
 - **Resultado:** Revertida — dependência (TASK-003) removida.
+
+### TASK-005 — Corrigir falha de build release no CI (R8/TFLite)
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** fix/TASK-005-r8-tflite-build
+- **Escopo Técnico:**
+  - `android/app/proguard-rules.pro` — novo, regras ProGuard para TFLite
+  - `android/app/build.gradle.kts` — adicionar referência ao proguard-rules.pro no build release
+- **Critérios de Aceite:**
+  - [x] `flutter build apk --release` passa localmente
+  - [ ] Job `build` do CI passa (R8 não falha com missing classes)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Causa raiz: R8 falha com `Missing class org.tensorflow.lite.gpu.GpuDelegateFactory$Options` durante minificação release.
+  - [2026-04-29] — Fix implementado: proguard-rules.pro criado + build.gradle.kts atualizado. Build release local OK. Analyze e test passam.
+- **Resultado:** Corrigido. ProGuard keep rules para TFLite resolvem missing class do R8.
+
+---
 
 ## Tasks Concluídas
 

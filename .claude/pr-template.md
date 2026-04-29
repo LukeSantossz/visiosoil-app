@@ -7,6 +7,7 @@
 **Task:** TASK-NNN
 **Tipo:** feat | fix | refactor | test | docs | chore
 **Complexidade:** patch | minor | major
+**Labels:** <!-- Aplicar labels correspondentes ao tipo e escopo da PR -->
 
 ## Mudanças Realizadas
 
@@ -39,6 +40,7 @@ Decisão: [pronto para merge / requer ajustes]
 - [ ] Nomes de variáveis e funções seguem o VAR Method
 - [ ] Commits seguem Conventional Commits
 - [ ] Avaliação pós-implementação foi executada e passou
+- [ ] Labels aplicadas na PR (tipo, escopo, prioridade)
 - [ ] `flutter analyze` passa sem erros
 - [ ] `flutter test` passa sem falhas
 
