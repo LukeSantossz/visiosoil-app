@@ -19,19 +19,22 @@
 | # | Data | Task | Complexidade | Escopo Alterado | Resultado | Observações |
 |---|------|------|--------------|-----------------|-----------|-------------|
 | — | — | — | — | — | — | Histórico pré-governance não rastreado. Projeto iniciou governança a partir desta data. |
+| 1 | 2026-04-28 | TASK-002 | minor | 1 arquivo — CI/CD | Pipeline validado, Flutter pinado 3.38.5, concurrency group adicionado | — |
+| 2 | 2026-04-28 | TASK-003 | major | revertida | Workflow claude-implement.yml criado e removido por solicitação do usuário | — |
+| 3 | 2026-04-28 | TASK-004 | minor | revertida | Validação invalidada pela reversão da TASK-003 | — |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-04-27
+- **Última atualização:** 2026-04-28
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** dev
 - **Versão:** 1.1.0
 - **Dependências alteradas recentemente:** nenhuma
 - **Testes passando:** sim (unit + repository)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** — (governança recém-instalada)
+- **Última task concluída:** TASK-002 (validar CI/CD) — TASK-003 e TASK-004 revertidas
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
