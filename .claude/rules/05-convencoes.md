@@ -67,3 +67,16 @@ Toda branch de trabalho segue o formato: `type/TASK-NNN-descricao-curta`
 Exemplos: `feat/TASK-001-login-google`, `fix/TASK-012-erro-upload-foto`, `refactor/TASK-023-migrar-hive`.
 
 O agente deve sugerir o nome da branch ao iniciar uma task, seguindo esta convenção. Se o projeto já possuir uma convenção de branches estabelecida, ela tem precedência.
+
+## 5.4 Pull Requests — Labels Obrigatórias
+
+Toda Pull Request criada pelo agente deve incluir labels correspondentes. O agente aplica labels via `gh pr create --label` ou `gh pr edit --add-label`.
+
+**Labels mínimas obrigatórias:**
+
+| Label | Quando aplicar |
+|-------|---------------|
+| Tipo (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`) | Sempre — corresponde ao tipo do commit/task |
+| `patch`, `minor` ou `major` | Sempre — corresponde à complexidade da task |
+
+O agente deve verificar se as labels existem no repositório antes de aplicá-las. Se não existirem, deve criá-las via `gh label create` ou informar ao usuário.

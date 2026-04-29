@@ -19,19 +19,20 @@
 | # | Data | Task | Complexidade | Escopo Alterado | Resultado | Observações |
 |---|------|------|--------------|-----------------|-----------|-------------|
 | — | — | — | — | — | — | Histórico pré-governance não rastreado. Projeto iniciou governança a partir desta data. |
+| 1 | 2026-04-29 | TASK-005 | patch | 2 arquivos — Android build | Fix R8/TFLite: proguard-rules.pro + build.gradle.kts | — |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-04-27
+- **Última atualização:** 2026-04-29
 - **Último responsável:** Claude Code (Opus 4)
-- **Branch ativa:** dev
-- **Versão:** 1.1.0
+- **Branch ativa:** fix/TASK-005-r8-tflite-build
+- **Versão:** 1.1.0 (próxima: 1.1.1 após merge)
 - **Dependências alteradas recentemente:** nenhuma
-- **Testes passando:** sim (unit + repository)
+- **Testes passando:** sim (15/15 — unit + repository)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** — (governança recém-instalada)
+- **Última task concluída:** TASK-005 (fix R8/TFLite build)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
@@ -48,6 +49,20 @@
 - **Isolate-based inference:** TFLite roda em Isolate separado. Model bytes passados como Uint8List porque rootBundle não funciona em isolates.
 - **GoRouter state.extra para IDs:** Record ids passados via extra (não URL params) — evita slugificação e mantém rotas limpas.
 - **Schema v2 migration:** Colunas texture_class e confidence_score adicionadas via migration strategy com version check.
+
+## Política de Versionamento
+
+> Tags git e `pubspec.yaml` devem estar sempre alinhados. O agente sugere o bump ao final de cada task concluída.
+
+- **Formato:** Semantic Versioning — `vMAJOR.MINOR.PATCH` (tag git) / `MAJOR.MINOR.PATCH+BUILD` (pubspec.yaml)
+- **Tag atual:** `v1.1.0`
+- **pubspec.yaml atual:** `1.0.0+1` (desalinhado — alinhar na próxima release)
+- **Regra de incremento por complexidade de task:**
+  - `patch` (fix, chore, docs, style, ci) → incrementa PATCH (ex: 1.1.0 → 1.1.1)
+  - `minor` (feat, refactor, perf, test) → incrementa MINOR (ex: 1.1.0 → 1.2.0)
+  - `major` (breaking changes, migrações estruturais) → incrementa MAJOR (ex: 1.1.0 → 2.0.0)
+- **BUILD number:** Incrementa +1 a cada release no pubspec.yaml, independente do tipo
+- **Fluxo:** Ao concluir uma task e antes do merge para main, o agente sugere o novo número de versão seguindo esta política. O desenvolvedor confirma e o agente atualiza `pubspec.yaml` e sugere a tag.
 
 ## Padrões Recorrentes Observados
 

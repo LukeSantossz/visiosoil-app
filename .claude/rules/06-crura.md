@@ -22,6 +22,7 @@ Antes de solicitar revisão, confirme:
 - [ ] As novas dependências funcionam sem quebrar o build atual.
 - [ ] Nomes de variáveis e funções seguem o VAR Method.
 - [ ] Commits seguem Conventional Commits.
+- [ ] Labels aplicadas na PR (tipo e complexidade, conforme 5.4).
 - [ ] Avaliação pós-implementação foi executada e passou.
 
 ## 6.2 Protocolo de Reversão
