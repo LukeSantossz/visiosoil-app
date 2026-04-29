@@ -32,7 +32,7 @@ Estrutura obrigatória: `!type(?scope): !subject`
 
 - **type:** o tipo da alteração (ver tabela abaixo).
 - **scope:** o contexto da mudança (opcional, entre parênteses).
-- **subject:** mensagem descritiva no imperativo. Teste: "Se aplicado, este commit irá... [subject]".
+- **subject:** mensagem descritiva **em inglês**, no imperativo, lowercase. Teste: "If applied, this commit will... [subject]".
 
 | Tipo | Quando usar |
 |------|-------------|
@@ -48,7 +48,7 @@ Estrutura obrigatória: `!type(?scope): !subject`
 | `ci` | Configuração de CI |
 | `revert` | Reversão de um commit anterior |
 
-Exemplos: `feat(auth): adiciona integração com Google`, `fix(api): trata erro 500 no endpoint de usuários`.
+Exemplos: `feat(auth): add google sign-in integration`, `fix(api): handle 500 error on users endpoint`.
 
 **Restrições obrigatórias de commit:**
 
