@@ -17,9 +17,9 @@ if [ ! -f "$PYTHON" ]; then
     exit 1
 fi
 
-echo "========================================"
+echo "----------------------------------------"
 echo "VisioSoil ML Pipeline — ${VERSION}"
-echo "========================================"
+echo "----------------------------------------"
 
 echo ""
 echo "[1/3] Training..."
@@ -34,8 +34,8 @@ echo "[3/3] Exporting to TFLite..."
 $PYTHON -m src.export --version "$VERSION"
 
 echo ""
-echo "========================================"
+echo "----------------------------------------"
 echo "Pipeline complete. Artifacts in models/${VERSION}/"
-echo "========================================"
+echo "----------------------------------------"
 echo ""
 echo "Next step: bash scripts/deploy_to_app.sh ${VERSION}"
