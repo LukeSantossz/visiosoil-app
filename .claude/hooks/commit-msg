@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# commit-msg hook — Valida formato Conventional Commits
+# Regras: type(scope): subject | sem body | sem co-authored-by
+# Instalação: git config core.hooksPath .claude/hooks
+
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG=$(head -1 "$MSG_FILE")
+LINE_COUNT=$(wc -l < "$MSG_FILE" | tr -d ' ')
+
+# Tipos válidos conforme 05-convencoes.md
+VALID_TYPES="feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+
+# 1. Formato: type(scope): subject  OU  type: subject
+PATTERN="^($VALID_TYPES)(\([a-z0-9_-]+\))?: .+"
+if ! echo "$MSG" | grep -Eq "$PATTERN"; then
+  echo ""
+  echo "ERRO [commit-msg]: Formato inválido."
+  echo "  Esperado: type(scope): subject"
+  echo "  Recebido: $MSG"
+  echo "  Tipos válidos: $VALID_TYPES"
+  echo ""
+  exit 1
+fi
+
+# 2. Subject entre 10 e 100 caracteres
+SUBJECT=$(echo "$MSG" | sed -E "s/^($VALID_TYPES)(\([a-z0-9_-]+\))?: //")
+SUBJECT_LEN=${#SUBJECT}
+if [ "$SUBJECT_LEN" -lt 10 ]; then
+  echo ""
+  echo "ERRO [commit-msg]: Subject muito curto ($SUBJECT_LEN chars, mínimo 10)."
+  echo "  Subject: $SUBJECT"
+  echo ""
+  exit 1
+fi
+if [ "$SUBJECT_LEN" -gt 100 ]; then
+  echo ""
+  echo "ERRO [commit-msg]: Subject muito longo ($SUBJECT_LEN chars, máximo 100)."
+  echo "  Subject: $SUBJECT"
+  echo ""
+  exit 1
+fi
+
+# 3. Sem body (apenas 1 linha com conteúdo)
+CONTENT_LINES=$(grep -c -v '^\s*$' "$MSG_FILE" 2>/dev/null || echo "0")
+if [ "$CONTENT_LINES" -gt 1 ]; then
+  echo ""
+  echo "ERRO [commit-msg]: Commit não deve ter body/description."
+  echo "  Apenas a linha de subject é permitida."
+  echo ""
+  exit 1
+fi
+
+# 4. Sem trailers de co-autoria
+if grep -qi "co-authored-by\|signed-off-by" "$MSG_FILE" 2>/dev/null; then
+  echo ""
+  echo "ERRO [commit-msg]: Trailers de co-autoria não são permitidos."
+  echo "  Remova Co-authored-by / Signed-off-by."
+  echo ""
+  exit 1
+fi
+
+exit 0

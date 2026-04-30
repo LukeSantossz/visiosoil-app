@@ -65,7 +65,7 @@ app.*.map.json
 
 # OS-specific
 Thumbs.db
+nul
 
 # AI
 .agent/
-.claude/

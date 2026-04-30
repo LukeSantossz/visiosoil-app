@@ -11,6 +11,8 @@ class SoilRecord {
   final double? longitude;
   final String? address;
   final String timestamp;
+  final String? textureClass;
+  final double? confidenceScore;
 
   const SoilRecord({
     this.id,
@@ -19,6 +21,8 @@ class SoilRecord {
     this.longitude,
     this.address,
     required this.timestamp,
+    this.textureClass,
+    this.confidenceScore,
   });
 
   /// Retorna uma cópia deste registro com os campos informados substituídos.
@@ -29,6 +33,8 @@ class SoilRecord {
     double? longitude,
     String? address,
     String? timestamp,
+    String? textureClass,
+    double? confidenceScore,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -37,6 +43,8 @@ class SoilRecord {
       longitude: longitude ?? this.longitude,
       address: address ?? this.address,
       timestamp: timestamp ?? this.timestamp,
+      textureClass: textureClass ?? this.textureClass,
+      confidenceScore: confidenceScore ?? this.confidenceScore,
     );
   }
 
@@ -66,4 +74,16 @@ class SoilRecord {
   /// Retorna o endereço ou uma mensagem padrão.
   String get displayAddress =>
       hasValidAddress ? address! : 'Endereço não disponível';
+
+  /// Indica se o registro possui classificação de textura.
+  bool get hasClassification => textureClass != null && textureClass!.isNotEmpty;
+
+  /// Retorna a classe de textura ou uma mensagem padrão.
+  String get displayTextureClass =>
+      hasClassification ? textureClass! : 'Não classificado';
+
+  /// Retorna o score de confiança formatado como porcentagem.
+  String get formattedConfidence => confidenceScore != null
+      ? '${(confidenceScore! * 100).toStringAsFixed(1)}%'
+      : '-';
 }

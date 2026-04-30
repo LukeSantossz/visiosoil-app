@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# pre-push hook — Valida branch naming e task ativa
+# Regras: branch segue type/TASK-NNN-descricao-curta
+# Instalação: git config core.hooksPath .claude/hooks
+
+set -euo pipefail
+
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || true)
+TASKS_FILE="$(git rev-parse --show-toplevel)/.claude/tasks.md"
+VALID_TYPES="feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+
+# Branches protegidas (main, dev) podem fazer push sem validação de naming
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "dev" ] || [ "$BRANCH" = "master" ]; then
+  exit 0
+fi
+
+# 1. Validar formato da branch
+BRANCH_PATTERN="^($VALID_TYPES)/TASK-[0-9]+-[a-z0-9-]+$"
+if ! echo "$BRANCH" | grep -Eq "$BRANCH_PATTERN"; then
+  echo ""
+  echo "AVISO [pre-push]: Nome de branch fora do padrão."
+  echo "  Esperado: type/TASK-NNN-descricao-curta"
+  echo "  Atual: $BRANCH"
+  echo "  Tipos válidos: $VALID_TYPES"
+  echo ""
+  # Warning: não bloqueia (princípio de não-bloqueante em caso de dúvida)
+fi
+
+# 2. Verificar se existe task correspondente em tasks.md
+if [ -f "$TASKS_FILE" ]; then
+  TASK_ID=$(echo "$BRANCH" | grep -oE "TASK-[0-9]+" || true)
+  if [ -n "$TASK_ID" ]; then
+    if ! grep -q "$TASK_ID" "$TASKS_FILE" 2>/dev/null; then
+      echo ""
+      echo "AVISO [pre-push]: $TASK_ID não encontrada em tasks.md."
+      echo "  Registre a task antes de fazer push."
+      echo ""
+    fi
+  fi
+fi
+
+exit 0

@@ -81,6 +81,8 @@ class _DetailsContent extends StatelessWidget {
                   _TimestampCard(timestamp: record.formattedTimestamp),
                   const SizedBox(height: AppSpacing.md),
                   _LocationCard(record: record),
+                  const SizedBox(height: AppSpacing.md),
+                  _ClassificationCard(record: record),
                   const SizedBox(height: AppSpacing.xl),
                   _DeleteButton(recordId: recordId),
                 ],
@@ -249,6 +251,61 @@ class _CoordinateItem extends StatelessWidget {
           style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
         ),
       ],
+    );
+  }
+}
+
+class _ClassificationCard extends StatelessWidget {
+  const _ClassificationCard({required this.record});
+
+  final SoilRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return VisioCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.eco,
+            color: record.hasClassification
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Classificação de Textura',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  record.displayTextureClass,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight:
+                        record.hasClassification ? FontWeight.bold : null,
+                  ),
+                ),
+                if (record.hasClassification) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Confiança: ${record.formattedConfidence}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

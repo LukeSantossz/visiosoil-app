@@ -1,0 +1,10 @@
+# Placeholder for TFLite model files
+#
+# Add your soil texture classification model here:
+# - soil_classifier.tflite
+#
+# Model specification (expected):
+# - Input: [1, 224, 224, 3] float32, normalized 0-1
+# - Output: [1, N] float32 probabilities (N = number of texture classes)
+#
+# See lib/core/services/inference_service.dart for label mapping.
