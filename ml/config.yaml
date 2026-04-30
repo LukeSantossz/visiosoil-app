@@ -1,0 +1,46 @@
+project:
+  name: "visiosoil-soil-classifier"
+  version: 1
+
+classes:
+  - "Arenosa"
+  - "Media"
+  - "Siltosa"
+  - "Muito Argilosa"
+  - "Argilosa"
+
+data:
+  raw_dir: "data/raw"
+  splits_dir: "data/splits"
+  image_size: 224
+  val_split: 0.15
+  test_split: 0.15
+  seed: 42
+
+preprocessing:
+  normalization: "imagenet"
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+augmentation:
+  horizontal_flip: true
+  rotation_range: 20
+  brightness_range: [0.8, 1.2]
+  zoom_range: [0.9, 1.1]
+
+model:
+  architecture: "squeezenet"
+  freeze_backbone: true
+  dropout: 0.3
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  early_stopping_patience: 10
+  reduce_lr_patience: 5
+  reduce_lr_factor: 0.5
+
+export:
+  quantization: "dynamic_range"
+  output_dir: "models"
