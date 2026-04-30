@@ -30,7 +30,7 @@ check_pattern() {
   local pattern="$2"
   local label="$3"
 
-  if git show ":$file" 2>/dev/null | grep -nE "$pattern" > /dev/null 2>&1; then
+  if git show ":$file" 2>/dev/null | grep -qE "$pattern" 2>/dev/null; then
     local matches
     matches=$(git show ":$file" 2>/dev/null | grep -nE "$pattern" 2>/dev/null || true)
     echo "  AVISO [$file]: padrão '$label' encontrado:"
