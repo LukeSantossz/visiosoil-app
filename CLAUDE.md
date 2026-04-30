@@ -75,12 +75,25 @@ lib/
 
 `soil_records` table: `id` (PK auto), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `texture_class?`, `confidence_score?`
 
+## Governance
+
+This project uses a mandatory governance system defined in `.claude/`. Before modifying code, read `.claude/CLAUDE.md` for the full operating rules. Key points:
+
+- Every code change requires a task registered in `.claude/tasks.md` before implementation
+- The agent must declare an operation mode (Development / Review / Tutor) per session
+- Codebase reconnaissance (`.claude/rules/02-reconhecimento.md`) is required before implementation
+- Post-implementation assessment is mandatory (`.claude/rules/04-avaliacao-pos.md`)
+- Project registry (`.claude/registry.md`) must be updated after each completed task
+- Full workflow: CRURA — Change → Review → Upload → Review Again → Auto-Review
+
 ## Conventions
 
-- **Commits:** `type(scope): subject` — no body, no co-authored-by. Imperative mood, lowercase
+- **Language:** Commit messages, code comments, and variable names in English. Governance docs (`.claude/`) are in Portuguese.
+- **Commits:** `type(scope): subject` — no body, no co-authored-by. Imperative mood, lowercase. Format: `git commit -m "type(scope): subject"` — nothing else.
 - **Branches:** `type/TASK-NNN-description`
 - **Naming:** VAR Method suffixes — `Service`, `Repository`, `Provider`, `Handler`, `Manager`, etc.
 - **Linting:** `flutter_lints` via `analysis_options.yaml`
+- **PR Labels:** Always include type label (`feat`, `fix`, etc.) and complexity label (`patch`, `minor`, `major`)
 
 ## CI Pipeline
 
@@ -94,3 +107,5 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 - TFLite model file (`assets/models/soil_classifier.tflite`) is a placeholder — production model not yet trained
 - Gallery image source disabled (camera-only); code preserved behind `TODO(v2)`
 - No remote sync yet (repository interface prepared for it)
+- `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
+- `pubspec.yaml` version (`1.0.0+1`) is out of sync with the logical version (`v1.1.0` per git tags) — to be aligned on next release
