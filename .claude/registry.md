@@ -23,6 +23,7 @@
 | 1 | 2026-04-28 | TASK-002 | minor | 1 arquivo — CI/CD | Pipeline validado, Flutter pinado 3.38.5, concurrency group adicionado | — |
 | 2 | 2026-04-28 | TASK-003 | major | revertida | Workflow claude-implement.yml criado e removido por solicitação do usuário | — |
 | 3 | 2026-04-28 | TASK-004 | minor | revertida | Validação invalidada pela reversão da TASK-003 | — |
+| 4 | 2026-04-29 | TASK-006 | major | 23 arquivos — ml/ (novo) + .gitignore raiz | Pipeline ML: SqueezeNet Keras, TFLite export, spec.json, testes, Makefile | Nenhum arquivo Flutter alterado |
 
 ## Estado da Codebase
 
@@ -30,12 +31,12 @@
 
 - **Última atualização:** 2026-04-29
 - **Último responsável:** Claude Code (Opus 4)
-- **Branch ativa:** fix/TASK-005-r8-tflite-build
-- **Versão:** 1.1.0 (próxima: 1.1.1 após merge)
-- **Dependências alteradas recentemente:** nenhuma
-- **Testes passando:** sim (15/15 — unit + repository)
+- **Branch ativa:** feat/TASK-006-ml-platform
+- **Versão:** 1.1.0 (próxima: 2.0.0 após merge — task major)
+- **Dependências alteradas recentemente:** nenhuma (ml/requirements.txt é isolado do Flutter)
+- **Testes passando:** sim (Flutter 15/15 — unit + repository; ML tests pendentes de .venv setup)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** TASK-005 (fix R8/TFLite build)
+- **Última task concluída:** TASK-006 (estruturar plataforma ML)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
@@ -52,6 +53,8 @@
 - **Isolate-based inference:** TFLite roda em Isolate separado. Model bytes passados como Uint8List porque rootBundle não funciona em isolates.
 - **GoRouter state.extra para IDs:** Record ids passados via extra (não URL params) — evita slugificação e mantém rotas limpas.
 - **Schema v2 migration:** Colunas texture_class e confidence_score adicionadas via migration strategy com version check.
+- **ML pipeline isolado (ml/):** Pipeline TF/Keras em diretório separado, sem impacto no Flutter app. spec.json é o contrato de integração entre ml/ e InferenceService. deploy_to_app.sh copia artefatos para assets/models/. SqueezeNet custom Keras escolhido por tamanho (~750K params), MobileNetV2 como fallback via config.yaml.
+- **JSON local para experiment tracking:** Sem MLflow/W&B — overhead desproporcional. Cada versão gera metrics.json + config.json em models/vN/.
 
 ## Política de Versionamento
 
@@ -80,3 +83,4 @@
 > Espaço para anotações pontuais sobre contextos que influenciam futuras sessões.
 
 - **2026-04-27:** Estrutura `.claude/` reorganizada. Rules movidas para `.claude/rules/`, hooks criados, templates criados, enforcement.conf configurado para Dart/Flutter. Registry resetado para VisioSoil (anteriormente continha dados do projeto SmartB100).
+- **2026-04-29:** TASK-006 concluída — diretório ml/ criado com pipeline ML reproduzível. Decisão de não reestruturar para /app/ tomada durante planejamento (Flutter permanece na raiz). 23 arquivos criados, 1 editado (.gitignore raiz).
