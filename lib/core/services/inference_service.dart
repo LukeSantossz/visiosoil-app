@@ -38,21 +38,14 @@ class InferenceService {
   /// Dimensão de entrada do modelo (224x224 RGB).
   static const int _inputSize = 224;
 
-  /// Classes de textura do solo (USDA Soil Texture Triangle).
+  /// Classes de textura do solo alinhadas com ml/config.yaml.
   /// A ordem deve corresponder às saídas do modelo treinado.
   static const List<String> _textureLabels = [
-    'Areia',
-    'Areia Franca',
-    'Franco-Arenoso',
-    'Franco',
-    'Franco-Siltoso',
-    'Silte',
-    'Franco-Argilo-Arenoso',
-    'Franco-Argiloso',
-    'Franco-Argilo-Siltoso',
-    'Argila-Arenosa',
-    'Argila-Siltosa',
-    'Argila',
+    'Arenosa',
+    'Media',
+    'Siltosa',
+    'Muito Argilosa',
+    'Argilosa',
   ];
 
   Uint8List? _modelBytes;
