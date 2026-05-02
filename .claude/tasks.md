@@ -27,26 +27,25 @@
 
 ## Tasks Ativas
 
-### TASK-001 — Integrar modelo SqueezeNet+LR para classificação de solo
+### TASK-001 — Atualizar labels de inferência para 5 classes do dataset
 - **Tipo:** feat
-- **Complexidade:** minor
+- **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-001-squeezenet-lr-integration
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
 - **Escopo Técnico:**
-  - `lib/core/services/inference_service.dart` — atualizar labels, preprocessing (ImageNet normalization), output shape
-  - `scripts/convert_model.py` — script de conversão SqueezeNet+LR → TFLite (novo, ferramenta auxiliar)
-  - `assets/models/soil_classifier.tflite` — substituído pelo modelo combinado
+  - `lib/core/services/inference_service.dart` — atualizar `_textureLabels` de 12 classes USDA para 5 classes do dataset
 - **Critérios de Aceite:**
-  - [ ] Labels atualizadas para 5 classes (3 ativas + 2 futuras)
-  - [ ] Preprocessing com normalização ImageNet (mean/std por canal)
-  - [ ] Output shape dinâmico (lê do modelo, suporta 3 ou 5 classes)
-  - [ ] Script Python de conversão funcional
-  - [ ] `flutter analyze` sem erros
-  - [ ] Contrato `InferenceResult` inalterado
+  - [x] Labels atualizadas para 5 classes: Arenosa, Media, Siltosa, Argilosa, Muito Argilosa
+  - [x] Ordem das labels alinhada com `ml/config.yaml`
+  - [x] Contrato `InferenceResult` inalterado
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
-  - [2026-04-27] — Task registrada. Reconhecimento concluído. Implementação parcial iniciada e revertida — prioridade alterada pelo usuário.
-- **Resultado:** [backlog — aguardando dataset e definição de classes pelo usuário]
+  - [2026-04-27] — Task registrada originalmente como integração SqueezeNet+LR. Revertida e movida para backlog.
+  - [2026-05-02] — Escopo redefinido: apenas atualização das labels para 5 classes confirmadas pelo usuário. Reconhecimento concluído.
+  - [2026-05-02] — Implementação concluída. `_textureLabels` atualizado de 12 para 5 classes. `flutter analyze` OK, `flutter test` 15/15.
+- **Resultado:** Labels atualizadas para 5 classes (Arenosa, Media, Siltosa, Muito Argilosa, Argilosa) alinhadas com ml/config.yaml.
 
 ---
 

@@ -24,19 +24,20 @@
 | 2 | 2026-04-28 | TASK-003 | major | revertida | Workflow claude-implement.yml criado e removido por solicitação do usuário | — |
 | 3 | 2026-04-28 | TASK-004 | minor | revertida | Validação invalidada pela reversão da TASK-003 | — |
 | 4 | 2026-04-29 | TASK-006 | major | 23 arquivos — ml/ (novo) + .gitignore raiz | Pipeline ML: SqueezeNet Keras, TFLite export, spec.json, testes, Makefile | Nenhum arquivo Flutter alterado |
+| 5 | 2026-05-02 | TASK-001 | patch | 1 arquivo — inference_service.dart | Labels atualizadas de 12 USDA para 5 classes do dataset | Alinhado com ml/config.yaml |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-04-29
+- **Última atualização:** 2026-05-02
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-006-ml-platform
 - **Versão:** 1.1.0 (próxima: 2.0.0 após merge — task major)
-- **Dependências alteradas recentemente:** nenhuma (ml/requirements.txt é isolado do Flutter)
-- **Testes passando:** sim (Flutter 15/15 — unit + repository; ML tests pendentes de .venv setup)
+- **Dependências alteradas recentemente:** nenhuma
+- **Testes passando:** sim (Flutter 15/15 — unit + repository)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** TASK-006 (estruturar plataforma ML)
+- **Última task concluída:** TASK-001 (atualizar labels de inferência para 5 classes)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
