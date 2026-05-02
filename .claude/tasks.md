@@ -424,7 +424,7 @@
 - **Tipo:** docs
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** em andamento
+- **Status:** concluída
 - **Branch:** feat/TASK-006-ml-platform
 - **Escopo Técnico:**
   - `.claude/rules/10-engenharia-agentica.md` — já existente, não rastreado
@@ -435,7 +435,8 @@
   - [ ] Commit segue Conventional Commits
 - **Log de Andamento:**
   - [2026-05-02] — Task registrada. 3 arquivos .md de governança não rastreados pelo git.
-- **Resultado:** [pendente]
+  - [2026-05-02] — Concluída. 3 arquivos staged e commitados.
+- **Resultado:** 3 arquivos de governança adicionados ao repositório: regras 10 (engenharia agêntica), 11 (integração Codex) e guia de configuração Codex.
 
 ---
 

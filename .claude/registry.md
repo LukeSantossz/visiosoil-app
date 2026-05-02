@@ -23,19 +23,20 @@
 | 1 | 2026-04-28 | TASK-002 | minor | 1 arquivo — CI/CD | Pipeline validado, Flutter pinado 3.38.5, concurrency group adicionado | — |
 | 2 | 2026-04-28 | TASK-003 | major | revertida | Workflow claude-implement.yml criado e removido por solicitação do usuário | — |
 | 3 | 2026-04-28 | TASK-004 | minor | revertida | Validação invalidada pela reversão da TASK-003 | — |
+| 4 | 2026-05-02 | TASK-018 | patch | 3 arquivos — .claude/rules/ + .claude/ | Adicionados rules 10, 11 e guia Codex ao repositório | Checklist agêntico: N/A |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-04-29
+- **Última atualização:** 2026-05-02
 - **Último responsável:** Claude Code (Opus 4)
-- **Branch ativa:** fix/TASK-005-r8-tflite-build
+- **Branch ativa:** feat/TASK-006-ml-platform
 - **Versão:** 1.1.0 (próxima: 1.1.1 após merge)
 - **Dependências alteradas recentemente:** nenhuma
 - **Testes passando:** sim (15/15 — unit + repository)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** TASK-005 (fix R8/TFLite build)
+- **Última task concluída:** TASK-018 (docs governance files)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
