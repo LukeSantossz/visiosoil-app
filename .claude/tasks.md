@@ -420,6 +420,25 @@
 
 ---
 
+### TASK-018 — Adicionar arquivos de instrução .md ao repositório
+- **Tipo:** docs
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** em andamento
+- **Branch:** feat/TASK-006-ml-platform
+- **Escopo Técnico:**
+  - `.claude/rules/10-engenharia-agentica.md` — já existente, não rastreado
+  - `.claude/rules/11-integracao-codex.md` — já existente, não rastreado
+  - `.claude/guia-configuracao-codex.md` — já existente, não rastreado
+- **Critérios de Aceite:**
+  - [ ] 3 arquivos adicionados ao git tracking
+  - [ ] Commit segue Conventional Commits
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. 3 arquivos .md de governança não rastreados pelo git.
+- **Resultado:** [pendente]
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]
