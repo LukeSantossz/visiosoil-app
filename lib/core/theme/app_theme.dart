@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'app_radius.dart';
 import 'app_typography.dart';
 
 /// Tema principal do VisioSoil.
@@ -23,16 +24,16 @@ abstract final class AppTheme {
           color: AppColors.surface,
           elevation: 1,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppRadius.borderRadiusLg,
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppRadius.borderRadiusPill,
             ),
             textStyle: AppTypography.labelLarge,
           ),
@@ -40,11 +41,11 @@ abstract final class AppTheme {
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppRadius.borderRadiusPill,
             ),
-            side: const BorderSide(color: AppColors.primary),
+            side: const BorderSide(color: AppColors.outlineVariant),
             textStyle: AppTypography.labelLarge,
           ),
         ),
@@ -73,7 +74,7 @@ abstract final class AppTheme {
             if (states.contains(WidgetState.selected)) {
               return AppTypography.labelMedium.copyWith(
                 color: AppColors.primary,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               );
             }
             return AppTypography.labelMedium.copyWith(
@@ -93,14 +94,14 @@ abstract final class AppTheme {
             color: AppColors.onInverseSurface,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: AppRadius.borderRadiusSm,
           ),
           behavior: SnackBarBehavior.floating,
         ),
         dialogTheme: DialogThemeData(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppRadius.borderRadiusXl,
           ),
           titleTextStyle: AppTypography.headlineSmall.copyWith(
             color: AppColors.onSurface,

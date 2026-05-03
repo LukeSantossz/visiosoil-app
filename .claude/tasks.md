@@ -909,6 +909,259 @@
 
 ---
 
+### TASK-039 — Atualizar design tokens: tipografia (Manrope+Inter), cores de textura, radii
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** em andamento
+- **Branch:** feat/TASK-039-design-tokens-v2
+- **Escopo Técnico:**
+  - `lib/core/theme/app_typography.dart` — substituir Roboto por Manrope (display) + Inter (body)
+  - `lib/core/theme/app_colors.dart` — adicionar cores de classes de textura (soilSandy, soilSilt, soilMedium, soilClay, soilVeryClay) + warning/warningContainer + surfaceDim
+  - `lib/core/theme/app_theme.dart` — ajustar radii de cards/buttons para match design (sm:8, md:12, lg:16, xl:24, pill:999)
+  - `pubspec.yaml` — declarar fonts Manrope e Inter (Google Fonts ou assets)
+- **Critérios de Aceite:**
+  - [ ] Tipografia usa Manrope (títulos, fontWeight 700-800) e Inter (corpo, labels)
+  - [ ] 5 cores de textura de solo acessíveis via AppColors
+  - [ ] Constantes de radii acessíveis (AppRadius ou similar)
+  - [ ] Warning colors (amber) disponíveis
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+  - [ ] App existente continua visual coerente (não quebra telas atuais)
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Fundação para todas as telas v2.
+  - [2026-05-03] — Implementação: google_fonts adicionado ao pubspec, AppTypography reescrita (Manrope display + Inter body), AppColors estendido (warning, soilSandy/Silt/Medium/Clay/VeryClay, surfaceDim), AppRadius criado, AppTheme atualizado para radii pill nos buttons, SoilTextureColors helper criado. flutter analyze OK, flutter test 15/15.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-040 — Redesign HomeScreen conforme protótipo v2
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-040-home-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/home/home_page.dart` — reescrever: hero com greeting + stats, botão "Nova análise" prominente, seção "Última análise" com card visual, placeholder para mapa de lotes (futuro)
+  - `lib/core/widgets/` — novos widgets: StatsGrid, LastAnalysisCard, PrimaryActionButton
+  - `lib/providers/` — consumir homeStatsProvider (TASK-016) ou fallback estático
+- **Critérios de Aceite:**
+  - [ ] Hero com logo VisioSoil + greeting + última análise em texto
+  - [ ] Botão "Nova análise" com estilo dark + ícone de câmera (destaque)
+  - [ ] Grid de 3 stats (Análises, Localizações, Confiança média)
+  - [ ] Card "Última análise" com thumbnail, classe, confiança, data
+  - [ ] Espaço reservado para mapa de lotes (placeholder com mensagem ou componente futuro)
+  - [ ] Bottom navigation funcional (Home, Capturar, Histórico)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Dados reais via TASK-016 (pendente) — usar mock/fallback até lá.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-041 — Implementar tela de Setup pré-captura (lote/cultura/profundidade)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-041-capture-setup
+- **Escopo Técnico:**
+  - `lib/core/features/capture/setup_screen.dart` — novo: wizard 3 passos (lote → cultura → profundidade)
+  - `lib/core/routes/app_router.dart` — nova rota `/capture/setup`
+  - `lib/models/capture_context.dart` — novo modelo com lote, cultura, profundidade selecionados
+- **Critérios de Aceite:**
+  - [ ] Wizard com step indicator (3 barras de progresso)
+  - [ ] Passo 1: seleção de lote (lista com radio + "Adicionar novo lote" placeholder)
+  - [ ] Passo 2: seleção de cultura (grid 2x3) + época de plantio (chips)
+  - [ ] Passo 3: seleção de profundidade (0-20, 20-40, 40-60 cm) + resumo
+  - [ ] Navegação back/forward entre passos
+  - [ ] Botão final "Abrir câmera" navega para capture com contexto
+  - [ ] Lotes hardcoded por enquanto (backend de lotes é funcionalidade futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Lotes serão mock — persistência de lotes é feature futura.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-042 — Redesign CaptureScreen: semáforo + preview com qualidade inline
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-042-capture-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — reescrever: câmera com overlay retículo + semáforo (vermelho/amarelo/verde), preview com checklist inline, botões refazer/analisar
+  - `lib/core/widgets/capture_semaphore.dart` — widget do semáforo de prontidão
+  - `lib/core/widgets/quality_checklist_compact.dart` — checklist em grid compacto (6 itens)
+  - Integração com CaptureContext de TASK-041
+- **Critérios de Aceite:**
+  - [ ] Viewfinder com overlay: retículo com cantos coloridos conforme estado
+  - [ ] Semáforo 3 estados: vermelho (aproxime), amarelo (quase), verde (pronto)
+  - [ ] Botão de captura desabilitado até semáforo verde
+  - [ ] Após captura: preview com checklist compacto sobreposto
+  - [ ] Badge "Captura aprovada" + score
+  - [ ] Botões "Refazer" e "Analisar"
+  - [ ] Contexto do lote/cultura exibido no topo da câmera
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039, TASK-041. Análise real de qualidade via TASK-007 (pendente) — usar simulação/mock até lá.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-043 — Implementar tela de Processamento (loading animado)
+- **Tipo:** feat
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-043-processing-screen
+- **Escopo Técnico:**
+  - `lib/core/features/capture/processing_screen.dart` — nova tela: animação de processamento enquanto aguarda inferência
+  - `lib/core/routes/app_router.dart` — nova rota `/processing`
+- **Critérios de Aceite:**
+  - [ ] Tela exibida durante inferência TFLite
+  - [ ] Ícone animado (sparkles/pulsante) com texto "Analisando..."
+  - [ ] Texto contextual (classe de solo, lote)
+  - [ ] Auto-navega para resultado ao concluir
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-044 — Implementar tela de Resultado com classificação e confiança
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-044-result-screen
+- **Escopo Técnico:**
+  - `lib/core/features/result/result_screen.dart` — nova tela: classe textural destacada, confiança com badge qualitativo, foto thumbnail, link para recomendações
+  - `lib/core/routes/app_router.dart` — nova rota `/result`
+  - `lib/models/confidence_level.dart` — integração com TASK-009
+- **Critérios de Aceite:**
+  - [ ] Classe textural exibida em destaque (nome + cor associada)
+  - [ ] Confiança com badge: Alta (>85%), Média (70-85%), Baixa (<70%)
+  - [ ] Foto da amostra visível
+  - [ ] Botões: "Ver plano de manejo" (placeholder para recomendações) + "Nova análise" + "Salvar"
+  - [ ] Dados persistidos no banco via SoilRecordRepository
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039, TASK-009. "Ver plano de manejo" navega para placeholder até recomendações serem implementadas.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-045 — Implementar tela de Recomendações/Plano de Manejo (estrutura + placeholder para research agent)
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-045-recommendations-screen
+- **Escopo Técnico:**
+  - `lib/core/features/recommendations/recommendations_screen.dart` — nova tela: layout com abas (Plano/Fontes/Alertas), loading animado, cards de ação priorizados, FAB "Perguntar ao agente"
+  - `lib/core/features/recommendations/widgets/` — ActionCard, SourceCard, AlertCard, AgentChatSheet
+  - `lib/core/routes/app_router.dart` — nova rota `/recommendations`
+  - `lib/models/management_plan.dart` — novo modelo (ações, fontes, alertas)
+- **Critérios de Aceite:**
+  - [ ] Layout com 3 abas: Plano (ações priorizadas), Fontes (referências), Alertas
+  - [ ] Cards de ação com prioridade (alta/média/baixa), ícone, título, prazo, descrição + citações
+  - [ ] Loading animado com etapas (simulado — research agent é feature futura)
+  - [ ] FAB "Perguntar ao agente" abre bottom sheet de chat (UI pronta, funcionalidade mock)
+  - [ ] Dados estáticos/mock por classe textural (funcionalidade de research agent é futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039. Research agent é funcionalidade futura — implementar UI com dados mock por classe textural.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-046 — Implementar tela de Detalhes do Lote com comparação temporal
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-046-lot-detail-screen
+- **Escopo Técnico:**
+  - `lib/core/features/details/lot_detail_screen.dart` — nova tela: stats do lote, comparação A/B entre amostras, timeline do histórico
+  - `lib/core/routes/app_router.dart` — nova rota `/lot-detail`
+  - `lib/core/widgets/temporal_comparison.dart` — widget de comparação A/B
+- **Critérios de Aceite:**
+  - [ ] Stats do lote: cultura, área, nº de amostras
+  - [ ] Comparação temporal A/B entre duas amostras selecionáveis
+  - [ ] Badge "Mudou" / "Estável" com alerta se textura divergiu
+  - [ ] Timeline cronológica das amostras do lote
+  - [ ] Toque em item da timeline alterna seleção A/B
+  - [ ] Botão "Ver plano de manejo"
+  - [ ] Dados mock (persistência de lotes é feature futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039. Lotes são feature futura — usar dados mock.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-047 — Implementar Onboarding de captura (3 passos)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-047-onboarding
+- **Escopo Técnico:**
+  - `lib/core/features/onboarding/onboarding_screen.dart` — nova tela: 3 passos ilustrados (enquadramento, iluminação, referência de escala)
+  - `lib/core/routes/app_router.dart` — rota `/onboarding`
+  - `lib/providers/` — provider para flag "onboarding visto" (SharedPreferences)
+  - Dependência: `shared_preferences`
+- **Critérios de Aceite:**
+  - [ ] 3 passos com PageView: ilustração + título + descrição
+  - [ ] Passo 1: enquadramento (moeda como referência)
+  - [ ] Passo 2: iluminação (evitar sombras)
+  - [ ] Passo 3: ângulo (top-down)
+  - [ ] Botão "Começar" no último passo
+  - [ ] Flag persistida — mostrar apenas na primeira vez
+  - [ ] Acessível via link "Como capturar bem" na Home
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-048 — Redesign DetailsScreen existente (preencher tela placeholder)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-048-details-screen-v2
+- **Escopo Técnico:**
+  - `lib/core/features/details/details.dart` — reescrever: exibir dados completos do SoilRecord (foto, classe, confiança, localização, data, mapa)
+  - Integração com cores de textura de TASK-039
+  - Botões: compartilhar (TASK-011), ver recomendações
+- **Critérios de Aceite:**
+  - [ ] Foto da amostra em destaque (hero image)
+  - [ ] Classe textural com cor associada e badge de confiança
+  - [ ] Localização: endereço + coordenadas + mini-mapa placeholder
+  - [ ] Data/hora formatada
+  - [ ] Botão "Ver plano de manejo" (navega para recomendações)
+  - [ ] Botão "Compartilhar" (placeholder até TASK-011)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+- **Resultado:** [pendente]
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]

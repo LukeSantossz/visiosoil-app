@@ -46,6 +46,8 @@ dependencies:
   tflite_flutter: ^0.12.1
   # Image preprocessing for TFLite
   image: ^4.3.0
+  # Typography: Manrope (display) + Inter (body)
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
