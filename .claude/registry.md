@@ -54,7 +54,7 @@
 - **Última atualização:** 2026-05-03
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-006-ml-platform
-- **Versão:** 1.1.0 (próxima: 2.0.0 após merge — task major)
+- **Versão:** 2.0.0
 - **Dependências alteradas recentemente:** pubspec.yaml — tflite_flutter ^0.12.1 (era ^0.11.0); ml/config.yaml — architecture: mobilenetv2, normalization: mobilenet_v2
 - **Testes passando:** sim (Flutter 15/15 — unit + repository; ML — sintaxe validada, TF indisponível no Python 3.14 local)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
@@ -84,8 +84,8 @@
 > Tags git e `pubspec.yaml` devem estar sempre alinhados. O agente sugere o bump ao final de cada task concluída.
 
 - **Formato:** Semantic Versioning — `vMAJOR.MINOR.PATCH` (tag git) / `MAJOR.MINOR.PATCH+BUILD` (pubspec.yaml)
-- **Tag atual:** `v1.1.0`
-- **pubspec.yaml atual:** `1.0.0+1` (desalinhado — alinhar na próxima release)
+- **Tag atual:** `v2.0.0`
+- **pubspec.yaml atual:** `2.0.0+2`
 - **Regra de incremento por complexidade de task:**
   - `patch` (fix, chore, docs, style, ci) → incrementa PATCH (ex: 1.1.0 → 1.1.1)
   - `minor` (feat, refactor, perf, test) → incrementa MINOR (ex: 1.1.0 → 1.2.0)
