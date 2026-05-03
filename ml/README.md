@@ -14,12 +14,35 @@ Reproducible TensorFlow/Keras pipeline for training, evaluating, and exporting t
 
 ## Setup
 
+### 1. Create virtual environment
+
 ```bash
 cd ml
-make setup
+python -m venv .venv
 ```
 
-This creates a `.venv/` virtual environment and installs dependencies from `requirements.txt`.
+### 2. Activate the virtual environment
+
+**Windows (PowerShell):**
+
+```powershell
+.venv\Scripts\activate
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Key dependencies: `tensorflow==2.21.0`, `tf-keras==2.21.0`, `keras==3.14.0`. See `requirements.txt` for the full list.
 
 ## Dataset
 
@@ -30,23 +53,15 @@ The pipeline creates stratified train/val/test splits automatically and saves th
 ## Training
 
 ```bash
-make train VERSION=v1
+python -m src.train --version v1
 ```
 
-Or run the full pipeline (train + evaluate + export):
-
-```bash
-make pipeline VERSION=v1
-```
-
-### Configuration
-
-All hyperparameters, class names, preprocessing settings, and augmentation options are defined in `config.yaml` — the single source of truth for the pipeline.
+Saves the Keras checkpoint (`model.h5`), config snapshot (`config.json`), and training history (`history.json`) to `models/v1/`.
 
 ## Evaluation
 
 ```bash
-make evaluate VERSION=v1
+python -m src.evaluate --version v1
 ```
 
 Generates `models/v1/metrics.json` with accuracy, F1 scores, per-class metrics, and `models/v1/confusion_matrix.png`.
@@ -54,23 +69,55 @@ Generates `models/v1/metrics.json` with accuracy, F1 scores, per-class metrics, 
 ## Export to TFLite
 
 ```bash
-make export VERSION=v1
+python -m src.export --version v1
 ```
 
 Converts the Keras model to TFLite with dynamic range quantization (configurable) and generates `models/v1/spec.json` — the integration contract consumed by the Flutter `InferenceService`.
 
-## Deploy to App
+## Full Pipeline
+
+Run all three steps in sequence:
 
 ```bash
-make deploy VERSION=v1
+python -m src.train --version v1
+python -m src.evaluate --version v1
+python -m src.export --version v1
 ```
 
-Copies `model.tflite` and `spec.json` to `assets/models/` in the Flutter project root.
+On macOS/Linux, you can also use the helper script:
+
+```bash
+bash scripts/train_and_export.sh v1
+```
+
+### Configuration
+
+All hyperparameters, class names, preprocessing settings, and augmentation options are defined in `config.yaml` — the single source of truth for the pipeline.
+
+## Deploy to App
+
+Copies `model.tflite` and `spec.json` to the Flutter `assets/models/` directory.
+
+**Windows (PowerShell):**
+
+```powershell
+$version = "v1"
+Copy-Item "models\$version\model.tflite" "..\assets\models\soil_classifier.tflite"
+Copy-Item "models\$version\spec.json" "..\assets\models\spec.json"
+```
+
+**macOS / Linux:**
+
+```bash
+bash scripts/deploy_to_app.sh v1
+```
+
+After deploying, run `flutter build apk --release` to verify the build.
 
 ## Tests
 
 ```bash
-make test
+python -m pytest tests/ -v
 ```
 
 Tests cover:

@@ -18,7 +18,7 @@ if [ ! -f "$PYTHON" ]; then
 fi
 
 echo "----------------------------------------"
-echo "VisioSoil ML Pipeline — ${VERSION}"
+echo "VisioSoil ML Pipeline - ${VERSION}"
 echo "----------------------------------------"
 
 echo ""
