@@ -1,6 +1,8 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -38,21 +40,14 @@ class InferenceService {
   /// Dimensão de entrada do modelo (224x224 RGB).
   static const int _inputSize = 224;
 
-  /// Classes de textura do solo (USDA Soil Texture Triangle).
+  /// Classes de textura do solo alinhadas com ml/config.yaml.
   /// A ordem deve corresponder às saídas do modelo treinado.
   static const List<String> _textureLabels = [
-    'Areia',
-    'Areia Franca',
-    'Franco-Arenoso',
-    'Franco',
-    'Franco-Siltoso',
-    'Silte',
-    'Franco-Argilo-Arenoso',
-    'Franco-Argiloso',
-    'Franco-Argilo-Siltoso',
-    'Argila-Arenosa',
-    'Argila-Siltosa',
-    'Argila',
+    'Arenosa',
+    'Media',
+    'Siltosa',
+    'Muito Argilosa',
+    'Argilosa',
   ];
 
   Uint8List? _modelBytes;
@@ -87,7 +82,10 @@ class InferenceService {
       _isInitialized = true;
       return true;
     } catch (e) {
-      // Modelo não encontrado, timeout ou erro de carregamento
+      developer.log(
+        'Failed to initialize InferenceService: $e',
+        name: 'InferenceService',
+      );
       _isInitialized = false;
       return false;
     }
@@ -113,6 +111,10 @@ class InferenceService {
       final result = await Isolate.run(() => _runInference(params));
       return result;
     } catch (e) {
+      developer.log(
+        'classify() failed for $imagePath: $e',
+        name: 'InferenceService',
+      );
       return null;
     }
   }
@@ -172,6 +174,7 @@ class InferenceService {
         confidenceScore: maxProb,
       );
     } catch (e) {
+      debugPrint('InferenceService._runInference failed: $e');
       return null;
     }
   }

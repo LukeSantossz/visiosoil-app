@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Data (large files, not versioned)
+data/raw/
+data/processed/
+
+# Keras checkpoints (large, not versioned)
+models/**/model.h5
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db

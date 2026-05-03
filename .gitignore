@@ -69,3 +69,10 @@ nul
 
 # AI
 .agent/
+
+# ML pipeline
+ml/.venv/
+ml/data/raw/
+ml/data/processed/
+ml/models/**/model.h5
+ml/notebooks/.ipynb_checkpoints/
