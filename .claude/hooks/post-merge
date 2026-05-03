@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# post-merge hook — Sinaliza necessidade de verificação pós-pull
+# Instalação: git config core.hooksPath .claude/hooks
+
+echo ""
+echo "============================================"
+echo "  LEMBRETE PÓS-MERGE"
+echo "============================================"
+echo ""
+echo "  O estado da codebase pode ter mudado."
+echo "  Na próxima sessão com o agente, execute a"
+echo "  verificação pós-pull conforme regra 08."
+echo ""
+echo "  Referência: .claude/rules/08-registro-projeto.md"
+echo "============================================"
+echo ""
+
+exit 0

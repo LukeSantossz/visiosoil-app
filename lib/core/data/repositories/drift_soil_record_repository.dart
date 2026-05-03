@@ -22,6 +22,8 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             longitude: Value(record.longitude),
             address: Value(record.address),
             timestamp: record.timestamp,
+            textureClass: Value(record.textureClass),
+            confidenceScore: Value(record.confidenceScore),
           ),
         );
     return record.copyWith(id: id);
@@ -91,5 +93,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         longitude: row.longitude,
         address: row.address,
         timestamp: row.timestamp,
+        textureClass: row.textureClass,
+        confidenceScore: row.confidenceScore,
       );
 }

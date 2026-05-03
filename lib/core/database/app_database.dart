@@ -17,7 +17,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (migrator, from, to) async {
+          if (from < 2) {
+            // v1 → v2: adiciona colunas de classificação de textura
+            await migrator.addColumn(soilRecords, soilRecords.textureClass);
+            await migrator.addColumn(soilRecords, soilRecords.confidenceScore);
+          }
+        },
+      );
 }
 
 QueryExecutor _openConnection() {

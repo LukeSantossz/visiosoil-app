@@ -24,13 +24,20 @@ void main() {
       await db.close();
     });
 
-    SoilRecord sample({String imagePath = '/img.jpg', String? ts}) {
+    SoilRecord sample({
+      String imagePath = '/img.jpg',
+      String? ts,
+      String? textureClass,
+      double? confidenceScore,
+    }) {
       return SoilRecord(
         imagePath: imagePath,
         latitude: -23.5,
         longitude: -46.6,
         address: 'São Paulo',
         timestamp: ts ?? DateTime.utc(2026, 1, 1).toIso8601String(),
+        textureClass: textureClass,
+        confidenceScore: confidenceScore,
       );
     }
 
@@ -42,6 +49,20 @@ void main() {
       expect(saved.latitude, -23.5);
       expect(saved.longitude, -46.6);
       expect(saved.address, 'São Paulo');
+    });
+
+    test('create persiste campos de classificação de textura', () async {
+      final saved = await repo.create(sample(
+        textureClass: 'Franco-Argiloso',
+        confidenceScore: 0.92,
+      ));
+
+      expect(saved.textureClass, 'Franco-Argiloso');
+      expect(saved.confidenceScore, 0.92);
+
+      final fetched = await repo.getById(saved.id!);
+      expect(fetched!.textureClass, 'Franco-Argiloso');
+      expect(fetched.confidenceScore, 0.92);
     });
 
     test('getById roundtrip retorna o registro salvo', () async {

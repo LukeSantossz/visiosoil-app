@@ -36,5 +36,28 @@ void main() {
       expect(noAddr.hasValidAddress, isFalse);
       expect(placeholder.hasValidAddress, isFalse);
     });
+
+    test('hasClassification is false when textureClass is null or empty', () {
+      final noClass = SoilRecord(imagePath: '/f.jpg', timestamp: ts);
+      final emptyClass = SoilRecord(
+        imagePath: '/g.jpg',
+        textureClass: '',
+        timestamp: ts,
+      );
+      expect(noClass.hasClassification, isFalse);
+      expect(emptyClass.hasClassification, isFalse);
+    });
+
+    test('hasClassification is true when textureClass is set', () {
+      final r = SoilRecord(
+        imagePath: '/h.jpg',
+        textureClass: 'Franco-Argiloso',
+        confidenceScore: 0.95,
+        timestamp: ts,
+      );
+      expect(r.hasClassification, isTrue);
+      expect(r.displayTextureClass, 'Franco-Argiloso');
+      expect(r.formattedConfidence, '95.0%');
+    });
   });
 }

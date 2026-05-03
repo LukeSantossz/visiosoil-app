@@ -25,7 +25,7 @@ VisioSoil lets agronomists and field professionals photograph soil samples, reco
 | GPS | geolocator |
 | Reverse geocoding | geocoding |
 | Local persistence | Drift + SQLite (`sqlite3_flutter_libs`) |
-| AI classification | TensorFlow Lite *(planned — Phase 2)* |
+| AI classification | TensorFlow Lite (on-device inference) |
 
 ## Getting Started
 
@@ -73,6 +73,8 @@ lib/
 │   │   └── app_router.dart       # GoRouter — routes use int id (not list index)
 │   ├── widgets/                  # VisioAppBar, VisioButton, VisioCard, EmptyState
 │   ├── utils/                    # LocationService, formatters
+│   ├── services/
+│   │   └── inference_service.dart        # TFLite soil texture classification
 │   ├── database/
 │   │   ├── app_database.dart             # Drift DB class (schemaVersion = 1)
 │   │   ├── app_database.g.dart           # generated
@@ -94,19 +96,18 @@ lib/
 └── providers/
     ├── image_provider.dart                      # Selected image state
     ├── database_provider.dart                   # AppDatabase singleton
+    ├── inference_provider.dart                  # InferenceService singleton
     └── soil_record_repository_provider.dart     # Repository + stream/future providers
 
-docs/
-└── adr/
-    └── 0001-drift-over-hive.md   # ADR: why Drift over Hive
-```
+assets/
+└── models/                       # TFLite model files (soil_classifier.tflite)
 
 ## Features
 
 ### Capture Flow
 - **Camera capture**: Takes photo and automatically records GPS location
-- **Gallery import**: Select existing photos with manual or GPS-based location
-- **Location options**: Toggle between current GPS or manual address entry
+- **On-device classification**: TensorFlow Lite model classifies soil texture (5 classes)
+- **Confidence score**: Displays classification confidence percentage
 
 ### History & Management
 - **Grid view**: Thumbnails with timestamp overlay
@@ -115,14 +116,14 @@ docs/
 - **Preview**: Full-screen image viewer with zoom/pan
 
 ### Data Persistence
-- **Hive storage**: Local database for soil records
-- **SoilRecord model**: Image path, coordinates, address, timestamp
+- **Drift + SQLite storage**: Local database for soil records (schema v2)
+- **SoilRecord model**: Image path, coordinates, address, timestamp, texture class, confidence score
 
 ## Current Status
 
-**Status: v1.0.0 — Phase 1 complete**
+**Status: v1.1.0 — TFLite classification integrated**
 
-### Done (v1.0.0)
+### Done (v1.1.0)
 
 - [x] Custom Material 3 theme (`AppTheme`, `AppColors`, `AppTypography`, `AppSpacing`)
 - [x] Riverpod state management (stream + future providers)
@@ -132,23 +133,22 @@ docs/
 - [x] Capture screen (camera-only, `image_picker`)
 - [x] Image preview after capture
 - [x] History screen with grid, multi-select and batch delete
-- [x] Details screen with delete action
+- [x] Details screen with delete action and classification display
 - [x] Image preview (zoomable) screen
 - [x] Android + iOS permission handling
 - [x] `ImageNotifier` provider for image state
 - [x] Real GPS integration (`geolocator` + `geocoding`, via `LocationService`)
-- [x] Persistence on **Drift + SQLite** via a `SoilRecordRepository` interface
-- [x] `SoilRecord` domain model (plain Dart with `id` + `copyWith`)
+- [x] Persistence on **Drift + SQLite** via a `SoilRecordRepository` interface (schema v2)
+- [x] `SoilRecord` domain model with `textureClass` and `confidenceScore`
 - [x] Repository tests with `NativeDatabase.memory()`
 - [x] CI pipeline (analyze + test + APK build)
 - [x] ADR 0001 documenting Drift adoption
+- [x] **TensorFlow Lite on-device soil texture classification** (12 USDA classes)
+- [x] `InferenceService` isolated from UI, runs in isolate (non-blocking)
+- [x] Classification result displayed on capture and details screens
 
 ### Pending (Phase 2)
 
-- [ ] On-device soil classification (TensorFlow Lite)
+- [ ] Train and bundle production TFLite model (currently expects `assets/models/soil_classifier.tflite`)
 - [ ] Re-enable gallery source (currently camera-only; kept in code behind `TODO(v2)`)
 - [ ] Remote sync (the repository interface already leaves room for a `sync_status` column)
-
-## License
-
-- Gallery capture is temporarily disabled in the UI (camera-only flow). The code paths remain behind `TODO(v2)` comments.
