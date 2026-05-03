@@ -913,7 +913,7 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** em andamento
+- **Status:** concluída
 - **Branch:** feat/TASK-039-design-tokens-v2
 - **Escopo Técnico:**
   - `lib/core/theme/app_typography.dart` — substituir Roboto por Manrope (display) + Inter (body)
@@ -931,7 +931,7 @@
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Fundação para todas as telas v2.
   - [2026-05-03] — Implementação: google_fonts adicionado ao pubspec, AppTypography reescrita (Manrope display + Inter body), AppColors estendido (warning, soilSandy/Silt/Medium/Clay/VeryClay, surfaceDim), AppRadius criado, AppTheme atualizado para radii pill nos buttons, SoilTextureColors helper criado. flutter analyze OK, flutter test 15/15.
-- **Resultado:** [pendente]
+- **Resultado:** Design tokens v2 implementados: Manrope (display), Inter (body), 5 cores de textura, AppRadius (sm/md/lg/xl/pill), warning colors, SoilTextureColors helper.
 
 ---
 
