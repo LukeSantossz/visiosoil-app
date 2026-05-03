@@ -421,6 +421,54 @@
 
 ---
 
+### TASK-018 — Atualizar dependências do pipeline ML para TF 2.21/Keras 3
+- **Tipo:** build
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
+- **Escopo Técnico:**
+  - `ml/requirements.txt` — pinar versões compatíveis confirmadas pelo usuário
+- **Critérios de Aceite:**
+  - [ ] tensorflow==2.21.0
+  - [ ] tf-keras==2.21.0 (nova dependência)
+  - [ ] keras==3.14.0 (nova dependência)
+  - [ ] ml-dtypes==0.5.4 (nova dependência)
+  - [ ] protobuf==7.34.1 (nova dependência)
+  - [ ] Demais dependências inalteradas
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. Usuário confirmou que `python -m src.export --version v1` roda com essas versões.
+  - [2026-05-02] — Implementação concluída. 5 dependências atualizadas/adicionadas em requirements.txt. Avaliação pós: ok.
+- **Resultado:** requirements.txt atualizado: tensorflow==2.21.0, tf-keras==2.21.0, keras==3.14.0, ml-dtypes==0.5.4, protobuf==7.34.1.
+
+---
+
+### TASK-019 — Reescrever README do ML com fluxo cross-platform e corrigir scripts
+- **Tipo:** docs
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
+- **Escopo Técnico:**
+  - `ml/README.md` — reescrever com fluxo cross-platform (Windows PowerShell + Unix)
+  - `ml/scripts/deploy_to_app.sh` — corrigir line endings CRLF → LF
+  - `ml/scripts/train_and_export.sh` — corrigir line endings CRLF → LF
+  - `ml/.gitattributes` — novo, forçar LF em .sh para evitar reincidência
+- **Critérios de Aceite:**
+  - [ ] README documenta fluxo `python -m` como caminho principal (cross-platform)
+  - [ ] Instruções de setup para Windows e Unix separadas
+  - [ ] Deploy documentado com comandos PowerShell nativos
+  - [ ] Nota Python <=3.12 removida ou atualizada
+  - [ ] Dependências novas mencionadas no contexto
+  - [ ] Scripts bash com LF endings
+  - [ ] .gitattributes previne CRLF em .sh
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada após auditoria do README. 8 problemas identificados, 4 de severidade alta.
+  - [2026-05-02] — Implementação concluída. README reescrito, .gitattributes criado, UTF-8 corrompido em train_and_export.sh corrigido.
+- **Resultado:** README cross-platform, .gitattributes forçando LF em .sh, encoding corrigido em train_and_export.sh.
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]

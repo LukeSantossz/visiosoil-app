@@ -25,6 +25,8 @@
 | 3 | 2026-04-28 | TASK-004 | minor | revertida | Validação invalidada pela reversão da TASK-003 | — |
 | 4 | 2026-04-29 | TASK-006 | major | 23 arquivos — ml/ (novo) + .gitignore raiz | Pipeline ML: SqueezeNet Keras, TFLite export, spec.json, testes, Makefile | Nenhum arquivo Flutter alterado |
 | 5 | 2026-05-02 | TASK-001 | patch | 1 arquivo — inference_service.dart | Labels atualizadas de 12 USDA para 5 classes do dataset | Alinhado com ml/config.yaml |
+| 6 | 2026-05-02 | TASK-018 | patch | 1 arquivo — ml/requirements.txt | Deps ML pinadas: TF 2.21, tf-keras 2.21, keras 3.14, ml-dtypes 0.5.4, protobuf 7.34.1 | Versões confirmadas pelo usuário |
+| 7 | 2026-05-02 | TASK-019 | minor | 3 arquivos — ml/ (README, .gitattributes, train_and_export.sh) | README cross-platform, .gitattributes LF para .sh, encoding fix | Auditoria identificou 8 problemas |
 
 ## Estado da Codebase
 
@@ -34,10 +36,10 @@
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-006-ml-platform
 - **Versão:** 1.1.0 (próxima: 2.0.0 após merge — task major)
-- **Dependências alteradas recentemente:** nenhuma
+- **Dependências alteradas recentemente:** ml/requirements.txt — TF 2.21.0, tf-keras 2.21.0, keras 3.14.0, ml-dtypes 0.5.4, protobuf 7.34.1
 - **Testes passando:** sim (Flutter 15/15 — unit + repository)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** TASK-001 (atualizar labels de inferência para 5 classes)
+- **Última task concluída:** TASK-019 (reescrever README ML cross-platform e corrigir scripts)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
