@@ -469,6 +469,68 @@
 
 ---
 
+### TASK-020 — Corrigir incompatibilidade TFLite runtime vs modelo exportado
+- **Tipo:** fix
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
+- **Escopo Técnico:**
+  - `pubspec.yaml` — atualizar `tflite_flutter` de `^0.11.0` para `^0.12.1`
+  - `ml/config.yaml` — alterar `quantization` de `"dynamic_range"` para `"none"`
+  - `ml/models/v1/config.json` — alterar `quantization` de `"dynamic_range"` para `"none"`
+  - Re-exportar modelo via `python -m src.export --version v1`
+  - Re-deployar `.tflite` para `assets/models/soil_classifier.tflite`
+- **Critérios de Aceite:**
+  - [x] `tflite_flutter` atualizado para `^0.12.1` no pubspec.yaml
+  - [x] Modelo re-exportado sem quantização (elimina FULLY_CONNECTED op v12)
+  - [x] `assets/models/soil_classifier.tflite` atualizado com modelo compatível
+  - [ ] Erro `FULLY_CONNECTED version 12` eliminado no runtime Android (requer teste no device)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. Causa raiz: TF 2.21 gera FULLY_CONNECTED op v12 com dynamic_range quantization. tflite_flutter 0.11.0 empacota TFLite 2.12 que não suporta op v12. Solução dupla: atualizar runtime + re-exportar sem quantização.
+  - [2026-05-02] — Implementação concluída. tflite_flutter ^0.12.1 (LiteRT 1.4.0), config.yaml e config.json quantization: none, modelo re-exportado (2851KB vs 197KB anterior), deployed para assets/models/. flutter analyze OK, flutter test 15/15. Verificação no device pendente com usuário.
+- **Resultado:** tflite_flutter atualizado para 0.12.1 (LiteRT 1.4.0). Modelo re-exportado sem quantização (2.8MB). FULLY_CONNECTED op v12 eliminado do .tflite.
+
+---
+
+### TASK-021 — Reestruturar pipeline ML com transfer learning (MobileNetV2)
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** em andamento
+- **Branch:** feat/TASK-021-ml-transfer-learning
+- **Escopo Técnico:**
+  - `ml/config.yaml` — atualizar para MobileNetV2 + novas configs
+  - `ml/src/config.py` — validação dos novos campos, remover squeezenet
+  - `ml/src/preprocess.py` — normalização mobilenet_v2 + novos layers augmentation
+  - `ml/src/dataset.py` — compute_class_weights
+  - `ml/src/model.py` — MobileNetV2 + Rescaling + unfreeze_model
+  - `ml/src/train.py` — treino 2 fases + class weights + ModelCheckpoint
+  - `ml/src/export.py` — spec.json atualizado (divide_255)
+  - `ml/src/evaluate.py` — suporte .keras
+  - `ml/tests/test_config.py` — novos campos, remover squeezenet
+  - `ml/tests/test_model_output.py` — fixtures mobilenetv2
+  - `ml/tests/test_preprocess.py` — novo modo normalização + augmentation
+  - `ml/tests/test_tflite_inference.py` — fixtures atualizadas
+  - `ml/README.md` — documentar nova arquitetura
+- **Critérios de Aceite:**
+  - [ ] `pytest tests/ -v` — todos os testes passam
+  - [ ] MobileNetV2 como única arquitetura (squeezenet removido)
+  - [ ] Treino em 2 fases (head-only + fine-tuning) implementado
+  - [ ] Class weights balanceados integrados
+  - [ ] Normalização embutida no modelo via Rescaling layer
+  - [ ] spec.json indica normalization method "divide_255"
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. Reconhecimento concluído: 8 arquivos source + 4 testes a modificar.
+  - [2026-05-02] — Implementação concluída. 12 arquivos modificados. pytest 47/47 pass. flutter analyze OK. flutter test 15/15.
+- **Resultado:** Pipeline ML reestruturado: MobileNetV2 transfer learning com Rescaling embutido, treino 2 fases (head-only + fine-tuning), class weights balanceados, spec.json indica divide_255. SqueezeNet removido.
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]

@@ -27,6 +27,8 @@
 | 5 | 2026-05-02 | TASK-001 | patch | 1 arquivo — inference_service.dart | Labels atualizadas de 12 USDA para 5 classes do dataset | Alinhado com ml/config.yaml |
 | 6 | 2026-05-02 | TASK-018 | patch | 1 arquivo — ml/requirements.txt | Deps ML pinadas: TF 2.21, tf-keras 2.21, keras 3.14, ml-dtypes 0.5.4, protobuf 7.34.1 | Versões confirmadas pelo usuário |
 | 7 | 2026-05-02 | TASK-019 | minor | 3 arquivos — ml/ (README, .gitattributes, train_and_export.sh) | README cross-platform, .gitattributes LF para .sh, encoding fix | Auditoria identificou 8 problemas |
+| 8 | 2026-05-02 | TASK-020 | minor | 3 arquivos — pubspec.yaml, ml/config.yaml, ml/models/v1/config.json + re-export modelo | Fix TFLite runtime: tflite_flutter 0.12.1 + quantization none | Modelo 197KB→2.8MB (sem quantização) |
+| 9 | 2026-05-02 | TASK-021 | major | 12 arquivos — ml/ (config, src, tests, README) | Pipeline ML reestruturado: MobileNetV2 transfer learning, 2-phase training, class weights | SqueezeNet removido, 47 testes ML passam |
 
 ## Estado da Codebase
 
@@ -36,15 +38,15 @@
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-006-ml-platform
 - **Versão:** 1.1.0 (próxima: 2.0.0 após merge — task major)
-- **Dependências alteradas recentemente:** ml/requirements.txt — TF 2.21.0, tf-keras 2.21.0, keras 3.14.0, ml-dtypes 0.5.4, protobuf 7.34.1
-- **Testes passando:** sim (Flutter 15/15 — unit + repository)
+- **Dependências alteradas recentemente:** pubspec.yaml — tflite_flutter ^0.12.1 (era ^0.11.0); ml/config.yaml — architecture: mobilenetv2, normalization: mobilenet_v2
+- **Testes passando:** sim (Flutter 15/15 — unit + repository; ML 47/47 — pytest)
 - **Divergências externas pendentes:** nenhuma
-- **Última task concluída:** TASK-019 (reescrever README ML cross-platform e corrigir scripts)
+- **Última task concluída:** TASK-021 (reestruturar pipeline ML — MobileNetV2 transfer learning)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
 
-- TFLite model placeholder (assets/models/soil_classifier.tflite) — modelo de produção ainda não treinado
+- TFLite model (assets/models/soil_classifier.tflite) — modelo v1 (SqueezeNet) deployado. Treinar v2 (MobileNetV2) e re-deployar
 - Gallery source desabilitada (camera-only, `TODO(v2)`)
 - Remote sync não implementado (repository interface preparada)
 
@@ -56,7 +58,7 @@
 - **Isolate-based inference:** TFLite roda em Isolate separado. Model bytes passados como Uint8List porque rootBundle não funciona em isolates.
 - **GoRouter state.extra para IDs:** Record ids passados via extra (não URL params) — evita slugificação e mantém rotas limpas.
 - **Schema v2 migration:** Colunas texture_class e confidence_score adicionadas via migration strategy com version check.
-- **ML pipeline isolado (ml/):** Pipeline TF/Keras em diretório separado, sem impacto no Flutter app. spec.json é o contrato de integração entre ml/ e InferenceService. deploy_to_app.sh copia artefatos para assets/models/. SqueezeNet custom Keras escolhido por tamanho (~750K params), MobileNetV2 como fallback via config.yaml.
+- **ML pipeline isolado (ml/):** Pipeline TF/Keras em diretório separado, sem impacto no Flutter app. spec.json é o contrato de integração entre ml/ e InferenceService. deploy_to_app.sh copia artefatos para assets/models/. MobileNetV2 com transfer learning (ImageNet weights), Rescaling layer embutido no modelo converte [0,1]→[-1,1]. Treino em 2 fases: head-only + fine-tuning.
 - **JSON local para experiment tracking:** Sem MLflow/W&B — overhead desproporcional. Cada versão gera metrics.json + config.json em models/vN/.
 
 ## Política de Versionamento
