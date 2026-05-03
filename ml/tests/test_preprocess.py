@@ -4,7 +4,13 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from src.preprocess import normalize_imagenet, resize, preprocess, build_augmentation_layer
+from src.preprocess import (
+    normalize_imagenet,
+    normalize_mobilenet_v2,
+    resize,
+    preprocess,
+    build_augmentation_layer,
+)
 
 
 @pytest.fixture
@@ -14,8 +20,31 @@ def sample_image() -> tf.Tensor:
 
 
 @pytest.fixture
-def sample_config() -> dict:
-    """Return a minimal config for preprocessing tests."""
+def sample_config_mobilenet() -> dict:
+    """Return a config for mobilenet_v2 preprocessing."""
+    return {
+        "data": {"image_size": 224, "seed": 42},
+        "preprocessing": {
+            "normalization": "mobilenet_v2",
+            "bake_into_model": True,
+        },
+        "augmentation": {
+            "horizontal_flip": True,
+            "vertical_flip": True,
+            "rotation_range": 40,
+            "brightness_range": [0.7, 1.3],
+            "contrast_range": [0.8, 1.2],
+            "zoom_range": [0.85, 1.15],
+            "translation_range": 0.1,
+        },
+        "classes": ["A", "B", "C"],
+        "training": {"batch_size": 4},
+    }
+
+
+@pytest.fixture
+def sample_config_imagenet() -> dict:
+    """Return a config for imagenet preprocessing (backward compat)."""
     return {
         "data": {"image_size": 224, "seed": 42},
         "preprocessing": {
@@ -26,8 +55,6 @@ def sample_config() -> dict:
         "augmentation": {
             "horizontal_flip": True,
             "rotation_range": 20,
-            "brightness_range": [0.8, 1.2],
-            "zoom_range": [0.9, 1.1],
         },
         "classes": ["A", "B", "C"],
         "training": {"batch_size": 4},
@@ -46,41 +73,64 @@ def test_resize_dtype(sample_image):
     assert resized.dtype == tf.float32
 
 
-def test_normalize_output_dtype(sample_image):
-    """Normalization produces float32."""
+def test_normalize_imagenet_output_dtype(sample_image):
+    """ImageNet normalization produces float32."""
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
     normalized = normalize_imagenet(sample_image, mean, std)
     assert normalized.dtype == tf.float32
 
 
-def test_normalize_output_range(sample_image):
-    """Normalized values fall within expected ImageNet range."""
+def test_normalize_imagenet_output_range(sample_image):
+    """ImageNet normalized values fall within expected range."""
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
     normalized = normalize_imagenet(sample_image, mean, std)
     values = normalized.numpy()
-    # ImageNet normalized range: approximately [-2.2, 2.7]
     assert values.min() >= -3.0, f"Min value {values.min()} too low"
     assert values.max() <= 3.0, f"Max value {values.max()} too high"
 
 
-def test_preprocess_full_pipeline(sample_image, sample_config):
-    """Full preprocess pipeline produces correct shape and dtype."""
-    result = preprocess(sample_image, sample_config)
+def test_normalize_mobilenet_v2_output_dtype(sample_image):
+    """MobileNetV2 normalization produces float32."""
+    normalized = normalize_mobilenet_v2(sample_image)
+    assert normalized.dtype == tf.float32
+
+
+def test_normalize_mobilenet_v2_output_range(sample_image):
+    """MobileNetV2 normalization produces values in [0, 1]."""
+    normalized = normalize_mobilenet_v2(sample_image)
+    values = normalized.numpy()
+    assert values.min() >= 0.0, f"Min value {values.min()} below 0"
+    assert values.max() <= 1.0, f"Max value {values.max()} above 1"
+
+
+def test_preprocess_mobilenet_v2(sample_image, sample_config_mobilenet):
+    """Full preprocess pipeline with mobilenet_v2 normalization."""
+    result = preprocess(sample_image, sample_config_mobilenet)
+    assert result.shape == (224, 224, 3)
+    assert result.dtype == tf.float32
+    values = result.numpy()
+    assert values.min() >= 0.0
+    assert values.max() <= 1.0
+
+
+def test_preprocess_imagenet(sample_image, sample_config_imagenet):
+    """Full preprocess pipeline with imagenet normalization."""
+    result = preprocess(sample_image, sample_config_imagenet)
     assert result.shape == (224, 224, 3)
     assert result.dtype == tf.float32
 
 
-def test_augmentation_layer_builds(sample_config):
+def test_augmentation_layer_builds(sample_config_mobilenet):
     """Augmentation layer builds without error."""
-    aug = build_augmentation_layer(sample_config)
+    aug = build_augmentation_layer(sample_config_mobilenet)
     assert isinstance(aug, tf.keras.Sequential)
 
 
-def test_augmentation_preserves_shape(sample_config):
+def test_augmentation_preserves_shape(sample_config_mobilenet):
     """Augmentation preserves spatial dimensions."""
-    aug = build_augmentation_layer(sample_config)
+    aug = build_augmentation_layer(sample_config_mobilenet)
     dummy = tf.random.uniform((2, 224, 224, 3))
     output = aug(dummy, training=True)
     assert output.shape == (2, 224, 224, 3)
@@ -91,3 +141,25 @@ def test_augmentation_no_config():
     aug = build_augmentation_layer({"augmentation": {}})
     assert isinstance(aug, tf.keras.Sequential)
     assert len(aug.layers) == 0
+
+
+def test_augmentation_vertical_flip(sample_config_mobilenet):
+    """Vertical flip layer is included when configured."""
+    aug = build_augmentation_layer(sample_config_mobilenet)
+    layer_types = [type(l).__name__ for l in aug.layers]
+    # Two RandomFlip layers: horizontal and vertical
+    assert layer_types.count("RandomFlip") == 2
+
+
+def test_augmentation_contrast_layer(sample_config_mobilenet):
+    """Contrast layer is included when configured."""
+    aug = build_augmentation_layer(sample_config_mobilenet)
+    layer_types = [type(l).__name__ for l in aug.layers]
+    assert "RandomContrast" in layer_types
+
+
+def test_augmentation_translation_layer(sample_config_mobilenet):
+    """Translation layer is included when configured."""
+    aug = build_augmentation_layer(sample_config_mobilenet)
+    layer_types = [type(l).__name__ for l in aug.layers]
+    assert "RandomTranslation" in layer_types

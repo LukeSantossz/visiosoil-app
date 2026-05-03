@@ -4,62 +4,73 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from src.model import build_model
+from src.model import build_model, unfreeze_model
 
 
 @pytest.fixture
-def squeezenet_config() -> dict:
-    """Config for SqueezeNet model."""
+def mobilenetv2_config() -> dict:
+    """Config for MobileNetV2 model (uses weights=None for test speed)."""
     return {
         "classes": ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"],
         "data": {"image_size": 224},
         "model": {
-            "architecture": "squeezenet",
+            "architecture": "mobilenetv2",
             "freeze_backbone": True,
-            "dropout": 0.3,
+            "dropout": 0.5,
+            "unfreeze_at_epoch": 10,
+            "unfreeze_layers": 50,
         },
-        "training": {"learning_rate": 0.001},
+        "training": {
+            "learning_rate": 0.001,
+            "fine_tune_learning_rate": 0.00001,
+        },
     }
 
 
 @pytest.fixture
-def squeezenet_model(squeezenet_config) -> tf.keras.Model:
-    """Build SqueezeNet model once for reuse."""
-    return build_model(squeezenet_config)
+def mobilenetv2_model(mobilenetv2_config) -> tf.keras.Model:
+    """Build MobileNetV2 model once for reuse."""
+    return build_model(mobilenetv2_config)
 
 
-def test_output_shape(squeezenet_model):
+def test_output_shape(mobilenetv2_model):
     """Model output shape matches (batch_size, num_classes)."""
     dummy = np.random.rand(2, 224, 224, 3).astype(np.float32)
-    output = squeezenet_model.predict(dummy, verbose=0)
+    output = mobilenetv2_model.predict(dummy, verbose=0)
     assert output.shape == (2, 5)
 
 
-def test_output_probabilities_sum(squeezenet_model):
+def test_output_probabilities_sum(mobilenetv2_model):
     """Output probabilities sum to approximately 1.0 per sample."""
     dummy = np.random.rand(4, 224, 224, 3).astype(np.float32)
-    output = squeezenet_model.predict(dummy, verbose=0)
+    output = mobilenetv2_model.predict(dummy, verbose=0)
     sums = np.sum(output, axis=1)
     np.testing.assert_allclose(sums, 1.0, atol=1e-5)
 
 
-def test_output_non_negative(squeezenet_model):
+def test_output_non_negative(mobilenetv2_model):
     """All output probabilities are non-negative."""
     dummy = np.random.rand(2, 224, 224, 3).astype(np.float32)
-    output = squeezenet_model.predict(dummy, verbose=0)
+    output = mobilenetv2_model.predict(dummy, verbose=0)
     assert np.all(output >= 0)
 
 
-def test_output_dtype(squeezenet_model):
+def test_output_dtype(mobilenetv2_model):
     """Output dtype is float32."""
     dummy = np.random.rand(1, 224, 224, 3).astype(np.float32)
-    output = squeezenet_model.predict(dummy, verbose=0)
+    output = mobilenetv2_model.predict(dummy, verbose=0)
     assert output.dtype == np.float32
 
 
-def test_model_name(squeezenet_model):
+def test_model_name(mobilenetv2_model):
     """Model name reflects architecture."""
-    assert "squeezenet" in squeezenet_model.name
+    assert "mobilenetv2" in mobilenetv2_model.name
+
+
+def test_rescaling_layer_present(mobilenetv2_model):
+    """Model contains a Rescaling layer."""
+    layer_names = [layer.name for layer in mobilenetv2_model.layers]
+    assert "rescaling" in layer_names
 
 
 def test_two_class_model():
@@ -67,7 +78,7 @@ def test_two_class_model():
     cfg = {
         "classes": ["A", "B"],
         "data": {"image_size": 224},
-        "model": {"architecture": "squeezenet", "dropout": 0.0},
+        "model": {"architecture": "mobilenetv2", "dropout": 0.0},
         "training": {"learning_rate": 0.001},
     }
     model = build_model(cfg)
@@ -86,3 +97,13 @@ def test_invalid_architecture_raises():
     }
     with pytest.raises(ValueError, match="Unknown architecture"):
         build_model(cfg)
+
+
+def test_unfreeze_model(mobilenetv2_model, mobilenetv2_config):
+    """unfreeze_model unfreezes layers and recompiles."""
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    # After unfreezing, model should still produce valid output
+    dummy = np.random.rand(1, 224, 224, 3).astype(np.float32)
+    output = model.predict(dummy, verbose=0)
+    assert output.shape == (1, 5)
+    np.testing.assert_allclose(np.sum(output), 1.0, atol=1e-5)

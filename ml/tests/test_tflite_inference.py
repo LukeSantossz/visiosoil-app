@@ -14,16 +14,15 @@ from src.export import _build_spec
 
 @pytest.fixture
 def model_and_tflite():
-    """Build a small model and export to TFLite in a temp directory."""
+    """Build a MobileNetV2 model and export to TFLite in a temp directory."""
     cfg = {
         "classes": ["A", "B", "C"],
         "data": {"image_size": 224},
-        "model": {"architecture": "squeezenet", "dropout": 0.0},
+        "model": {"architecture": "mobilenetv2", "dropout": 0.0},
         "training": {"learning_rate": 0.001},
         "preprocessing": {
-            "normalization": "imagenet",
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
+            "normalization": "mobilenet_v2",
+            "bake_into_model": True,
         },
         "export": {"quantization": "none", "output_dir": "models"},
     }
@@ -124,18 +123,37 @@ def test_tflite_keras_parity(model_and_tflite):
     np.testing.assert_allclose(keras_out, tflite_out, atol=1e-4)
 
 
-def test_spec_json_structure(model_and_tflite):
-    """spec.json has the required contract fields."""
+def test_spec_json_structure_mobilenet(model_and_tflite):
+    """spec.json for mobilenet_v2 has divide_255 normalization."""
     _, _, cfg = model_and_tflite
-    spec = _build_spec(cfg, "v1")
+    spec = _build_spec(cfg, "v2")
 
-    assert spec["version"] == "v1"
+    assert spec["version"] == "v2"
     assert spec["input"]["shape"] == [1, 224, 224, 3]
     assert spec["input"]["dtype"] == "float32"
-    assert spec["input"]["normalization"]["method"] == "imagenet"
-    assert len(spec["input"]["normalization"]["mean"]) == 3
-    assert len(spec["input"]["normalization"]["std"]) == 3
+    assert spec["input"]["normalization"]["method"] == "divide_255"
+    assert "mean" not in spec["input"]["normalization"]
+    assert "std" not in spec["input"]["normalization"]
     assert spec["output"]["shape"] == [1, 3]
     assert spec["output"]["dtype"] == "float32"
     assert spec["output"]["type"] == "probabilities"
     assert spec["classes"] == ["A", "B", "C"]
+
+
+def test_spec_json_structure_imagenet():
+    """spec.json for imagenet normalization includes mean/std."""
+    cfg = {
+        "classes": ["A", "B"],
+        "data": {"image_size": 224},
+        "preprocessing": {
+            "normalization": "imagenet",
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+        },
+        "export": {"quantization": "none", "output_dir": "models"},
+    }
+    spec = _build_spec(cfg, "v1")
+
+    assert spec["input"]["normalization"]["method"] == "imagenet"
+    assert len(spec["input"]["normalization"]["mean"]) == 3
+    assert len(spec["input"]["normalization"]["std"]) == 3
