@@ -47,6 +47,7 @@
 | 24 | 2026-05-03 | TASK-037 | patch | 3 arquivos — ml/src/dataset.py, train.py, evaluate.py | validate_splits_against_config extraída para dataset.py | Elimina duplicação de 33 linhas |
 | 25 | 2026-05-03 | TASK-038 | patch | 1 arquivo — ml/src/preprocess.py | Zoom calcula ambos os limites da config | Fix: zoom assimétrico agora correto |
 | 26 | 2026-05-03 | TASK-039 | minor | 6 arquivos — lib/core/theme/ + pubspec.yaml | Design tokens v2: Manrope+Inter, soil texture colors, AppRadius, warning colors | Checklist agêntico: aplicado |
+| 27 | 2026-05-03 | TASK-040 | major | 1 arquivo — lib/core/features/home/home_page.dart | HomeScreen v2: hero, stats grid, last analysis card, lot map placeholder | Checklist agêntico: aplicado |
 
 ## Estado da Codebase
 
@@ -54,12 +55,12 @@
 
 - **Última atualização:** 2026-05-03
 - **Último responsável:** Claude Code (Opus 4)
-- **Branch ativa:** feat/TASK-039-design-tokens-v2
+- **Branch ativa:** feat/TASK-040-home-redesign-v2
 - **Versão:** 2.0.0
 - **Dependências alteradas recentemente:** pubspec.yaml — google_fonts ^6.2.1 adicionado
 - **Testes passando:** sim (Flutter 15/15 — unit + repository; ML — sintaxe validada, TF indisponível no Python 3.14 local)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-039 — Design tokens v2 (Manrope+Inter, soil colors, radii)
+- **Última task concluída:** TASK-040 — HomeScreen redesign v2
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas

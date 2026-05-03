@@ -939,7 +939,7 @@
 - **Tipo:** feat
 - **Complexidade:** major
 - **Modo:** Desenvolvimento
-- **Status:** pendente
+- **Status:** concluída
 - **Branch:** feat/TASK-040-home-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/home/home_page.dart` — reescrever: hero com greeting + stats, botão "Nova análise" prominente, seção "Última análise" com card visual, placeholder para mapa de lotes (futuro)
@@ -956,7 +956,8 @@
   - [ ] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Dados reais via TASK-016 (pendente) — usar mock/fallback até lá.
-- **Resultado:** [pendente]
+  - [2026-05-03] — Implementação: HomeScreen reescrita com hero gradient (greeting + última análise), botão "Nova análise" dark prominente, stats grid (análises/locais/confiança com dados reais do stream), card "Última análise" com thumbnail+classe+confiança, placeholder mapa de lotes. flutter analyze OK, flutter test 15/15.
+- **Resultado:** HomeScreen v2 implementada. Dados reais via providers. Mapa de lotes como placeholder. Bottom nav inalterada.
 
 ---
 
