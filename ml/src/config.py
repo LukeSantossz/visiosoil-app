@@ -8,11 +8,11 @@ import yaml
 
 _REQUIRED_TOP_KEYS = {"project", "classes", "data", "preprocessing", "model", "training", "export"}
 _REQUIRED_DATA_KEYS = {"raw_dir", "splits_dir", "image_size", "val_split", "test_split", "seed"}
-_REQUIRED_PREPROCESSING_KEYS = {"normalization", "mean", "std"}
+_REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
-_VALID_ARCHITECTURES = {"squeezenet", "mobilenetv2"}
-_VALID_NORMALIZATIONS = {"imagenet"}
+_VALID_ARCHITECTURES = {"mobilenetv2"}
+_VALID_NORMALIZATIONS = {"imagenet", "mobilenet_v2"}
 _VALID_QUANTIZATIONS = {"dynamic_range", "float16", "none"}
 
 
@@ -83,9 +83,19 @@ def _validate(cfg: dict) -> None:
         raise ValueError(f"Missing preprocessing keys: {missing_pre}")
     if pre["normalization"] not in _VALID_NORMALIZATIONS:
         raise ValueError(f"normalization must be one of {_VALID_NORMALIZATIONS}")
-    for key in ("mean", "std"):
-        if not isinstance(pre[key], list) or len(pre[key]) != 3:
-            raise ValueError(f"preprocessing.{key} must be a list of 3 floats")
+
+    # For imagenet normalization, mean and std are required
+    if pre["normalization"] == "imagenet":
+        for key in ("mean", "std"):
+            if key not in pre:
+                raise ValueError(f"preprocessing.{key} required for imagenet normalization")
+            if not isinstance(pre[key], list) or len(pre[key]) != 3:
+                raise ValueError(f"preprocessing.{key} must be a list of 3 floats")
+
+    # bake_into_model is optional, defaults to False
+    if "bake_into_model" in pre:
+        if not isinstance(pre["bake_into_model"], bool):
+            raise ValueError("preprocessing.bake_into_model must be a boolean")
 
     # model
     model = cfg["model"]
@@ -96,6 +106,14 @@ def _validate(cfg: dict) -> None:
         raise ValueError(f"architecture must be one of {_VALID_ARCHITECTURES}")
     if not (0 <= model["dropout"] < 1):
         raise ValueError("dropout must be between 0 and 1")
+
+    # Optional model fields
+    if "unfreeze_at_epoch" in model:
+        if not isinstance(model["unfreeze_at_epoch"], int) or model["unfreeze_at_epoch"] < 1:
+            raise ValueError("model.unfreeze_at_epoch must be a positive integer")
+    if "unfreeze_layers" in model:
+        if not isinstance(model["unfreeze_layers"], int) or model["unfreeze_layers"] < 1:
+            raise ValueError("model.unfreeze_layers must be a positive integer")
 
     # training
     training = cfg["training"]
@@ -108,6 +126,14 @@ def _validate(cfg: dict) -> None:
         raise ValueError("batch_size must be at least 1")
     if training["learning_rate"] <= 0:
         raise ValueError("learning_rate must be positive")
+
+    # Optional training fields
+    if "fine_tune_learning_rate" in training:
+        if training["fine_tune_learning_rate"] <= 0:
+            raise ValueError("fine_tune_learning_rate must be positive")
+    if "class_weights" in training:
+        if training["class_weights"] not in {"balanced", "none"}:
+            raise ValueError("training.class_weights must be 'balanced' or 'none'")
 
     # export
     export = cfg["export"]

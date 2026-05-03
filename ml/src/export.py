@@ -14,13 +14,13 @@ def export(version: str, config_path: str | None = None) -> Path:
     """Export trained Keras model to TFLite with spec.json.
 
     Steps:
-    1. Load Keras .h5 checkpoint.
+    1. Load Keras .keras checkpoint.
     2. Convert to TFLite with configured quantization.
     3. Verify TFLite output matches Keras output.
     4. Generate spec.json (integration contract for Flutter InferenceService).
 
     Args:
-        version: Model version string (e.g., "v1").
+        version: Model version string (e.g., "v2").
         config_path: Optional path to config.yaml.
 
     Returns:
@@ -30,14 +30,23 @@ def export(version: str, config_path: str | None = None) -> Path:
     cfg = resolve_paths(cfg)
 
     output_dir = Path(cfg["export"]["output_dir"]) / version
-    h5_path = output_dir / "model.h5"
     tflite_path = output_dir / "model.tflite"
 
-    if not h5_path.exists():
-        raise FileNotFoundError(f"Model checkpoint not found: {h5_path}")
+    # Try .keras first, then .h5 for backward compatibility
+    keras_path = output_dir / "model.keras"
+    h5_path = output_dir / "model.h5"
+
+    if keras_path.exists():
+        model_path = keras_path
+    elif h5_path.exists():
+        model_path = h5_path
+    else:
+        raise FileNotFoundError(
+            f"Model checkpoint not found: tried {keras_path} and {h5_path}"
+        )
 
     # Load Keras model
-    model = tf.keras.models.load_model(h5_path)
+    model = tf.keras.models.load_model(model_path)
 
     # Convert to TFLite
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -109,6 +118,10 @@ def _verify_tflite(keras_model: tf.keras.Model, tflite_path: Path, cfg: dict) ->
 def _build_spec(cfg: dict, version: str) -> dict:
     """Build the spec.json integration contract.
 
+    The spec tells the Flutter app how to prepare input for the model.
+    With mobilenet_v2 normalization + bake_into_model, the app only
+    needs to divide by 255 (the model handles [-1,1] internally).
+
     Args:
         cfg: Configuration dictionary.
         version: Model version string.
@@ -118,17 +131,31 @@ def _build_spec(cfg: dict, version: str) -> dict:
     """
     image_size = cfg["data"]["image_size"]
     num_classes = len(cfg["classes"])
+    normalization = cfg["preprocessing"]["normalization"]
+    bake_into_model = cfg["preprocessing"].get("bake_into_model", False)
+
+    # Determine normalization method for the app
+    if normalization == "mobilenet_v2" and bake_into_model:
+        norm_spec = {
+            "method": "divide_255",
+        }
+    elif normalization == "imagenet":
+        norm_spec = {
+            "method": "imagenet",
+            "mean": cfg["preprocessing"]["mean"],
+            "std": cfg["preprocessing"]["std"],
+        }
+    else:
+        norm_spec = {
+            "method": normalization,
+        }
 
     return {
         "version": version,
         "input": {
             "shape": [1, image_size, image_size, 3],
             "dtype": "float32",
-            "normalization": {
-                "method": cfg["preprocessing"]["normalization"],
-                "mean": cfg["preprocessing"]["mean"],
-                "std": cfg["preprocessing"]["std"],
-            },
+            "normalization": norm_spec,
         },
         "output": {
             "shape": [1, num_classes],
@@ -141,7 +168,7 @@ def _build_spec(cfg: dict, version: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Export soil classifier to TFLite")
-    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v1)")
+    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v2)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
     args = parser.parse_args()
 

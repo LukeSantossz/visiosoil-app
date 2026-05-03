@@ -21,7 +21,7 @@ def evaluate(version: str, config_path: str | None = None) -> dict:
     """Evaluate a trained model on the test split.
 
     Args:
-        version: Model version string (e.g., "v1").
+        version: Model version string (e.g., "v2").
         config_path: Optional path to config.yaml.
 
     Returns:
@@ -31,12 +31,21 @@ def evaluate(version: str, config_path: str | None = None) -> dict:
     cfg = resolve_paths(cfg)
 
     output_dir = Path(cfg["export"]["output_dir"]) / version
+
+    # Try .keras first, then .h5 for backward compatibility
+    keras_path = output_dir / "model.keras"
     h5_path = output_dir / "model.h5"
 
-    if not h5_path.exists():
-        raise FileNotFoundError(f"Model checkpoint not found: {h5_path}")
+    if keras_path.exists():
+        model_path = keras_path
+    elif h5_path.exists():
+        model_path = h5_path
+    else:
+        raise FileNotFoundError(
+            f"Model checkpoint not found: tried {keras_path} and {h5_path}"
+        )
 
-    model = tf.keras.models.load_model(h5_path)
+    model = tf.keras.models.load_model(model_path)
 
     # Load splits and build test dataset
     manifest = load_splits(cfg["data"]["splits_dir"])
@@ -131,7 +140,7 @@ def _save_confusion_matrix_plot(cm: list, classes: list[str], path: Path) -> Non
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate soil texture classifier")
-    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v1)")
+    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v2)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
     args = parser.parse_args()
 

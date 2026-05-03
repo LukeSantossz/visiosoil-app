@@ -1,4 +1,4 @@
-"""Training CLI: trains the soil texture classifier and saves checkpoints."""
+"""Training CLI: trains the soil texture classifier with 2-phase transfer learning."""
 
 import argparse
 import json
@@ -8,23 +8,20 @@ from pathlib import Path
 import tensorflow as tf
 
 from .config import load_config, resolve_paths
-from .dataset import scan_dataset, create_splits, load_splits, build_dataset
-from .model import build_model
+from .dataset import scan_dataset, create_splits, load_splits, build_dataset, compute_class_weights
+from .model import build_model, unfreeze_model
 
 
 def train(version: str, config_path: str | None = None) -> None:
-    """Run the full training pipeline.
+    """Run the full 2-phase training pipeline.
 
-    Steps:
-    1. Load and validate config.
-    2. Scan dataset and create/load splits.
-    3. Build tf.data pipelines (train with augmentation, val without).
-    4. Build model.
-    5. Train with callbacks (EarlyStopping, ReduceLROnPlateau).
-    6. Save Keras checkpoint (.h5) and config snapshot.
+    Phase 1 — Head only (backbone frozen):
+        Trains classification head with high LR for N epochs.
+    Phase 2 — Fine-tuning (top backbone layers unfrozen):
+        Unfreezes top layers and trains with low LR until EarlyStopping.
 
     Args:
-        version: Model version string (e.g., "v1").
+        version: Model version string (e.g., "v2").
         config_path: Optional path to config.yaml.
     """
     cfg = load_config(config_path)
@@ -62,19 +59,29 @@ def train(version: str, config_path: str | None = None) -> None:
     train_ds = build_dataset(splits["train"], cfg, augment=True, shuffle=True)
     val_ds = build_dataset(splits["val"], cfg, augment=False, shuffle=False)
 
-    # Build model
+    # Compute class weights
+    num_classes = len(cfg["classes"])
+    class_weights_mode = cfg["training"].get("class_weights", "none")
+    class_weights = None
+    if class_weights_mode == "balanced":
+        class_weights = compute_class_weights(splits["train"], num_classes)
+        print(f"Class weights: {class_weights}")
+
+    # Build model (backbone frozen)
     model = build_model(cfg)
     model.summary()
 
-    # Callbacks
     training_cfg = cfg["training"]
-    callbacks = [
-        tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss",
-            patience=training_cfg.get("early_stopping_patience", 10),
-            restore_best_weights=True,
-            verbose=1,
-        ),
+    total_epochs = training_cfg["epochs"]
+    unfreeze_at_epoch = cfg["model"].get("unfreeze_at_epoch", total_epochs)
+
+    # Phase 1: Head-only training
+    phase1_epochs = min(unfreeze_at_epoch, total_epochs)
+    print(f"\n{'='*50}")
+    print(f"Phase 1: Head-only training (epochs 1-{phase1_epochs})")
+    print(f"{'='*50}")
+
+    callbacks_phase1 = [
         tf.keras.callbacks.ReduceLROnPlateau(
             monitor="val_loss",
             patience=training_cfg.get("reduce_lr_patience", 5),
@@ -84,21 +91,69 @@ def train(version: str, config_path: str | None = None) -> None:
         ),
     ]
 
-    # Train
-    history = model.fit(
+    history1 = model.fit(
         train_ds,
         validation_data=val_ds,
-        epochs=training_cfg["epochs"],
-        callbacks=callbacks,
+        epochs=phase1_epochs,
+        callbacks=callbacks_phase1,
+        class_weight=class_weights,
     )
 
-    # Save checkpoint
-    h5_path = output_dir / "model.h5"
-    model.save(h5_path)
-    print(f"Model saved to {h5_path}")
+    # Phase 2: Fine-tuning (if epochs remain)
+    if phase1_epochs < total_epochs:
+        print(f"\n{'='*50}")
+        print(f"Phase 2: Fine-tuning (epochs {phase1_epochs + 1}-{total_epochs})")
+        print(f"{'='*50}")
+
+        model = unfreeze_model(model, cfg)
+
+        checkpoint_path = output_dir / "best_model.keras"
+        callbacks_phase2 = [
+            tf.keras.callbacks.EarlyStopping(
+                monitor="val_accuracy",
+                patience=training_cfg.get("early_stopping_patience", 10),
+                restore_best_weights=True,
+                verbose=1,
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor="val_loss",
+                patience=training_cfg.get("reduce_lr_patience", 5),
+                factor=training_cfg.get("reduce_lr_factor", 0.5),
+                min_lr=1e-8,
+                verbose=1,
+            ),
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=str(checkpoint_path),
+                monitor="val_accuracy",
+                save_best_only=True,
+                verbose=1,
+            ),
+        ]
+
+        history2 = model.fit(
+            train_ds,
+            validation_data=val_ds,
+            initial_epoch=phase1_epochs,
+            epochs=total_epochs,
+            callbacks=callbacks_phase2,
+            class_weight=class_weights,
+        )
+
+        # Merge histories
+        history_data = {}
+        for key in history1.history:
+            history_data[key] = [float(v) for v in history1.history[key]]
+            if key in history2.history:
+                history_data[key].extend([float(v) for v in history2.history[key]])
+    else:
+        history_data = {k: [float(v) for v in vals] for k, vals in history1.history.items()}
+
+    # Save final model
+    keras_path = output_dir / "model.keras"
+    model.save(keras_path)
+    print(f"Model saved to {keras_path}")
 
     # Save training history
-    history_data = {k: [float(v) for v in vals] for k, vals in history.history.items()}
     with open(output_dir / "history.json", "w") as f:
         json.dump(history_data, f, indent=2)
 
@@ -107,7 +162,7 @@ def train(version: str, config_path: str | None = None) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Train soil texture classifier")
-    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v1)")
+    parser.add_argument("--version", type=str, default="v1", help="Model version (e.g., v2)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
     args = parser.parse_args()
 

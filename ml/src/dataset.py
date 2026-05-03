@@ -1,4 +1,4 @@
-"""Dataset scanning, stratified splitting, and tf.data pipeline construction."""
+"""Dataset scanning, stratified splitting, tf.data pipeline, and class weights."""
 
 import json
 import os
@@ -208,3 +208,29 @@ def build_dataset(
     ds = ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     return ds
+
+
+def compute_class_weights(split_entries: list[dict], num_classes: int) -> dict[int, float]:
+    """Compute balanced class weights for imbalanced datasets.
+
+    Formula: weight_i = n_samples / (n_classes * n_samples_i)
+
+    Args:
+        split_entries: List of {"path", "label", "class"} dicts (training split).
+        num_classes: Total number of classes.
+
+    Returns:
+        Dict mapping class index to weight, e.g. {0: 1.2, 1: 0.8, ...}.
+    """
+    labels = [e["label"] for e in split_entries]
+    n_samples = len(labels)
+    counts = np.bincount(labels, minlength=num_classes)
+
+    weights = {}
+    for i in range(num_classes):
+        if counts[i] > 0:
+            weights[i] = n_samples / (num_classes * counts[i])
+        else:
+            weights[i] = 1.0
+
+    return weights
