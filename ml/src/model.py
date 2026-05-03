@@ -85,11 +85,10 @@ def unfreeze_model(model: keras.Model, cfg: dict) -> keras.Model:
     unfreeze_layers = cfg["model"].get("unfreeze_layers", 50)
     fine_tune_lr = cfg["training"].get("fine_tune_learning_rate", 1e-5)
 
-    # The backbone is the second layer (index 1) after Rescaling
-    # Find the MobileNetV2 functional model within the model's layers
+    # Find the MobileNetV2 backbone by name pattern
     backbone = None
     for layer in model.layers:
-        if hasattr(layer, "layers") and len(layer.layers) > 10:
+        if hasattr(layer, "layers") and "mobilenetv2" in layer.name.lower():
             backbone = layer
             break
 

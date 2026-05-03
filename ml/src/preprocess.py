@@ -100,17 +100,22 @@ def build_augmentation_layer(cfg: dict) -> tf.keras.Sequential:
     brightness = aug_cfg.get("brightness_range")
     if brightness:
         factor = brightness[1] - 1.0
-        layers.append(tf.keras.layers.RandomBrightness(factor=factor))
+        layers.append(tf.keras.layers.RandomBrightness(
+            factor=factor, value_range=(0.0, 1.0),
+        ))
 
     contrast = aug_cfg.get("contrast_range")
     if contrast:
         factor = contrast[1] - 1.0
-        layers.append(tf.keras.layers.RandomContrast(factor=factor))
+        layers.append(tf.keras.layers.RandomContrast(
+            factor=factor, value_range=(0.0, 1.0),
+        ))
 
     zoom = aug_cfg.get("zoom_range")
     if zoom:
-        zoom_factor = 1.0 - zoom[0]
-        layers.append(tf.keras.layers.RandomZoom(height_factor=(-zoom_factor, zoom_factor)))
+        zoom_lower = zoom[0] - 1.0  # e.g. 0.95 - 1.0 = -0.05 (zoom out)
+        zoom_upper = zoom[1] - 1.0  # e.g. 1.05 - 1.0 = 0.05 (zoom in)
+        layers.append(tf.keras.layers.RandomZoom(height_factor=(zoom_lower, zoom_upper)))
 
     translation = aug_cfg.get("translation_range")
     if translation:

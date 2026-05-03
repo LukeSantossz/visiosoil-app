@@ -1,6 +1,8 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -80,7 +82,10 @@ class InferenceService {
       _isInitialized = true;
       return true;
     } catch (e) {
-      // Modelo não encontrado, timeout ou erro de carregamento
+      developer.log(
+        'Failed to initialize InferenceService: $e',
+        name: 'InferenceService',
+      );
       _isInitialized = false;
       return false;
     }
@@ -106,6 +111,10 @@ class InferenceService {
       final result = await Isolate.run(() => _runInference(params));
       return result;
     } catch (e) {
+      developer.log(
+        'classify() failed for $imagePath: $e',
+        name: 'InferenceService',
+      );
       return null;
     }
   }
@@ -165,6 +174,7 @@ class InferenceService {
         confidenceScore: maxProb,
       );
     } catch (e) {
+      debugPrint('InferenceService._runInference failed: $e');
       return null;
     }
   }

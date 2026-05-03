@@ -8,7 +8,10 @@ from pathlib import Path
 import tensorflow as tf
 
 from .config import load_config, resolve_paths
-from .dataset import scan_dataset, create_splits, load_splits, build_dataset, compute_class_weights
+from .dataset import (
+    scan_dataset, create_splits, load_splits, build_dataset,
+    compute_class_weights, validate_splits_against_config,
+)
 from .model import build_model, unfreeze_model
 
 
@@ -41,6 +44,7 @@ def train(version: str, config_path: str | None = None) -> None:
     if splits_file.exists():
         print(f"Loading existing splits from {splits_file}")
         manifest = load_splits(splits_dir)
+        validate_splits_against_config(manifest, cfg)
         splits = manifest["splits"]
     else:
         print("Scanning dataset and creating splits...")

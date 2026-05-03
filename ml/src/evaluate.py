@@ -14,7 +14,7 @@ from sklearn.metrics import (
 )
 
 from .config import load_config, resolve_paths
-from .dataset import load_splits, build_dataset
+from .dataset import load_splits, build_dataset, validate_splits_against_config
 
 
 def evaluate(version: str, config_path: str | None = None) -> dict:
@@ -47,8 +47,9 @@ def evaluate(version: str, config_path: str | None = None) -> dict:
 
     model = tf.keras.models.load_model(model_path)
 
-    # Load splits and build test dataset
+    # Load and validate splits
     manifest = load_splits(cfg["data"]["splits_dir"])
+    validate_splits_against_config(manifest, cfg)
     splits = manifest["splits"]
     test_entries = splits["test"]
     test_ds = build_dataset(test_entries, cfg, augment=False, shuffle=False)
@@ -58,15 +59,18 @@ def evaluate(version: str, config_path: str | None = None) -> dict:
     y_pred = np.argmax(y_pred_probs, axis=1)
     y_true = np.array([e["label"] for e in test_entries])
 
-    classes = cfg["classes"]
+    classes = manifest["classes"]
+    label_indices = list(range(len(classes)))
 
     # Metrics
     acc = float(accuracy_score(y_true, y_pred))
-    f1_macro = float(f1_score(y_true, y_pred, average="macro"))
-    f1_weighted = float(f1_score(y_true, y_pred, average="weighted"))
+    f1_macro = float(f1_score(y_true, y_pred, average="macro", labels=label_indices))
+    f1_weighted = float(f1_score(y_true, y_pred, average="weighted", labels=label_indices))
 
-    report = classification_report(y_true, y_pred, target_names=classes, output_dict=True)
-    cm = confusion_matrix(y_true, y_pred).tolist()
+    report = classification_report(
+        y_true, y_pred, labels=label_indices, target_names=classes, output_dict=True,
+    )
+    cm = confusion_matrix(y_true, y_pred, labels=label_indices).tolist()
 
     metrics = {
         "version": version,

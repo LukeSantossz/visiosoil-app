@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -52,6 +53,26 @@ def scan_dataset(raw_dir: str, classes: list[str]) -> dict[str, list[str]]:
     return result
 
 
+def _extract_sample_id(filepath: str) -> str:
+    """Extract sample ID from filename for group-aware splitting.
+
+    Handles patterns like "100147,21 (6).JPG" -> "100147,21"
+    and "sample_name.jpg" -> "sample_name" (single-image samples).
+
+    Args:
+        filepath: Full path to an image file.
+
+    Returns:
+        Sample group identifier.
+    """
+    stem = Path(filepath).stem
+    # Match pattern: "name (N)" where N is a number
+    match = re.match(r"^(.+?)\s*\(\d+\)$", stem)
+    if match:
+        return match.group(1).strip()
+    return stem
+
+
 def create_splits(
     class_images: dict[str, list[str]],
     val_split: float,
@@ -59,7 +80,10 @@ def create_splits(
     seed: int,
     splits_dir: str,
 ) -> dict[str, list[dict]]:
-    """Create stratified train/val/test splits and save manifests.
+    """Create group-aware stratified train/val/test splits and save manifests.
+
+    Groups images by sample ID so all photos of the same soil sample
+    stay in the same split, preventing data leakage.
 
     Args:
         class_images: Dict from scan_dataset.
@@ -72,48 +96,77 @@ def create_splits(
         Dict with "train", "val", "test" keys, each a list of
         {"path": str, "label": int, "class": str}.
     """
-    all_paths = []
-    all_labels = []
-    classes = sorted(class_images.keys())
+    classes = list(class_images.keys())
     class_to_idx = {c: i for i, c in enumerate(classes)}
+    idx_to_class = {i: c for c, i in class_to_idx.items()}
+
+    # Build groups: each group = (sample_id, class_label, [file_paths])
+    group_ids = []
+    group_labels = []
+    group_files: list[list[str]] = []
 
     for class_name, paths in class_images.items():
         label = class_to_idx[class_name]
-        all_paths.extend(paths)
-        all_labels.extend([label] * len(paths))
+        # Group files by sample ID within this class
+        sample_groups: dict[str, list[str]] = {}
+        for p in paths:
+            sid = _extract_sample_id(p)
+            sample_groups.setdefault(sid, []).append(p)
 
-    all_paths = np.array(all_paths)
-    all_labels = np.array(all_labels)
+        for sid, files in sample_groups.items():
+            group_ids.append(f"{class_name}::{sid}")
+            group_labels.append(label)
+            group_files.append(files)
 
-    # First split: separate test set
-    train_val_paths, test_paths, train_val_labels, test_labels = train_test_split(
-        all_paths, all_labels,
+    group_ids = np.array(group_ids)
+    group_labels = np.array(group_labels)
+
+    # Validate minimum groups per class for stratified splitting
+    # Each class needs at least 3 groups to have >=1 in train, val, and test
+    from collections import Counter
+    label_counts = Counter(group_labels.tolist())
+    min_groups = 3
+    for label_idx, count in label_counts.items():
+        if count < min_groups:
+            cls_name = idx_to_class[label_idx]
+            raise ValueError(
+                f"Class '{cls_name}' has only {count} sample group(s), "
+                f"but at least {min_groups} are required for stratified "
+                f"train/val/test splitting."
+            )
+
+    # Split at the group level (stratified by class)
+    train_val_idx, test_idx = train_test_split(
+        np.arange(len(group_ids)),
         test_size=test_split,
-        stratify=all_labels,
+        stratify=group_labels,
         random_state=seed,
     )
 
-    # Second split: separate validation from training
     relative_val = val_split / (1 - test_split)
-    train_paths, val_paths, train_labels, val_labels = train_test_split(
-        train_val_paths, train_val_labels,
+    train_idx, val_idx = train_test_split(
+        train_val_idx,
         test_size=relative_val,
-        stratify=train_val_labels,
+        stratify=group_labels[train_val_idx],
         random_state=seed,
     )
 
-    idx_to_class = {i: c for c, i in class_to_idx.items()}
-
-    def _build_manifest(paths, labels):
-        return [
-            {"path": str(p), "label": int(l), "class": idx_to_class[int(l)]}
-            for p, l in zip(paths, labels)
-        ]
+    def _build_manifest(indices):
+        entries = []
+        for i in indices:
+            label = int(group_labels[i])
+            for p in group_files[i]:
+                entries.append({
+                    "path": str(p),
+                    "label": label,
+                    "class": idx_to_class[label],
+                })
+        return entries
 
     splits = {
-        "train": _build_manifest(train_paths, train_labels),
-        "val": _build_manifest(val_paths, val_labels),
-        "test": _build_manifest(test_paths, test_labels),
+        "train": _build_manifest(train_idx),
+        "val": _build_manifest(val_idx),
+        "test": _build_manifest(test_idx),
     }
 
     # Save manifests
@@ -122,6 +175,8 @@ def create_splits(
 
     manifest = {
         "seed": seed,
+        "val_split": val_split,
+        "test_split": test_split,
         "classes": classes,
         "class_to_idx": class_to_idx,
         "counts": {
@@ -136,6 +191,44 @@ def create_splits(
         json.dump(manifest, f, indent=2)
 
     return splits
+
+
+def validate_splits_against_config(manifest: dict, cfg: dict) -> None:
+    """Validate that splits.json is compatible with the active config.
+
+    Args:
+        manifest: Loaded splits manifest dict.
+        cfg: Configuration dictionary.
+
+    Raises:
+        ValueError: If classes, seed, or split fractions diverge.
+    """
+    if manifest["classes"] != cfg["classes"]:
+        raise ValueError(
+            f"splits.json classes {manifest['classes']} != "
+            f"config classes {cfg['classes']}. "
+            "Delete splits.json and re-run to regenerate."
+        )
+    if manifest.get("seed") != cfg["data"]["seed"]:
+        raise ValueError(
+            f"splits.json seed {manifest.get('seed')} != "
+            f"config seed {cfg['data']['seed']}. "
+            "Delete splits.json and re-run to regenerate."
+        )
+    if "val_split" in manifest:
+        if manifest["val_split"] != cfg["data"]["val_split"]:
+            raise ValueError(
+                f"splits.json val_split {manifest['val_split']} != "
+                f"config val_split {cfg['data']['val_split']}. "
+                "Delete splits.json and re-run to regenerate."
+            )
+    if "test_split" in manifest:
+        if manifest["test_split"] != cfg["data"]["test_split"]:
+            raise ValueError(
+                f"splits.json test_split {manifest['test_split']} != "
+                f"config test_split {cfg['data']['test_split']}. "
+                "Delete splits.json and re-run to regenerate."
+            )
 
 
 def load_splits(splits_dir: str) -> dict:
