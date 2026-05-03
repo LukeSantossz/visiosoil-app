@@ -30,12 +30,12 @@ def sample_config_mobilenet() -> dict:
         },
         "augmentation": {
             "horizontal_flip": True,
-            "vertical_flip": True,
-            "rotation_range": 40,
-            "brightness_range": [0.7, 1.3],
-            "contrast_range": [0.8, 1.2],
-            "zoom_range": [0.85, 1.15],
-            "translation_range": 0.1,
+            "vertical_flip": False,
+            "rotation_range": 15,
+            "brightness_range": [0.85, 1.15],
+            "contrast_range": [0.9, 1.1],
+            "zoom_range": [0.95, 1.05],
+            "translation_range": 0.05,
         },
         "classes": ["A", "B", "C"],
         "training": {"batch_size": 4},
@@ -143,12 +143,11 @@ def test_augmentation_no_config():
     assert len(aug.layers) == 0
 
 
-def test_augmentation_vertical_flip(sample_config_mobilenet):
-    """Vertical flip layer is included when configured."""
+def test_augmentation_horizontal_flip_only(sample_config_mobilenet):
+    """Only horizontal flip layer is included when vertical_flip is false."""
     aug = build_augmentation_layer(sample_config_mobilenet)
     layer_types = [type(l).__name__ for l in aug.layers]
-    # Two RandomFlip layers: horizontal and vertical
-    assert layer_types.count("RandomFlip") == 2
+    assert layer_types.count("RandomFlip") == 1
 
 
 def test_augmentation_contrast_layer(sample_config_mobilenet):
@@ -163,3 +162,14 @@ def test_augmentation_translation_layer(sample_config_mobilenet):
     aug = build_augmentation_layer(sample_config_mobilenet)
     layer_types = [type(l).__name__ for l in aug.layers]
     assert "RandomTranslation" in layer_types
+
+
+def test_augmentation_output_range_normalized_input(sample_config_mobilenet):
+    """Augmented images from [0,1] input stay within [0,1] range."""
+    aug = build_augmentation_layer(sample_config_mobilenet)
+    # Input in [0, 1] range (post-normalization)
+    dummy = tf.random.uniform((16, 224, 224, 3), minval=0.0, maxval=1.0)
+    output = aug(dummy, training=True)
+    values = output.numpy()
+    assert values.max() <= 1.01, f"Augmented max {values.max():.4f} exceeds [0,1] range"
+    assert values.min() >= -0.01, f"Augmented min {values.min():.4f} below [0,1] range"

@@ -22,7 +22,7 @@ def mobilenetv2_config() -> dict:
         },
         "training": {
             "learning_rate": 0.001,
-            "fine_tune_learning_rate": 0.00001,
+            "fine_tune_learning_rate": 0.0001,
         },
     }
 
@@ -107,3 +107,27 @@ def test_unfreeze_model(mobilenetv2_model, mobilenetv2_config):
     output = model.predict(dummy, verbose=0)
     assert output.shape == (1, 5)
     np.testing.assert_allclose(np.sum(output), 1.0, atol=1e-5)
+
+
+def test_unfreeze_model_layers_trainable(mobilenetv2_model, mobilenetv2_config):
+    """unfreeze_model sets the last N backbone layers to trainable."""
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    unfreeze_layers = mobilenetv2_config["model"]["unfreeze_layers"]
+
+    # Find backbone
+    backbone = None
+    for layer in model.layers:
+        if hasattr(layer, "layers") and "mobilenetv2" in layer.name.lower():
+            backbone = layer
+            break
+
+    assert backbone is not None, "MobileNetV2 backbone not found"
+    assert backbone.trainable is True
+
+    # Last N layers should be trainable
+    trainable_tail = [l for l in backbone.layers[-unfreeze_layers:] if l.trainable]
+    assert len(trainable_tail) > 0, "No layers unfrozen in backbone tail"
+
+    # Earlier layers should be frozen
+    frozen_head = [l for l in backbone.layers[:-unfreeze_layers] if not l.trainable]
+    assert len(frozen_head) > 0, "No layers frozen in backbone head"
