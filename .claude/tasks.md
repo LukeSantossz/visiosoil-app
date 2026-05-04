@@ -1164,6 +1164,44 @@
 
 ---
 
+### TASK-049 — Corrigir README ML: resetar versionamento de modelo para v1
+- **Tipo:** docs
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** em andamento
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `ml/README.md` — substituir referências hardcoded a `v2` por `v1` nos comandos de exemplo
+- **Critérios de Aceite:**
+  - [ ] Comandos de treino/evaluate/export usam `v1` como exemplo base
+  - [ ] Seção de artefatos referencia `models/v1/`
+  - [ ] Deploy commands usam `v1`
+  - [ ] Nota sobre limpeza de versões anteriores adicionada
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. v1 e v2 foram limpas (TASK-034). v3 existe com artefatos mas README ainda referencia v2.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-050 — Validação visual UI com Codex review
+- **Tipo:** test
+- **Complexidade:** patch
+- **Modo:** Review
+- **Status:** em andamento
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - Review cruzado das telas implementadas: processing_screen, onboarding_screen, details, home_page
+- **Critérios de Aceite:**
+  - [ ] Todos os findings do Codex avaliados e resolvidos ou documentados
+  - [ ] Nenhum bug visual ou crash path identificado sem resolução
+- **Log de Andamento:**
+  - [2026-05-03] — Codex rescue disparado para review adversarial das 6 telas UI.
+- **Resultado:** [pendente]
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]
