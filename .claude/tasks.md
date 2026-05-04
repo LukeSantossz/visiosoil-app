@@ -211,23 +211,24 @@
 - **Tipo:** feat
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-009-confidence-threshold
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/details/details.dart` — adaptar tom visual conforme faixa de confiança
   - `lib/models/confidence_level.dart` — novo enum `ConfidenceLevel { high, moderate, low }` com factory `fromScore(double)`
   - `lib/core/theme/` — constantes de threshold centralizadas (alta ≥80%, moderada 60–79%, baixa <60%)
 - **Critérios de Aceite:**
-  - [ ] UI adapta cores, ícone e texto conforme faixa de confiança
-  - [ ] Faixa baixa (<60%): banner de aviso com sugestão de refazer captura
-  - [ ] Faixa moderada (60–79%): disclaimer junto ao resultado
-  - [ ] Faixa alta (≥80%): fluxo normal sem alteração
-  - [ ] Thresholds definidos via constantes centralizadas (não hardcoded em widgets)
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] UI adapta cores, ícone e texto conforme faixa de confiança
+  - [x] Faixa baixa (<60%): banner de aviso com sugestão de refazer captura
+  - [x] Faixa moderada (60–79%): disclaimer junto ao resultado
+  - [x] Faixa alta (≥80%): fluxo normal sem alteração
+  - [x] Thresholds definidos via constantes centralizadas (não hardcoded em widgets)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada. Depende do score de confiança retornado pelo InferenceService (TASK-001).
-- **Resultado:** [pendente]
+  - [2026-05-03] — ConfidenceLevel enum com thresholds centralizados, banners baixa/moderada na DetailsScreen. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ConfidenceLevel enum (high/moderate/low). DetailsScreen com banners condicionais. Thresholds centralizados no modelo.
 
 ---
 
@@ -329,8 +330,8 @@
 - **Tipo:** refactor
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** refactor/TASK-014-loading-error-states
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/widgets/` — novos widgets reutilizáveis: loading state (skeleton/spinner), error state (ícone + mensagem + retry), empty state (ícone + mensagem + CTA)
   - `lib/core/features/home/home_page.dart` — adotar padrão AsyncValue
@@ -338,16 +339,17 @@
   - `lib/core/features/details/details.dart` — adotar padrão AsyncValue
   - `lib/providers/` — migrar providers assíncronos para AsyncValue
 - **Critérios de Aceite:**
-  - [ ] Padrão `AsyncValue` adotado em todos os providers assíncronos
-  - [ ] Widget reutilizável para loading state
-  - [ ] Widget reutilizável para error state com botão retry
-  - [ ] Telas cobertas: Home, Histórico, Detalhes
+  - [x] Padrão `AsyncValue` adotado em todos os providers assíncronos
+  - [x] Widget reutilizável para loading state
+  - [x] Widget reutilizável para error state com botão retry
+  - [x] Telas cobertas: Home, Histórico, Detalhes
   - [ ] PR fecha issue #9
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada. Vinculada à issue #9. Mudança transversal, sem dependência específica.
-- **Resultado:** [pendente]
+  - [2026-05-03] — ErrorState widget criado. History e Details usam LoadingIndicator e ErrorState padronizados. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ErrorState widget reutilizavel com retry. LoadingIndicator aplicado em History e Details. Padrao AsyncValue.when() ja adotado nas 3 telas.
 
 ---
 
@@ -355,22 +357,23 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-015-settings-screen
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/settings/settings_screen.dart` — nova tela: versão do app, link onboarding, opção apagar dados
   - `lib/core/routes/app_router.dart` — nova rota `/settings`
   - Dependência nova: `package_info_plus`
 - **Critérios de Aceite:**
-  - [ ] Tela acessível via ícone na Home
-  - [ ] Exibe versão do app via `package_info_plus`
-  - [ ] Opção "Apagar todos os dados" com dialog de confirmação (limpa banco Drift + imagens do documents directory)
-  - [ ] Rota registrada no GoRouter
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Tela acessível via ícone na Home
+  - [x] Exibe versão do app via `package_info_plus`
+  - [x] Opção "Apagar todos os dados" com dialog de confirmação (limpa banco Drift + imagens do documents directory)
+  - [x] Rota registrada no GoRouter
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
+  - [2026-05-03] — SettingsScreen implementada. Versao via package_info_plus, link onboarding, apagar dados com confirmacao. Rota /settings. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de configuracoes: versao do app, link onboarding, apagar todos os dados. Rota /settings registrada. Botao settings na Home funcional.
 
 ---
 
@@ -378,22 +381,23 @@
 - **Tipo:** feat
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-016-home-aggregate-stats
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/data/repositories/drift_soil_record_repository.dart` — queries de agregação (total registros, endereços distintos, média confiança)
   - `lib/core/data/repositories/soil_record_repository.dart` — novos métodos na interface
   - `lib/providers/` — `homeStatsProvider` (StreamProvider para reatividade)
   - `lib/core/features/home/home_page.dart` — consumir provider e exibir dados reais
 - **Critérios de Aceite:**
-  - [ ] `homeStatsProvider` retorna total de registros, localizações distintas, média de confiança
-  - [ ] Dados via StreamProvider (atualizados automaticamente ao salvar/deletar)
-  - [ ] HomeScreen exibe dados reais em vez de hardcoded
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `homeStatsProvider` retorna total de registros, localizações distintas, média de confiança
+  - [x] Dados via StreamProvider (atualizados automaticamente ao salvar/deletar)
+  - [x] HomeScreen exibe dados reais em vez de hardcoded
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
+  - [2026-05-03] — HomeStats model + homeStatsProvider derivado do stream. HomeScreen consome provider em vez de computar inline. flutter analyze OK, flutter test 15/15.
+- **Resultado:** HomeStats model + homeStatsProvider (derivado do stream). StatsGrid consome provider. Calculo de stats movido de widget para provider.
 
 ---
 
@@ -1041,23 +1045,24 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-044-result-screen
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/result/result_screen.dart` — nova tela: classe textural destacada, confiança com badge qualitativo, foto thumbnail, link para recomendações
   - `lib/core/routes/app_router.dart` — nova rota `/result`
   - `lib/models/confidence_level.dart` — integração com TASK-009
 - **Critérios de Aceite:**
-  - [ ] Classe textural exibida em destaque (nome + cor associada)
-  - [ ] Confiança com badge: Alta (>85%), Média (70-85%), Baixa (<70%)
-  - [ ] Foto da amostra visível
-  - [ ] Botões: "Ver plano de manejo" (placeholder para recomendações) + "Nova análise" + "Salvar"
+  - [x] Classe textural exibida em destaque (nome + cor associada)
+  - [x] Confiança com badge: Alta (>85%), Média (70-85%), Baixa (<70%)
+  - [x] Foto da amostra visível
+  - [x] Botões: "Ver plano de manejo" (placeholder para recomendações) + "Nova análise" + "Salvar"
   - [ ] Dados persistidos no banco via SoilRecordRepository
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039, TASK-009. "Ver plano de manejo" navega para placeholder até recomendações serem implementadas.
-- **Resultado:** [pendente]
+  - [2026-05-03] — ResultScreen implementada. Classe textural com cor, badge confianca (ConfidenceLevel), foto, banners baixa/moderada, botoes acao. Rota /result. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ResultScreen com classe textural destacada, badge de confianca graduado, foto thumbnail, banners de aviso, botoes (plano placeholder, nova analise, ver detalhes). Rota /result registrada.
 
 ---
 

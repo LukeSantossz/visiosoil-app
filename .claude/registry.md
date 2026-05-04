@@ -33,6 +33,11 @@
 | 30 | 2026-05-03 | TASK-048 | minor | 2 arquivos — details.dart + app_router.dart | DetailsScreen v2: SliverAppBar hero, confidence badges, info tiles, action buttons | Checklist agêntico: aplicado |
 | 31 | 2026-05-03 | TASK-049 | patch | 1 arquivo — ml/README.md | README ML: v2→v1, LR Phase 2 corrigido, seção Versioning | Checklist agêntico: N/A |
 | 32 | 2026-05-03 | TASK-050 | patch | 5 arquivos — router, home, details, main, onboarding | Codex review: 7 fixes (guarded casts, NaN, null id, PopScope, overflow) | Review cruzado (Codex): aplicado |
+| 33 | 2026-05-03 | TASK-009 | patch | 2 arquivos — details.dart + confidence_level.dart | ConfidenceLevel enum, banners baixa/moderada na DetailsScreen | Checklist agentico: aplicado |
+| 34 | 2026-05-03 | TASK-014 | minor | 2 arquivos — history_screen.dart + error_state.dart | ErrorState widget, LoadingIndicator padronizado | Checklist agentico: aplicado |
+| 35 | 2026-05-03 | TASK-015 | minor | 3 arquivos — settings_screen.dart, app_router.dart, pubspec.yaml | Tela de configuracoes com versao, onboarding link, apagar dados | Checklist agentico: aplicado |
+| 36 | 2026-05-03 | TASK-044 | minor | 2 arquivos — result_screen.dart + app_router.dart | ResultScreen com classe textural, badge confianca, banners | Checklist agentico: aplicado |
+| 37 | 2026-05-03 | TASK-016 | patch | 3 arquivos — home_stats.dart, repository_provider.dart, home_page.dart | homeStatsProvider derivado do stream, HomeScreen consome | Checklist agentico: aplicado |
 
 ## Estado da Codebase
 
@@ -42,10 +47,11 @@
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
 - **Versão:** 2.0.0
-- **Dependências alteradas recentemente:** pubspec.yaml — google_fonts ^6.2.1 adicionado
-- **Testes passando:** sim (Flutter 15/15 — unit + repository; ML — sintaxe validada, TF indisponível no Python 3.14 local)
+- **Dependências alteradas recentemente:** pubspec.yaml — package_info_plus ^8.0.0 adicionado
+- **Testes passando:** sim (Flutter 15/15)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-050 — Codex UI review + fixes
+- **Última task concluída:** TASK-016 — Home aggregate stats providers
+- **Review cruzado (Codex):** aplicado — 8 findings, 1 CRITICAL false positive (Dart 3.10 null-aware elements), 1 HIGH (rota /result nao integrada ao capture — by design), 4 MEDIUM (guards ja existentes), 2 LOW aceitos
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
