@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
+import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/database_provider.dart';
 
@@ -29,4 +30,28 @@ final latestSoilRecordProvider = Provider<AsyncValue<SoilRecord?>>((ref) {
 final soilRecordByIdProvider =
     FutureProvider.family<SoilRecord?, int>((ref, id) {
   return ref.watch(soilRecordRepositoryProvider).getById(id);
+});
+
+/// Dados agregados para a HomeScreen, derivados do stream reativo.
+///
+/// Atualiza automaticamente ao salvar/deletar registros.
+final homeStatsProvider = Provider<AsyncValue<HomeStats>>((ref) {
+  final records = ref.watch(soilRecordsStreamProvider);
+  return records.whenData((list) {
+    final scored = list.where((r) => r.confidenceScore != null).toList();
+    final avgConf = scored.isEmpty
+        ? null
+        : scored.fold<double>(0, (sum, r) => sum + r.confidenceScore!) /
+            scored.length;
+
+    return HomeStats(
+      totalRecords: list.length,
+      distinctLocations: list
+          .where((r) => r.hasValidAddress)
+          .map((r) => r.address)
+          .toSet()
+          .length,
+      averageConfidence: avgConf,
+    );
+  });
 });
