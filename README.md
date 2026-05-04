@@ -3,152 +3,111 @@
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 [![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=dev&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
-# VisioSoil — Soil Analysis Mobile App
+# VisioSoil
 
-> Cross-platform mobile app for geolocated soil texture analysis, built with Flutter.
+## Why this exists
 
-## Overview
+Soil texture classification in the field still relies on manual feel tests — a subjective method that varies between professionals and offers no traceability. VisioSoil replaces that with a mobile workflow: photograph a soil sample, record GPS coordinates, and get an instant on-device classification into one of 12 USDA texture classes. Every analysis is persisted locally with geolocation, creating an auditable history of soil data across lots and seasons.
 
-VisioSoil lets agronomists and field professionals photograph soil samples, record GPS coordinates, and review captured data — with on-device AI classification planned for a future phase. The app is the production-mobile evolution of academic research for soil texture classification.
+The app is the production-mobile evolution of academic research on image-based soil texture classification, targeting agronomists and field technicians who need consistent, repeatable results without cloud dependency.
 
-## Tech Stack
+## Architecture
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Flutter (Android + iOS) |
-| Language | Dart |
-| State management | Riverpod |
-| Navigation | GoRouter |
-| Typography | google_fonts |
-| Image loading | cached_network_image |
-| Camera / Gallery | image_picker *(camera-only por ora)* |
-| GPS | geolocator |
-| Reverse geocoding | geocoding |
-| Local persistence | Drift + SQLite (`sqlite3_flutter_libs`) |
-| AI classification | TensorFlow Lite (on-device inference) |
+```mermaid
+graph TD
+    subgraph UI ["UI Layer (Screens)"]
+        Home[Home]
+        Capture[Capture]
+        History[History]
+        Details[Details]
+        Result[Result]
+        Settings[Settings]
+    end
 
-## Getting Started
+    subgraph State ["State Management"]
+        RP[Riverpod Providers]
+    end
 
-### Prerequisites
+    subgraph Domain ["Domain"]
+        Repo["SoilRecordRepository\n(abstract)"]
+        Model[SoilRecord]
+    end
 
-- Flutter SDK 3.x
-- Android Studio with an Android emulator, or a connected device
-- Xcode (for iOS builds)
+    subgraph Infra ["Infrastructure"]
+        Drift["DriftSoilRecordRepository\n(SQLite)"]
+        TFLite["InferenceService\n(TFLite Isolate)"]
+        GPS["LocationService\n(GPS + Geocoding)"]
+    end
 
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/LukeSantossz/visiosoil-app.git
-cd visiosoil-app
-
-# Install dependencies
-flutter pub get
-
-# Generate Drift adapters (required after changes to DB tables / models)
-dart run build_runner build --delete-conflicting-outputs
+    UI --> RP
+    RP --> Repo
+    RP --> TFLite
+    RP --> GPS
+    Repo --> Drift
+    Drift --> DB[(SQLite v2)]
+    TFLite --> ModelFile[soil_classifier.tflite]
 ```
 
-### Running
+**Data flow:** Screens consume Riverpod providers. A `StreamProvider` fed by Drift's `watchAll()` keeps home and history in sync with the database automatically. Classification runs in a separate Dart `Isolate` via `InferenceService` so the UI thread is never blocked. Navigation uses GoRouter with record IDs passed via `state.extra`.
+
+## Engineering decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Repository pattern over direct Drift** | UI never imports Drift types. The abstract `SoilRecordRepository` allows swapping to a remote API or adding sync without touching screens. |
+| **Isolate-based TFLite inference** | Model bytes are passed as `Uint8List` because `rootBundle` is unavailable in isolates. Keeps classification off the UI thread. |
+| **MobileNetV2 with transfer learning** | ImageNet pretrained weights with a `Rescaling` layer that converts `[0,1]` to `[-1,1]` built into the model graph. Two-phase training: head-only then fine-tuning. |
+| **SQLite schema v2 migration** | `texture_class` and `confidence_score` columns added via Drift's migration strategy with version checks, preserving existing data. |
+| **GoRouter `state.extra` for IDs** | Record IDs passed via extra (not URL params) — avoids slugification and keeps routes clean. |
+| **Local-only ML experiment tracking** | JSON-based metrics per version (`models/vN/metrics.json`). No MLflow/W&B — overhead disproportionate for a single-model pipeline. |
+
+## How to run
 
 ```bash
-# Run on a connected emulator or device
+git clone https://github.com/LukeSantossz/visiosoil-app.git
+cd visiosoil-app
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
 flutter run
+```
 
+**Requirements:** Flutter SDK 3.x, Android Studio (or a connected device), Xcode for iOS.
+
+```bash
 # Static analysis
 flutter analyze
 
-# Run tests (unit + repository)
+# Run tests
 flutter test
+
+# Build release APK
+flutter build apk --release
 ```
 
-## Project Structure
+## Project structure
 
 ```
 lib/
-├── main.dart                     # App entry point (ProviderScope + MaterialApp.router)
+├── main.dart                          # ProviderScope + MaterialApp.router
 ├── core/
-│   ├── theme/                    # AppTheme, AppColors, AppTypography, AppSpacing
-│   ├── routes/
-│   │   └── app_router.dart       # GoRouter — routes use int id (not list index)
-│   ├── widgets/                  # VisioAppBar, VisioButton, VisioCard, EmptyState
-│   ├── utils/                    # LocationService, formatters
-│   ├── services/
-│   │   └── inference_service.dart        # TFLite soil texture classification
-│   ├── database/
-│   │   ├── app_database.dart             # Drift DB class (schemaVersion = 1)
-│   │   ├── app_database.g.dart           # generated
-│   │   └── tables/
-│   │       └── soil_records_table.dart   # @DataClassName('SoilRecordRow')
-│   ├── data/
-│   │   └── repositories/
-│   │       ├── soil_record_repository.dart         # abstract interface
-│   │       └── drift_soil_record_repository.dart   # Drift implementation
-│   └── features/
-│       ├── home/home_page.dart          # Home with latest capture card
-│       ├── capture/capture_screen.dart  # Camera + GPS + save (repository.create)
-│       ├── history/history_screen.dart  # Grid + multi-select deleteByIds
-│       ├── details/details.dart         # FutureProvider getById + deleteById
-│       ├── preview/image_preview_screen.dart  # Zoomable viewer (by id)
-│       └── main/main_screen.dart        # Tab host
-├── models/
-│   └── soil_record.dart          # Plain Dart class (id, copyWith, getters)
-└── providers/
-    ├── image_provider.dart                      # Selected image state
-    ├── database_provider.dart                   # AppDatabase singleton
-    ├── inference_provider.dart                  # InferenceService singleton
-    └── soil_record_repository_provider.dart     # Repository + stream/future providers
+│   ├── theme/                         # AppTheme, AppColors, AppTypography, AppSpacing
+│   ├── routes/app_router.dart         # GoRouter (record IDs via state.extra)
+│   ├── widgets/                       # VisioAppBar, VisioButton, VisioCard, EmptyState
+│   ├── utils/                         # LocationService, formatters
+│   ├── services/inference_service.dart # TFLite classification in isolate
+│   ├── database/                      # Drift DB + tables + generated code
+│   ├── data/repositories/             # Abstract interface + Drift implementation
+│   └── features/                      # Screens: home, capture, history, details, result, settings
+├── models/soil_record.dart            # Domain model
+└── providers/                         # Riverpod providers (DB, repository, inference, image)
+```
 
-assets/
-└── models/                       # TFLite model files (soil_classifier.tflite)
+## Current status
 
-## Features
+**v2.0.0** — UI redesign + TFLite classification integrated.
 
-### Capture Flow
-- **Camera capture**: Takes photo and automatically records GPS location
-- **On-device classification**: TensorFlow Lite model classifies soil texture (5 classes)
-- **Confidence score**: Displays classification confidence percentage
+### Pending
 
-### History & Management
-- **Grid view**: Thumbnails with timestamp overlay
-- **Multi-select**: Long press to enter selection mode
-- **Bulk delete**: Delete multiple records at once
-- **Preview**: Full-screen image viewer with zoom/pan
-
-### Data Persistence
-- **Drift + SQLite storage**: Local database for soil records (schema v2)
-- **SoilRecord model**: Image path, coordinates, address, timestamp, texture class, confidence score
-
-## Current Status
-
-**Status: v1.1.0 — TFLite classification integrated**
-
-### Done (v1.1.0)
-
-- [x] Custom Material 3 theme (`AppTheme`, `AppColors`, `AppTypography`, `AppSpacing`)
-- [x] Riverpod state management (stream + future providers)
-- [x] GoRouter navigation (5 routes — `/details` and `/preview` take a record `id`)
-- [x] `BottomNavigationBar` (Home / History)
-- [x] Home screen with "last capture" card
-- [x] Capture screen (camera-only, `image_picker`)
-- [x] Image preview after capture
-- [x] History screen with grid, multi-select and batch delete
-- [x] Details screen with delete action and classification display
-- [x] Image preview (zoomable) screen
-- [x] Android + iOS permission handling
-- [x] `ImageNotifier` provider for image state
-- [x] Real GPS integration (`geolocator` + `geocoding`, via `LocationService`)
-- [x] Persistence on **Drift + SQLite** via a `SoilRecordRepository` interface (schema v2)
-- [x] `SoilRecord` domain model with `textureClass` and `confidenceScore`
-- [x] Repository tests with `NativeDatabase.memory()`
-- [x] CI pipeline (analyze + test + APK build)
-- [x] ADR 0001 documenting Drift adoption
-- [x] **TensorFlow Lite on-device soil texture classification** (12 USDA classes)
-- [x] `InferenceService` isolated from UI, runs in isolate (non-blocking)
-- [x] Classification result displayed on capture and details screens
-
-### Pending (Phase 2)
-
-- [ ] Train and bundle production TFLite model (currently expects `assets/models/soil_classifier.tflite`)
-- [ ] Re-enable gallery source (currently camera-only; kept in code behind `TODO(v2)`)
-- [ ] Remote sync (the repository interface already leaves room for a `sync_status` column)
+- Train and bundle production MobileNetV2 model (current asset is a placeholder)
+- Re-enable gallery image source (camera-only; code preserved behind `TODO(v2)`)
+- Remote sync (repository interface prepared)
