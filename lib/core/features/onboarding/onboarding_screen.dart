@@ -83,8 +83,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _complete() {
     if (widget.onComplete != null) {
       widget.onComplete!();
-    } else {
+    } else if (context.canPop()) {
       context.pop();
+    } else {
+      context.go('/');
     }
   }
 

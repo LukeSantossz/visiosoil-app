@@ -265,12 +265,10 @@ class _StatsGrid extends StatelessWidget {
     final records = recordsAsync.value ?? [];
     final total = records.length;
     final locations = records.where((r) => r.hasValidAddress).map((r) => r.address).toSet().length;
-    final avgConfidence = records.isEmpty
-        ? 0.0
-        : records
-                .where((r) => r.confidenceScore != null)
-                .fold<double>(0, (sum, r) => sum + r.confidenceScore!) /
-            records.where((r) => r.confidenceScore != null).length;
+    final scored = records.where((r) => r.confidenceScore != null).toList();
+    final avgConfidence = scored.isEmpty
+        ? null
+        : scored.fold<double>(0, (sum, r) => sum + r.confidenceScore!) / scored.length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -293,7 +291,7 @@ class _StatsGrid extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
-            value: records.isEmpty ? '-' : '${(avgConfidence * 100).round()}%',
+            value: avgConfidence == null ? '-' : '${(avgConfidence * 100).round()}%',
             label: 'Confiança',
             icon: Icons.track_changes,
             color: AppColors.tertiary,
@@ -396,7 +394,9 @@ class _LastAnalysisSection extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           GestureDetector(
-            onTap: () => context.push('/details', extra: record.id!),
+            onTap: record.id != null
+                ? () => context.push('/details', extra: record.id!)
+                : null,
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,

@@ -182,10 +182,14 @@ class _ClassificationHeader extends StatelessWidget {
               color: AppColors.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              record.formattedTimestampCompact,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                record.formattedTimestampCompact,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
             ),
           ],

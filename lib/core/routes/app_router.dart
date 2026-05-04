@@ -16,21 +16,24 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/details',
       builder: (context, state) {
-        final id = state.extra as int;
+        final extra = state.extra;
+        final id = extra is int ? extra : -1;
         return DetailsPage(recordId: id);
       },
     ),
     GoRoute(
       path: '/preview',
       builder: (context, state) {
-        final id = state.extra as int;
+        final extra = state.extra;
+        final id = extra is int ? extra : -1;
         return ImagePreviewScreen(recordId: id);
       },
     ),
     GoRoute(
       path: '/processing',
       builder: (context, state) {
-        final imagePath = state.extra as String?;
+        final extra = state.extra;
+        final imagePath = extra is String ? extra : null;
         return ProcessingScreen(imagePath: imagePath);
       },
     ),
