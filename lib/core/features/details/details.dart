@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
-import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
-import 'package:visiosoil_app/core/widgets/visio_button.dart';
-import 'package:visiosoil_app/core/widgets/visio_card.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -21,19 +21,18 @@ class DetailsPage extends ConsumerWidget {
 
     return asyncRecord.when(
       loading: () => const Scaffold(
-        appBar: VisioAppBar(title: 'Detalhes'),
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (_, _) => const _RecordNotFoundView(),
       data: (record) {
-        if (record == null) {
-          return const _RecordNotFoundView();
-        }
+        if (record == null) return const _RecordNotFoundView();
         return _DetailsContent(record: record, recordId: recordId);
       },
     );
   }
 }
+
+// --- Not Found ---
 
 class _RecordNotFoundView extends StatelessWidget {
   const _RecordNotFoundView();
@@ -43,7 +42,7 @@ class _RecordNotFoundView extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: const VisioAppBar(title: 'Detalhes'),
+      appBar: AppBar(title: const Text('Detalhes')),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -58,6 +57,8 @@ class _RecordNotFoundView extends StatelessWidget {
   }
 }
 
+// --- Main Content ---
+
 class _DetailsContent extends StatelessWidget {
   const _DetailsContent({required this.record, required this.recordId});
 
@@ -67,90 +68,22 @@ class _DetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const VisioAppBar(title: 'Detalhes'),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ImageHeader(imagePath: record.imagePath),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+      body: CustomScrollView(
+        slivers: [
+          _HeroImageAppBar(record: record),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _TimestampCard(timestamp: record.formattedTimestamp),
-                  const SizedBox(height: AppSpacing.md),
-                  _LocationCard(record: record),
-                  const SizedBox(height: AppSpacing.md),
-                  _ClassificationCard(record: record),
+                  _ClassificationHeader(record: record),
                   const SizedBox(height: AppSpacing.xl),
-                  _DeleteButton(recordId: recordId),
+                  _InfoSection(record: record),
+                  const SizedBox(height: AppSpacing.xl),
+                  _ActionButtons(recordId: recordId),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ImageHeader extends StatelessWidget {
-  const _ImageHeader({required this.imagePath});
-
-  final String imagePath;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final imageFile = File(imagePath);
-    final imageExists = imageFile.existsSync();
-
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: imageExists
-          ? Image.file(imageFile, fit: BoxFit.cover)
-          : Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: Icon(
-                  Icons.broken_image,
-                  size: 48,
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-    );
-  }
-}
-
-class _TimestampCard extends StatelessWidget {
-  const _TimestampCard({required this.timestamp});
-
-  final String timestamp;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return VisioCard(
-      child: Row(
-        children: [
-          Icon(Icons.access_time, color: theme.colorScheme.primary),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Data e Hora',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(timestamp, style: theme.textTheme.bodyLarge),
-              ],
             ),
           ),
         ],
@@ -159,145 +92,245 @@ class _TimestampCard extends StatelessWidget {
   }
 }
 
-class _LocationCard extends StatelessWidget {
-  const _LocationCard({required this.record});
+// --- Hero Image with SliverAppBar ---
+
+class _HeroImageAppBar extends StatelessWidget {
+  const _HeroImageAppBar({required this.record});
+
+  final SoilRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageFile = File(record.imagePath);
+    final imageExists = imageFile.existsSync();
+
+    return SliverAppBar(
+      expandedHeight: 280,
+      pinned: true,
+      backgroundColor: AppColors.surface,
+      foregroundColor: AppColors.onSurface,
+      flexibleSpace: FlexibleSpaceBar(
+        background: imageExists
+            ? Image.file(imageFile, fit: BoxFit.cover)
+            : Container(
+                color: AppColors.surfaceVariant,
+                child: const Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 48,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+// --- Classification Header ---
+
+class _ClassificationHeader extends StatelessWidget {
+  const _ClassificationHeader({required this.record});
 
   final SoilRecord record;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return VisioCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, color: theme.colorScheme.primary),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Localização',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      record.hasValidAddress
-                          ? record.displayAddress
-                          : 'Indisponível para imagens da galeria',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (record.hasCoordinates) ...[
-            const SizedBox(height: AppSpacing.md),
-            const Divider(height: 1),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: _CoordinateItem(
-                    label: 'Latitude',
-                    value: record.latitude!.toStringAsFixed(6),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _CoordinateItem(
-                    label: 'Longitude',
-                    value: record.longitude!.toStringAsFixed(6),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CoordinateItem extends StatelessWidget {
-  const _CoordinateItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final textureColor = record.hasClassification
+        ? SoilTextureColors.forClass(record.textureClass!)
+        : AppColors.outline;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+        // Texture class name + color dot
+        Row(
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: textureColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                record.displayTextureClass,
+                style: theme.textTheme.headlineMedium,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+        const SizedBox(height: AppSpacing.sm),
+        // Confidence badge + timestamp
+        Row(
+          children: [
+            if (record.hasClassification) ...[
+              _ConfidenceBadge(score: record.confidenceScore),
+              const SizedBox(width: AppSpacing.md),
+            ],
+            Icon(
+              Icons.access_time,
+              size: 14,
+              color: AppColors.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              record.formattedTimestampCompact,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _ClassificationCard extends StatelessWidget {
-  const _ClassificationCard({required this.record});
+// --- Confidence Badge ---
+
+class _ConfidenceBadge extends StatelessWidget {
+  const _ConfidenceBadge({required this.score});
+
+  final double? score;
+
+  @override
+  Widget build(BuildContext context) {
+    if (score == null) return const SizedBox.shrink();
+
+    final pct = (score! * 100).round();
+    final Color bg;
+    final Color fg;
+    final String label;
+
+    if (pct >= 80) {
+      bg = AppColors.primaryContainer;
+      fg = AppColors.onPrimaryContainer;
+      label = 'Alta';
+    } else if (pct >= 60) {
+      bg = AppColors.warningContainer;
+      fg = const Color(0xFF6D4C1D);
+      label = 'Média';
+    } else {
+      bg = AppColors.errorContainer;
+      fg = AppColors.onErrorContainer;
+      label = 'Baixa';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: AppRadius.borderRadiusPill,
+      ),
+      child: Text(
+        '$pct% · $label',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+      ),
+    );
+  }
+}
+
+// --- Info Section ---
+
+class _InfoSection extends StatelessWidget {
+  const _InfoSection({required this.record});
 
   final SoilRecord record;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Location
+        _InfoTile(
+          icon: Icons.location_on_outlined,
+          title: 'Localização',
+          value: record.hasValidAddress
+              ? record.displayAddress
+              : 'Endereço indisponível',
+          subtitle: record.hasCoordinates
+              ? record.formattedCoordinates
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // Date
+        _InfoTile(
+          icon: Icons.calendar_today_outlined,
+          title: 'Data da coleta',
+          value: record.formattedTimestamp,
+        ),
+        if (record.hasClassification) ...[
+          const SizedBox(height: AppSpacing.md),
+          // Classification info
+          _InfoTile(
+            icon: Icons.eco_outlined,
+            title: 'Classe textural',
+            value: record.displayTextureClass,
+            subtitle: 'Confiança: ${record.formattedConfidence}',
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return VisioCard(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderRadiusLg,
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.eco,
-            color: record.hasClassification
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Classificação de Textura',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  title,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  record.displayTextureClass,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight:
-                        record.hasClassification ? FontWeight.bold : null,
-                  ),
-                ),
-                if (record.hasClassification) ...[
-                  const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 2),
+                Text(value, style: theme.textTheme.bodyMedium),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
                   Text(
-                    'Confiança: ${record.formattedConfidence}',
+                    subtitle!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: AppColors.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -310,64 +343,88 @@ class _ClassificationCard extends StatelessWidget {
   }
 }
 
-class _DeleteButton extends ConsumerWidget {
-  const _DeleteButton({required this.recordId});
+// --- Action Buttons ---
+
+class _ActionButtons extends ConsumerWidget {
+  const _ActionButtons({required this.recordId});
 
   final int recordId;
 
-  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await _showDeleteConfirmation(context);
-
-    if (confirmed == true && context.mounted) {
-      await _deleteRecord(context, ref);
-    }
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Recommendations placeholder
+        OutlinedButton.icon(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Plano de manejo em breve'),
+              ),
+            );
+          },
+          icon: const Icon(Icons.auto_awesome_outlined),
+          label: const Text('Ver plano de manejo'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        // Share placeholder
+        OutlinedButton.icon(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Compartilhamento em breve'),
+              ),
+            );
+          },
+          icon: const Icon(Icons.share_outlined),
+          label: const Text('Compartilhar'),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        // Delete
+        TextButton.icon(
+          onPressed: () => _confirmAndDelete(context, ref),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Excluir registro'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.error,
+          ),
+        ),
+      ],
+    );
   }
 
-  Future<bool?> _showDeleteConfirmation(BuildContext context) {
-    return showDialog<bool>(
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Excluir registro'),
         content: const Text(
-          'Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.',
+          'Tem certeza que deseja excluir este registro? '
+          'Esta ação não pode ser desfeita.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Excluir'),
           ),
         ],
       ),
     );
-  }
 
-  Future<void> _deleteRecord(BuildContext context, WidgetRef ref) async {
-    await ref.read(soilRecordRepositoryProvider).deleteById(recordId);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
-      // Volta para a home, pulando a tela de preview.
-      context.go('/');
+    if (confirmed == true && context.mounted) {
+      await ref.read(soilRecordRepositoryProvider).deleteById(recordId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registro excluído.')),
+        );
+        context.go('/');
+      }
     }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return VisioButton(
-      label: 'Excluir Registro',
-      icon: Icons.delete_outline,
-      onPressed: () => _confirmAndDelete(context, ref),
-      variant: VisioButtonVariant.secondary,
-      expanded: true,
-    );
   }
 }
