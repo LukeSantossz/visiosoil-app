@@ -92,7 +92,8 @@ projeto/
 │   │   ├── 08-registro-projeto.md
 │   │   ├── 09-enforcement.md
 │   │   ├── 10-engenharia-agentica.md
-│   │   └── 11-integracao-codex.md       ← NOVO
+│   │   ├── 11-integracao-codex.md       ← NOVO
+│   │   └── 12-portfolio-publico.md      ← NOVO
 │   ├── setup-hooks.sh
 │   └── tasks.md
 ├── .codex/
