@@ -7,6 +7,8 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -21,7 +23,7 @@ class DetailsPage extends ConsumerWidget {
 
     return asyncRecord.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: LoadingIndicator(),
       ),
       error: (_, _) => const _RecordNotFoundView(),
       data: (record) {
@@ -144,6 +146,7 @@ class _ClassificationHeader extends StatelessWidget {
     final textureColor = record.hasClassification
         ? SoilTextureColors.forClass(record.textureClass!)
         : AppColors.outline;
+    final level = ConfidenceLevel.fromScore(record.confidenceScore);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,6 +197,37 @@ class _ClassificationHeader extends StatelessWidget {
             ),
           ],
         ),
+        // Low confidence banner
+        if (record.hasClassification && level == ConfidenceLevel.low) ...[
+          const SizedBox(height: AppSpacing.md),
+          const _LowConfidenceBanner(),
+        ],
+        // Moderate confidence disclaimer
+        if (record.hasClassification && level == ConfidenceLevel.moderate) ...[
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.warningContainer,
+              borderRadius: AppRadius.borderRadiusMd,
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(ConfidenceLevel.moderate.icon, size: 20, color: ConfidenceLevel.moderate.foregroundColor),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Confianca moderada. O resultado pode nao refletir a textura real.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: ConfidenceLevel.moderate.foregroundColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -210,37 +244,63 @@ class _ConfidenceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (score == null) return const SizedBox.shrink();
 
+    final level = ConfidenceLevel.fromScore(score);
     final pct = (score! * 100).round();
-    final Color bg;
-    final Color fg;
-    final String label;
 
-    if (pct >= 80) {
-      bg = AppColors.primaryContainer;
-      fg = AppColors.onPrimaryContainer;
-      label = 'Alta';
-    } else if (pct >= 60) {
-      bg = AppColors.warningContainer;
-      fg = const Color(0xFF6D4C1D);
-      label = 'Média';
-    } else {
-      bg = AppColors.errorContainer;
-      fg = AppColors.onErrorContainer;
-      label = 'Baixa';
-    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(level.icon, size: 14, color: level.foregroundColor),
+        const SizedBox(width: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: level.backgroundColor,
+            borderRadius: AppRadius.borderRadiusPill,
+          ),
+          child: Text(
+            '$pct% · ${level.label}',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: level.foregroundColor,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// --- Low Confidence Banner ---
+
+class _LowConfidenceBanner extends StatelessWidget {
+  const _LowConfidenceBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final level = ConfidenceLevel.low;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: AppRadius.borderRadiusPill,
+        color: level.backgroundColor,
+        borderRadius: AppRadius.borderRadiusMd,
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
-      child: Text(
-        '$pct% · $label',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: fg,
+      child: Row(
+        children: [
+          Icon(level.icon, size: 20, color: level.foregroundColor),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Confianca baixa. Considere refazer a captura com melhor iluminacao e enquadramento.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: level.foregroundColor,
+              ),
             ),
+          ),
+        ],
       ),
     );
   }
