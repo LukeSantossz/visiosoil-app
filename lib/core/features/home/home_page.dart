@@ -7,6 +7,7 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -16,7 +17,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final latestAsync = ref.watch(latestSoilRecordProvider);
-    final recordsAsync = ref.watch(soilRecordsStreamProvider);
+    final statsAsync = ref.watch(homeStatsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -26,7 +27,7 @@ class HomePage extends ConsumerWidget {
             children: [
               _HeroSection(latestAsync: latestAsync),
               _PrimaryAction(onTap: () => context.push('/capture')),
-              _StatsGrid(recordsAsync: recordsAsync),
+              _StatsGrid(statsAsync: statsAsync),
               _LastAnalysisSection(latestAsync: latestAsync),
               // Placeholder for lot map (future feature)
               _LotMapPlaceholder(),
@@ -115,7 +116,7 @@ class _HeroSection extends StatelessWidget {
                   ],
                 ),
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: () => context.push('/settings'),
                   padding: EdgeInsets.zero,
                   iconSize: 17,
                   icon: const Icon(
@@ -255,35 +256,29 @@ class _PrimaryAction extends StatelessWidget {
 
 // --- Stats Grid ---
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.recordsAsync});
+  const _StatsGrid({required this.statsAsync});
 
-  final AsyncValue<List<SoilRecord>> recordsAsync;
+  final AsyncValue<HomeStats> statsAsync;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final records = recordsAsync.value ?? [];
-    final total = records.length;
-    final locations = records.where((r) => r.hasValidAddress).map((r) => r.address).toSet().length;
-    final scored = records.where((r) => r.confidenceScore != null).toList();
-    final avgConfidence = scored.isEmpty
-        ? null
-        : scored.fold<double>(0, (sum, r) => sum + r.confidenceScore!) / scored.length;
+    final stats = statsAsync.value;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Row(
         children: [
           _StatCard(
-            value: '$total',
-            label: 'Análises',
+            value: stats != null ? '${stats.totalRecords}' : '-',
+            label: 'Analises',
             icon: Icons.layers,
             color: AppColors.primary,
             theme: theme,
           ),
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
-            value: '$locations',
+            value: stats != null ? '${stats.distinctLocations}' : '-',
             label: 'Locais',
             icon: Icons.map_outlined,
             color: AppColors.secondary,
@@ -291,8 +286,8 @@ class _StatsGrid extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
-            value: avgConfidence == null ? '-' : '${(avgConfidence * 100).round()}%',
-            label: 'Confiança',
+            value: stats?.formattedConfidence ?? '-',
+            label: 'Confianca',
             icon: Icons.track_changes,
             color: AppColors.tertiary,
             theme: theme,

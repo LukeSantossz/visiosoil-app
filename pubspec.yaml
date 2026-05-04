@@ -48,6 +48,8 @@ dependencies:
   image: ^4.3.0
   # Typography: Manrope (display) + Inter (body)
   google_fonts: ^6.2.1
+  # App info (version, build number)
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
