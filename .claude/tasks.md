@@ -1168,7 +1168,7 @@
 - **Tipo:** docs
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** em andamento
+- **Status:** concluída
 - **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `ml/README.md` — substituir referências hardcoded a `v2` por `v1` nos comandos de exemplo
@@ -1181,7 +1181,8 @@
   - [ ] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. v1 e v2 foram limpas (TASK-034). v3 existe com artefatos mas README ainda referencia v2.
-- **Resultado:** [pendente]
+  - [2026-05-03] — Implementação concluída. Todas as referências v2→v1. LR Phase 2 corrigido para 1e-4. Seção "Versioning" adicionada. flutter analyze OK, flutter test 15/15.
+- **Resultado:** README ML atualizado: comandos referenciam v1, LR corrigido, seção Versioning adicionada explicando limpeza de versões anteriores.
 
 ---
 
@@ -1189,7 +1190,7 @@
 - **Tipo:** test
 - **Complexidade:** patch
 - **Modo:** Review
-- **Status:** em andamento
+- **Status:** concluída
 - **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - Review cruzado das telas implementadas: processing_screen, onboarding_screen, details, home_page
@@ -1198,7 +1199,8 @@
   - [ ] Nenhum bug visual ou crash path identificado sem resolução
 - **Log de Andamento:**
   - [2026-05-03] — Codex rescue disparado para review adversarial das 6 telas UI.
-- **Resultado:** [pendente]
+  - [2026-05-03] — Codex review concluído. 17 findings (2 critical, 3 high, 7 medium, 5 low). 7 fixes aplicados: guarded casts no router, NaN confidence, null id guard, pop without backstack, timestamp overflow, PopScope no MainScreen. 10 findings low/medium aceitos como pendências futuras (a11y, delete error handling, step scrollability).
+- **Resultado:** Review cruzado concluído. 7 bugs corrigidos. 10 pendências documentadas para tasks futuras.
 
 ---
 
