@@ -61,24 +61,26 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                       child: child,
                     );
                   },
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: AppRadius.borderRadiusXl,
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x264A7C59),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: AppColors.primary,
-                      size: 44,
+                  child: RepaintBoundary(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: AppRadius.borderRadiusXl,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x264A7C59),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: AppColors.primary,
+                        size: 44,
+                      ),
                     ),
                   ),
                 ),

@@ -377,7 +377,6 @@ class _LastAnalysisSection extends ConsumerWidget {
     if (record == null) return const SizedBox.shrink();
 
     final imageFile = File(record.imagePath);
-    final imageExists = imageFile.existsSync();
     final textureColor = record.hasClassification
         ? SoilTextureColors.forClass(record.textureClass!)
         : AppColors.outline;
@@ -418,16 +417,19 @@ class _LastAnalysisSection extends ConsumerWidget {
                   SizedBox(
                     width: 84,
                     height: 84,
-                    child: imageExists
-                        ? Image.file(imageFile, fit: BoxFit.cover)
-                        : Container(
-                            color: textureColor.withValues(alpha: 0.3),
-                            child: Icon(
-                              Icons.landscape,
-                              color: textureColor,
-                              size: 32,
-                            ),
-                          ),
+                    child: Image.file(
+                      imageFile,
+                      fit: BoxFit.cover,
+                      cacheWidth: 252,
+                      errorBuilder: (_, _, _) => Container(
+                        color: textureColor.withValues(alpha: 0.3),
+                        child: Icon(
+                          Icons.landscape,
+                          color: textureColor,
+                          size: 32,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   // Info

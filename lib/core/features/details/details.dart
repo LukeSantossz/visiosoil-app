@@ -102,7 +102,8 @@ class _HeroImageAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageFile = File(record.imagePath);
-    final imageExists = imageFile.existsSync();
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheH = (280 * dpr).round();
 
     return SliverAppBar(
       expandedHeight: 280,
@@ -110,18 +111,21 @@ class _HeroImageAppBar extends StatelessWidget {
       backgroundColor: AppColors.surface,
       foregroundColor: AppColors.onSurface,
       flexibleSpace: FlexibleSpaceBar(
-        background: imageExists
-            ? Image.file(imageFile, fit: BoxFit.cover)
-            : Container(
-                color: AppColors.surfaceVariant,
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    size: 48,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
+        background: Image.file(
+          imageFile,
+          fit: BoxFit.cover,
+          cacheHeight: cacheH,
+          errorBuilder: (_, _, _) => Container(
+            color: AppColors.surfaceVariant,
+            child: const Center(
+              child: Icon(
+                Icons.broken_image,
+                size: 48,
+                color: AppColors.onSurfaceVariant,
               ),
+            ),
+          ),
+        ),
       ),
     );
   }

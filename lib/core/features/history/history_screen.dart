@@ -272,6 +272,7 @@ class _ThumbnailImage extends StatelessWidget {
     return Image.file(
       imageFile,
       fit: BoxFit.cover,
+      cacheWidth: 300,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
         if (wasSynchronouslyLoaded) return child;
 
