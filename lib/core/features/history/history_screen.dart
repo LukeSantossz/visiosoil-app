@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -160,12 +162,10 @@ class _HistoryGrid extends ConsumerWidget {
     final asyncRecords = ref.watch(soilRecordsStreamProvider);
 
     return asyncRecords.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Text(
-          'Não foi possível carregar o histórico.',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
+      loading: () => const LoadingIndicator(),
+      error: (_, _) => ErrorState(
+        message: 'Nao foi possivel carregar o historico.',
+        onRetry: () => ref.invalidate(soilRecordsStreamProvider),
       ),
       data: (records) {
         if (records.isEmpty) {
