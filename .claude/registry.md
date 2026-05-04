@@ -48,6 +48,9 @@
 | 25 | 2026-05-03 | TASK-038 | patch | 1 arquivo — ml/src/preprocess.py | Zoom calcula ambos os limites da config | Fix: zoom assimétrico agora correto |
 | 26 | 2026-05-03 | TASK-039 | minor | 6 arquivos — lib/core/theme/ + pubspec.yaml | Design tokens v2: Manrope+Inter, soil texture colors, AppRadius, warning colors | Checklist agêntico: aplicado |
 | 27 | 2026-05-03 | TASK-040 | major | 1 arquivo — lib/core/features/home/home_page.dart | HomeScreen v2: hero, stats grid, last analysis card, lot map placeholder | Checklist agêntico: aplicado |
+| 28 | 2026-05-03 | TASK-043 | patch | 2 arquivos — processing_screen.dart + app_router.dart | Tela de processamento: animação pulsante, progress bar, texto contextual | Checklist agêntico: aplicado |
+| 29 | 2026-05-03 | TASK-047 | minor | 2 arquivos — onboarding_screen.dart + app_router.dart | Onboarding 3 passos: enquadramento, iluminação, ângulo. Flag SharedPreferences adiada | Checklist agêntico: aplicado |
+| 30 | 2026-05-03 | TASK-048 | minor | 2 arquivos — details.dart + app_router.dart | DetailsScreen v2: SliverAppBar hero, confidence badges, info tiles, action buttons | Checklist agêntico: aplicado |
 
 ## Estado da Codebase
 
@@ -55,12 +58,12 @@
 
 - **Última atualização:** 2026-05-03
 - **Último responsável:** Claude Code (Opus 4)
-- **Branch ativa:** feat/TASK-040-home-redesign-v2
+- **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
 - **Versão:** 2.0.0
 - **Dependências alteradas recentemente:** pubspec.yaml — google_fonts ^6.2.1 adicionado
 - **Testes passando:** sim (Flutter 15/15 — unit + repository; ML — sintaxe validada, TF indisponível no Python 3.14 local)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-040 — HomeScreen redesign v2
+- **Última task concluída:** TASK-048 — DetailsScreen redesign v2
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
