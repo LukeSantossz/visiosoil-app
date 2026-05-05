@@ -27,6 +27,52 @@
 
 ## Tasks Ativas
 
+### TASK-052 — Redesign info de captura: chips sobrepostos na imagem
+- **Tipo:** feat
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — substituir dois containers abaixo da imagem por chips sobrepostos no canto inferior da preview
+- **Critérios de Aceite:**
+  - [x] Localização e classificação exibidos como chips sobre a imagem (Positioned bottom)
+  - [x] Durante loading, chips mostram indicador compacto (spinner 14px)
+  - [x] Espaço vertical liberado para preview maior
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-05] — Task registrada. Mudança visual apenas no widget _ImagePreview.
+  - [2026-05-05] — Implementação concluída. _ImagePreview usa Stack com gradient + Wrap de _InfoChip. Imagem ocupa todo o espaço do Expanded. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Chips sobrepostos na imagem (fundo semi-transparente, bordas pill, ícone + texto). Gradient no bottom para legibilidade. Preview ocupa 100% do espaço disponível.
+
+---
+
+
+### TASK-051 — Corrigir tela preta no emulador: bundlar Google Fonts localmente
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/main.dart` — adicionar `GoogleFonts.config.allowRuntimeFetching = false` antes do `runApp`
+  - `assets/fonts/` — novo diretório com 5 TTFs: Manrope-Bold, Manrope-ExtraBold, Inter-Regular, Inter-Medium, Inter-SemiBold
+  - `pubspec.yaml` — declarar `assets/fonts/` na seção assets
+- **Critérios de Aceite:**
+  - [ ] `GoogleFonts.config.allowRuntimeFetching = false` configurado no main
+  - [ ] 5 arquivos TTF presentes em `assets/fonts/`
+  - [ ] `pubspec.yaml` declara `assets/fonts/`
+  - [ ] App inicia sem dependência de rede para fontes
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-04] — Task registrada. Causa raiz: GoogleFonts.manrope()/inter() fazem fetch de rede sincronamente durante construção do tema, bloqueando main thread no emulador sem rede.
+  - [2026-05-04] — Implementação concluída. 5 TTFs baixados do gstatic, allowRuntimeFetching=false no main, assets/fonts/ declarado no pubspec. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Fontes Manrope (Bold, ExtraBold) e Inter (Regular, Medium, SemiBold) empacotadas localmente. Runtime fetching desabilitado. App inicia sem dependência de rede para fontes.
+
+---
+
 ### TASK-007 — Implementar avaliação de qualidade pós-captura
 - **Tipo:** feat
 - **Complexidade:** minor

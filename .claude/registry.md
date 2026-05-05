@@ -38,19 +38,21 @@
 | 35 | 2026-05-03 | TASK-015 | minor | 3 arquivos — settings_screen.dart, app_router.dart, pubspec.yaml | Tela de configuracoes com versao, onboarding link, apagar dados | Checklist agentico: aplicado |
 | 36 | 2026-05-03 | TASK-044 | minor | 2 arquivos — result_screen.dart + app_router.dart | ResultScreen com classe textural, badge confianca, banners | Checklist agentico: aplicado |
 | 37 | 2026-05-03 | TASK-016 | patch | 3 arquivos — home_stats.dart, repository_provider.dart, home_page.dart | homeStatsProvider derivado do stream, HomeScreen consome | Checklist agentico: aplicado |
+| 38 | 2026-05-04 | TASK-051 | patch | 3 arquivos — main.dart, pubspec.yaml, assets/fonts/ (5 TTFs) | Google Fonts bundled localmente, runtime fetching desabilitado | Checklist agêntico: aplicado |
+| 39 | 2026-05-05 | TASK-052 | patch | 1 arquivo — capture_screen.dart | Chips sobrepostos na preview: localização + classificação sobre gradient | Checklist agêntico: aplicado |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-05-03
+- **Última atualização:** 2026-05-04
 - **Último responsável:** Claude Code (Opus 4)
 - **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
 - **Versão:** 2.0.0
-- **Dependências alteradas recentemente:** pubspec.yaml — package_info_plus ^8.0.0 adicionado
+- **Dependências alteradas recentemente:** pubspec.yaml — assets/fonts/ adicionado aos assets
 - **Testes passando:** sim (Flutter 15/15)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-016 — Home aggregate stats providers
+- **Última task concluída:** TASK-052 — Chips sobrepostos na preview de captura
 - **Review cruzado (Codex):** aplicado — 8 findings, 1 CRITICAL false positive (Dart 3.10 null-aware elements), 1 HIGH (rota /result nao integrada ao capture — by design), 4 MEDIUM (guards ja existentes), 2 LOW aceitos
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
