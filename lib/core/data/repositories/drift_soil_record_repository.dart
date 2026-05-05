@@ -86,6 +86,64 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     await (_db.delete(_db.soilRecords)..where((t) => t.id.isIn(ids))).go();
   }
 
+  @override
+  Stream<List<SoilRecord>> watchFiltered({
+    String? textureClass,
+    String? searchTerm,
+  }) {
+    var query = _db.select(_db.soilRecords);
+
+    // Aplica filtros condicionalmente
+    query = query..where((t) {
+      Expression<bool>? condition;
+
+      // Filtro por classe de textura (match exato)
+      if (textureClass != null && textureClass.isNotEmpty) {
+        condition = t.textureClass.equals(textureClass);
+      }
+
+      // Filtro por termo de busca no endereco (LIKE case-insensitive)
+      // Remove wildcards SQL para evitar bypass de busca (% e _ sao tratados
+      // como caracteres literais ao serem removidos)
+      if (searchTerm != null && searchTerm.isNotEmpty) {
+        final sanitized = searchTerm
+            .replaceAll('%', '')
+            .replaceAll('_', '');
+        if (sanitized.isNotEmpty) {
+          final searchCondition =
+              t.address.lower().like('%${sanitized.toLowerCase()}%');
+          condition = condition == null
+              ? searchCondition
+              : condition & searchCondition;
+        }
+      }
+
+      // Se nenhum filtro, retorna todos
+      return condition ?? const Constant(true);
+    });
+
+    // Ordena do mais recente ao mais antigo
+    query = query..orderBy([
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
+
+    return query.watch().map((rows) => rows.map(_toDomain).toList());
+  }
+
+  @override
+  Future<List<String>> getDistinctTextureClasses() async {
+    final query = _db.selectOnly(_db.soilRecords, distinct: true)
+      ..addColumns([_db.soilRecords.textureClass])
+      ..where(_db.soilRecords.textureClass.isNotNull());
+
+    final rows = await query.get();
+    return rows
+        .map((row) => row.read(_db.soilRecords.textureClass))
+        .where((c) => c != null && c.isNotEmpty)
+        .cast<String>()
+        .toList();
+  }
+
   SoilRecord _toDomain(SoilRecordRow row) => SoilRecord(
         id: row.id,
         imagePath: row.imagePath,

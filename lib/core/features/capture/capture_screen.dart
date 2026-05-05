@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -22,21 +24,74 @@ class CaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends ConsumerState<CaptureScreen> {
+class _CaptureScreenState extends ConsumerState<CaptureScreen>
+    with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _isClassifying = false;
   String? _address;
   double? _latitude;
   double? _longitude;
   InferenceResult? _classificationResult;
+  AppPermissionStatus? _cameraPermissionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Revalida permissao quando o app volta ao foreground (ex: apos Settings)
+    // Nao revalida para `restricted` (iOS) pois nao pode ser alterado pelo usuario
+    if (state == AppLifecycleState.resumed &&
+        _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied) {
+      _recheckCameraPermission();
+    }
+  }
+
+  Future<void> _recheckCameraPermission() async {
+    final status = await PermissionService.checkCamera();
+    if (!mounted) return;
+
+    if (status == AppPermissionStatus.granted) {
+      setState(() => _cameraPermissionStatus = null);
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
+    // Verifica permissao de camera antes de abrir
+    if (source == ImageSource.camera) {
+      final status = await PermissionService.checkCamera();
+      if (!mounted) return;
+
+      if (status != AppPermissionStatus.granted) {
+        final requestStatus = await PermissionService.requestCamera();
+        if (!mounted) return;
+
+        if (requestStatus != AppPermissionStatus.granted) {
+          setState(() => _cameraPermissionStatus = requestStatus);
+          return;
+        }
+      }
+      // Limpa estado de permissao se concedida
+      if (_cameraPermissionStatus != null) {
+        setState(() => _cameraPermissionStatus = null);
+      }
+    }
+
     final picker = ImagePicker();
     // TODO(v2): reativar galeria
     // await picker.pickImage(source: ImageSource.gallery);
     final XFile? image = await picker.pickImage(source: source);
 
-    if (image == null) return;
+    if (!mounted || image == null) return;
 
     ref.read(imageProvider.notifier).setImage(File(image.path), source);
 
@@ -93,13 +148,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
         });
       }
     } catch (e) {
+      // Localizacao negada ou indisponivel: app funciona sem GPS
+      // O registro sera salvo com coordenadas null
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível obter a localização.'),
-          ),
-        );
       }
     }
   }
@@ -153,8 +205,37 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     });
   }
 
+  void _retryCameraPermission() {
+    setState(() => _cameraPermissionStatus = null);
+    _pickImage(ImageSource.camera);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Mostra tela de permissao negada se camera foi bloqueada
+    if (_cameraPermissionStatus != null &&
+        _cameraPermissionStatus != AppPermissionStatus.granted) {
+      final isRestricted =
+          _cameraPermissionStatus == AppPermissionStatus.restricted;
+      final isPermanentlyDenied =
+          _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied;
+
+      return Scaffold(
+        appBar: const VisioAppBar(title: 'Nova Captura'),
+        body: PermissionDeniedView(
+          icon: Icons.camera_alt,
+          title: isRestricted
+              ? 'Camera restrita'
+              : 'Acesso a camera necessario',
+          description: isRestricted
+              ? 'O acesso a camera esta restrito por configuracoes do dispositivo (controle parental ou MDM). Contacte o administrador.'
+              : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso a camera do dispositivo.',
+          isPermanentlyDenied: isPermanentlyDenied || isRestricted,
+          onRetry: isRestricted ? null : _retryCameraPermission,
+        ),
+      );
+    }
+
     final selectedImage = ref.watch(imageProvider);
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
@@ -283,177 +364,137 @@ class _ImagePreview extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              image!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(
+            image!,
+            fit: BoxFit.cover,
+            width: double.infinity,
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        // Localização
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // TODO(v2): reativar galeria — UI quando `isFromGallery` (origem galeria).
-              // if (isFromGallery) ...[
-              //   Row(
-              //     children: [
-              //       Icon(
-              //         Icons.info_outline,
-              //         size: 20,
-              //         color: theme.colorScheme.primary,
-              //       ),
-              //       const SizedBox(width: AppSpacing.sm),
-              //       Text(
-              //         'Localização indisponível',
-              //         style: theme.textTheme.titleSmall,
-              //       ),
-              //     ],
-              //   ),
-              //   const SizedBox(height: AppSpacing.sm),
-              //   Text(
-              //     'Imagens da galeria não recebem coordenadas GPS para preservar a confiabilidade do registro.',
-              //     style: theme.textTheme.bodyMedium?.copyWith(
-              //       color: theme.colorScheme.onSurfaceVariant,
-              //     ),
-              //   ),
-              // ] else ...[
-              if (isLoading)
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: LoadingIndicator(size: 20, strokeWidth: 2),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Obtendo localização...',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 20,
-                      color: address != null
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        address ?? 'Localização não disponível',
-                        style: theme.textTheme.bodyMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+          // Gradient para legibilidade dos chips
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 100,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
                   ],
                 ),
-              // ],
-            ],
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        // Classificação de textura
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
+          // Chips de info
+          Positioned(
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            bottom: AppSpacing.sm,
+            child: Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                _buildLocationChip(theme),
+                _buildClassificationChip(theme),
+              ],
+            ),
           ),
-          child: _buildClassificationContent(theme),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildClassificationContent(ThemeData theme) {
-    if (isClassifying) {
-      return Row(
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: LoadingIndicator(size: 20, strokeWidth: 2),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            'Classificando textura do solo...',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+  Widget _buildLocationChip(ThemeData theme) {
+    if (isLoading) {
+      return _InfoChip(
+        icon: Icons.location_on,
+        label: 'Localizando...',
+        isLoading: true,
       );
     }
+    return _InfoChip(
+      icon: Icons.location_on,
+      label: address ?? 'Sem localização',
+    );
+  }
 
+  Widget _buildClassificationChip(ThemeData theme) {
+    if (isClassifying) {
+      return _InfoChip(
+        icon: Icons.eco,
+        label: 'Classificando...',
+        isLoading: true,
+      );
+    }
     if (classificationResult != null) {
       final confidence = (classificationResult!.confidenceScore * 100)
-          .toStringAsFixed(1);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+          .toStringAsFixed(0);
+      return _InfoChip(
+        icon: Icons.eco,
+        label: '${classificationResult!.textureClass} · $confidence%',
+      );
+    }
+    return const _InfoChip(
+      icon: Icons.eco_outlined,
+      label: 'Classificação indisponível',
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.isLoading = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.eco,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Textura: ${classificationResult!.textureClass}',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Confiança: $confidence%',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          if (isLoading)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: LoadingIndicator(size: 14, strokeWidth: 1.5),
+            )
+          else
+            Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
-      );
-    }
-
-    return Row(
-      children: [
-        Icon(
-          Icons.eco_outlined,
-          size: 20,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          'Classificação indisponível',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

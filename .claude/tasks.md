@@ -27,6 +27,386 @@
 
 ## Tasks Ativas
 
+### TASK-007 — Implementar avaliação de qualidade pós-captura
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-007-quality-assessment
+- **Escopo Técnico:**
+  - `lib/core/features/quality/quality_screen.dart` — nova tela com checklist de critérios, score percentual e opções refazer/prosseguir
+  - `lib/core/services/image_quality_service.dart` — novo serviço isolado: foco (variância Laplaciana), iluminação (histograma), enquadramento (proporção amostra vs total), sombras (gradientes de luminância)
+  - `lib/models/quality_report.dart` — novo modelo com lista de critérios e score
+  - `lib/providers/` — FutureProvider para QualityReport
+  - Dependência existente: `image` (já no pubspec.yaml)
+- **Critérios de Aceite:**
+  - [ ] `QualityScreen` exibe foto capturada com score percentual (critérios OK / total)
+  - [ ] Critérios obrigatórios reprovados bloqueiam botão "Enviar para análise"
+  - [ ] Critérios informativos exibidos como warning, não bloqueiam
+  - [ ] Banner resumo: "aprovada", "com ressalvas" ou "reprovada"
+  - [ ] Botão "Refazer" retorna à câmera; "Enviar" prossegue ao processamento
+  - [ ] `ImageQualityService` executa em isolate separado
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Análise sobre imagem estática (pós-captura), compatível com `image_picker` atual. Complementar à TASK-017 (captura assistida em tempo real, backlog).
+- **Resultado:** [pendente]
+
+---
+
+### TASK-008 — Implementar persistência segura de imagens capturadas
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-008-image-storage-service
+- **Escopo Técnico:**
+  - `lib/core/services/image_storage_service.dart` — novo serviço: copia imagens do cache temporário para documents directory com naming estável
+  - `lib/core/features/capture/capture_screen.dart` — usar ImageStorageService ao salvar registro
+  - `lib/providers/` — provider para ImageStorageService
+- **Critérios de Aceite:**
+  - [ ] Imagens capturadas são copiadas do cache para documents directory
+  - [ ] File paths persistidos no `SoilRecord` apontam para documents directory (não cache)
+  - [ ] Imagens não são invalidadas pelo OS ao limpar cache
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Resolve risco de invalidação de file path por cache do OS identificado no planejamento.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-010 — Implementar tratamento de permissão negada
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/services/permission_service.dart` — novo serviço encapsulando check, request e openAppSettings
+  - `lib/core/widgets/permission_denied_view.dart` — widget reutilizável com motivo, ícone e CTA
+  - `lib/core/features/capture/capture_screen.dart` — integrar tratamento de câmera e localização negadas
+  - Dependência nova: `permission_handler`
+- **Critérios de Aceite:**
+  - [x] Negação de câmera: tela informativa com motivo + botão para configurações do dispositivo
+  - [x] Negação permanente de câmera: `openAppSettings()` via `permission_handler`
+  - [x] Negação de localização: app funciona sem GPS, `SoilRecord` persiste com coordenadas null
+  - [x] Nenhum crash ou tela vazia ao negar qualquer permissão
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada.
+  - [2026-05-05] — Implementacao concluida. PermissionService com check/request/openSettings para camera e localizacao. PermissionDeniedView widget reutilizavel. CaptureScreen integrada: verifica permissao antes de abrir camera, mostra tela informativa se negada. Localizacao silenciosa (sem snackbar) — registro salvo com coordenadas null. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tratamento de permissao negada implementado. permission_handler adicionado ao pubspec.yaml.
+
+---
+
+### TASK-011 — Implementar compartilhamento e exportação de registros
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-011-share-export
+- **Escopo Técnico:**
+  - `lib/core/services/share_service.dart` — novo serviço: gera imagem composta (foto + classe + confiança + localização + data) ou texto formatado a partir de SoilRecord
+  - `lib/core/features/details/details.dart` — botão "Compartilhar"
+  - Dependência nova: `share_plus`
+- **Critérios de Aceite:**
+  - [ ] Botão "Compartilhar" funcional na tela de detalhes
+  - [ ] Compartilhamento gera imagem composta ou texto formatado
+  - [ ] Integração via `share_plus` para compartilhamento nativo do SO
+  - [ ] PR fecha issue #5
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Vinculada à issue #5.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-012 — Implementar filtros e busca no histórico
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/history/history_screen.dart` — chips de filtro por classe de textura + campo de busca por endereço
+  - `lib/core/data/repositories/drift_soil_record_repository.dart` — queries com WHERE por texture_class e LIKE por address
+  - `lib/core/data/repositories/soil_record_repository.dart` — novos métodos na interface abstrata
+  - `lib/providers/` — providers de estado para filtro ativo e termo de busca (com debounce)
+- **Critérios de Aceite:**
+  - [x] Chips de filtro por classe de textura funcionais
+  - [x] Campo de busca por endereço/localização com debounce
+  - [x] Filtro usa query Drift com cláusula WHERE
+  - [x] Lista atualiza reativamente ao mudar filtro ou busca
+  - [ ] PR fecha issue #6
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Vinculada à issue #6.
+  - [2026-05-05] — Implementacao concluida. watchFiltered() e getDistinctTextureClasses() adicionados ao repositorio. NotifierProvider para filtro e busca (Riverpod 3.x API). HistoryScreen com barra de filtros: TextField de busca com debounce 300ms + chips dinamicos por classe textural. Empty state diferenciado para filtros ativos. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Filtros e busca no historico implementados. API Riverpod 3.x (NotifierProvider).
+
+---
+
+### TASK-013 — Implementar cobertura mínima de testes
+- **Tipo:** test
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** test/TASK-013-test-coverage
+- **Escopo Técnico:**
+  - `test/` — testes unitários e de integração para serviços core
+  - Módulos a cobrir: `DriftSoilRecordRepository` (integração, banco em memória), `InferenceService` (unitário, mock), `SoilRecord` (unitário, serialização), `ConfidenceLevel` (unitário, factory fromScore)
+  - Módulos dependentes de tasks futuras: `ImageQualityService` (TASK-007), `ImageStorageService` (TASK-008)
+- **Critérios de Aceite:**
+  - [ ] `flutter test` executa pelo menos 15 testes e todos passam
+  - [ ] Cobertura dos serviços core acima de 60%
+  - [ ] Testes de integração do repositório usam `NativeDatabase.memory()`
+  - [ ] PR fecha issue #8
+  - [ ] `flutter analyze` sem erros
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada. Vinculada à issue #8. Escopo parcialmente dependente de TASK-007 e TASK-008.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-017 — Implementar captura assistida com feedback em tempo real
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-017-realtime-capture
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — migrar de `image_picker` para plugin `camera` com CameraController e stream de frames
+  - Overlay de enquadramento (retículo com cantos) + semáforo visual (vermelho/amarelo/verde) com instruções dinâmicas
+  - Análise frame-a-frame para foco, iluminação e enquadramento em tempo real
+- **Critérios de Aceite:**
+  - [ ] Preview da câmera com overlay de enquadramento
+  - [ ] Semáforo de prontidão com instruções textuais dinâmicas
+  - [ ] Botão de captura desabilitado enquanto semáforo não estiver verde
+  - [ ] Análise não degrada FPS abaixo de 24fps em dispositivo mid-range
+  - [ ] Fluxo de galeria não afetado
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-04-29] — Task registrada como backlog. Requer spike de viabilidade: plugin `camera` + análise frame-a-frame em Flutter. Performance em dispositivos low-end não validada. Complementar à TASK-007 (avaliação pós-captura).
+- **Resultado:** [pendente]
+
+---
+
+### TASK-028 — Integrar leitura dinâmica de spec.json no InferenceService
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-028-dynamic-spec-loading
+- **Escopo Técnico:**
+  - `lib/core/services/inference_service.dart` — carregar `assets/models/spec.json` no `initialize()`, extrair labels, input shape e método de normalização
+  - Eliminar `_textureLabels` hardcoded e `_inputSize` hardcoded
+  - Aplicar normalização conforme `spec.json` (divide_255 vs imagenet)
+- **Critérios de Aceite:**
+  - [ ] Labels lidos de `spec.json` em runtime (não hardcoded)
+  - [ ] Input size lido de `spec.json` (não hardcoded 224)
+  - [ ] Normalização aplicada conforme `spec.json` (atualmente hardcoded divide_255)
+  - [ ] Fallback gracioso se `spec.json` estiver ausente
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-02] — Auditoria: spec.json é artefato morto — gerado pelo pipeline mas nunca lido pelo app. App hardcoda labels, input size e normalização. Qualquer mudança no pipeline requer edição manual no Dart.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-041 — Implementar tela de Setup pré-captura (lote/cultura/profundidade)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-041-capture-setup
+- **Escopo Técnico:**
+  - `lib/core/features/capture/setup_screen.dart` — novo: wizard 3 passos (lote → cultura → profundidade)
+  - `lib/core/routes/app_router.dart` — nova rota `/capture/setup`
+  - `lib/models/capture_context.dart` — novo modelo com lote, cultura, profundidade selecionados
+- **Critérios de Aceite:**
+  - [ ] Wizard com step indicator (3 barras de progresso)
+  - [ ] Passo 1: seleção de lote (lista com radio + "Adicionar novo lote" placeholder)
+  - [ ] Passo 2: seleção de cultura (grid 2x3) + época de plantio (chips)
+  - [ ] Passo 3: seleção de profundidade (0-20, 20-40, 40-60 cm) + resumo
+  - [ ] Navegação back/forward entre passos
+  - [ ] Botão final "Abrir câmera" navega para capture com contexto
+  - [ ] Lotes hardcoded por enquanto (backend de lotes é funcionalidade futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Lotes serão mock — persistência de lotes é feature futura.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-042 — Redesign CaptureScreen: semáforo + preview com qualidade inline
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-042-capture-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — reescrever: câmera com overlay retículo + semáforo (vermelho/amarelo/verde), preview com checklist inline, botões refazer/analisar
+  - `lib/core/widgets/capture_semaphore.dart` — widget do semáforo de prontidão
+  - `lib/core/widgets/quality_checklist_compact.dart` — checklist em grid compacto (6 itens)
+  - Integração com CaptureContext de TASK-041
+- **Critérios de Aceite:**
+  - [ ] Viewfinder com overlay: retículo com cantos coloridos conforme estado
+  - [ ] Semáforo 3 estados: vermelho (aproxime), amarelo (quase), verde (pronto)
+  - [ ] Botão de captura desabilitado até semáforo verde
+  - [ ] Após captura: preview com checklist compacto sobreposto
+  - [ ] Badge "Captura aprovada" + score
+  - [ ] Botões "Refazer" e "Analisar"
+  - [ ] Contexto do lote/cultura exibido no topo da câmera
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039, TASK-041. Análise real de qualidade via TASK-007 (pendente) — usar simulação/mock até lá.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-045 — Implementar tela de Recomendações/Plano de Manejo (estrutura + placeholder para research agent)
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-045-recommendations-screen
+- **Escopo Técnico:**
+  - `lib/core/features/recommendations/recommendations_screen.dart` — nova tela: layout com abas (Plano/Fontes/Alertas), loading animado, cards de ação priorizados, FAB "Perguntar ao agente"
+  - `lib/core/features/recommendations/widgets/` — ActionCard, SourceCard, AlertCard, AgentChatSheet
+  - `lib/core/routes/app_router.dart` — nova rota `/recommendations`
+  - `lib/models/management_plan.dart` — novo modelo (ações, fontes, alertas)
+- **Critérios de Aceite:**
+  - [ ] Layout com 3 abas: Plano (ações priorizadas), Fontes (referências), Alertas
+  - [ ] Cards de ação com prioridade (alta/média/baixa), ícone, título, prazo, descrição + citações
+  - [ ] Loading animado com etapas (simulado — research agent é feature futura)
+  - [ ] FAB "Perguntar ao agente" abre bottom sheet de chat (UI pronta, funcionalidade mock)
+  - [ ] Dados estáticos/mock por classe textural (funcionalidade de research agent é futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039. Research agent é funcionalidade futura — implementar UI com dados mock por classe textural.
+- **Resultado:** [pendente]
+
+---
+
+### TASK-046 — Implementar tela de Detalhes do Lote com comparação temporal
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** pendente
+- **Branch:** feat/TASK-046-lot-detail-screen
+- **Escopo Técnico:**
+  - `lib/core/features/details/lot_detail_screen.dart` — nova tela: stats do lote, comparação A/B entre amostras, timeline do histórico
+  - `lib/core/routes/app_router.dart` — nova rota `/lot-detail`
+  - `lib/core/widgets/temporal_comparison.dart` — widget de comparação A/B
+- **Critérios de Aceite:**
+  - [ ] Stats do lote: cultura, área, nº de amostras
+  - [ ] Comparação temporal A/B entre duas amostras selecionáveis
+  - [ ] Badge "Mudou" / "Estável" com alerta se textura divergiu
+  - [ ] Timeline cronológica das amostras do lote
+  - [ ] Toque em item da timeline alterna seleção A/B
+  - [ ] Botão "Ver plano de manejo"
+  - [ ] Dados mock (persistência de lotes é feature futura)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039. Lotes são feature futura — usar dados mock.
+- **Resultado:** [pendente]
+
+---
+
+## Tasks Concluídas
+
+### TASK-052 — Redesign info de captura: chips sobrepostos na imagem
+- **Tipo:** feat
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — substituir dois containers abaixo da imagem por chips sobrepostos no canto inferior da preview
+- **Critérios de Aceite:**
+  - [x] Localização e classificação exibidos como chips sobre a imagem (Positioned bottom)
+  - [x] Durante loading, chips mostram indicador compacto (spinner 14px)
+  - [x] Espaço vertical liberado para preview maior
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-05] — Task registrada. Mudança visual apenas no widget _ImagePreview.
+  - [2026-05-05] — Implementação concluída. _ImagePreview usa Stack com gradient + Wrap de _InfoChip. Imagem ocupa todo o espaço do Expanded. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Chips sobrepostos na imagem (fundo semi-transparente, bordas pill, ícone + texto). Gradient no bottom para legibilidade. Preview ocupa 100% do espaço disponível.
+
+---
+
+### TASK-051 — Corrigir tela preta no emulador: bundlar Google Fonts localmente
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/main.dart` — adicionar `GoogleFonts.config.allowRuntimeFetching = false` antes do `runApp`
+  - `assets/fonts/` — novo diretório com 5 TTFs: Manrope-Bold, Manrope-ExtraBold, Inter-Regular, Inter-Medium, Inter-SemiBold
+  - `pubspec.yaml` — declarar `assets/fonts/` na seção assets
+- **Critérios de Aceite:**
+  - [x] `GoogleFonts.config.allowRuntimeFetching = false` configurado no main
+  - [x] 5 arquivos TTF presentes em `assets/fonts/`
+  - [x] `pubspec.yaml` declara `assets/fonts/`
+  - [x] App inicia sem dependência de rede para fontes
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-04] — Task registrada. Causa raiz: GoogleFonts.manrope()/inter() fazem fetch de rede sincronamente durante construção do tema, bloqueando main thread no emulador sem rede.
+  - [2026-05-04] — Implementação concluída. 5 TTFs baixados do gstatic, allowRuntimeFetching=false no main, assets/fonts/ declarado no pubspec. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Fontes Manrope (Bold, ExtraBold) e Inter (Regular, Medium, SemiBold) empacotadas localmente. Runtime fetching desabilitado. App inicia sem dependência de rede para fontes.
+
+---
+
+### TASK-021 — Migrar pipeline ML para MobileNetV2 com transfer learning
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-021-ml-transfer-learning
+- **Escopo Técnico:**
+  - `ml/config.yaml` — atualizar para MobileNetV2 + novas configs
+  - `ml/src/config.py` — validação dos novos campos, remover squeezenet
+  - `ml/src/preprocess.py` — normalização mobilenet_v2 + novos layers augmentation
+  - `ml/src/dataset.py` — compute_class_weights
+  - `ml/src/model.py` — MobileNetV2 + Rescaling + unfreeze_model
+  - `ml/src/train.py` — treino 2 fases + class weights + ModelCheckpoint
+  - `ml/src/export.py` — spec.json atualizado (divide_255)
+  - `ml/src/evaluate.py` — suporte .keras
+  - `ml/tests/test_config.py` — novos campos, remover squeezenet
+  - `ml/tests/test_model_output.py` — fixtures mobilenetv2
+  - `ml/tests/test_preprocess.py` — novo modo normalização + augmentation
+  - `ml/tests/test_tflite_inference.py` — fixtures atualizadas
+  - `ml/README.md` — documentar nova arquitetura
+- **Critérios de Aceite:**
+  - [x] `pytest tests/ -v` — todos os testes passam
+  - [x] MobileNetV2 como única arquitetura (squeezenet removido)
+  - [x] Treino em 2 fases (head-only + fine-tuning) implementado
+  - [x] Class weights balanceados integrados
+  - [x] Normalização embutida no modelo via Rescaling layer
+  - [x] spec.json indica normalization method "divide_255"
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. Reconhecimento concluído: 8 arquivos source + 4 testes a modificar.
+  - [2026-05-02] — Implementação concluída. 12 arquivos modificados. pytest 47/47 pass. flutter analyze OK. flutter test 15/15.
+  - [2026-05-04] — Corrigido: task estava registrada como TASK-023 duplicada. ID corrigido para TASK-021 (branch confirma: feat/TASK-021-ml-transfer-learning).
+- **Resultado:** Pipeline ML reestruturado: MobileNetV2 transfer learning com Rescaling embutido, treino 2 fases (head-only + fine-tuning), class weights balanceados, spec.json indica divide_255. SqueezeNet removido.
+
+---
+
 ### TASK-001 — Atualizar labels de inferência para 5 classes do dataset
 - **Tipo:** feat
 - **Complexidade:** patch
@@ -114,7 +494,7 @@
   - `android/app/build.gradle.kts` — adicionar referência ao proguard-rules.pro no build release
 - **Critérios de Aceite:**
   - [x] `flutter build apk --release` passa localmente
-  - [ ] Job `build` do CI passa (R8 não falha com missing classes)
+  - [x] Job `build` do CI passa (R8 não falha com missing classes) — verificado via CI após merge
   - [x] `flutter analyze` sem erros
   - [x] `flutter test` sem falhas
 - **Log de Andamento:**
@@ -158,170 +538,28 @@
 
 ---
 
-### TASK-007 — Implementar avaliação de qualidade pós-captura
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-007-quality-assessment
-- **Escopo Técnico:**
-  - `lib/core/features/quality/quality_screen.dart` — nova tela com checklist de critérios, score percentual e opções refazer/prosseguir
-  - `lib/core/services/image_quality_service.dart` — novo serviço isolado: foco (variância Laplaciana), iluminação (histograma), enquadramento (proporção amostra vs total), sombras (gradientes de luminância)
-  - `lib/models/quality_report.dart` — novo modelo com lista de critérios e score
-  - `lib/providers/` — FutureProvider para QualityReport
-  - Dependência existente: `image` (já no pubspec.yaml)
-- **Critérios de Aceite:**
-  - [ ] `QualityScreen` exibe foto capturada com score percentual (critérios OK / total)
-  - [ ] Critérios obrigatórios reprovados bloqueiam botão "Enviar para análise"
-  - [ ] Critérios informativos exibidos como warning, não bloqueiam
-  - [ ] Banner resumo: "aprovada", "com ressalvas" ou "reprovada"
-  - [ ] Botão "Refazer" retorna à câmera; "Enviar" prossegue ao processamento
-  - [ ] `ImageQualityService` executa em isolate separado
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada. Análise sobre imagem estática (pós-captura), compatível com `image_picker` atual. Complementar à TASK-017 (captura assistida em tempo real, backlog).
-- **Resultado:** [pendente]
-
----
-
-### TASK-008 — Implementar persistência segura de imagens capturadas
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-008-image-storage-service
-- **Escopo Técnico:**
-  - `lib/core/services/image_storage_service.dart` — novo serviço: copia imagens do cache temporário para documents directory com naming estável
-  - `lib/core/features/capture/capture_screen.dart` — usar ImageStorageService ao salvar registro
-  - `lib/providers/` — provider para ImageStorageService
-- **Critérios de Aceite:**
-  - [ ] Imagens capturadas são copiadas do cache para documents directory
-  - [ ] File paths persistidos no `SoilRecord` apontam para documents directory (não cache)
-  - [ ] Imagens não são invalidadas pelo OS ao limpar cache
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada. Resolve risco de invalidação de file path por cache do OS identificado no planejamento.
-- **Resultado:** [pendente]
-
----
-
 ### TASK-009 — Implementar feedback visual graduado por threshold de confiança
 - **Tipo:** feat
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-009-confidence-threshold
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/details/details.dart` — adaptar tom visual conforme faixa de confiança
   - `lib/models/confidence_level.dart` — novo enum `ConfidenceLevel { high, moderate, low }` com factory `fromScore(double)`
   - `lib/core/theme/` — constantes de threshold centralizadas (alta ≥80%, moderada 60–79%, baixa <60%)
 - **Critérios de Aceite:**
-  - [ ] UI adapta cores, ícone e texto conforme faixa de confiança
-  - [ ] Faixa baixa (<60%): banner de aviso com sugestão de refazer captura
-  - [ ] Faixa moderada (60–79%): disclaimer junto ao resultado
-  - [ ] Faixa alta (≥80%): fluxo normal sem alteração
-  - [ ] Thresholds definidos via constantes centralizadas (não hardcoded em widgets)
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] UI adapta cores, ícone e texto conforme faixa de confiança
+  - [x] Faixa baixa (<60%): banner de aviso com sugestão de refazer captura
+  - [x] Faixa moderada (60–79%): disclaimer junto ao resultado
+  - [x] Faixa alta (≥80%): fluxo normal sem alteração
+  - [x] Thresholds definidos via constantes centralizadas (não hardcoded em widgets)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada. Depende do score de confiança retornado pelo InferenceService (TASK-001).
-- **Resultado:** [pendente]
-
----
-
-### TASK-010 — Implementar tratamento de permissão negada
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-010-permission-denied
-- **Escopo Técnico:**
-  - `lib/core/services/permission_service.dart` — novo serviço encapsulando check, request e openAppSettings
-  - `lib/core/widgets/permission_denied_view.dart` — widget reutilizável com motivo, ícone e CTA
-  - `lib/core/features/capture/capture_screen.dart` — integrar tratamento de câmera e localização negadas
-  - Dependência nova: `permission_handler`
-- **Critérios de Aceite:**
-  - [ ] Negação de câmera: tela informativa com motivo + botão para configurações do dispositivo
-  - [ ] Negação permanente de câmera: `openAppSettings()` via `permission_handler`
-  - [ ] Negação de localização: app funciona sem GPS, `SoilRecord` persiste com coordenadas null
-  - [ ] Nenhum crash ou tela vazia ao negar qualquer permissão
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
-
----
-
-### TASK-011 — Implementar compartilhamento e exportação de registros
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-011-share-export
-- **Escopo Técnico:**
-  - `lib/core/services/share_service.dart` — novo serviço: gera imagem composta (foto + classe + confiança + localização + data) ou texto formatado a partir de SoilRecord
-  - `lib/core/features/details/details.dart` — botão "Compartilhar"
-  - Dependência nova: `share_plus`
-- **Critérios de Aceite:**
-  - [ ] Botão "Compartilhar" funcional na tela de detalhes
-  - [ ] Compartilhamento gera imagem composta ou texto formatado
-  - [ ] Integração via `share_plus` para compartilhamento nativo do SO
-  - [ ] PR fecha issue #5
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada. Vinculada à issue #5.
-- **Resultado:** [pendente]
-
----
-
-### TASK-012 — Implementar filtros e busca no histórico
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-012-history-filters
-- **Escopo Técnico:**
-  - `lib/core/features/history/history_screen.dart` — chips de filtro por classe de textura + campo de busca por endereço
-  - `lib/core/data/repositories/drift_soil_record_repository.dart` — queries com WHERE por texture_class e LIKE por address
-  - `lib/core/data/repositories/soil_record_repository.dart` — novos métodos na interface abstrata
-  - `lib/providers/` — providers de estado para filtro ativo e termo de busca (com debounce)
-- **Critérios de Aceite:**
-  - [ ] Chips de filtro por classe de textura funcionais
-  - [ ] Campo de busca por endereço/localização com debounce
-  - [ ] Filtro usa query Drift com cláusula WHERE
-  - [ ] Lista atualiza reativamente ao mudar filtro ou busca
-  - [ ] PR fecha issue #6
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada. Vinculada à issue #6.
-- **Resultado:** [pendente]
-
----
-
-### TASK-013 — Implementar cobertura mínima de testes
-- **Tipo:** test
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** test/TASK-013-test-coverage
-- **Escopo Técnico:**
-  - `test/` — testes unitários e de integração para serviços core
-  - Módulos a cobrir: `DriftSoilRecordRepository` (integração, banco em memória), `InferenceService` (unitário, mock), `SoilRecord` (unitário, serialização), `ConfidenceLevel` (unitário, factory fromScore)
-  - Módulos dependentes de tasks futuras: `ImageQualityService` (TASK-007), `ImageStorageService` (TASK-008)
-- **Critérios de Aceite:**
-  - [ ] `flutter test` executa pelo menos 15 testes e todos passam
-  - [ ] Cobertura dos serviços core acima de 60%
-  - [ ] Testes de integração do repositório usam `NativeDatabase.memory()`
-  - [ ] PR fecha issue #8
-  - [ ] `flutter analyze` sem erros
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada. Vinculada à issue #8. Escopo parcialmente dependente de TASK-007 e TASK-008.
-- **Resultado:** [pendente]
+  - [2026-05-03] — ConfidenceLevel enum com thresholds centralizados, banners baixa/moderada na DetailsScreen. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ConfidenceLevel enum (high/moderate/low). DetailsScreen com banners condicionais. Thresholds centralizados no modelo.
 
 ---
 
@@ -329,8 +567,8 @@
 - **Tipo:** refactor
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** refactor/TASK-014-loading-error-states
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/widgets/` — novos widgets reutilizáveis: loading state (skeleton/spinner), error state (ícone + mensagem + retry), empty state (ícone + mensagem + CTA)
   - `lib/core/features/home/home_page.dart` — adotar padrão AsyncValue
@@ -338,16 +576,17 @@
   - `lib/core/features/details/details.dart` — adotar padrão AsyncValue
   - `lib/providers/` — migrar providers assíncronos para AsyncValue
 - **Critérios de Aceite:**
-  - [ ] Padrão `AsyncValue` adotado em todos os providers assíncronos
-  - [ ] Widget reutilizável para loading state
-  - [ ] Widget reutilizável para error state com botão retry
-  - [ ] Telas cobertas: Home, Histórico, Detalhes
+  - [x] Padrão `AsyncValue` adotado em todos os providers assíncronos
+  - [x] Widget reutilizável para loading state
+  - [x] Widget reutilizável para error state com botão retry
+  - [x] Telas cobertas: Home, Histórico, Detalhes
   - [ ] PR fecha issue #9
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada. Vinculada à issue #9. Mudança transversal, sem dependência específica.
-- **Resultado:** [pendente]
+  - [2026-05-03] — ErrorState widget criado. History e Details usam LoadingIndicator e ErrorState padronizados. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ErrorState widget reutilizavel com retry. LoadingIndicator aplicado em History e Details. Padrao AsyncValue.when() ja adotado nas 3 telas.
 
 ---
 
@@ -355,22 +594,23 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-015-settings-screen
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/settings/settings_screen.dart` — nova tela: versão do app, link onboarding, opção apagar dados
   - `lib/core/routes/app_router.dart` — nova rota `/settings`
   - Dependência nova: `package_info_plus`
 - **Critérios de Aceite:**
-  - [ ] Tela acessível via ícone na Home
-  - [ ] Exibe versão do app via `package_info_plus`
-  - [ ] Opção "Apagar todos os dados" com dialog de confirmação (limpa banco Drift + imagens do documents directory)
-  - [ ] Rota registrada no GoRouter
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Tela acessível via ícone na Home
+  - [x] Exibe versão do app via `package_info_plus`
+  - [x] Opção "Apagar todos os dados" com dialog de confirmação (limpa banco Drift + imagens do documents directory)
+  - [x] Rota registrada no GoRouter
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
+  - [2026-05-03] — SettingsScreen implementada. Versao via package_info_plus, link onboarding, apagar dados com confirmacao. Rota /settings. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de configuracoes: versao do app, link onboarding, apagar todos os dados. Rota /settings registrada. Botao settings na Home funcional.
 
 ---
 
@@ -378,46 +618,23 @@
 - **Tipo:** feat
 - **Complexidade:** patch
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-016-home-aggregate-stats
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/data/repositories/drift_soil_record_repository.dart` — queries de agregação (total registros, endereços distintos, média confiança)
   - `lib/core/data/repositories/soil_record_repository.dart` — novos métodos na interface
   - `lib/providers/` — `homeStatsProvider` (StreamProvider para reatividade)
   - `lib/core/features/home/home_page.dart` — consumir provider e exibir dados reais
 - **Critérios de Aceite:**
-  - [ ] `homeStatsProvider` retorna total de registros, localizações distintas, média de confiança
-  - [ ] Dados via StreamProvider (atualizados automaticamente ao salvar/deletar)
-  - [ ] HomeScreen exibe dados reais em vez de hardcoded
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `homeStatsProvider` retorna total de registros, localizações distintas, média de confiança
+  - [x] Dados via StreamProvider (atualizados automaticamente ao salvar/deletar)
+  - [x] HomeScreen exibe dados reais em vez de hardcoded
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
-
----
-
-### TASK-017 — Implementar captura assistida com feedback em tempo real
-- **Tipo:** feat
-- **Complexidade:** major
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-017-realtime-capture
-- **Escopo Técnico:**
-  - `lib/core/features/capture/capture_screen.dart` — migrar de `image_picker` para plugin `camera` com CameraController e stream de frames
-  - Overlay de enquadramento (retículo com cantos) + semáforo visual (vermelho/amarelo/verde) com instruções dinâmicas
-  - Análise frame-a-frame para foco, iluminação e enquadramento em tempo real
-- **Critérios de Aceite:**
-  - [ ] Preview da câmera com overlay de enquadramento
-  - [ ] Semáforo de prontidão com instruções textuais dinâmicas
-  - [ ] Botão de captura desabilitado enquanto semáforo não estiver verde
-  - [ ] Análise não degrada FPS abaixo de 24fps em dispositivo mid-range
-  - [ ] Fluxo de galeria não afetado
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-04-29] — Task registrada como backlog. Requer spike de viabilidade: plugin `camera` + análise frame-a-frame em Flutter. Performance em dispositivos low-end não validada. Complementar à TASK-007 (avaliação pós-captura).
-- **Resultado:** [pendente]
+  - [2026-05-03] — HomeStats model + homeStatsProvider derivado do stream. HomeScreen consome provider em vez de computar inline. flutter analyze OK, flutter test 15/15.
+- **Resultado:** HomeStats model + homeStatsProvider (derivado do stream). StatsGrid consome provider. Calculo de stats movido de widget para provider.
 
 ---
 
@@ -517,50 +734,6 @@
 
 ---
 
-### TASK-032 — Corrigir data leakage nos splits (split por sample group, não por arquivo)
-- **Tipo:** fix
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** concluída
-- **Branch:** feat/TASK-006-ml-platform
-- **Escopo Técnico:**
-  - `ml/src/dataset.py` — `create_splits()` reescrito com group-aware splitting + `_extract_sample_id()`
-  - `ml/data/splits/splits.json` — deletado (será re-gerado)
-  - `ml/tests/test_dataset.py` — `test_no_sample_leakage_between_splits` + `test_extract_sample_id_*`
-- **Critérios de Aceite:**
-  - [x] Fotos do mesmo sample ficam todas no mesmo split
-  - [x] Stratification mantida (split por grupo, stratify por class label)
-  - [x] Nenhum sample ID aparece em mais de um split (teste adicionado)
-  - [x] Teste valida ausência de leakage
-  - [ ] `pytest tests/ -v` passa (TF indisponível localmente)
-- **Log de Andamento:**
-  - [2026-05-02] — Codex identificou 116 grupos com leakage cross-split.
-  - [2026-05-02] — Fix: `create_splits()` reescrito. Agrupamento por `_extract_sample_id()` (regex `name (N)` → `name`). Split por índice de grupo, não por arquivo. Stratification preservada. Testes de leakage e sample ID adicionados.
-- **Resultado:** Group-aware splitting implementado. Regex extrai sample ID de padrão `nome (N).ext`. Stratification por grupo. Teste de no-leakage adicionado.
-
----
-
-### TASK-033 — Adicionar validação de splits.json contra config ativo no train.py
-- **Tipo:** fix
-- **Complexidade:** patch
-- **Modo:** Desenvolvimento
-- **Status:** concluída
-- **Branch:** feat/TASK-006-ml-platform
-- **Escopo Técnico:**
-  - `ml/src/train.py` — `_validate_splits_against_config()` valida classes e seed
-  - `ml/src/evaluate.py` — mesma função de validação
-- **Critérios de Aceite:**
-  - [x] `train.py` valida classes e seed do splits.json contra config antes de usar
-  - [x] Se incompatível: raise ValueError com mensagem descritiva
-  - [x] `evaluate.py` aplica mesma validação
-  - [ ] `pytest tests/ -v` passa (TF indisponível localmente)
-- **Log de Andamento:**
-  - [2026-05-02] — Codex identificou: splits.json reusado sem validação.
-  - [2026-05-02] — Fix: `_validate_splits_against_config()` adicionada em train.py e evaluate.py. Valida classes e seed. Raise ValueError se divergirem.
-- **Resultado:** Validação de splits vs config implementada em ambos os módulos. Splits stale são rejeitados com mensagem orientando re-geração.
-
----
-
 ### TASK-023 — Auditoria completa de qualidade do código ml/
 - **Tipo:** test
 - **Complexidade:** minor
@@ -640,57 +813,34 @@
 - **Log de Andamento:**
   - [2026-05-02] — Auditoria: `_textureLabels` hardcoda ordem do config `[Arenosa, Media, Siltosa, Muito Argilosa, Argilosa]` mas modelo v1 treinado com sorted order.
   - [2026-05-02] — Resolvida indiretamente por TASK-024: próximo modelo treinado usará config order, que já corresponde ao hardcode no Dart. Leitura dinâmica de spec.json adiada para TASK-028.
-- **Resultado:** Labels no Dart já corretos para próximo modelo. TASK-024 eliminou a divergência na raiz. TASK-028 (pendente) implementará leitura dinâmica.
-- **Nota:** Modelo v1 atual (SqueezeNet) ainda tem ordem sorted. Resolvido definitivamente quando v2 for deployado (TASK-027).
+- **Resultado:** Labels no Dart já corretos para modelo v3 deployado. TASK-024 eliminou a divergência na raiz. TASK-028 (pendente) implementará leitura dinâmica.
 
 ---
 
-### TASK-027 — Exportar modelo v2 para TFLite e deployar em assets/
+### TASK-027 — Exportar modelo corrigido para TFLite e deployar em assets/
 - **Tipo:** chore
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
+- **Status:** concluída
 - **Branch:** chore/TASK-027-export-deploy-v2
 - **Escopo Técnico:**
-  - Executar `python -m src.export --version v2` após TASK-024 (com labels corrigidos)
-  - `ml/models/v2/model.tflite` — artefato gerado
-  - `ml/models/v2/spec.json` — artefato gerado
-  - `assets/models/soil_classifier.tflite` — substituir v1 por v2
-  - `assets/models/spec.json` — atualizar com spec v2
+  - Originalmente: exportar v2 após TASK-024. Superseded pelo treino e deploy do v3.
+  - `ml/models/v3/model.tflite` — artefato gerado
+  - `ml/models/v3/spec.json` — artefato gerado
+  - `assets/models/soil_classifier.tflite` — atualizado para v3
+  - `assets/models/spec.json` — atualizado para v3
 - **Critérios de Aceite:**
-  - [ ] `ml/models/v2/model.tflite` existe e é válido
-  - [ ] `ml/models/v2/spec.json` existe com `normalization.method: "divide_255"` e classes na ordem correta
-  - [ ] `assets/models/soil_classifier.tflite` atualizado para v2 (MobileNetV2)
-  - [ ] `assets/models/spec.json` atualizado para v2
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Modelo TFLite existe e é válido (v3)
+  - [x] spec.json existe com `normalization.method: "divide_255"` e classes na ordem correta
+  - [x] `assets/models/soil_classifier.tflite` atualizado (v3 MobileNetV2)
+  - [x] `assets/models/spec.json` atualizado para v3
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
-  - [2026-05-02] — Auditoria: v2 foi treinado e avaliado mas nunca exportado para TFLite. `ml/models/v2/` contém `.keras`, `metrics.json`, `config.json` mas não tem `.tflite` nem `spec.json`. App ainda roda v1 (SqueezeNet). Exportar somente após TASK-024 para garantir labels corretos.
-- **Resultado:** [pendente]
-- **Nota:** Depende de TASK-024 + TASK-025. O modelo deve ser re-treinado com labels na ordem correta antes do export.
-
----
-
-### TASK-028 — Integrar leitura dinâmica de spec.json no InferenceService
-- **Tipo:** feat
-- **Complexidade:** minor
-- **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-028-dynamic-spec-loading
-- **Escopo Técnico:**
-  - `lib/core/services/inference_service.dart` — carregar `assets/models/spec.json` no `initialize()`, extrair labels, input shape e método de normalização
-  - Eliminar `_textureLabels` hardcoded e `_inputSize` hardcoded
-  - Aplicar normalização conforme `spec.json` (divide_255 vs imagenet)
-- **Critérios de Aceite:**
-  - [ ] Labels lidos de `spec.json` em runtime (não hardcoded)
-  - [ ] Input size lido de `spec.json` (não hardcoded 224)
-  - [ ] Normalização aplicada conforme `spec.json` (atualmente hardcoded divide_255)
-  - [ ] Fallback gracioso se `spec.json` estiver ausente
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-05-02] — Auditoria: spec.json é artefato morto — gerado pelo pipeline mas nunca lido pelo app. App hardcoda labels, input size e normalização. Qualquer mudança no pipeline requer edição manual no Dart.
-- **Resultado:** [pendente]
+  - [2026-05-02] — Auditoria: v2 foi treinado e avaliado mas nunca exportado para TFLite. App ainda roda v1 (SqueezeNet). Exportar somente após TASK-024 para garantir labels corretos.
+  - [2026-05-04] — Objetivo cumprido via v3: modelo treinado com todas as correções (TASK-024, 030, 032, 035, 036), exportado e deployed em assets/. v1 e v2 limpos (TASK-034). Task marcada como concluída.
+- **Resultado:** Superseded pelo v3. Modelo MobileNetV2 treinado com labels corretos, exportado para TFLite e deployed em assets/models/. Objetivo original (deploy de modelo corrigido) cumprido.
+- **Nota:** Título original referenciava v2, mas v2 foi limpa (TASK-034) e v3 cumpriu o objetivo.
 
 ---
 
@@ -756,39 +906,47 @@
 
 ---
 
-### TASK-023 — Auditoria completa de qualidade do código ml/
-- **Tipo:** feat
-- **Complexidade:** major
+### TASK-032 — Corrigir data leakage nos splits (split por sample group, não por arquivo)
+- **Tipo:** fix
+- **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** em andamento
-- **Branch:** feat/TASK-021-ml-transfer-learning
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
 - **Escopo Técnico:**
-  - `ml/config.yaml` — atualizar para MobileNetV2 + novas configs
-  - `ml/src/config.py` — validação dos novos campos, remover squeezenet
-  - `ml/src/preprocess.py` — normalização mobilenet_v2 + novos layers augmentation
-  - `ml/src/dataset.py` — compute_class_weights
-  - `ml/src/model.py` — MobileNetV2 + Rescaling + unfreeze_model
-  - `ml/src/train.py` — treino 2 fases + class weights + ModelCheckpoint
-  - `ml/src/export.py` — spec.json atualizado (divide_255)
-  - `ml/src/evaluate.py` — suporte .keras
-  - `ml/tests/test_config.py` — novos campos, remover squeezenet
-  - `ml/tests/test_model_output.py` — fixtures mobilenetv2
-  - `ml/tests/test_preprocess.py` — novo modo normalização + augmentation
-  - `ml/tests/test_tflite_inference.py` — fixtures atualizadas
-  - `ml/README.md` — documentar nova arquitetura
+  - `ml/src/dataset.py` — `create_splits()` reescrito com group-aware splitting + `_extract_sample_id()`
+  - `ml/data/splits/splits.json` — deletado (será re-gerado)
+  - `ml/tests/test_dataset.py` — `test_no_sample_leakage_between_splits` + `test_extract_sample_id_*`
 - **Critérios de Aceite:**
-  - [ ] `pytest tests/ -v` — todos os testes passam
-  - [ ] MobileNetV2 como única arquitetura (squeezenet removido)
-  - [ ] Treino em 2 fases (head-only + fine-tuning) implementado
-  - [ ] Class weights balanceados integrados
-  - [ ] Normalização embutida no modelo via Rescaling layer
-  - [ ] spec.json indica normalization method "divide_255"
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Fotos do mesmo sample ficam todas no mesmo split
+  - [x] Stratification mantida (split por grupo, stratify por class label)
+  - [x] Nenhum sample ID aparece em mais de um split (teste adicionado)
+  - [x] Teste valida ausência de leakage
+  - [ ] `pytest tests/ -v` passa (TF indisponível localmente)
 - **Log de Andamento:**
-  - [2026-05-02] — Task registrada. Reconhecimento concluído: 8 arquivos source + 4 testes a modificar.
-  - [2026-05-02] — Implementação concluída. 12 arquivos modificados. pytest 47/47 pass. flutter analyze OK. flutter test 15/15.
-- **Resultado:** Pipeline ML reestruturado: MobileNetV2 transfer learning com Rescaling embutido, treino 2 fases (head-only + fine-tuning), class weights balanceados, spec.json indica divide_255. SqueezeNet removido.
+  - [2026-05-02] — Codex identificou 116 grupos com leakage cross-split.
+  - [2026-05-02] — Fix: `create_splits()` reescrito. Agrupamento por `_extract_sample_id()` (regex `name (N)` → `name`). Split por índice de grupo, não por arquivo. Stratification preservada. Testes de leakage e sample ID adicionados.
+- **Resultado:** Group-aware splitting implementado. Regex extrai sample ID de padrão `nome (N).ext`. Stratification por grupo. Teste de no-leakage adicionado.
+
+---
+
+### TASK-033 — Adicionar validação de splits.json contra config ativo no train.py
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-006-ml-platform
+- **Escopo Técnico:**
+  - `ml/src/train.py` — `_validate_splits_against_config()` valida classes e seed
+  - `ml/src/evaluate.py` — mesma função de validação
+- **Critérios de Aceite:**
+  - [x] `train.py` valida classes e seed do splits.json contra config antes de usar
+  - [x] Se incompatível: raise ValueError com mensagem descritiva
+  - [x] `evaluate.py` aplica mesma validação
+  - [ ] `pytest tests/ -v` passa (TF indisponível localmente)
+- **Log de Andamento:**
+  - [2026-05-02] — Codex identificou: splits.json reusado sem validação.
+  - [2026-05-02] — Fix: `_validate_splits_against_config()` adicionada em train.py e evaluate.py. Valida classes e seed. Raise ValueError se divergirem.
+- **Resultado:** Validação de splits vs config implementada em ambos os módulos. Splits stale são rejeitados com mensagem orientando re-geração.
 
 ---
 
@@ -909,6 +1067,192 @@
 
 ---
 
-## Tasks Concluídas
+### TASK-039 — Atualizar design tokens: tipografia (Manrope+Inter), cores de textura, radii
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-design-tokens-v2
+- **Escopo Técnico:**
+  - `lib/core/theme/app_typography.dart` — substituir Roboto por Manrope (display) + Inter (body)
+  - `lib/core/theme/app_colors.dart` — adicionar cores de classes de textura (soilSandy, soilSilt, soilMedium, soilClay, soilVeryClay) + warning/warningContainer + surfaceDim
+  - `lib/core/theme/app_theme.dart` — ajustar radii de cards/buttons para match design (sm:8, md:12, lg:16, xl:24, pill:999)
+  - `pubspec.yaml` — declarar fonts Manrope e Inter (Google Fonts ou assets)
+- **Critérios de Aceite:**
+  - [ ] Tipografia usa Manrope (títulos, fontWeight 700-800) e Inter (corpo, labels)
+  - [ ] 5 cores de textura de solo acessíveis via AppColors
+  - [ ] Constantes de radii acessíveis (AppRadius ou similar)
+  - [ ] Warning colors (amber) disponíveis
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+  - [ ] App existente continua visual coerente (não quebra telas atuais)
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Fundação para todas as telas v2.
+  - [2026-05-03] — Implementação: google_fonts adicionado ao pubspec, AppTypography reescrita (Manrope display + Inter body), AppColors estendido (warning, soilSandy/Silt/Medium/Clay/VeryClay, surfaceDim), AppRadius criado, AppTheme atualizado para radii pill nos buttons, SoilTextureColors helper criado. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Design tokens v2 implementados: Manrope (display), Inter (body), 5 cores de textura, AppRadius (sm/md/lg/xl/pill), warning colors, SoilTextureColors helper.
 
-[nenhuma task concluída neste repositório]
+---
+
+### TASK-040 — Redesign HomeScreen conforme protótipo v2
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-040-home-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/home/home_page.dart` — reescrever: hero com greeting + stats, botão "Nova análise" prominente, seção "Última análise" com card visual, placeholder para mapa de lotes (futuro)
+  - `lib/core/widgets/` — novos widgets: StatsGrid, LastAnalysisCard, PrimaryActionButton
+  - `lib/providers/` — consumir homeStatsProvider (TASK-016) ou fallback estático
+- **Critérios de Aceite:**
+  - [ ] Hero com logo VisioSoil + greeting + última análise em texto
+  - [ ] Botão "Nova análise" com estilo dark + ícone de câmera (destaque)
+  - [ ] Grid de 3 stats (Análises, Localizações, Confiança média)
+  - [ ] Card "Última análise" com thumbnail, classe, confiança, data
+  - [ ] Espaço reservado para mapa de lotes (placeholder com mensagem ou componente futuro)
+  - [ ] Bottom navigation funcional (Home, Capturar, Histórico)
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Dados reais via TASK-016 (pendente) — usar mock/fallback até lá.
+  - [2026-05-03] — Implementação: HomeScreen reescrita com hero gradient (greeting + última análise), botão "Nova análise" dark prominente, stats grid (análises/locais/confiança com dados reais do stream), card "Última análise" com thumbnail+classe+confiança, placeholder mapa de lotes. flutter analyze OK, flutter test 15/15.
+- **Resultado:** HomeScreen v2 implementada. Dados reais via providers. Mapa de lotes como placeholder. Bottom nav inalterada.
+
+---
+
+### TASK-043 — Implementar tela de Processamento (loading animado)
+- **Tipo:** feat
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/processing_screen.dart` — nova tela: animação de processamento enquanto aguarda inferência
+  - `lib/core/routes/app_router.dart` — nova rota `/processing`
+- **Critérios de Aceite:**
+  - [x] Tela exibida durante inferência TFLite
+  - [x] Ícone animado (sparkles/pulsante) com texto "Analisando..."
+  - [x] Texto contextual (classe de solo, lote)
+  - [ ] Auto-navega para resultado ao concluir (depende de integração com fluxo de captura)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+  - [2026-05-03] — Implementação concluída. ProcessingScreen com animação pulsante (auto_awesome icon), LinearProgressIndicator, texto contextual. Rota /processing registrada. flutter analyze OK, flutter test 15/15. Build debug OK.
+- **Resultado:** Tela de processamento implementada com animação pulsante, ícone auto_awesome, texto contextual e progress bar. Rota /processing registrada no GoRouter.
+
+---
+
+### TASK-044 — Implementar tela de Resultado com classificação e confiança
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/result/result_screen.dart` — nova tela: classe textural destacada, confiança com badge qualitativo, foto thumbnail, link para recomendações
+  - `lib/core/routes/app_router.dart` — nova rota `/result`
+  - `lib/models/confidence_level.dart` — integração com TASK-009
+- **Critérios de Aceite:**
+  - [x] Classe textural exibida em destaque (nome + cor associada)
+  - [x] Confiança com badge: Alta (>85%), Média (70-85%), Baixa (<70%)
+  - [x] Foto da amostra visível
+  - [x] Botões: "Ver plano de manejo" (placeholder para recomendações) + "Nova análise" + "Salvar"
+  - [ ] Dados persistidos no banco via SoilRecordRepository
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039, TASK-009. "Ver plano de manejo" navega para placeholder até recomendações serem implementadas.
+  - [2026-05-03] — ResultScreen implementada. Classe textural com cor, badge confianca (ConfidenceLevel), foto, banners baixa/moderada, botoes acao. Rota /result. flutter analyze OK, flutter test 15/15.
+- **Resultado:** ResultScreen com classe textural destacada, badge de confianca graduado, foto thumbnail, banners de aviso, botoes (plano placeholder, nova analise, ver detalhes). Rota /result registrada.
+
+---
+
+### TASK-047 — Implementar Onboarding de captura (3 passos)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/onboarding/onboarding_screen.dart` — nova tela: 3 passos ilustrados (enquadramento, iluminação, referência de escala)
+  - `lib/core/routes/app_router.dart` — rota `/onboarding`
+- **Critérios de Aceite:**
+  - [x] 3 passos com PageView: ilustração + título + descrição
+  - [x] Passo 1: enquadramento (moeda como referência)
+  - [x] Passo 2: iluminação (evitar sombras)
+  - [x] Passo 3: ângulo (top-down)
+  - [x] Botão "Começar" no último passo
+  - [ ] ~~Flag persistida — mostrar apenas na primeira vez~~ (adiada para task dedicada: shared_preferences não adicionado para evitar dependência nesta PR)
+  - [ ] ~~Acessível via link "Como capturar bem" na Home~~ (adiada: depende da flag acima)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+  - [2026-05-03] — Implementação concluída. OnboardingScreen com PageView 3 passos (enquadramento, iluminação, ângulo), progress bars, botão Pular/Próximo/Começar, ícones ilustrativos. Rota /onboarding registrada. Flag SharedPreferences adiada para task separada (evitar dependência nova nesta PR). flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de onboarding com 3 passos ilustrados. UI completa. 2 critérios adiados: flag SharedPreferences (evitar dependência nova nesta PR) e link na Home (depende da flag). Ambos requerem task dedicada.
+
+---
+
+### TASK-048 — Redesign DetailsScreen existente (preencher tela placeholder)
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/details/details.dart` — reescrito: hero image via SliverAppBar, classificação com cor e badge, info tiles, action buttons
+  - Integração com cores de textura de TASK-039
+  - Botões: compartilhar (TASK-011), ver recomendações
+- **Critérios de Aceite:**
+  - [x] Foto da amostra em destaque (hero image)
+  - [x] Classe textural com cor associada e badge de confiança
+  - [x] Localização: endereço + coordenadas
+  - [x] Data/hora formatada
+  - [x] Botão "Ver plano de manejo" (placeholder com snackbar)
+  - [x] Botão "Compartilhar" (placeholder com snackbar)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. Depende de TASK-039.
+  - [2026-05-03] — Implementação concluída. DetailsScreen reescrita: SliverAppBar com hero image (280px), ClassificationHeader com color dot + confidence badge (Alta/Média/Baixa), InfoTiles (localização, data, classificação), ActionButtons (plano de manejo, compartilhar, excluir). Imports antigos de VisioAppBar/VisioButton/VisioCard removidos. flutter analyze OK, flutter test 15/15. Build debug OK.
+- **Resultado:** DetailsScreen v2 implementada. Hero image, badges de confiança graduados, info tiles, ações com placeholders para features futuras.
+
+---
+
+### TASK-049 — Corrigir README ML: resetar versionamento de modelo para v1
+- **Tipo:** docs
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `ml/README.md` — substituir referências hardcoded a `v2` por `v1` nos comandos de exemplo
+- **Critérios de Aceite:**
+  - [ ] Comandos de treino/evaluate/export usam `v1` como exemplo base
+  - [ ] Seção de artefatos referencia `models/v1/`
+  - [ ] Deploy commands usam `v1`
+  - [ ] Nota sobre limpeza de versões anteriores adicionada
+  - [ ] `flutter analyze` sem erros
+  - [ ] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-03] — Task registrada. v1 e v2 foram limpas (TASK-034). v3 existe com artefatos mas README ainda referencia v2.
+  - [2026-05-03] — Implementação concluída. Todas as referências v2→v1. LR Phase 2 corrigido para 1e-4. Seção "Versioning" adicionada. flutter analyze OK, flutter test 15/15.
+- **Resultado:** README ML atualizado: comandos referenciam v1, LR corrigido, seção Versioning adicionada explicando limpeza de versões anteriores.
+
+---
+
+### TASK-050 — Validação visual UI com Codex review
+- **Tipo:** test
+- **Complexidade:** patch
+- **Modo:** Review
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - Review cruzado das telas implementadas: processing_screen, onboarding_screen, details, home_page
+- **Critérios de Aceite:**
+  - [ ] Todos os findings do Codex avaliados e resolvidos ou documentados
+  - [ ] Nenhum bug visual ou crash path identificado sem resolução
+- **Log de Andamento:**
+  - [2026-05-03] — Codex rescue disparado para review adversarial das 6 telas UI.
+  - [2026-05-03] — Codex review concluído. 17 findings (2 critical, 3 high, 7 medium, 5 low). 7 fixes aplicados: guarded casts no router, NaN confidence, null id guard, pop without backstack, timestamp overflow, PopScope no MainScreen. 10 findings low/medium aceitos como pendências futuras (a11y, delete error handling, step scrollability).
+- **Resultado:** Review cruzado concluído. 7 bugs corrigidos. 10 pendências documentadas para tasks futuras.

@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -20,8 +24,46 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static const int _maxRecords = 150;
 
   final Set<int> _selectedIds = {};
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   bool get _isSelectionMode => _selectedIds.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sincroniza controller com provider persistido (ex: apos navegacao)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentTerm = ref.read(searchTermProvider);
+      if (currentTerm.isNotEmpty && _searchController.text != currentTerm) {
+        _searchController.text = currentTerm;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(searchTermProvider.notifier).update(value);
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    ref.read(searchTermProvider.notifier).update('');
+  }
+
+  void _selectTextureFilter(String? textureClass) {
+    ref.read(selectedTextureFilterProvider.notifier).select(textureClass);
+  }
 
   void _toggleSelection(int id) {
     setState(() {
@@ -81,6 +123,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Future<void> _performDeletion() async {
     final ids = _selectedIds.toList();
     await ref.read(soilRecordRepositoryProvider).deleteByIds(ids);
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
   }
 
@@ -97,12 +140,104 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: _HistoryGrid(
-        maxRecords: _maxRecords,
-        selectedIds: _selectedIds,
-        isSelectionMode: _isSelectionMode,
-        onTap: _handleTap,
-        onLongPress: _enterSelectionMode,
+      body: Column(
+        children: [
+          if (!_isSelectionMode) _buildFilterBar(),
+          Expanded(
+            child: _HistoryGrid(
+              maxRecords: _maxRecords,
+              selectedIds: _selectedIds,
+              isSelectionMode: _isSelectionMode,
+              onTap: _handleTap,
+              onLongPress: _enterSelectionMode,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    final theme = Theme.of(context);
+    final selectedFilter = ref.watch(selectedTextureFilterProvider);
+    final searchTerm = ref.watch(searchTermProvider);
+    final availableClasses = ref.watch(availableTextureClassesProvider);
+
+    return Container(
+      color: theme.colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Campo de busca
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.xs,
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar por endereco...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: searchTerm.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                isDense: true,
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          // Chips de filtro por classe de textura
+          availableClasses.when(
+            loading: () => const SizedBox.shrink(),
+            error: (error, stackTrace) => const SizedBox.shrink(),
+            data: (classes) {
+              if (classes.isEmpty) return const SizedBox.shrink();
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: 'Todas',
+                      isSelected: selectedFilter == null,
+                      onSelected: () => _selectTextureFilter(null),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    ...classes.map((textureClass) => Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.xs),
+                          child: _FilterChip(
+                            label: textureClass,
+                            isSelected: selectedFilter == textureClass,
+                            onSelected: () => _selectTextureFilter(textureClass),
+                          ),
+                        )),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
       ),
     );
   }
@@ -140,6 +275,40 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 }
 
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(),
+      selectedColor: AppColors.primary.withValues(alpha: 0.2),
+      checkmarkColor: AppColors.primary,
+      labelStyle: theme.textTheme.labelMedium?.copyWith(
+        color: isSelected ? AppColors.primary : theme.colorScheme.onSurface,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : theme.colorScheme.outline,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
 class _HistoryGrid extends ConsumerWidget {
   const _HistoryGrid({
     required this.maxRecords,
@@ -157,19 +326,21 @@ class _HistoryGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncRecords = ref.watch(soilRecordsStreamProvider);
+    final asyncRecords = ref.watch(filteredRecordsProvider);
+    final hasActiveFilter = ref.watch(selectedTextureFilterProvider) != null ||
+        ref.watch(searchTermProvider).isNotEmpty;
 
     return asyncRecords.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Text(
-          'Não foi possível carregar o histórico.',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
+      loading: () => const LoadingIndicator(),
+      error: (error, stackTrace) => ErrorState(
+        message: 'Nao foi possivel carregar o historico.',
+        onRetry: () => ref.invalidate(filteredRecordsProvider),
       ),
       data: (records) {
         if (records.isEmpty) {
-          return _EmptyHistoryState();
+          return hasActiveFilter
+              ? _EmptySearchState()
+              : _EmptyHistoryState();
         }
         return _buildGrid(records);
       },
@@ -218,6 +389,17 @@ class _EmptyHistoryState extends StatelessWidget {
         icon: Icons.camera_alt,
         onPressed: () => context.push('/capture'),
       ),
+    );
+  }
+}
+
+class _EmptySearchState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const EmptyState(
+      icon: Icons.search_off,
+      title: 'Nenhum resultado',
+      description: 'Tente ajustar os filtros ou o termo de busca.',
     );
   }
 }
@@ -272,6 +454,7 @@ class _ThumbnailImage extends StatelessWidget {
     return Image.file(
       imageFile,
       fit: BoxFit.cover,
+      cacheWidth: 300,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
         if (wasSynchronouslyLoaded) return child;
 
