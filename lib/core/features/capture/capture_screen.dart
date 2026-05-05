@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -22,21 +24,74 @@ class CaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends ConsumerState<CaptureScreen> {
+class _CaptureScreenState extends ConsumerState<CaptureScreen>
+    with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _isClassifying = false;
   String? _address;
   double? _latitude;
   double? _longitude;
   InferenceResult? _classificationResult;
+  AppPermissionStatus? _cameraPermissionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Revalida permissao quando o app volta ao foreground (ex: apos Settings)
+    // Nao revalida para `restricted` (iOS) pois nao pode ser alterado pelo usuario
+    if (state == AppLifecycleState.resumed &&
+        _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied) {
+      _recheckCameraPermission();
+    }
+  }
+
+  Future<void> _recheckCameraPermission() async {
+    final status = await PermissionService.checkCamera();
+    if (!mounted) return;
+
+    if (status == AppPermissionStatus.granted) {
+      setState(() => _cameraPermissionStatus = null);
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
+    // Verifica permissao de camera antes de abrir
+    if (source == ImageSource.camera) {
+      final status = await PermissionService.checkCamera();
+      if (!mounted) return;
+
+      if (status != AppPermissionStatus.granted) {
+        final requestStatus = await PermissionService.requestCamera();
+        if (!mounted) return;
+
+        if (requestStatus != AppPermissionStatus.granted) {
+          setState(() => _cameraPermissionStatus = requestStatus);
+          return;
+        }
+      }
+      // Limpa estado de permissao se concedida
+      if (_cameraPermissionStatus != null) {
+        setState(() => _cameraPermissionStatus = null);
+      }
+    }
+
     final picker = ImagePicker();
     // TODO(v2): reativar galeria
     // await picker.pickImage(source: ImageSource.gallery);
     final XFile? image = await picker.pickImage(source: source);
 
-    if (image == null) return;
+    if (!mounted || image == null) return;
 
     ref.read(imageProvider.notifier).setImage(File(image.path), source);
 
@@ -93,13 +148,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
         });
       }
     } catch (e) {
+      // Localizacao negada ou indisponivel: app funciona sem GPS
+      // O registro sera salvo com coordenadas null
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível obter a localização.'),
-          ),
-        );
       }
     }
   }
@@ -153,8 +205,37 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     });
   }
 
+  void _retryCameraPermission() {
+    setState(() => _cameraPermissionStatus = null);
+    _pickImage(ImageSource.camera);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Mostra tela de permissao negada se camera foi bloqueada
+    if (_cameraPermissionStatus != null &&
+        _cameraPermissionStatus != AppPermissionStatus.granted) {
+      final isRestricted =
+          _cameraPermissionStatus == AppPermissionStatus.restricted;
+      final isPermanentlyDenied =
+          _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied;
+
+      return Scaffold(
+        appBar: const VisioAppBar(title: 'Nova Captura'),
+        body: PermissionDeniedView(
+          icon: Icons.camera_alt,
+          title: isRestricted
+              ? 'Camera restrita'
+              : 'Acesso a camera necessario',
+          description: isRestricted
+              ? 'O acesso a camera esta restrito por configuracoes do dispositivo (controle parental ou MDM). Contacte o administrador.'
+              : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso a camera do dispositivo.',
+          isPermanentlyDenied: isPermanentlyDenied || isRestricted,
+          onRetry: isRestricted ? null : _retryCameraPermission,
+        ),
+      );
+    }
+
     final selectedImage = ref.watch(imageProvider);
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;

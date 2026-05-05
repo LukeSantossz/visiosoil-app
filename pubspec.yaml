@@ -46,6 +46,8 @@ dependencies:
   tflite_flutter: ^0.12.1
   # Image preprocessing for TFLite
   image: ^4.3.0
+  # Permission handling
+  permission_handler: ^11.3.1
   # App info (version, build number)
   package_info_plus: ^8.0.0
 
