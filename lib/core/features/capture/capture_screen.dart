@@ -283,177 +283,137 @@ class _ImagePreview extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              image!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(
+            image!,
+            fit: BoxFit.cover,
+            width: double.infinity,
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        // Localização
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // TODO(v2): reativar galeria — UI quando `isFromGallery` (origem galeria).
-              // if (isFromGallery) ...[
-              //   Row(
-              //     children: [
-              //       Icon(
-              //         Icons.info_outline,
-              //         size: 20,
-              //         color: theme.colorScheme.primary,
-              //       ),
-              //       const SizedBox(width: AppSpacing.sm),
-              //       Text(
-              //         'Localização indisponível',
-              //         style: theme.textTheme.titleSmall,
-              //       ),
-              //     ],
-              //   ),
-              //   const SizedBox(height: AppSpacing.sm),
-              //   Text(
-              //     'Imagens da galeria não recebem coordenadas GPS para preservar a confiabilidade do registro.',
-              //     style: theme.textTheme.bodyMedium?.copyWith(
-              //       color: theme.colorScheme.onSurfaceVariant,
-              //     ),
-              //   ),
-              // ] else ...[
-              if (isLoading)
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: LoadingIndicator(size: 20, strokeWidth: 2),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Obtendo localização...',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 20,
-                      color: address != null
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        address ?? 'Localização não disponível',
-                        style: theme.textTheme.bodyMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+          // Gradient para legibilidade dos chips
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 100,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
                   ],
                 ),
-              // ],
-            ],
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        // Classificação de textura
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
+          // Chips de info
+          Positioned(
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            bottom: AppSpacing.sm,
+            child: Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                _buildLocationChip(theme),
+                _buildClassificationChip(theme),
+              ],
+            ),
           ),
-          child: _buildClassificationContent(theme),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildClassificationContent(ThemeData theme) {
-    if (isClassifying) {
-      return Row(
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: LoadingIndicator(size: 20, strokeWidth: 2),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            'Classificando textura do solo...',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+  Widget _buildLocationChip(ThemeData theme) {
+    if (isLoading) {
+      return _InfoChip(
+        icon: Icons.location_on,
+        label: 'Localizando...',
+        isLoading: true,
       );
     }
+    return _InfoChip(
+      icon: Icons.location_on,
+      label: address ?? 'Sem localização',
+    );
+  }
 
+  Widget _buildClassificationChip(ThemeData theme) {
+    if (isClassifying) {
+      return _InfoChip(
+        icon: Icons.eco,
+        label: 'Classificando...',
+        isLoading: true,
+      );
+    }
     if (classificationResult != null) {
       final confidence = (classificationResult!.confidenceScore * 100)
-          .toStringAsFixed(1);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+          .toStringAsFixed(0);
+      return _InfoChip(
+        icon: Icons.eco,
+        label: '${classificationResult!.textureClass} · $confidence%',
+      );
+    }
+    return const _InfoChip(
+      icon: Icons.eco_outlined,
+      label: 'Classificação indisponível',
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.isLoading = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.eco,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Textura: ${classificationResult!.textureClass}',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Confiança: $confidence%',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          if (isLoading)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: LoadingIndicator(size: 14, strokeWidth: 1.5),
+            )
+          else
+            Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
-      );
-    }
-
-    return Row(
-      children: [
-        Icon(
-          Icons.eco_outlined,
-          size: 20,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          'Classificação indisponível',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
