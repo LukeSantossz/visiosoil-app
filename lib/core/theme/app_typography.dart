@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 /// Escala tipográfica do VisioSoil.
 /// Display/titles: Manrope (bold, tight tracking)
 /// Body/labels: Inter (legível em campo)
+///
+/// Fonts are bundled in assets/fonts/ and registered in pubspec.yaml
+/// via the Flutter fonts: section (no runtime fetching).
 abstract final class AppTypography {
-  static String get _displayFamily => GoogleFonts.manrope().fontFamily!;
-  static String get _bodyFamily => GoogleFonts.inter().fontFamily!;
+  static const _displayFamily = 'Manrope';
+  static const _bodyFamily = 'Inter';
 
   // --- Display (Manrope) ---
 
