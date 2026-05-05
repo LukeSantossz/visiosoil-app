@@ -27,52 +27,6 @@
 
 ## Tasks Ativas
 
-### TASK-052 — Redesign info de captura: chips sobrepostos na imagem
-- **Tipo:** feat
-- **Complexidade:** patch
-- **Modo:** Desenvolvimento
-- **Status:** concluída
-- **Branch:** feat/TASK-039-048-ui-redesign-v2
-- **Escopo Técnico:**
-  - `lib/core/features/capture/capture_screen.dart` — substituir dois containers abaixo da imagem por chips sobrepostos no canto inferior da preview
-- **Critérios de Aceite:**
-  - [x] Localização e classificação exibidos como chips sobre a imagem (Positioned bottom)
-  - [x] Durante loading, chips mostram indicador compacto (spinner 14px)
-  - [x] Espaço vertical liberado para preview maior
-  - [x] `flutter analyze` sem erros
-  - [x] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-05-05] — Task registrada. Mudança visual apenas no widget _ImagePreview.
-  - [2026-05-05] — Implementação concluída. _ImagePreview usa Stack com gradient + Wrap de _InfoChip. Imagem ocupa todo o espaço do Expanded. flutter analyze OK, flutter test 15/15.
-- **Resultado:** Chips sobrepostos na imagem (fundo semi-transparente, bordas pill, ícone + texto). Gradient no bottom para legibilidade. Preview ocupa 100% do espaço disponível.
-
----
-
-
-### TASK-051 — Corrigir tela preta no emulador: bundlar Google Fonts localmente
-- **Tipo:** fix
-- **Complexidade:** patch
-- **Modo:** Desenvolvimento
-- **Status:** concluída
-- **Branch:** feat/TASK-039-048-ui-redesign-v2
-- **Escopo Técnico:**
-  - `lib/main.dart` — adicionar `GoogleFonts.config.allowRuntimeFetching = false` antes do `runApp`
-  - `assets/fonts/` — novo diretório com 5 TTFs: Manrope-Bold, Manrope-ExtraBold, Inter-Regular, Inter-Medium, Inter-SemiBold
-  - `pubspec.yaml` — declarar `assets/fonts/` na seção assets
-- **Critérios de Aceite:**
-  - [ ] `GoogleFonts.config.allowRuntimeFetching = false` configurado no main
-  - [ ] 5 arquivos TTF presentes em `assets/fonts/`
-  - [ ] `pubspec.yaml` declara `assets/fonts/`
-  - [ ] App inicia sem dependência de rede para fontes
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-05-04] — Task registrada. Causa raiz: GoogleFonts.manrope()/inter() fazem fetch de rede sincronamente durante construção do tema, bloqueando main thread no emulador sem rede.
-  - [2026-05-04] — Implementação concluída. 5 TTFs baixados do gstatic, allowRuntimeFetching=false no main, assets/fonts/ declarado no pubspec. flutter analyze OK, flutter test 15/15.
-- **Resultado:** Fontes Manrope (Bold, ExtraBold) e Inter (Regular, Medium, SemiBold) empacotadas localmente. Runtime fetching desabilitado. App inicia sem dependência de rede para fontes.
-
----
-
 ### TASK-007 — Implementar avaliação de qualidade pós-captura
 - **Tipo:** feat
 - **Complexidade:** minor
@@ -126,23 +80,24 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-010-permission-denied
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/services/permission_service.dart` — novo serviço encapsulando check, request e openAppSettings
   - `lib/core/widgets/permission_denied_view.dart` — widget reutilizável com motivo, ícone e CTA
   - `lib/core/features/capture/capture_screen.dart` — integrar tratamento de câmera e localização negadas
   - Dependência nova: `permission_handler`
 - **Critérios de Aceite:**
-  - [ ] Negação de câmera: tela informativa com motivo + botão para configurações do dispositivo
-  - [ ] Negação permanente de câmera: `openAppSettings()` via `permission_handler`
-  - [ ] Negação de localização: app funciona sem GPS, `SoilRecord` persiste com coordenadas null
-  - [ ] Nenhum crash ou tela vazia ao negar qualquer permissão
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Negação de câmera: tela informativa com motivo + botão para configurações do dispositivo
+  - [x] Negação permanente de câmera: `openAppSettings()` via `permission_handler`
+  - [x] Negação de localização: app funciona sem GPS, `SoilRecord` persiste com coordenadas null
+  - [x] Nenhum crash ou tela vazia ao negar qualquer permissão
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada.
-- **Resultado:** [pendente]
+  - [2026-05-05] — Implementacao concluida. PermissionService com check/request/openSettings para camera e localizacao. PermissionDeniedView widget reutilizavel. CaptureScreen integrada: verifica permissao antes de abrir camera, mostra tela informativa se negada. Localizacao silenciosa (sem snackbar) — registro salvo com coordenadas null. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tratamento de permissao negada implementado. permission_handler adicionado ao pubspec.yaml.
 
 ---
 
@@ -173,24 +128,25 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-012-history-filters
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/history/history_screen.dart` — chips de filtro por classe de textura + campo de busca por endereço
   - `lib/core/data/repositories/drift_soil_record_repository.dart` — queries com WHERE por texture_class e LIKE por address
   - `lib/core/data/repositories/soil_record_repository.dart` — novos métodos na interface abstrata
   - `lib/providers/` — providers de estado para filtro ativo e termo de busca (com debounce)
 - **Critérios de Aceite:**
-  - [ ] Chips de filtro por classe de textura funcionais
-  - [ ] Campo de busca por endereço/localização com debounce
-  - [ ] Filtro usa query Drift com cláusula WHERE
-  - [ ] Lista atualiza reativamente ao mudar filtro ou busca
+  - [x] Chips de filtro por classe de textura funcionais
+  - [x] Campo de busca por endereço/localização com debounce
+  - [x] Filtro usa query Drift com cláusula WHERE
+  - [x] Lista atualiza reativamente ao mudar filtro ou busca
   - [ ] PR fecha issue #6
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada. Vinculada à issue #6.
-- **Resultado:** [pendente]
+  - [2026-05-05] — Implementacao concluida. watchFiltered() e getDistinctTextureClasses() adicionados ao repositorio. NotifierProvider para filtro e busca (Riverpod 3.x API). HistoryScreen com barra de filtros: TextField de busca com debounce 300ms + chips dinamicos por classe textural. Empty state diferenciado para filtros ativos. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Filtros e busca no historico implementados. API Riverpod 3.x (NotifierProvider).
 
 ---
 
@@ -237,43 +193,6 @@
 - **Log de Andamento:**
   - [2026-04-29] — Task registrada como backlog. Requer spike de viabilidade: plugin `camera` + análise frame-a-frame em Flutter. Performance em dispositivos low-end não validada. Complementar à TASK-007 (avaliação pós-captura).
 - **Resultado:** [pendente]
-
----
-
-### TASK-021 — Migrar pipeline ML para MobileNetV2 com transfer learning
-- **Tipo:** feat
-- **Complexidade:** major
-- **Modo:** Desenvolvimento
-- **Status:** em andamento
-- **Branch:** feat/TASK-021-ml-transfer-learning
-- **Escopo Técnico:**
-  - `ml/config.yaml` — atualizar para MobileNetV2 + novas configs
-  - `ml/src/config.py` — validação dos novos campos, remover squeezenet
-  - `ml/src/preprocess.py` — normalização mobilenet_v2 + novos layers augmentation
-  - `ml/src/dataset.py` — compute_class_weights
-  - `ml/src/model.py` — MobileNetV2 + Rescaling + unfreeze_model
-  - `ml/src/train.py` — treino 2 fases + class weights + ModelCheckpoint
-  - `ml/src/export.py` — spec.json atualizado (divide_255)
-  - `ml/src/evaluate.py` — suporte .keras
-  - `ml/tests/test_config.py` — novos campos, remover squeezenet
-  - `ml/tests/test_model_output.py` — fixtures mobilenetv2
-  - `ml/tests/test_preprocess.py` — novo modo normalização + augmentation
-  - `ml/tests/test_tflite_inference.py` — fixtures atualizadas
-  - `ml/README.md` — documentar nova arquitetura
-- **Critérios de Aceite:**
-  - [ ] `pytest tests/ -v` — todos os testes passam
-  - [ ] MobileNetV2 como única arquitetura (squeezenet removido)
-  - [ ] Treino em 2 fases (head-only + fine-tuning) implementado
-  - [ ] Class weights balanceados integrados
-  - [ ] Normalização embutida no modelo via Rescaling layer
-  - [ ] spec.json indica normalization method "divide_255"
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
-- **Log de Andamento:**
-  - [2026-05-02] — Task registrada. Reconhecimento concluído: 8 arquivos source + 4 testes a modificar.
-  - [2026-05-02] — Implementação concluída. 12 arquivos modificados. pytest 47/47 pass. flutter analyze OK. flutter test 15/15.
-  - [2026-05-04] — Corrigido: task estava registrada como TASK-023 duplicada. ID corrigido para TASK-021 (branch confirma: feat/TASK-021-ml-transfer-learning).
-- **Resultado:** Pipeline ML reestruturado: MobileNetV2 transfer learning com Rescaling embutido, treino 2 fases (head-only + fine-tuning), class weights balanceados, spec.json indica divide_255. SqueezeNet removido.
 
 ---
 
@@ -406,6 +325,88 @@
 
 ## Tasks Concluídas
 
+### TASK-052 — Redesign info de captura: chips sobrepostos na imagem
+- **Tipo:** feat
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — substituir dois containers abaixo da imagem por chips sobrepostos no canto inferior da preview
+- **Critérios de Aceite:**
+  - [x] Localização e classificação exibidos como chips sobre a imagem (Positioned bottom)
+  - [x] Durante loading, chips mostram indicador compacto (spinner 14px)
+  - [x] Espaço vertical liberado para preview maior
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-05] — Task registrada. Mudança visual apenas no widget _ImagePreview.
+  - [2026-05-05] — Implementação concluída. _ImagePreview usa Stack com gradient + Wrap de _InfoChip. Imagem ocupa todo o espaço do Expanded. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Chips sobrepostos na imagem (fundo semi-transparente, bordas pill, ícone + texto). Gradient no bottom para legibilidade. Preview ocupa 100% do espaço disponível.
+
+---
+
+### TASK-051 — Corrigir tela preta no emulador: bundlar Google Fonts localmente
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/main.dart` — adicionar `GoogleFonts.config.allowRuntimeFetching = false` antes do `runApp`
+  - `assets/fonts/` — novo diretório com 5 TTFs: Manrope-Bold, Manrope-ExtraBold, Inter-Regular, Inter-Medium, Inter-SemiBold
+  - `pubspec.yaml` — declarar `assets/fonts/` na seção assets
+- **Critérios de Aceite:**
+  - [x] `GoogleFonts.config.allowRuntimeFetching = false` configurado no main
+  - [x] 5 arquivos TTF presentes em `assets/fonts/`
+  - [x] `pubspec.yaml` declara `assets/fonts/`
+  - [x] App inicia sem dependência de rede para fontes
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-04] — Task registrada. Causa raiz: GoogleFonts.manrope()/inter() fazem fetch de rede sincronamente durante construção do tema, bloqueando main thread no emulador sem rede.
+  - [2026-05-04] — Implementação concluída. 5 TTFs baixados do gstatic, allowRuntimeFetching=false no main, assets/fonts/ declarado no pubspec. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Fontes Manrope (Bold, ExtraBold) e Inter (Regular, Medium, SemiBold) empacotadas localmente. Runtime fetching desabilitado. App inicia sem dependência de rede para fontes.
+
+---
+
+### TASK-021 — Migrar pipeline ML para MobileNetV2 com transfer learning
+- **Tipo:** feat
+- **Complexidade:** major
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-021-ml-transfer-learning
+- **Escopo Técnico:**
+  - `ml/config.yaml` — atualizar para MobileNetV2 + novas configs
+  - `ml/src/config.py` — validação dos novos campos, remover squeezenet
+  - `ml/src/preprocess.py` — normalização mobilenet_v2 + novos layers augmentation
+  - `ml/src/dataset.py` — compute_class_weights
+  - `ml/src/model.py` — MobileNetV2 + Rescaling + unfreeze_model
+  - `ml/src/train.py` — treino 2 fases + class weights + ModelCheckpoint
+  - `ml/src/export.py` — spec.json atualizado (divide_255)
+  - `ml/src/evaluate.py` — suporte .keras
+  - `ml/tests/test_config.py` — novos campos, remover squeezenet
+  - `ml/tests/test_model_output.py` — fixtures mobilenetv2
+  - `ml/tests/test_preprocess.py` — novo modo normalização + augmentation
+  - `ml/tests/test_tflite_inference.py` — fixtures atualizadas
+  - `ml/README.md` — documentar nova arquitetura
+- **Critérios de Aceite:**
+  - [x] `pytest tests/ -v` — todos os testes passam
+  - [x] MobileNetV2 como única arquitetura (squeezenet removido)
+  - [x] Treino em 2 fases (head-only + fine-tuning) implementado
+  - [x] Class weights balanceados integrados
+  - [x] Normalização embutida no modelo via Rescaling layer
+  - [x] spec.json indica normalization method "divide_255"
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-02] — Task registrada. Reconhecimento concluído: 8 arquivos source + 4 testes a modificar.
+  - [2026-05-02] — Implementação concluída. 12 arquivos modificados. pytest 47/47 pass. flutter analyze OK. flutter test 15/15.
+  - [2026-05-04] — Corrigido: task estava registrada como TASK-023 duplicada. ID corrigido para TASK-021 (branch confirma: feat/TASK-021-ml-transfer-learning).
+- **Resultado:** Pipeline ML reestruturado: MobileNetV2 transfer learning com Rescaling embutido, treino 2 fases (head-only + fine-tuning), class weights balanceados, spec.json indica divide_255. SqueezeNet removido.
+
+---
+
 ### TASK-001 — Atualizar labels de inferência para 5 classes do dataset
 - **Tipo:** feat
 - **Complexidade:** patch
@@ -493,7 +494,7 @@
   - `android/app/build.gradle.kts` — adicionar referência ao proguard-rules.pro no build release
 - **Critérios de Aceite:**
   - [x] `flutter build apk --release` passa localmente
-  - [ ] Job `build` do CI passa (R8 não falha com missing classes)
+  - [x] Job `build` do CI passa (R8 não falha com missing classes) — verificado via CI após merge
   - [x] `flutter analyze` sem erros
   - [x] `flutter test` sem falhas
 - **Log de Andamento:**
@@ -1181,14 +1182,14 @@
   - [x] Passo 2: iluminação (evitar sombras)
   - [x] Passo 3: ângulo (top-down)
   - [x] Botão "Começar" no último passo
-  - [ ] Flag persistida — mostrar apenas na primeira vez (adiada: shared_preferences não adicionado para evitar dependência nesta PR)
-  - [ ] Acessível via link "Como capturar bem" na Home (link será adicionado quando flag for implementada)
+  - [ ] ~~Flag persistida — mostrar apenas na primeira vez~~ (adiada para task dedicada: shared_preferences não adicionado para evitar dependência nesta PR)
+  - [ ] ~~Acessível via link "Como capturar bem" na Home~~ (adiada: depende da flag acima)
   - [x] `flutter analyze` sem erros
   - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039.
   - [2026-05-03] — Implementação concluída. OnboardingScreen com PageView 3 passos (enquadramento, iluminação, ângulo), progress bars, botão Pular/Próximo/Começar, ícones ilustrativos. Rota /onboarding registrada. Flag SharedPreferences adiada para task separada (evitar dependência nova nesta PR). flutter analyze OK, flutter test 15/15.
-- **Resultado:** Tela de onboarding com 3 passos ilustrados. UI completa. Persistência de flag "já visto" adiada para task dedicada.
+- **Resultado:** Tela de onboarding com 3 passos ilustrados. UI completa. 2 critérios adiados: flag SharedPreferences (evitar dependência nova nesta PR) e link na Home (depende da flag). Ambos requerem task dedicada.
 
 ---
 

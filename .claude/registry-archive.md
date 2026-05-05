@@ -27,3 +27,6 @@
 | 15 | 2026-05-02 | TASK-032 | minor | 2 arquivos — ml/src/dataset.py, ml/tests/test_dataset.py | Group-aware splitting elimina data leakage entre splits | 116 sample groups afetados |
 | 16 | 2026-05-02 | TASK-033 | patch | 2 arquivos — ml/src/train.py, ml/src/evaluate.py | Validação splits.json vs config ativo | Previne reuso de splits stale |
 | 17 | 2026-05-03 | TASK-030+ | patch | 1 arquivo — ml/src/preprocess.py | RandomContrast value_range=(0.0, 1.0) | Mesmo bug do brightness, encontrado pelo Codex |
+| 17b | 2026-05-02 | TASK-022 | minor | 0 arquivos — absorvida por TASK-024 | Label ordering corrigido via TASK-024 (escopo expandido) | Resolvida indiretamente |
+| 17c | 2026-05-02 | TASK-023 | minor | auditoria — ml/src/ + ml/tests/ | Auditoria ML: 12 bugs, 4 CRITICAL. 10 tasks de correção registradas | Review cruzado (Codex): aplicado |
+| 17d | 2026-05-02 | TASK-026 | patch | 0 arquivos — resolvida pela raiz (TASK-024) | Labels Dart já corretos após TASK-024 eliminar divergência | TASK-028 pendente para leitura dinâmica |
