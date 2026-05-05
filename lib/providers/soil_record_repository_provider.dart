@@ -55,3 +55,55 @@ final homeStatsProvider = Provider<AsyncValue<HomeStats>>((ref) {
     );
   });
 });
+
+// --- Filtros do Historico ---
+
+/// Notifier para filtro de classe de textura.
+class SelectedTextureFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? textureClass) => state = textureClass;
+}
+
+/// Filtro de classe de textura selecionado (null = todas).
+final selectedTextureFilterProvider =
+    NotifierProvider<SelectedTextureFilterNotifier, String?>(
+        SelectedTextureFilterNotifier.new);
+
+/// Notifier para termo de busca.
+class SearchTermNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void update(String term) => state = term;
+}
+
+/// Termo de busca por endereco.
+final searchTermProvider =
+    NotifierProvider<SearchTermNotifier, String>(SearchTermNotifier.new);
+
+/// Classes de textura disponiveis para filtro.
+final availableTextureClassesProvider = FutureProvider<List<String>>((ref) {
+  return ref.watch(soilRecordRepositoryProvider).getDistinctTextureClasses();
+});
+
+/// Stream de registros filtrados.
+///
+/// Combina filtro de classe e termo de busca. Atualiza automaticamente
+/// quando qualquer filtro muda ou quando o banco e modificado.
+final filteredRecordsProvider = StreamProvider<List<SoilRecord>>((ref) {
+  final textureClass = ref.watch(selectedTextureFilterProvider);
+  final searchTerm = ref.watch(searchTermProvider);
+
+  // Se nenhum filtro ativo, usa stream normal para performance
+  if ((textureClass == null || textureClass.isEmpty) &&
+      searchTerm.isEmpty) {
+    return ref.watch(soilRecordRepositoryProvider).watchAll();
+  }
+
+  return ref.watch(soilRecordRepositoryProvider).watchFiltered(
+        textureClass: textureClass,
+        searchTerm: searchTerm.isEmpty ? null : searchTerm,
+      );
+});
