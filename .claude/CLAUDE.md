@@ -45,10 +45,13 @@ projeto/
 │   │   ├── 03-modos-operacao.md       ← desenvolvimento, review, tutor
 │   │   ├── 04-avaliacao-pos.md        ← protocolo pós-implementação
 │   │   ├── 05-convencoes.md           ← VAR Method, Conventional Commits, branches
-│   │   ├── 06-crura.md               ← fluxo CRURA + checklist + reversão + templates
+│   │   ├── 06-crura.md                ← fluxo CRURA + checklist + reversão + templates
 │   │   ├── 07-integridade.md          ← 12 regras invioláveis
 │   │   ├── 08-registro-projeto.md     ← regras de atualização do registry
-│   │   └── 09-enforcement.md          ← hooks git automatizados
+│   │   ├── 09-enforcement.md          ← hooks git automatizados
+│   │   ├── 10-engenharia-agentica.md  ← metodologia Karpathy, anti-vibe-coding
+│   │   ├── 11-integracao-codex.md     ← orquestração Claude Code + Codex
+│   │   └── 12-portfolio-publico.md    ← GitHub como artefato de trabalho
 │   ├── registry.md                    ← estado do projeto + histórico (mutável)
 │   ├── registry-archive.md            ← criado automaticamente quando histórico > 30 entradas
 │   ├── tasks.md                       ← registro de tasks (obrigatório)

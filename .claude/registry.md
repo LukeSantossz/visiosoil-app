@@ -42,19 +42,20 @@
 | 39 | 2026-05-05 | TASK-052 | patch | 1 arquivo — capture_screen.dart | Chips sobrepostos na preview: localização + classificação sobre gradient | Checklist agêntico: aplicado |
 | 40 | 2026-05-05 | TASK-010 | minor | 4 arquivos — permission_service.dart, permission_denied_view.dart, capture_screen.dart, pubspec.yaml | Tratamento de permissão negada: PermissionService, PermissionDeniedView, integração na CaptureScreen | Checklist agêntico: aplicado |
 | 41 | 2026-05-05 | TASK-012 | minor | 4 arquivos — history_screen.dart, soil_record_repository.dart, drift_repo.dart, providers.dart | Filtros e busca no histórico: chips por classe textural, busca por endereço com debounce | Checklist agêntico: aplicado |
+| 42 | 2026-05-07 | TASK-053 | patch | 1 arquivo — .claude/CLAUDE.md | Estrutura documentada atualizada com regras 10-12 | Checklist agêntico: N/A |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-05-05
+- **Última atualização:** 2026-05-07
 - **Último responsável:** Claude Code (Opus 4.5)
 - **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
 - **Versão:** 2.0.0 (bump pendente antes do merge — múltiplas tasks patch/minor desde v2.0.0)
 - **Dependências alteradas recentemente:** pubspec.yaml — permission_handler ^11.3.1 adicionado
 - **Testes passando:** sim (Flutter 15/15)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-012 — Filtros e busca no histórico
+- **Última task concluída:** TASK-053 — Atualizar estrutura documentada em .claude/CLAUDE.md
 - **Review cruzado (Codex):** aplicado — 0 CRITICAL, 3 HIGH (todos corrigidos: mounted guards, lifecycle refresh, delete guard), 4 MEDIUM (3 corrigidos: debounce cancel, restricted status, search sync; 1 aceito: wildcard sanitization via remoção), 2 LOW aceitos (índices, permission split)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 

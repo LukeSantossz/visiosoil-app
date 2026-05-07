@@ -27,6 +27,26 @@
 
 ## Tasks Ativas
 
+### TASK-053 — Atualizar estrutura documentada em .claude/CLAUDE.md para incluir regras 10-12
+- **Tipo:** docs
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** docs/TASK-053-update-claude-structure
+- **Escopo Técnico:**
+  - `.claude/CLAUDE.md` — seção "Estrutura do Sistema de Regras": adicionar regras 10, 11, 12
+- **Critérios de Aceite:**
+  - [x] Regra `10-engenharia-agentica.md` listada com descrição breve
+  - [x] Regra `11-integracao-codex.md` listada com descrição breve
+  - [x] Regra `12-portfolio-publico.md` listada com descrição breve
+  - [x] Estrutura documentada reflete 100% dos arquivos existentes em `.claude/rules/`
+- **Log de Andamento:**
+  - [2026-05-07] — Task registrada. Divergência detectada: documentação lista apenas regras 00-09, mas existem 10-12.
+  - [2026-05-07] — Implementação concluída. 3 regras adicionadas à estrutura. flutter analyze OK.
+- **Resultado:** Estrutura documentada atualizada. Regras 10 (engenharia agêntica), 11 (integração Codex) e 12 (portfólio público) incluídas com descrições.
+
+---
+
 ### TASK-007 — Implementar avaliação de qualidade pós-captura
 - **Tipo:** feat
 - **Complexidade:** minor
