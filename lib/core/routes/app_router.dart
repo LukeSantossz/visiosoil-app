@@ -11,13 +11,15 @@ import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
 import 'package:visiosoil_app/core/features/lot/lot_detail_screen.dart';
 import 'package:visiosoil_app/core/features/recommendations/recommendations_screen.dart';
 import 'package:visiosoil_app/core/features/result/result_screen.dart';
+import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
 import 'package:visiosoil_app/models/capture_context.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
     GoRoute(path: '/capture', builder: (context, state) => const CapturePage()),
     GoRoute(
