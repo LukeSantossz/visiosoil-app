@@ -8,40 +8,58 @@ import 'package:visiosoil_app/models/management_plan.dart';
 /// Tela de recomendações/plano de manejo.
 ///
 /// Exibe ações priorizadas, fontes e alertas baseados na classe textural.
-/// Futuramente será alimentada por research agent.
+/// Quando acessada pela navegação inferior, exibe seletor de classe textural.
+/// Quando acessada via rota com parâmetro, exibe diretamente o plano.
 class RecommendationsScreen extends StatefulWidget {
   const RecommendationsScreen({
     super.key,
-    required this.textureClass,
+    this.textureClass,
   });
 
-  final String textureClass;
+  /// Classe textural. Se null, exibe seletor de classes.
+  final String? textureClass;
 
   @override
   State<RecommendationsScreen> createState() => _RecommendationsScreenState();
 }
 
 class _RecommendationsScreenState extends State<RecommendationsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    with TickerProviderStateMixin {
+  TabController? _tabController;
   ManagementPlan? _plan;
-  bool _isLoading = true;
-  String _loadingStep = 'Analisando classe textural...';
+  bool _isLoading = false;
+  String _loadingStep = '';
+  String? _selectedClass;
+
+  static const List<String> _textureClasses = [
+    'Arenosa',
+    'Média',
+    'Argilosa',
+    'Muito Argilosa',
+    'Siltosa',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _simulateLoading();
+    if (widget.textureClass != null) {
+      _selectedClass = widget.textureClass;
+      _loadPlan(widget.textureClass!);
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
-  Future<void> _simulateLoading() async {
+  Future<void> _loadPlan(String textureClass) async {
+    setState(() {
+      _isLoading = true;
+      _selectedClass = textureClass;
+    });
+
     // Simula etapas de carregamento do research agent
     final steps = [
       'Analisando classe textural...',
@@ -53,62 +71,148 @@ class _RecommendationsScreenState extends State<RecommendationsScreen>
     for (final step in steps) {
       if (!mounted) return;
       setState(() => _loadingStep = step);
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 500));
     }
 
     if (!mounted) return;
+
+    _tabController?.dispose();
+    _tabController = TabController(length: 3, vsync: this);
+
     setState(() {
-      _plan = ManagementPlan.forTextureClass(widget.textureClass);
+      _plan = ManagementPlan.forTextureClass(textureClass);
       _isLoading = false;
     });
-  }
-
-  void _openAgentChat() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AgentChatSheet(textureClass: widget.textureClass),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isStandalone = widget.textureClass == null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Plano de Manejo'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/');
-            }
-          },
-        ),
-        bottom: _isLoading
+        leading: isStandalone
             ? null
-            : TabBar(
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
+                },
+              ),
+        automaticallyImplyLeading: !isStandalone,
+        bottom: (_plan != null && !_isLoading && _tabController != null)
+            ? TabBar(
                 controller: _tabController,
                 tabs: const [
                   Tab(text: 'Plano'),
                   Tab(text: 'Fontes'),
                   Tab(text: 'Alertas'),
                 ],
-              ),
+              )
+            : null,
       ),
-      body: _isLoading ? _buildLoading(theme) : _buildContent(theme),
-      floatingActionButton: _isLoading
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _openAgentChat,
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('Perguntar'),
+      body: _buildBody(theme),
+    );
+  }
+
+  Widget _buildBody(ThemeData theme) {
+    if (_isLoading) {
+      return _buildLoading(theme);
+    }
+
+    if (_plan == null) {
+      return _buildClassSelector(theme);
+    }
+
+    return _buildContent(theme);
+  }
+
+  Widget _buildClassSelector(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primaryContainer,
+                  AppColors.primaryContainer.withValues(alpha: 0.7),
+                ],
+              ),
+              borderRadius: AppRadius.borderRadiusLg,
             ),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: AppRadius.borderRadiusMd,
+                  ),
+                  child: const Icon(
+                    Icons.eco,
+                    size: 28,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recomendações de Manejo',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Selecione uma classe textural para ver o plano de manejo recomendado',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Section title
+          Text(
+            'Classe Textural',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Texture class cards
+          ..._textureClasses.map((textureClass) => _TextureClassCard(
+                textureClass: textureClass,
+                isSelected: _selectedClass == textureClass,
+                onTap: () => _loadPlan(textureClass),
+              )),
+        ],
+      ),
     );
   }
 
@@ -161,7 +265,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen>
             ),
             const SizedBox(height: AppSpacing.xxl),
             Text(
-              'Preparando recomendações para\nsolo ${widget.textureClass}',
+              'Preparando recomendações para\nsolo $_selectedClass',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppColors.onSurfaceVariant,
               ),
@@ -176,16 +280,159 @@ class _RecommendationsScreenState extends State<RecommendationsScreen>
   Widget _buildContent(ThemeData theme) {
     final plan = _plan!;
 
-    return TabBarView(
-      controller: _tabController,
+    return Column(
       children: [
-        // Tab 1: Plano (ações)
-        _ActionsTab(actions: plan.actions),
-        // Tab 2: Fontes
-        _SourcesTab(sources: plan.sources),
-        // Tab 3: Alertas
-        _AlertsTab(alerts: plan.alerts),
+        // Back to selector button (only in standalone mode)
+        if (widget.textureClass == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              0,
+            ),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _plan = null;
+                      _tabController?.dispose();
+                      _tabController = null;
+                    });
+                  },
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('Trocar classe'),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    borderRadius: AppRadius.borderRadiusPill,
+                  ),
+                  child: Text(
+                    _selectedClass ?? '',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Tab content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // Tab 1: Plano (ações)
+              _ActionsTab(actions: plan.actions),
+              // Tab 2: Fontes
+              _SourcesTab(sources: plan.sources),
+              // Tab 3: Alertas
+              _AlertsTab(alerts: plan.alerts),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+}
+
+// --- Texture Class Card ---
+
+class _TextureClassCard extends StatelessWidget {
+  const _TextureClassCard({
+    required this.textureClass,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String textureClass;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  IconData get _icon {
+    switch (textureClass) {
+      case 'Arenosa':
+        return Icons.grain;
+      case 'Siltosa':
+        return Icons.water_drop;
+      case 'Argilosa':
+        return Icons.layers;
+      case 'Muito Argilosa':
+        return Icons.landscape;
+      case 'Média':
+      default:
+        return Icons.eco;
+    }
+  }
+
+  Color get _color {
+    switch (textureClass) {
+      case 'Arenosa':
+        return AppColors.soilSandy;
+      case 'Siltosa':
+        return AppColors.soilSilt;
+      case 'Argilosa':
+        return AppColors.soilClay;
+      case 'Muito Argilosa':
+        return AppColors.soilVeryClay;
+      case 'Média':
+      default:
+        return AppColors.soilMedium;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _color.withValues(alpha: 0.15),
+                  borderRadius: AppRadius.borderRadiusSm,
+                ),
+                child: Icon(
+                  _icon,
+                  color: _color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  textureClass,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -200,12 +447,7 @@ class _ActionsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
-        100, // Space for FAB
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: actions.length,
       itemBuilder: (context, index) => _ActionCard(action: actions[index]),
     );
@@ -357,12 +599,7 @@ class _SourcesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
-        100,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: sources.length,
       itemBuilder: (context, index) => _SourceCard(source: sources[index]),
     );
@@ -452,12 +689,7 @@ class _AlertsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
-        100,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: alerts.length,
       itemBuilder: (context, index) => _AlertCard(alert: alerts[index]),
     );
@@ -518,328 +750,6 @@ class _AlertCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- Agent Chat Sheet ---
-
-class _AgentChatSheet extends StatefulWidget {
-  const _AgentChatSheet({required this.textureClass});
-
-  final String textureClass;
-
-  @override
-  State<_AgentChatSheet> createState() => _AgentChatSheetState();
-}
-
-class _AgentChatSheetState extends State<_AgentChatSheet> {
-  final _controller = TextEditingController();
-  final _messages = <_ChatMessage>[];
-  bool _isTyping = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _messages.add(_ChatMessage(
-      text: 'Olá! Sou o assistente de manejo do VisioSoil. '
-          'Posso ajudar com dúvidas sobre o solo ${widget.textureClass} '
-          'ou sobre as recomendações do plano.',
-      isUser: false,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _sendMessage() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add(_ChatMessage(text: text, isUser: true));
-      _isTyping = true;
-    });
-    _controller.clear();
-
-    // Simula resposta do agente
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add(_ChatMessage(
-          text: 'Esta funcionalidade estará disponível em breve! '
-              'O agente de pesquisa está em desenvolvimento.',
-          isUser: false,
-        ));
-      });
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.outlineVariant,
-              borderRadius: AppRadius.borderRadiusPill,
-            ),
-          ),
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome,
-                    size: 20,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Assistente de Manejo',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        'Pergunte sobre seu solo',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Messages
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length && _isTyping) {
-                  return const _TypingIndicator();
-                }
-                return _ChatBubble(message: _messages[index]);
-              },
-            ),
-          ),
-          // Input
-          Container(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.lg + bottomInset,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(
-                top: BorderSide(color: AppColors.outlineVariant),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: 'Digite sua pergunta...',
-                      filled: true,
-                      fillColor: AppColors.surfaceDim,
-                      border: OutlineInputBorder(
-                        borderRadius: AppRadius.borderRadiusPill,
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.md,
-                      ),
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                IconButton.filled(
-                  onPressed: _sendMessage,
-                  icon: const Icon(Icons.send),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChatMessage {
-  final String text;
-  final bool isUser;
-
-  const _ChatMessage({required this.text, required this.isUser});
-}
-
-class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message});
-
-  final _ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        decoration: BoxDecoration(
-          color: message.isUser ? AppColors.primary : AppColors.surfaceDim,
-          borderRadius: BorderRadius.circular(16).copyWith(
-            bottomRight: message.isUser ? const Radius.circular(4) : null,
-            bottomLeft: !message.isUser ? const Radius.circular(4) : null,
-          ),
-        ),
-        child: Text(
-          message.text,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: message.isUser ? AppColors.onPrimary : AppColors.onSurface,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceDim,
-          borderRadius: BorderRadius.circular(16).copyWith(
-            bottomLeft: const Radius.circular(4),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _TypingDot(delay: 0),
-            const SizedBox(width: 4),
-            _TypingDot(delay: 150),
-            const SizedBox(width: 4),
-            _TypingDot(delay: 300),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TypingDot extends StatefulWidget {
-  const _TypingDot({required this.delay});
-
-  final int delay;
-
-  @override
-  State<_TypingDot> createState() => _TypingDotState();
-}
-
-class _TypingDotState extends State<_TypingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) {
-        _controller.repeat(reverse: true);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) => Opacity(
-        opacity: _animation.value,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: AppColors.onSurfaceVariant,
-            shape: BoxShape.circle,
-          ),
         ),
       ),
     );
