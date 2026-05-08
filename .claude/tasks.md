@@ -243,25 +243,26 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-041-capture-setup
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/capture/setup_screen.dart` — novo: wizard 3 passos (lote → cultura → profundidade)
   - `lib/core/routes/app_router.dart` — nova rota `/capture/setup`
   - `lib/models/capture_context.dart` — novo modelo com lote, cultura, profundidade selecionados
 - **Critérios de Aceite:**
-  - [ ] Wizard com step indicator (3 barras de progresso)
-  - [ ] Passo 1: seleção de lote (lista com radio + "Adicionar novo lote" placeholder)
-  - [ ] Passo 2: seleção de cultura (grid 2x3) + época de plantio (chips)
-  - [ ] Passo 3: seleção de profundidade (0-20, 20-40, 40-60 cm) + resumo
-  - [ ] Navegação back/forward entre passos
-  - [ ] Botão final "Abrir câmera" navega para capture com contexto
-  - [ ] Lotes hardcoded por enquanto (backend de lotes é funcionalidade futura)
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Wizard com step indicator (3 barras de progresso)
+  - [x] Passo 1: seleção de lote (lista com radio + "Adicionar novo lote" placeholder)
+  - [x] Passo 2: seleção de cultura (grid 2x3) + época de plantio (chips)
+  - [x] Passo 3: seleção de profundidade (0-20, 20-40, 40-60 cm) + resumo
+  - [x] Navegação back/forward entre passos
+  - [x] Botão final "Abrir câmera" navega para capture com contexto
+  - [x] Lotes hardcoded por enquanto (backend de lotes é funcionalidade futura)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039 (tokens). Lotes serão mock — persistência de lotes é feature futura.
-- **Resultado:** [pendente]
+  - [2026-05-07] — Implementação concluída. SetupScreen com PageView 3 passos, CaptureContext model com Lot/Crop/PlantingSeason/SamplingDepth. Rota /capture/setup registrada. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de setup pré-captura implementada. Wizard visual completo com dados mock. Integração com captura via CaptureContext.
 
 ---
 
@@ -296,24 +297,25 @@
 - **Tipo:** feat
 - **Complexidade:** major
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-045-recommendations-screen
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
   - `lib/core/features/recommendations/recommendations_screen.dart` — nova tela: layout com abas (Plano/Fontes/Alertas), loading animado, cards de ação priorizados, FAB "Perguntar ao agente"
-  - `lib/core/features/recommendations/widgets/` — ActionCard, SourceCard, AlertCard, AgentChatSheet
+  - `lib/core/features/recommendations/widgets/` — widgets inline no arquivo principal
   - `lib/core/routes/app_router.dart` — nova rota `/recommendations`
   - `lib/models/management_plan.dart` — novo modelo (ações, fontes, alertas)
 - **Critérios de Aceite:**
-  - [ ] Layout com 3 abas: Plano (ações priorizadas), Fontes (referências), Alertas
-  - [ ] Cards de ação com prioridade (alta/média/baixa), ícone, título, prazo, descrição + citações
-  - [ ] Loading animado com etapas (simulado — research agent é feature futura)
-  - [ ] FAB "Perguntar ao agente" abre bottom sheet de chat (UI pronta, funcionalidade mock)
-  - [ ] Dados estáticos/mock por classe textural (funcionalidade de research agent é futura)
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Layout com 3 abas: Plano (ações priorizadas), Fontes (referências), Alertas
+  - [x] Cards de ação com prioridade (alta/média/baixa), ícone, título, prazo, descrição + citações
+  - [x] Loading animado com etapas (simulado — research agent é feature futura)
+  - [x] FAB "Perguntar ao agente" abre bottom sheet de chat (UI pronta, funcionalidade mock)
+  - [x] Dados estáticos/mock por classe textural (funcionalidade de research agent é futura)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039. Research agent é funcionalidade futura — implementar UI com dados mock por classe textural.
-- **Resultado:** [pendente]
+  - [2026-05-07] — Implementação concluída. RecommendationsScreen com TabBar 3 abas, ManagementPlan model com dados mock por classe textural, AgentChatSheet com UI de chat. Rota /recommendations registrada. Botões "Ver plano de manejo" em ResultScreen e DetailsScreen agora navegam para a tela. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de recomendações implementada. UI completa com dados mock por classe textural. Chat do agente com UI pronta (funcionalidade mock).
 
 ---
 
@@ -321,25 +323,26 @@
 - **Tipo:** feat
 - **Complexidade:** minor
 - **Modo:** Desenvolvimento
-- **Status:** pendente
-- **Branch:** feat/TASK-046-lot-detail-screen
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
 - **Escopo Técnico:**
-  - `lib/core/features/details/lot_detail_screen.dart` — nova tela: stats do lote, comparação A/B entre amostras, timeline do histórico
+  - `lib/core/features/lot/lot_detail_screen.dart` — nova tela: stats do lote, comparação A/B entre amostras, timeline do histórico
   - `lib/core/routes/app_router.dart` — nova rota `/lot-detail`
-  - `lib/core/widgets/temporal_comparison.dart` — widget de comparação A/B
+  - `lib/core/features/home/home_page.dart` — placeholder de lotes agora mostra cards clicáveis
 - **Critérios de Aceite:**
-  - [ ] Stats do lote: cultura, área, nº de amostras
-  - [ ] Comparação temporal A/B entre duas amostras selecionáveis
-  - [ ] Badge "Mudou" / "Estável" com alerta se textura divergiu
-  - [ ] Timeline cronológica das amostras do lote
-  - [ ] Toque em item da timeline alterna seleção A/B
-  - [ ] Botão "Ver plano de manejo"
-  - [ ] Dados mock (persistência de lotes é feature futura)
-  - [ ] `flutter analyze` sem erros
-  - [ ] `flutter test` sem falhas
+  - [x] Stats do lote: cultura, área, nº de amostras
+  - [x] Comparação temporal A/B entre duas amostras selecionáveis
+  - [x] Badge "Mudou" / "Estável" com alerta se textura divergiu
+  - [x] Timeline cronológica das amostras do lote
+  - [x] Toque em item da timeline alterna seleção A/B
+  - [x] Botão "Ver plano de manejo"
+  - [x] Dados mock (persistência de lotes é feature futura)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
 - **Log de Andamento:**
   - [2026-05-03] — Task registrada. Depende de TASK-039. Lotes são feature futura — usar dados mock.
-- **Resultado:** [pendente]
+  - [2026-05-07] — Implementação concluída. LotDetailScreen com stats, comparação A/B temporal, timeline interativa. Dados mock variam por lote. HomePage atualizada com lista horizontal de lotes. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de detalhes do lote implementada. Comparação A/B funcional com badge Mudou/Estável. Timeline interativa. Dados mock demonstrativos.
 
 ---
 

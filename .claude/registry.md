@@ -43,6 +43,9 @@
 | 40 | 2026-05-05 | TASK-010 | minor | 4 arquivos — permission_service.dart, permission_denied_view.dart, capture_screen.dart, pubspec.yaml | Tratamento de permissão negada: PermissionService, PermissionDeniedView, integração na CaptureScreen | Checklist agêntico: aplicado |
 | 41 | 2026-05-05 | TASK-012 | minor | 4 arquivos — history_screen.dart, soil_record_repository.dart, drift_repo.dart, providers.dart | Filtros e busca no histórico: chips por classe textural, busca por endereço com debounce | Checklist agêntico: aplicado |
 | 42 | 2026-05-07 | TASK-053 | patch | 1 arquivo — .claude/CLAUDE.md | Estrutura documentada atualizada com regras 10-12 | Checklist agêntico: N/A |
+| 43 | 2026-05-07 | TASK-041 | minor | 3 arquivos — setup_screen.dart, capture_context.dart, app_router.dart | Tela de setup pré-captura: wizard 3 passos (lote/cultura/profundidade) | Checklist agêntico: aplicado |
+| 44 | 2026-05-07 | TASK-045 | major | 4 arquivos — recommendations_screen.dart, management_plan.dart, app_router.dart, details.dart, result_screen.dart | Tela de recomendações: 3 abas, loading, FAB chat, dados mock por textura | Checklist agêntico: aplicado |
+| 45 | 2026-05-07 | TASK-046 | minor | 3 arquivos — lot_detail_screen.dart, app_router.dart, home_page.dart | Tela de detalhes do lote: stats, comparação A/B, timeline, lotes na home | Checklist agêntico: aplicado |
 
 ## Estado da Codebase
 
@@ -55,7 +58,7 @@
 - **Dependências alteradas recentemente:** pubspec.yaml — permission_handler ^11.3.1 adicionado
 - **Testes passando:** sim (Flutter 15/15)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-053 — Atualizar estrutura documentada em .claude/CLAUDE.md
+- **Última task concluída:** TASK-046 — Tela de detalhes do lote com comparação temporal
 - **Review cruzado (Codex):** aplicado — 0 CRITICAL, 3 HIGH (todos corrigidos: mounted guards, lifecycle refresh, delete guard), 4 MEDIUM (3 corrigidos: debounce cancel, restricted status, search sync; 1 aceito: wildcard sanitization via remoção), 2 LOW aceitos (índices, permission split)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
