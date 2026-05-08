@@ -7,6 +7,7 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/models/capture_context.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -527,46 +528,107 @@ class _LotMapPlaceholder extends StatelessWidget {
                   color: AppColors.onSurface,
                 ),
               ),
-              // Future: "Novo lote" button
+              TextButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cadastro de lotes em breve')),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Novo'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          Container(
-            height: 140,
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.borderRadiusLg,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.tertiaryContainer,
-                  AppColors.secondaryContainer,
-                  AppColors.surfaceVariant,
-                ],
-              ),
-              border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.map_outlined,
-                    size: 32,
-                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Mapa de lotes em breve',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
+          SizedBox(
+            height: 100,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: Lot.mockLots.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final lot = Lot.mockLots[index];
+                return _LotCard(lot: lot);
+              },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LotCard extends StatelessWidget {
+  const _LotCard({required this.lot});
+
+  final Lot lot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: AppRadius.borderRadiusMd,
+      child: InkWell(
+        onTap: () => context.push('/lot-detail', extra: lot),
+        borderRadius: AppRadius.borderRadiusMd,
+        child: Container(
+          width: 140,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.borderRadiusMd,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: AppRadius.borderRadiusSm,
+                    ),
+                    child: const Icon(
+                      Icons.landscape,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                lot.name,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (lot.areHectares != null)
+                Text(
+                  '${lot.areHectares} ha',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
