@@ -47,6 +47,100 @@
 
 ---
 
+### TASK-054 — Implementar splash screen com logo e solicitação inicial de permissões
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluida
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/splash/splash_screen.dart` — nova tela com logo animado e solicitacao de permissoes
+  - `lib/core/routes/app_router.dart` — rota /splash como inicial, navega para / apos permissoes
+- **Critérios de Aceite:**
+  - [x] Ao abrir o app, exibe logo/placeholder do VisioSoil
+  - [x] Apos splash, solicita permissoes de camera e localizacao
+  - [x] Apos permissoes (aceitas ou negadas), navega para home
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-07] — Task registrada. Solicitado pelo usuario durante testes no dispositivo.
+  - [2026-05-07] — Implementacao concluida. SplashScreen com animacao de fade+scale, solicitacao sequencial de camera e localizacao, navegacao para home. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Splash screen implementada. Logo animado, solicitacao de permissoes, transicao suave para home.
+
+---
+
+### TASK-055 — Refatorar tela de lotes: remover comparação temporal e emojis soltos
+- **Tipo:** refactor
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluida
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/lot/lot_detail_screen.dart` — remover secao de comparacao A/B temporal, substituir emojis por icones Material
+  - `lib/core/features/capture/setup_screen.dart` — substituir emojis por Material Icons
+  - `lib/models/capture_context.dart` — Crop.icon substituido por Crop.iconCodePoint com mapeamento para Material Icons
+- **Critérios de Aceite:**
+  - [x] Comparacao temporal A/B removida da tela de detalhes do lote
+  - [x] Emojis substituidos por icones Material Design
+  - [x] Layout mantem consistencia visual
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-07] — Task registrada. Comparacao temporal nao representa funcionalidade real; emojis inconsistentes com design system.
+  - [2026-05-07] — Implementacao concluida. Secao _TemporalComparison removida, _SampleTimeline simplificado, Crop model refatorado para iconCodePoint, _CropCard e _LotStatsCard usam Material Icons. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Tela de lotes simplificada. Comparacao temporal removida, emojis substituidos por Material Icons.
+
+---
+
+### TASK-056 — Correções da auditoria Codex: guard _isSaving e melhorias de robustez
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluida
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/capture/capture_screen.dart` — guard `_isSaving` com try/finally
+  - `lib/core/features/settings/settings_screen.dart` — sintaxe `?trailing` validada (Dart 3 null-aware element)
+  - `lib/core/data/repositories/soil_record_repository.dart` — metodo `deleteAll()` adicionado
+  - `lib/core/data/repositories/drift_soil_record_repository.dart` — implementacao `deleteAll()`
+- **Critérios de Aceite:**
+  - [x] Guard `_isSaving` previne double-tap no botao salvar
+  - [x] Sintaxe `?trailing` validada como Dart 3 null-aware collection element
+  - [x] Metodo `deleteAll()` implementado no repository
+  - [x] Settings usa `deleteAll()` em vez de loop
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-07] — Task registrada. Findings M4 e L1 da auditoria Codex.
+  - [2026-05-07] — Implementacao concluida. _isSaving guard com try/finally, deleteAll() no repository, Settings simplificado. Sintaxe ?trailing e valida (Dart 3 null-aware element). flutter analyze OK, flutter test 15/15.
+- **Resultado:** Correcoes da auditoria aplicadas. Guard _isSaving, deleteAll(), sintaxe validada.
+
+---
+
+### TASK-057 — Adicionar Recomendacoes na navegacao inferior e remover chat
+- **Tipo:** feat
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluida
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `lib/core/features/main/main_screen.dart` — adicionar terceira aba para Recomendacoes
+  - `lib/core/features/recommendations/recommendations_screen.dart` — remover FAB de chat e classes relacionadas, adaptar para exibicao standalone
+- **Critérios de Aceite:**
+  - [x] Bottom navigation com 3 abas: Inicio, Recomendacoes, Historico
+  - [x] Tela de recomendacoes acessivel diretamente pela navegacao
+  - [x] FAB "Perguntar" removido
+  - [x] Classes de chat removidas (_AgentChatSheet, _ChatMessage, etc.)
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-05-07] — Task registrada. Usuario solicitou acesso direto as recomendacoes pela barra inferior.
+  - [2026-05-07] — Implementacao concluida. MainScreen com 3 abas (Inicio, Manejo, Historico). RecommendationsScreen com seletor de classe textural quando standalone, textureClass opcional. FAB e chat removidos. flutter analyze OK, flutter test 15/15.
+  - [2026-05-07] — Fix: SingleTickerProviderStateMixin alterado para TickerProviderStateMixin (multiplos TabControllers ao trocar classe). flutter analyze OK, flutter test 15/15.
+- **Resultado:** Navegacao inferior com 3 abas. Tela de recomendacoes exibe seletor de classes quando acessada pela barra. Chat removido.
+
+---
+
 ### TASK-007 — Implementar avaliação de qualidade pós-captura
 - **Tipo:** feat
 - **Complexidade:** minor

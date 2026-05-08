@@ -46,20 +46,24 @@
 | 43 | 2026-05-07 | TASK-041 | minor | 3 arquivos — setup_screen.dart, capture_context.dart, app_router.dart | Tela de setup pré-captura: wizard 3 passos (lote/cultura/profundidade) | Checklist agêntico: aplicado |
 | 44 | 2026-05-07 | TASK-045 | major | 4 arquivos — recommendations_screen.dart, management_plan.dart, app_router.dart, details.dart, result_screen.dart | Tela de recomendações: 3 abas, loading, FAB chat, dados mock por textura | Checklist agêntico: aplicado |
 | 45 | 2026-05-07 | TASK-046 | minor | 3 arquivos — lot_detail_screen.dart, app_router.dart, home_page.dart | Tela de detalhes do lote: stats, comparação A/B, timeline, lotes na home | Checklist agêntico: aplicado |
+| 46 | 2026-05-07 | TASK-054 | minor | 2 arquivos — splash_screen.dart, app_router.dart | Splash screen com logo animado e solicitacao de permissoes | Checklist agentico: aplicado |
+| 47 | 2026-05-07 | TASK-055 | patch | 3 arquivos — lot_detail_screen.dart, setup_screen.dart, capture_context.dart | Remocao de comparacao temporal, emojis substituidos por Material Icons | Checklist agentico: aplicado |
+| 48 | 2026-05-07 | TASK-056 | patch | 4 arquivos — capture_screen.dart, settings_screen.dart, repository (2) | Guard _isSaving, deleteAll() no repository, sintaxe ?trailing validada | Checklist agentico: aplicado |
+| 49 | 2026-05-07 | TASK-057 | minor | 2 arquivos — main_screen.dart, recommendations_screen.dart | Navegacao inferior com 3 abas, seletor de classe textural, chat removido | Checklist agentico: aplicado |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-05-07
-- **Último responsável:** Claude Code (Opus 4.5)
+- **Ultima atualizacao:** 2026-05-07
+- **Ultimo responsavel:** Claude Code (Opus 4.5)
 - **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
-- **Versão:** 2.0.0 (bump pendente antes do merge — múltiplas tasks patch/minor desde v2.0.0)
-- **Dependências alteradas recentemente:** pubspec.yaml — permission_handler ^11.3.1 adicionado
+- **Versao:** 2.0.0 (bump pendente antes do merge — multiplas tasks patch/minor desde v2.0.0)
+- **Dependencias alteradas recentemente:** pubspec.yaml — permission_handler ^11.3.1 adicionado
 - **Testes passando:** sim (Flutter 15/15)
-- **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-046 — Tela de detalhes do lote com comparação temporal
-- **Review cruzado (Codex):** aplicado — 0 CRITICAL, 3 HIGH (todos corrigidos: mounted guards, lifecycle refresh, delete guard), 4 MEDIUM (3 corrigidos: debounce cancel, restricted status, search sync; 1 aceito: wildcard sanitization via remoção), 2 LOW aceitos (índices, permission split)
+- **Divergencias externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do proximo treino
+- **Ultima task concluida:** TASK-057 — Navegacao inferior com Recomendacoes e remocao de chat
+- **Review cruzado (Codex):** aplicado — auditoria 2026-05-07 com 1 CRITICAL (sintaxe validada como Dart 3), 2 HIGH (rotas desconectadas — intencional para demo), 4 MEDIUM (3 corrigidos: _isSaving guard, deleteAll, sintaxe), 1 LOW (corrigido)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas
