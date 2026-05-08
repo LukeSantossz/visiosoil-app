@@ -440,6 +440,24 @@ class _CropCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  IconData _getCropIcon() {
+    switch (crop.iconCodePoint) {
+      case 'grass':
+        return Icons.grass;
+      case 'grain':
+        return Icons.grain;
+      case 'filter_vintage':
+        return Icons.filter_vintage;
+      case 'park':
+        return Icons.park;
+      case 'local_cafe':
+        return Icons.local_cafe;
+      case 'eco':
+      default:
+        return Icons.eco;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -461,9 +479,10 @@ class _CropCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                crop.icon,
-                style: const TextStyle(fontSize: 32),
+              Icon(
+                _getCropIcon(),
+                size: 32,
+                color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
@@ -541,7 +560,7 @@ class _DepthSelectionStep extends StatelessWidget {
                   _SummaryRow(
                     icon: Icons.eco,
                     label: 'Cultura',
-                    value: '${context.crop!.icon} ${context.crop!.name}',
+                    value: context.crop!.name,
                   ),
                 if (context.plantingSeason != null)
                   _SummaryRow(

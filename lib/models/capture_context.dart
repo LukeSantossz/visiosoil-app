@@ -68,22 +68,22 @@ class Lot {
 class Crop {
   final String id;
   final String name;
-  final String icon;
+  final String iconCodePoint;
 
   const Crop({
     required this.id,
     required this.name,
-    required this.icon,
+    required this.iconCodePoint,
   });
 
-  /// Culturas disponíveis.
+  /// Culturas disponíveis com ícones Material Design.
   static const List<Crop> available = [
-    Crop(id: 'soy', name: 'Soja', icon: '🌱'),
-    Crop(id: 'corn', name: 'Milho', icon: '🌽'),
-    Crop(id: 'cotton', name: 'Algodão', icon: '☁️'),
-    Crop(id: 'sugarcane', name: 'Cana', icon: '🎋'),
-    Crop(id: 'coffee', name: 'Café', icon: '☕'),
-    Crop(id: 'other', name: 'Outra', icon: '🌾'),
+    Crop(id: 'soy', name: 'Soja', iconCodePoint: 'grass'),
+    Crop(id: 'corn', name: 'Milho', iconCodePoint: 'grain'),
+    Crop(id: 'cotton', name: 'Algodão', iconCodePoint: 'filter_vintage'),
+    Crop(id: 'sugarcane', name: 'Cana', iconCodePoint: 'park'),
+    Crop(id: 'coffee', name: 'Café', iconCodePoint: 'local_cafe'),
+    Crop(id: 'other', name: 'Outra', iconCodePoint: 'eco'),
   ];
 }
 
