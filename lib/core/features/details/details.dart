@@ -83,7 +83,7 @@ class _DetailsContent extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
                   _InfoSection(record: record),
                   const SizedBox(height: AppSpacing.xl),
-                  _ActionButtons(recordId: recordId),
+                  _ActionButtons(record: record),
                 ],
               ),
             ),
@@ -414,22 +414,21 @@ class _InfoTile extends StatelessWidget {
 // --- Action Buttons ---
 
 class _ActionButtons extends ConsumerWidget {
-  const _ActionButtons({required this.recordId});
+  const _ActionButtons({required this.record});
 
-  final int recordId;
+  final SoilRecord record;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Recommendations placeholder
+        // Recommendations
         OutlinedButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Plano de manejo em breve'),
-              ),
+            context.push(
+              '/recommendations',
+              extra: record.textureClass ?? 'Média',
             );
           },
           icon: const Icon(Icons.auto_awesome_outlined),
@@ -485,8 +484,8 @@ class _ActionButtons extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      await ref.read(soilRecordRepositoryProvider).deleteById(recordId);
+    if (confirmed == true && context.mounted && record.id != null) {
+      await ref.read(soilRecordRepositoryProvider).deleteById(record.id!);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro excluído.')),

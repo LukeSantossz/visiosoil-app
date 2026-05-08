@@ -154,8 +154,9 @@ class ResultScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Plano de manejo em breve')),
+                      context.push(
+                        '/recommendations',
+                        extra: record.textureClass ?? 'Média',
                       );
                     },
                     icon: const Icon(Icons.auto_awesome_outlined),
