@@ -28,6 +28,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _isClassifying = false;
+  bool _isSaving = false;
   String? _address;
   double? _latitude;
   double? _longitude;
@@ -157,41 +158,52 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _saveRecord() async {
+    // Guard contra double-tap
+    if (_isSaving) return;
+
     final selectedImage = ref.read(imageProvider);
     final image = selectedImage.file;
     if (image == null) return;
 
-    // TODO(v2): reativar galeria — Task 15: sem coordenadas quando a origem é galeria.
-    // final isGallery = selectedImage.source == ImageSource.gallery;
-    // final String? finalAddress = isGallery
-    //     ? null
-    //     : (_address ?? 'Localização não disponível');
-    // final double? finalLatitude = isGallery ? null : _latitude;
-    // final double? finalLongitude = isGallery ? null : _longitude;
-    final String finalAddress =
-        _address ?? 'Localização não disponível';
-    final double? finalLatitude = _latitude;
-    final double? finalLongitude = _longitude;
+    setState(() => _isSaving = true);
 
-    await ref.read(soilRecordRepositoryProvider).create(
-          SoilRecord(
-            imagePath: image.path,
-            latitude: finalLatitude,
-            longitude: finalLongitude,
-            address: finalAddress,
-            timestamp: DateTime.now().toIso8601String(),
-            textureClass: _classificationResult?.textureClass,
-            confidenceScore: _classificationResult?.confidenceScore,
-          ),
+    try {
+      // TODO(v2): reativar galeria — Task 15: sem coordenadas quando a origem é galeria.
+      // final isGallery = selectedImage.source == ImageSource.gallery;
+      // final String? finalAddress = isGallery
+      //     ? null
+      //     : (_address ?? 'Localização não disponível');
+      // final double? finalLatitude = isGallery ? null : _latitude;
+      // final double? finalLongitude = isGallery ? null : _longitude;
+      final String finalAddress =
+          _address ?? 'Localizacao nao disponivel';
+      final double? finalLatitude = _latitude;
+      final double? finalLongitude = _longitude;
+
+      await ref.read(soilRecordRepositoryProvider).create(
+            SoilRecord(
+              imagePath: image.path,
+              latitude: finalLatitude,
+              longitude: finalLongitude,
+              address: finalAddress,
+              timestamp: DateTime.now().toIso8601String(),
+              textureClass: _classificationResult?.textureClass,
+              confidenceScore: _classificationResult?.confidenceScore,
+            ),
+          );
+
+      ref.read(imageProvider.notifier).clearImage();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registro salvo com sucesso!')),
         );
-
-    ref.read(imageProvider.notifier).clearImage();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro salvo com sucesso!')),
-      );
-      context.pop();
+        context.pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -294,8 +306,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 VisioButton(
                   label: 'Salvar Registro',
                   icon: Icons.check,
-                  onPressed: (_isLoading || _isClassifying) ? null : _saveRecord,
-                  isLoading: _isLoading || _isClassifying,
+                  onPressed: (_isLoading || _isClassifying || _isSaving) ? null : _saveRecord,
+                  isLoading: _isLoading || _isClassifying || _isSaving,
                   expanded: true,
                 ),
                 const SizedBox(height: AppSpacing.sm),

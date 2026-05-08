@@ -112,12 +112,7 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      final repo = ref.read(soilRecordRepositoryProvider);
-      final all = await repo.getAll();
-      final ids = all.where((r) => r.id != null).map((r) => r.id!).toList();
-      if (ids.isNotEmpty) {
-        await repo.deleteByIds(ids);
-      }
+      await ref.read(soilRecordRepositoryProvider).deleteAll();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todos os dados foram apagados.')),
@@ -199,7 +194,7 @@ class _SettingsTile extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) ?trailing,
+              ?trailing,
             ],
           ),
         ),

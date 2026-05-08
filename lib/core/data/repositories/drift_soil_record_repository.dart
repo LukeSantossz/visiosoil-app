@@ -87,6 +87,11 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }
 
   @override
+  Future<void> deleteAll() async {
+    await _db.delete(_db.soilRecords).go();
+  }
+
+  @override
   Stream<List<SoilRecord>> watchFiltered({
     String? textureClass,
     String? searchTerm,

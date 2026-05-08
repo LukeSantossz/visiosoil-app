@@ -32,6 +32,9 @@ abstract class SoilRecordRepository {
   /// Remove em lote os registros cujos ids constam em [ids].
   Future<void> deleteByIds(List<int> ids);
 
+  /// Remove todos os registros do banco em uma unica operacao.
+  Future<void> deleteAll();
+
   /// Emite lista filtrada de registros, reagindo a mudancas no banco.
   ///
   /// [textureClass] filtra por classe de textura (match exato).
