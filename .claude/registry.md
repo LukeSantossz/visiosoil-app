@@ -46,19 +46,20 @@
 | 23 | 2026-05-03 | TASK-036 | patch | 2 arquivos — ml/config.yaml, ml/tests/test_preprocess.py | Augmentation conservador para textura | rotation 40→15, vertical_flip removido |
 | 24 | 2026-05-03 | TASK-037 | patch | 3 arquivos — ml/src/dataset.py, train.py, evaluate.py | validate_splits_against_config extraída para dataset.py | Elimina duplicação de 33 linhas |
 | 25 | 2026-05-03 | TASK-038 | patch | 1 arquivo — ml/src/preprocess.py | Zoom calcula ambos os limites da config | Fix: zoom assimétrico agora correto |
+| 26 | 2026-06-02 | TASK-039 | minor | 1 arquivo — README.md (raiz) | README reescrito no padrão de portfólio (readme_model.md) | Checklist agêntico: aplicado. Classes corrigidas 12→5; License/Results/API omitidas (sem dado real) |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Última atualização:** 2026-05-03
-- **Último responsável:** Claude Code (Opus 4)
+- **Última atualização:** 2026-06-02
+- **Último responsável:** Claude Code (Opus 4.8)
 - **Branch ativa:** feat/TASK-006-ml-platform
 - **Versão:** 2.0.0
 - **Dependências alteradas recentemente:** pubspec.yaml — tflite_flutter ^0.12.1 (era ^0.11.0); ml/config.yaml — architecture: mobilenetv2, normalization: mobilenet_v2
 - **Testes passando:** sim (Flutter 15/15 — unit + repository; ML — sintaxe validada, TF indisponível no Python 3.14 local)
 - **Divergências externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do próximo treino
-- **Última task concluída:** TASK-038 — Fix zoom_factor no preprocess.py
+- **Última task concluída:** TASK-039 — README raiz reescrito no padrão de portfólio
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 
 ## Pendências Conhecidas

@@ -909,6 +909,28 @@
 
 ---
 
+### TASK-039 — Reescrever README raiz seguindo o modelo de portfólio
+- **Tipo:** docs
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** docs/TASK-039-readme-portfolio
+- **Escopo Técnico:**
+  - `README.md` (raiz) — reescrever seguindo `readme_model.md` (ordem canônica, badges de saúde, seções What It Does / What It Is / Tech Stack / Architecture / Engineering Decisions / Getting Started / Project Structure / Project Status / Known Issues)
+- **Critérios de Aceite:**
+  - [ ] README segue a ordem e seções canônicas de `readme_model.md`
+  - [ ] Todos os comentários HTML e placeholders `{...}` do modelo removidos
+  - [ ] Badges comunicam saúde (CI aponta para `main`); nenhum badge de fraqueza
+  - [ ] Fatos refletem o estado real: pubspec `2.0.0+2`, deps reais, 5 classes do dataset, schema v2, modelo placeholder
+  - [ ] Seções `[OPCIONAL]` sem sinal real removidas (Results, API Reference)
+  - [ ] Nenhuma informação inventada (sem números de acurácia não verificáveis)
+- **Log de Andamento:**
+  - [2026-06-02] — Task registrada. Reconhecimento e registry verificados. Fatos coletados: pubspec.yaml, ci.yml, ml/config.yaml.
+  - [2026-06-02] — README reescrito seguindo readme_model.md. Seções Results e API Reference omitidas (sem sinal real). License omitida (sem arquivo LICENSE — evitar invenção). CI badge apontado para main. Classes corrigidas para 5 (dataset real, não 12 USDA). Removida menção inverificável a "ADR 0001".
+- **Resultado:** README raiz reescrito no padrão de portfólio. 12 seções do modelo aplicadas, placeholders/comentários removidos. Badges de saúde (Flutter, Dart, CI/main). Fatos alinhados ao estado real (pubspec 2.0.0+2, 5 classes, schema v2, modelo placeholder). Seções opcionais sem dados (Results, API Reference, License) removidas para não inventar.
+
+---
+
 ## Tasks Concluídas
 
 [nenhuma task concluída neste repositório]
