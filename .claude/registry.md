@@ -50,19 +50,21 @@
 | 47 | 2026-05-07 | TASK-055 | patch | 3 arquivos — lot_detail_screen.dart, setup_screen.dart, capture_context.dart | Remocao de comparacao temporal, emojis substituidos por Material Icons | Checklist agentico: aplicado |
 | 48 | 2026-05-07 | TASK-056 | patch | 4 arquivos — capture_screen.dart, settings_screen.dart, repository (2) | Guard _isSaving, deleteAll() no repository, sintaxe ?trailing validada | Checklist agentico: aplicado |
 | 49 | 2026-05-07 | TASK-057 | minor | 2 arquivos — main_screen.dart, recommendations_screen.dart | Navegacao inferior com 3 abas, seletor de classe textural, chat removido | Checklist agentico: aplicado |
+| 50 | 2026-06-03 | TASK-058 | patch | 1 arquivo — android/build.gradle.kts | Alinhamento de JVM target (Java/Kotlin 17) nos plugins; corrige build Android | Causa: tflite_flutter fixa Java 11; resolvido via afterEvaluate + state.executed |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementação ou verificação pós-pull. Reflete o snapshot mais recente do projeto.
 
-- **Ultima atualizacao:** 2026-05-07
-- **Ultimo responsavel:** Claude Code (Opus 4.5)
+- **Ultima atualizacao:** 2026-06-03
+- **Ultimo responsavel:** Claude Code (Opus 4.8)
 - **Branch ativa:** feat/TASK-039-048-ui-redesign-v2
 - **Versao:** 2.0.0 (bump pendente antes do merge — multiplas tasks patch/minor desde v2.0.0)
 - **Dependencias alteradas recentemente:** pubspec.yaml — permission_handler ^11.3.1 adicionado
 - **Testes passando:** sim (Flutter 15/15)
+- **Build Android:** OK — assembleDebug compila e instala no emulador (corrigido em TASK-058; toolchain Flutter 3.44.1 / AGP 8.11.1 / Kotlin 2.2.20 / JDK 21)
 - **Divergencias externas pendentes:** splits.json deletado — deve ser regenerado no venv ML antes do proximo treino
-- **Ultima task concluida:** TASK-057 — Navegacao inferior com Recomendacoes e remocao de chat
+- **Ultima task concluida:** TASK-058 — Alinhamento de JVM target dos plugins (build Android)
 - **Review cruzado (Codex):** aplicado — auditoria 2026-05-07 com 1 CRITICAL (sintaxe validada como Dart 3), 2 HIGH (rotas desconectadas — intencional para demo), 4 MEDIUM (3 corrigidos: _isSaving guard, deleteAll, sintaxe), 1 LOW (corrigido)
 - **Schema DB:** v2 (soil_records com texture_class, confidence_score)
 

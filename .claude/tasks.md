@@ -27,6 +27,26 @@
 
 ## Tasks Ativas
 
+### TASK-058 — Corrigir build Android: alinhar JVM target dos plugins (tflite_flutter)
+- **Tipo:** fix
+- **Complexidade:** patch
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** feat/TASK-039-048-ui-redesign-v2
+- **Escopo Técnico:**
+  - `android/build.gradle.kts` — bloco `subprojects { ... }` que (1) eleva Java a 17 nos plugins-biblioteca via `afterEvaluate` guardado por `state.executed` e (2) fixa Kotlin `jvmTarget` em 17 para todos os subprojetos
+- **Critérios de Aceite:**
+  - [x] `flutter run`/`assembleDebug` não falha mais com "Inconsistent JVM-target compatibility" no `:tflite_flutter:compileDebugKotlin`
+  - [x] Build Android conclui e instala no emulador
+  - [x] `flutter analyze` sem erros
+  - [x] `flutter test` sem falhas
+- **Log de Andamento:**
+  - [2026-06-03] — Task registrada. Causa raiz: módulos de plugin (tflite_flutter) compilam Java target 11 e Kotlin target 21, gerando descasamento que aborta o Gradle. App fixa 17 mas não propaga aos subprojetos.
+  - [2026-06-03] — Implementação concluída. tflite_flutter (e demais libs) fixam Java 11 explicitamente em seus build.gradle; AGP finaliza `compileOptions` cedo. Solução: `afterEvaluate` registrado no nível `subprojects` (antes da avaliação dos plugins, roda antes da finalização do AGP) elevando Java a 17, guardado por `!state.executed` para pular `:app` (já avaliado por `evaluationDependsOn`). Kotlin alinhado a 17 via `compilerOptions.jvmTarget` (Kotlin 2.2.20 tornou `kotlinOptions` erro). Build assembleDebug OK em 39s, app instalado e rodando no emulador. flutter analyze OK, flutter test 15/15.
+- **Resultado:** Build Android corrigido. JVM target alinhado em 17 entre Java e Kotlin para app e plugins. App compila, instala e roda no emulador.
+
+---
+
 ### TASK-053 — Atualizar estrutura documentada em .claude/CLAUDE.md para incluir regras 10-12
 - **Tipo:** docs
 - **Complexidade:** patch
