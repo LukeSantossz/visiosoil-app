@@ -462,6 +462,53 @@
 
 ## Tasks Concluídas
 
+### TASK-059 — Reconciliar merge dev→main (resolução de conflitos de governança)
+- **Tipo:** chore
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** dev
+- **Escopo Técnico:**
+  - `README.md` — manter o template de portfólio da `main`, atualizar informações para refletir as features mergeadas da branch UI
+  - `.claude/registry.md` — estrutura da `main` + união das entradas de implementação da `dev`
+  - `.claude/tasks.md` — base da `dev` (organização Ativas/Concluídas) + incorporação do task de README da `main`
+- **Critérios de Aceite:**
+  - [x] Conflitos de merge resolvidos nos 3 arquivos de docs/governança
+  - [x] Nenhum conflito de código (apenas docs)
+  - [x] README mantém o template da `main` com informações atualizadas
+  - [x] Framework de governança v1.1.0 da `dev` preservado (rules 10/11 consolidadas nas rules core)
+  - [x] `flutter analyze` sem erros e `flutter test` 15/15
+- **Log de Andamento:**
+  - [2026-06-03] — Merge acidental da branch `feat/TASK-039-048-ui-redesign-v2` (PR #32) na `dev`. Reconhecimento: dev 46 commits à frente em features; main 4 commits à frente em governança (estrutura antiga, pré-v1.1.0). CI verde na dev.
+  - [2026-06-03] — Merge `main`→`dev`: conflitos apenas em README.md, registry.md, tasks.md. Descoberto que a v1.1.0 da `dev` consolidou rules 10/11 nas rules core e removeu os arquivos standalone — o merge preserva corretamente o framework mais novo da `dev`. Colisão de id TASK-039 (README na main vs design tokens na UI) preservada e documentada.
+- **Resultado:** Merge reconciliado, `dev` pronta para PR limpa contra `main`. Nenhum conflito de código; framework v1.1.0 da `dev` preservado e histórico de tasks consolidado (base da main + entradas da dev).
+
+---
+
+### TASK-039 (README) — Reescrever README raiz seguindo o modelo de portfólio
+- **Tipo:** docs
+- **Complexidade:** minor
+- **Modo:** Desenvolvimento
+- **Status:** concluída
+- **Branch:** docs/TASK-039-readme-portfolio
+- **Nota:** id TASK-039 também usado na branch UI para "Atualizar design tokens" — ver entrada de Tasks Concluídas correspondente. Mantidos os dois trabalhos por serem distintos; ver registry #26 (README) e #27 (design tokens).
+- **Escopo Técnico:**
+  - `README.md` (raiz) — reescrever seguindo `readme_model.md` (ordem canônica, badges de saúde, seções What It Does / What It Is / Tech Stack / Architecture / Engineering Decisions / Getting Started / Project Structure / Project Status / Known Issues)
+- **Critérios de Aceite:**
+  - [x] README segue a ordem e seções canônicas de `readme_model.md`
+  - [x] Todos os comentários HTML e placeholders `{...}` do modelo removidos
+  - [x] Badges comunicam saúde (CI aponta para `main`); nenhum badge de fraqueza
+  - [x] Fatos refletem o estado real: pubspec `2.0.0+2`, deps reais, 5 classes do dataset, schema v2, modelo placeholder
+  - [x] Seções `[OPCIONAL]` sem sinal real removidas (Results, API Reference)
+  - [x] Nenhuma informação inventada (sem números de acurácia não verificáveis)
+- **Log de Andamento:**
+  - [2026-06-02] — Task registrada. Reconhecimento e registry verificados. Fatos coletados: pubspec.yaml, ci.yml, ml/config.yaml.
+  - [2026-06-02] — README reescrito seguindo readme_model.md. Seções Results e API Reference omitidas (sem sinal real). License omitida (sem arquivo LICENSE — evitar invenção). CI badge apontado para main. Classes corrigidas para 5 (dataset real, não 12 USDA). Removida menção inverificável a "ADR 0001".
+  - [2026-06-03] — README atualizado durante a reconciliação do merge (TASK-059): mantido o template, info ampliada com as telas da branch UI (splash, onboarding, setup, result, settings, recomendações mock).
+- **Resultado:** README raiz reescrito no padrão de portfólio e mantido como template no merge dev→main. Fatos alinhados ao estado real e atualizados com as novas features.
+
+---
+
 ### TASK-052 — Redesign info de captura: chips sobrepostos na imagem
 - **Tipo:** feat
 - **Complexidade:** patch
