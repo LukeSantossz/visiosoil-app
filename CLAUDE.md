@@ -86,6 +86,16 @@ This project uses a mandatory governance system defined in `.claude/`. Before mo
 - Project registry (`.claude/registry.md`) must be updated after each completed task
 - Full workflow: CRURA — Change → Review → Upload → Review Again → Auto-Review
 
+## External Knowledge Base
+
+Path: C:\Users\lucas\OneDrive\Desktop\llm-wiki\wiki\
+Index: wiki/index.md
+
+**Usage rules:**
+- READ-ONLY — do not modify, create, or update files in this folder
+- Consult before: deciding stack, investigating recurring bugs, making architectural decisions
+- The `index.md` file is the entry point for navigation
+
 ## Conventions
 
 - **Language:** Commit messages, code comments, and variable names in English. Governance docs (`.claude/`) are in Portuguese.

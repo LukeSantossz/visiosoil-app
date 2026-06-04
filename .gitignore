@@ -39,6 +39,7 @@ migrate_working_dir/
 *.g.dart
 *.freezed.dart
 *.mocks.dart
+problems-report.html
 
 # Symbolication related
 app.*.symbols
@@ -74,5 +75,10 @@ nul
 ml/.venv/
 ml/data/raw/
 ml/data/processed/
-ml/models/**/model.h5
+ml/data/splits/
+ml/models/**/
 ml/notebooks/.ipynb_checkpoints/
+
+# ML generated assets (output of training pipeline)
+assets/models/*.tflite
+assets/models/spec.json

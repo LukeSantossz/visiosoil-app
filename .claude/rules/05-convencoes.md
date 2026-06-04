@@ -32,7 +32,7 @@ Estrutura obrigatória: `!type(?scope): !subject`
 
 - **type:** o tipo da alteração (ver tabela abaixo).
 - **scope:** o contexto da mudança (opcional, entre parênteses).
-- **subject:** mensagem descritiva **em inglês**, no imperativo, lowercase. Teste: "If applied, this commit will... [subject]".
+- **subject:** mensagem descritiva no imperativo. Teste: "Se aplicado, este commit irá... [subject]".
 
 | Tipo | Quando usar |
 |------|-------------|
@@ -48,13 +48,15 @@ Estrutura obrigatória: `!type(?scope): !subject`
 | `ci` | Configuração de CI |
 | `revert` | Reversão de um commit anterior |
 
-Exemplos: `feat(auth): add google sign-in integration`, `fix(api): handle 500 error on users endpoint`.
+Exemplos: `feat(auth): adiciona integração com Google`, `fix(api): trata erro 500 no endpoint de usuários`.
 
 **Restrições obrigatórias de commit:**
 
 - **Sem body/description:** O commit contém APENAS a linha de subject. Nunca adicione corpo, rodapé, parágrafos explicativos ou qualquer texto além da primeira linha. Se a mudança não cabe em uma linha de subject clara, a mudança é grande demais — quebre em commits menores.
 - **Sem Co-authored-by:** Nunca inclua trailers de co-autoria (`Co-authored-by`, `Signed-off-by`, etc.). O responsável pelo commit é quem o executa. Código gerado por IA não tem autoria a ser creditada.
 - **Formato final do comando:** `git commit -m "type(scope): subject"` — nada além disso.
+
+**Dimensão pública do histórico:** Em repositórios públicos, o histórico de commits é leitura externa — vide guia de portfólio (`.claude/guides/guia-portfolio.md`). Mensagens fora do padrão Conventional Commits comunicam amadorismo no portfólio independentemente da qualidade do código.
 
 ## 5.3 Branches — Nomenclatura
 
@@ -67,16 +69,3 @@ Toda branch de trabalho segue o formato: `type/TASK-NNN-descricao-curta`
 Exemplos: `feat/TASK-001-login-google`, `fix/TASK-012-erro-upload-foto`, `refactor/TASK-023-migrar-hive`.
 
 O agente deve sugerir o nome da branch ao iniciar uma task, seguindo esta convenção. Se o projeto já possuir uma convenção de branches estabelecida, ela tem precedência.
-
-## 5.4 Pull Requests — Labels Obrigatórias
-
-Toda Pull Request criada pelo agente deve incluir labels correspondentes. O agente aplica labels via `gh pr create --label` ou `gh pr edit --add-label`.
-
-**Labels mínimas obrigatórias:**
-
-| Label | Quando aplicar |
-|-------|---------------|
-| Tipo (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`) | Sempre — corresponde ao tipo do commit/task |
-| `patch`, `minor` ou `major` | Sempre — corresponde à complexidade da task |
-
-O agente deve verificar se as labels existem no repositório antes de aplicá-las. Se não existirem, deve criá-las via `gh label create` ou informar ao usuário.

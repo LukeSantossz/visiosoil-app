@@ -31,4 +31,20 @@ abstract class SoilRecordRepository {
 
   /// Remove em lote os registros cujos ids constam em [ids].
   Future<void> deleteByIds(List<int> ids);
+
+  /// Remove todos os registros do banco em uma unica operacao.
+  Future<void> deleteAll();
+
+  /// Emite lista filtrada de registros, reagindo a mudancas no banco.
+  ///
+  /// [textureClass] filtra por classe de textura (match exato).
+  /// [searchTerm] filtra por endereco (LIKE case-insensitive).
+  /// Se ambos forem null, comportamento identico a [watchAll].
+  Stream<List<SoilRecord>> watchFiltered({
+    String? textureClass,
+    String? searchTerm,
+  });
+
+  /// Retorna lista de classes de textura distintas presentes no banco.
+  Future<List<String>> getDistinctTextureClasses();
 }
