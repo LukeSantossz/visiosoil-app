@@ -20,7 +20,7 @@ Output [1, 5] float32 probabilities
 
 **Training:** 2-phase transfer learning:
 1. **Phase 1 (Head-only):** Backbone frozen, trains classification head with LR 1e-3.
-2. **Phase 2 (Fine-tuning):** Top 50 backbone layers unfrozen, LR 1e-5, EarlyStopping on val_accuracy.
+2. **Phase 2 (Fine-tuning):** Top 50 backbone layers unfrozen, LR 1e-4, EarlyStopping on val_accuracy.
 
 **Class balancing:** Computed class weights (`n_samples / (n_classes * n_samples_i)`) to handle imbalanced dataset.
 
@@ -75,10 +75,10 @@ The pipeline creates stratified train/val/test splits automatically and saves th
 ## Training
 
 ```bash
-python -m src.train --version v2
+python -m src.train --version v1
 ```
 
-Saves the Keras checkpoint (`model.keras`), config snapshot (`config.json`), training history (`history.json`), and best model checkpoint (`best_model.keras`) to `models/v2/`.
+Saves the Keras checkpoint (`model.keras`), config snapshot (`config.json`), training history (`history.json`), and best model checkpoint (`best_model.keras`) to `models/v1/`.
 
 The training runs in two phases:
 - **Phase 1:** Head-only training (backbone frozen) for the first N epochs (configured by `model.unfreeze_at_epoch`).
@@ -87,33 +87,33 @@ The training runs in two phases:
 ## Evaluation
 
 ```bash
-python -m src.evaluate --version v2
+python -m src.evaluate --version v1
 ```
 
-Generates `models/v2/metrics.json` with accuracy, F1 scores, per-class metrics, and `models/v2/confusion_matrix.png`.
+Generates `models/v1/metrics.json` with accuracy, F1 scores, per-class metrics, and `models/v1/confusion_matrix.png`.
 
 ## Export to TFLite
 
 ```bash
-python -m src.export --version v2
+python -m src.export --version v1
 ```
 
-Converts the Keras model to TFLite (no quantization by default) and generates `models/v2/spec.json` — the integration contract consumed by the Flutter `InferenceService`.
+Converts the Keras model to TFLite (no quantization by default) and generates `models/v1/spec.json` — the integration contract consumed by the Flutter `InferenceService`.
 
 ## Full Pipeline
 
 Run all three steps in sequence:
 
 ```bash
-python -m src.train --version v2
-python -m src.evaluate --version v2
-python -m src.export --version v2
+python -m src.train --version v1
+python -m src.evaluate --version v1
+python -m src.export --version v1
 ```
 
 On macOS/Linux, you can also use the helper script:
 
 ```bash
-bash scripts/train_and_export.sh v2
+bash scripts/train_and_export.sh v1
 ```
 
 ### Configuration
@@ -134,7 +134,7 @@ Copies `model.tflite` and `spec.json` to the Flutter `assets/models/` directory.
 **Windows (PowerShell):**
 
 ```powershell
-$version = "v2"
+$version = "v1"
 Copy-Item "models\$version\model.tflite" "..\assets\models\soil_classifier.tflite"
 Copy-Item "models\$version\spec.json" "..\assets\models\spec.json"
 ```
@@ -142,10 +142,16 @@ Copy-Item "models\$version\spec.json" "..\assets\models\spec.json"
 **macOS / Linux:**
 
 ```bash
-bash scripts/deploy_to_app.sh v2
+bash scripts/deploy_to_app.sh v1
 ```
 
 After deploying, run `flutter build apk --release` to verify the build.
+
+## Versioning
+
+Models are stored in `models/vN/` directories. Increment the version number for each new training run to preserve history.
+
+Previous versions (v1 SqueezeNet, v2 MobileNetV2 with label ordering bug) were cleaned as part of pipeline corrections. New training starts from `v1` with the corrected pipeline.
 
 ## Tests
 
@@ -169,7 +175,7 @@ The Flutter `InferenceService` reads `spec.json` to understand the model contrac
 ## Artifacts per Version
 
 ```
-models/v2/
+models/v1/
 ├── model.tflite         # Deployable TFLite model
 ├── model.keras          # Keras checkpoint (gitignored)
 ├── best_model.keras     # Best checkpoint from Phase 2 (gitignored)

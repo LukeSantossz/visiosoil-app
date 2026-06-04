@@ -27,11 +27,19 @@ abstract final class AppColors {
   static const Color errorContainer = Color(0xFFFFDAD6);
   static const Color onErrorContainer = Color(0xFF410002);
 
+  // Warning - Amber terroso
+  static const Color warning = Color(0xFFC88A3D);
+  static const Color warningContainer = Color(0xFFFBEBD2);
+
+  // Success (alias for primary in agricultural context)
+  static const Color success = Color(0xFF4A7C59);
+
   // Background & Surface
   static const Color background = Color(0xFFF8FAF5);
   static const Color onBackground = Color(0xFF1A1C19);
   static const Color surface = Color(0xFFFCFDF8);
   static const Color onSurface = Color(0xFF1A1C19);
+  static const Color surfaceDim = Color(0xFFF0F2EB);
   static const Color surfaceVariant = Color(0xFFE0E4DA);
   static const Color onSurfaceVariant = Color(0xFF43483E);
 
@@ -47,6 +55,13 @@ abstract final class AppColors {
   // Misc
   static const Color shadow = Color(0xFF000000);
   static const Color scrim = Color(0xFF000000);
+
+  // --- Soil texture class colors ---
+  static const Color soilSandy = Color(0xFFD8B384);
+  static const Color soilSilt = Color(0xFFB8A27C);
+  static const Color soilMedium = Color(0xFF9C7B4F);
+  static const Color soilClay = Color(0xFF7A4E2D);
+  static const Color soilVeryClay = Color(0xFF5B3518);
 
   /// ColorScheme para uso com ThemeData
   static ColorScheme get colorScheme => const ColorScheme(
