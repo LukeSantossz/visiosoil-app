@@ -75,32 +75,11 @@ lib/
 
 `soil_records` table: `id` (PK auto), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `texture_class?`, `confidence_score?`
 
-## Governance
-
-This project uses a mandatory governance system defined in `.claude/`. Before modifying code, read `.claude/CLAUDE.md` for the full operating rules. Key points:
-
-- Every code change requires a task registered in `.claude/tasks.md` before implementation
-- The agent must declare an operation mode (Development / Review / Tutor) per session
-- Codebase reconnaissance (`.claude/rules/02-reconhecimento.md`) is required before implementation
-- Post-implementation assessment is mandatory (`.claude/rules/04-avaliacao-pos.md`)
-- Project registry (`.claude/registry.md`) must be updated after each completed task
-- Full workflow: CRURA — Change → Review → Upload → Review Again → Auto-Review
-
-## External Knowledge Base
-
-Path: C:\Users\lucas\OneDrive\Desktop\llm-wiki\wiki\
-Index: wiki/index.md
-
-**Usage rules:**
-- READ-ONLY — do not modify, create, or update files in this folder
-- Consult before: deciding stack, investigating recurring bugs, making architectural decisions
-- The `index.md` file is the entry point for navigation
-
 ## Conventions
 
-- **Language:** Commit messages, code comments, and variable names in English. Governance docs (`.claude/`) are in Portuguese.
+- **Language:** Commit messages, code comments, and variable names in English.
 - **Commits:** `type(scope): subject` — no body, no co-authored-by. Imperative mood, lowercase. Format: `git commit -m "type(scope): subject"` — nothing else.
-- **Branches:** `type/TASK-NNN-description`
+- **Branches:** `type/short-description`
 - **Naming:** VAR Method suffixes — `Service`, `Repository`, `Provider`, `Handler`, `Manager`, etc.
 - **Linting:** `flutter_lints` via `analysis_options.yaml`
 - **PR Labels:** Always include type label (`feat`, `fix`, etc.) and complexity label (`patch`, `minor`, `major`)

@@ -116,8 +116,7 @@ visiosoil-app/
 │   └── providers/           # Riverpod providers (database, repository, inference, image)
 ├── ml/                      # TF/Keras training pipeline (MobileNetV2 → TFLite)
 ├── assets/models/           # Deployed .tflite model + spec
-├── test/                    # Unit + repository tests (in-memory SQLite)
-└── .claude/                 # Governance system (rules, tasks, registry)
+└── test/                    # Unit + repository tests (in-memory SQLite)
 ```
 
 ## Project Status
@@ -159,4 +158,4 @@ visiosoil-app/
 
 ## Contributing
 
-This project follows a mandatory governance workflow defined in `.claude/`. In short: register a task in `.claude/tasks.md` → branch (`type/TASK-NNN-description`) → keep tests green → use Conventional Commits (`type(scope): subject`) → open a PR with type and complexity labels. See `.claude/CLAUDE.md` for the full rules.
+Branch from `main` (`type/short-description`), keep `flutter analyze` and `flutter test` green, use single-line Conventional Commits (`type(scope): subject`), and open a PR with type and complexity labels.
