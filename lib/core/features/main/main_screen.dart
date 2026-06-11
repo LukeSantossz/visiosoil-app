@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_page.dart';
-import 'package:visiosoil_app/core/features/recommendations/recommendations_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,7 +14,6 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     HomePage(),
-    RecommendationsScreen(),
     HistoryScreen(),
   ];
 
@@ -47,11 +45,6 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home),
               label: 'Início',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.eco_outlined),
-              selectedIcon: Icon(Icons.eco),
-              label: 'Manejo',
             ),
             NavigationDestination(
               icon: Icon(Icons.photo_library_outlined),

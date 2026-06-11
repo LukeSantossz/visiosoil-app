@@ -8,7 +8,6 @@ import 'package:visiosoil_app/core/features/history/history.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
-import 'package:visiosoil_app/core/features/recommendations/recommendations_screen.dart';
 import 'package:visiosoil_app/core/features/result/result_screen.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
@@ -69,14 +68,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
-    ),
-    GoRoute(
-      path: '/recommendations',
-      builder: (context, state) {
-        final extra = state.extra;
-        final textureClass = extra is String ? extra : 'Média';
-        return RecommendationsScreen(textureClass: textureClass);
-      },
     ),
   ],
 );
