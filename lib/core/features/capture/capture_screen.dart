@@ -66,35 +66,31 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage() async {
     // Verifica permissao de camera antes de abrir
-    if (source == ImageSource.camera) {
-      final status = await PermissionService.checkCamera();
+    final status = await PermissionService.checkCamera();
+    if (!mounted) return;
+
+    if (status != AppPermissionStatus.granted) {
+      final requestStatus = await PermissionService.requestCamera();
       if (!mounted) return;
 
-      if (status != AppPermissionStatus.granted) {
-        final requestStatus = await PermissionService.requestCamera();
-        if (!mounted) return;
-
-        if (requestStatus != AppPermissionStatus.granted) {
-          setState(() => _cameraPermissionStatus = requestStatus);
-          return;
-        }
+      if (requestStatus != AppPermissionStatus.granted) {
+        setState(() => _cameraPermissionStatus = requestStatus);
+        return;
       }
-      // Limpa estado de permissao se concedida
-      if (_cameraPermissionStatus != null) {
-        setState(() => _cameraPermissionStatus = null);
-      }
+    }
+    // Limpa estado de permissao se concedida
+    if (_cameraPermissionStatus != null) {
+      setState(() => _cameraPermissionStatus = null);
     }
 
     final picker = ImagePicker();
-    // TODO(v2): reativar galeria
-    // await picker.pickImage(source: ImageSource.gallery);
-    final XFile? image = await picker.pickImage(source: source);
+    final XFile? image = await picker.pickImage(source: ImageSource.camera);
 
     if (!mounted || image == null) return;
 
-    ref.read(imageProvider.notifier).setImage(File(image.path), source);
+    ref.read(imageProvider.notifier).setImage(File(image.path));
 
     setState(() {
       _address = null;
@@ -103,14 +99,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       _classificationResult = null;
     });
 
-    // TODO(v2): reativar galeria — Task 15: geolocalização somente para `ImageSource.camera`.
-    // if (source == ImageSource.camera) {
     // Executa localização e classificação em paralelo (são independentes)
     await Future.wait([
       _fetchCurrentLocation(),
       _classifySoilTexture(image.path),
     ]);
-    // }
   }
 
   Future<void> _classifySoilTexture(String imagePath) async {
@@ -168,13 +161,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     setState(() => _isSaving = true);
 
     try {
-      // TODO(v2): reativar galeria — Task 15: sem coordenadas quando a origem é galeria.
-      // final isGallery = selectedImage.source == ImageSource.gallery;
-      // final String? finalAddress = isGallery
-      //     ? null
-      //     : (_address ?? 'Localização não disponível');
-      // final double? finalLatitude = isGallery ? null : _latitude;
-      // final double? finalLongitude = isGallery ? null : _longitude;
       final String finalAddress =
           _address ?? 'Localizacao nao disponivel';
       final double? finalLatitude = _latitude;
@@ -219,7 +205,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   void _retryCameraPermission() {
     setState(() => _cameraPermissionStatus = null);
-    _pickImage(ImageSource.camera);
+    _pickImage();
   }
 
   @override
@@ -251,8 +237,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final selectedImage = ref.watch(imageProvider);
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
-    // TODO(v2): reativar galeria
-    // final isFromGallery = selectedImage.source == ImageSource.gallery;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Nova Captura'),
@@ -275,31 +259,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               const SizedBox(height: AppSpacing.lg),
               // Botões de ação
               if (!hasImage) ...[
-                // TODO(v2): reativar galeria — opção `ImageSource.gallery` na UI.
-                // Row(
-                //   children: [
-                //     Expanded(
-                //       child: VisioButton(
-                //         label: 'Câmera',
-                //         icon: Icons.camera_alt,
-                //         onPressed: () => _pickImage(ImageSource.camera),
-                //       ),
-                //     ),
-                //     const SizedBox(width: AppSpacing.md),
-                //     Expanded(
-                //       child: VisioButton(
-                //         label: 'Galeria',
-                //         icon: Icons.photo_library,
-                //         onPressed: () => _pickImage(ImageSource.gallery),
-                //         variant: VisioButtonVariant.secondary,
-                //       ),
-                //     ),
-                //   ],
-                // ),
                 VisioButton(
                   label: 'Câmera',
                   icon: Icons.camera_alt,
-                  onPressed: () => _pickImage(ImageSource.camera),
+                  onPressed: _pickImage,
                   expanded: true,
                 ),
               ] else ...[

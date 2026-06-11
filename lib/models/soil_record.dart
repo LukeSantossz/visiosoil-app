@@ -56,8 +56,7 @@ class SoilRecord {
       address != null &&
       address!.isNotEmpty &&
       address != 'Localização não disponível' &&
-      address != 'Localização não informada' &&
-      address != 'Localização indisponível para imagens da galeria';
+      address != 'Localização não informada';
 
   /// Retorna o timestamp formatado para exibição.
   String get formattedTimestamp => Formatters.timestamp(timestamp);

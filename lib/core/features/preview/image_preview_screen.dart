@@ -207,7 +207,7 @@ class _InfoPanel extends StatelessWidget {
                     ? record.address!
                     : (record.hasCoordinates
                           ? record.formattedCoordinates
-                          : 'Indisponível para imagens da galeria'),
+                          : 'Localização indisponível'),
               ),
               if (record.hasCoordinates && record.hasValidAddress) ...[
                 const SizedBox(height: AppSpacing.sm),

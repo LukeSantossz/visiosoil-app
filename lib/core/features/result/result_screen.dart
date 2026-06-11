@@ -152,20 +152,6 @@ class ResultScreen extends ConsumerWidget {
                 // Action buttons
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.push(
-                        '/recommendations',
-                        extra: record.textureClass ?? 'Média',
-                      );
-                    },
-                    icon: const Icon(Icons.auto_awesome_outlined),
-                    label: const Text('Ver plano de manejo'),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () => context.go('/capture'),
                     icon: const Icon(Icons.camera_alt_outlined),

@@ -423,18 +423,6 @@ class _ActionButtons extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Recommendations
-        OutlinedButton.icon(
-          onPressed: () {
-            context.push(
-              '/recommendations',
-              extra: record.textureClass ?? 'Média',
-            );
-          },
-          icon: const Icon(Icons.auto_awesome_outlined),
-          label: const Text('Ver plano de manejo'),
-        ),
-        const SizedBox(height: AppSpacing.sm),
         // Share placeholder
         OutlinedButton.icon(
           onPressed: () {
