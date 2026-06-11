@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/features/capture/capture.dart';
+import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/processing_screen.dart';
 import 'package:visiosoil_app/core/features/capture/setup_screen.dart';
 import 'package:visiosoil_app/core/features/details/details.dart';
-import 'package:visiosoil_app/core/features/history/history.dart';
+import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
@@ -18,12 +18,12 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
-    GoRoute(path: '/capture', builder: (context, state) => const CapturePage()),
+    GoRoute(path: '/capture', builder: (context, state) => const CaptureScreen()),
     GoRoute(
       path: '/capture/setup',
       builder: (context, state) => const SetupScreen(),
     ),
-    GoRoute(path: '/history', builder: (context, state) => const HistoryPage()),
+    GoRoute(path: '/history', builder: (context, state) => const HistoryScreen()),
     GoRoute(
       path: '/details',
       builder: (context, state) {
