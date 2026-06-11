@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (12 USDA texture classes).
+**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (5 soil texture classes).
 
 **Stack:** Flutter 3.x / Dart 3.10.4+ / Riverpod / GoRouter / Drift+SQLite / TFLite
 
@@ -42,7 +42,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 5 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
+- **Navigation:** `go_router` with 11 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
 - **Persistence:** Drift + SQLite with schema versioning (currently v2). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
 
@@ -60,14 +60,15 @@ lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
 │   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing
-│   ├── routes/app_router.dart         # GoRouter config (5 routes)
-│   ├── widgets/                       # Reusable: VisioAppBar, VisioButton, VisioCard, EmptyState
+│   ├── routes/app_router.dart         # GoRouter config (11 routes)
+│   ├── widgets/                       # Reusable: VisioAppBar, VisioButton, EmptyState
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
 │   ├── services/inference_service.dart # TFLite classification (isolate-based)
 │   ├── database/                      # Drift DB class + tables + generated code
 │   ├── data/repositories/             # Abstract interface + Drift implementation
-│   └── features/                      # Screens: home, capture, history, details, preview, main
-├── models/soil_record.dart            # Domain model (plain Dart, copyWith, computed getters)
+│   └── features/                      # Screens: splash, onboarding, main, home, capture,
+│                                      #          history, details, preview, result, settings
+├── models/                            # Domain models: SoilRecord, CaptureContext, HomeStats
 └── providers/                         # Riverpod providers (database, repository, inference, image)
 ```
 
@@ -94,7 +95,13 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 ## Current Limitations
 
 - TFLite model file (`assets/models/soil_classifier.tflite`) is a placeholder — production model not yet trained
-- Gallery image source disabled (camera-only); code preserved behind `TODO(v2)`
+- Camera-only capture by design — gallery source will not be added
 - No remote sync yet (repository interface prepared for it)
 - `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
-- `pubspec.yaml` version (`1.0.0+1`) is out of sync with the logical version (`v1.1.0` per git tags) — to be aligned on next release
+
+## Known Technical Debt
+
+- `/capture/setup` wizard is orphaned: no screen navigates to it, the `/capture` route ignores `state.extra`, and `soil_records` (v2) has no columns for crop/season/depth — either persist `CaptureContext` (schema v3) or remove the wizard
+- `/processing` and `/result` routes are registered but have no callers in the UI — integrate or remove
+- Labels and preprocessing are hardcoded in `InferenceService` — `spec.json` is not read at runtime
+- Address sentinel mismatch: capture saves `'Localizacao nao disponivel'` (unaccented) but `SoilRecord.hasValidAddress` checks accented variants — align the strings
