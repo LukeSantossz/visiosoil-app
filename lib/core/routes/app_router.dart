@@ -8,11 +8,9 @@ import 'package:visiosoil_app/core/features/history/history.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
-import 'package:visiosoil_app/core/features/lot/lot_detail_screen.dart';
 import 'package:visiosoil_app/core/features/recommendations/recommendations_screen.dart';
 import 'package:visiosoil_app/core/features/result/result_screen.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
-import 'package:visiosoil_app/models/capture_context.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -78,14 +76,6 @@ final appRouter = GoRouter(
         final extra = state.extra;
         final textureClass = extra is String ? extra : 'Média';
         return RecommendationsScreen(textureClass: textureClass);
-      },
-    ),
-    GoRoute(
-      path: '/lot-detail',
-      builder: (context, state) {
-        final extra = state.extra;
-        final lot = extra is Lot ? extra : Lot.mockLots.first;
-        return LotDetailScreen(lot: lot);
       },
     ),
   ],
