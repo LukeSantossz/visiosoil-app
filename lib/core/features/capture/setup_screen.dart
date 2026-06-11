@@ -5,9 +5,9 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/capture_context.dart';
 
-/// Tela de setup pré-captura com wizard de 3 passos.
+/// Tela de setup pré-captura com wizard de 2 passos.
 ///
-/// Permite selecionar lote, cultura/época e profundidade antes de
+/// Permite selecionar cultura/época e profundidade antes de
 /// abrir a câmera para captura da amostra de solo.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -21,12 +21,11 @@ class _SetupScreenState extends State<SetupScreen> {
   int _currentStep = 0;
 
   // Seleções do usuário
-  Lot? _selectedLot;
   Crop? _selectedCrop;
   PlantingSeason? _selectedSeason;
   SamplingDepth? _selectedDepth;
 
-  static const _totalSteps = 3;
+  static const _totalSteps = 2;
 
   @override
   void dispose() {
@@ -58,7 +57,6 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _openCamera() {
     final captureContext = CaptureContext(
-      lot: _selectedLot,
       crop: _selectedCrop,
       plantingSeason: _selectedSeason,
       samplingDepth: _selectedDepth,
@@ -70,10 +68,8 @@ class _SetupScreenState extends State<SetupScreen> {
   bool get _canProceed {
     switch (_currentStep) {
       case 0:
-        return _selectedLot != null;
-      case 1:
         return _selectedCrop != null && _selectedSeason != null;
-      case 2:
+      case 1:
         return _selectedDepth != null;
       default:
         return false;
@@ -83,10 +79,8 @@ class _SetupScreenState extends State<SetupScreen> {
   String get _stepTitle {
     switch (_currentStep) {
       case 0:
-        return 'Selecione o Lote';
-      case 1:
         return 'Cultura e Época';
-      case 2:
+      case 1:
         return 'Profundidade';
       default:
         return '';
@@ -118,10 +112,6 @@ class _SetupScreenState extends State<SetupScreen> {
               physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (index) => setState(() => _currentStep = index),
               children: [
-                _LotSelectionStep(
-                  selectedLot: _selectedLot,
-                  onLotSelected: (lot) => setState(() => _selectedLot = lot),
-                ),
                 _CropSelectionStep(
                   selectedCrop: _selectedCrop,
                   selectedSeason: _selectedSeason,
@@ -134,7 +124,6 @@ class _SetupScreenState extends State<SetupScreen> {
                   onDepthSelected: (depth) =>
                       setState(() => _selectedDepth = depth),
                   context: CaptureContext(
-                    lot: _selectedLot,
                     crop: _selectedCrop,
                     plantingSeason: _selectedSeason,
                     samplingDepth: _selectedDepth,
@@ -212,146 +201,7 @@ class _ProgressIndicator extends StatelessWidget {
   }
 }
 
-/// Passo 1: Seleção de lote.
-class _LotSelectionStep extends StatelessWidget {
-  const _LotSelectionStep({
-    required this.selectedLot,
-    required this.onLotSelected,
-  });
-
-  final Lot? selectedLot;
-  final ValueChanged<Lot> onLotSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        Text(
-          'Em qual lote você está coletando a amostra?',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppColors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        // Lista de lotes
-        ...Lot.mockLots.map((lot) => _LotCard(
-              lot: lot,
-              isSelected: selectedLot?.id == lot.id,
-              onTap: () => onLotSelected(lot),
-            )),
-        const SizedBox(height: AppSpacing.md),
-        // Adicionar novo lote (placeholder)
-        OutlinedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Cadastro de lotes em breve'),
-              ),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Adicionar novo lote'),
-        ),
-      ],
-    );
-  }
-}
-
-/// Card de seleção de lote.
-class _LotCard extends StatelessWidget {
-  const _LotCard({
-    required this.lot,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final Lot lot;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Material(
-        color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-        borderRadius: AppRadius.borderRadiusMd,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.borderRadiusMd,
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? AppColors.primary : AppColors.outlineVariant,
-                width: isSelected ? 2 : 1,
-              ),
-              borderRadius: AppRadius.borderRadiusMd,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.surfaceVariant,
-                    borderRadius: AppRadius.borderRadiusSm,
-                  ),
-                  child: Icon(
-                    Icons.landscape,
-                    color: isSelected
-                        ? AppColors.onPrimary
-                        : AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        lot.name,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (lot.areHectares != null)
-                        Text(
-                          '${lot.areHectares} ha',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  const Icon(
-                    Icons.check_circle,
-                    color: AppColors.primary,
-                  )
-                else
-                  const Icon(
-                    Icons.circle_outlined,
-                    color: AppColors.outlineVariant,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Passo 2: Seleção de cultura e época.
+/// Passo 1: Seleção de cultura e época.
 class _CropSelectionStep extends StatelessWidget {
   const _CropSelectionStep({
     required this.selectedCrop,
@@ -500,7 +350,7 @@ class _CropCard extends StatelessWidget {
   }
 }
 
-/// Passo 3: Seleção de profundidade + resumo.
+/// Passo 2: Seleção de profundidade + resumo.
 class _DepthSelectionStep extends StatelessWidget {
   const _DepthSelectionStep({
     required this.selectedDepth,
@@ -534,7 +384,7 @@ class _DepthSelectionStep extends StatelessWidget {
             )),
         const SizedBox(height: AppSpacing.xxl),
         // Resumo
-        if (context.lot != null || context.crop != null) ...[
+        if (context.crop != null) ...[
           Text(
             'Resumo',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -550,12 +400,6 @@ class _DepthSelectionStep extends StatelessWidget {
             ),
             child: Column(
               children: [
-                if (context.lot != null)
-                  _SummaryRow(
-                    icon: Icons.landscape,
-                    label: 'Lote',
-                    value: context.lot!.name,
-                  ),
                 if (context.crop != null)
                   _SummaryRow(
                     icon: Icons.eco,

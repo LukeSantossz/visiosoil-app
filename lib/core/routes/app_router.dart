@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/features/capture/capture.dart';
+import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/processing_screen.dart';
 import 'package:visiosoil_app/core/features/capture/setup_screen.dart';
 import 'package:visiosoil_app/core/features/details/details.dart';
-import 'package:visiosoil_app/core/features/history/history.dart';
+import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
-import 'package:visiosoil_app/core/features/lot/lot_detail_screen.dart';
-import 'package:visiosoil_app/core/features/recommendations/recommendations_screen.dart';
 import 'package:visiosoil_app/core/features/result/result_screen.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
-import 'package:visiosoil_app/models/capture_context.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -21,12 +18,12 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
-    GoRoute(path: '/capture', builder: (context, state) => const CapturePage()),
+    GoRoute(path: '/capture', builder: (context, state) => const CaptureScreen()),
     GoRoute(
       path: '/capture/setup',
       builder: (context, state) => const SetupScreen(),
     ),
-    GoRoute(path: '/history', builder: (context, state) => const HistoryPage()),
+    GoRoute(path: '/history', builder: (context, state) => const HistoryScreen()),
     GoRoute(
       path: '/details',
       builder: (context, state) {
@@ -71,22 +68,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
-    ),
-    GoRoute(
-      path: '/recommendations',
-      builder: (context, state) {
-        final extra = state.extra;
-        final textureClass = extra is String ? extra : 'Média';
-        return RecommendationsScreen(textureClass: textureClass);
-      },
-    ),
-    GoRoute(
-      path: '/lot-detail',
-      builder: (context, state) {
-        final extra = state.extra;
-        final lot = extra is Lot ? extra : Lot.mockLots.first;
-        return LotDetailScreen(lot: lot);
-      },
     ),
   ],
 );
