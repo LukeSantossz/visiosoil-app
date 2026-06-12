@@ -155,3 +155,7 @@ visiosoil-app/
 ## Contributing
 
 Branch from `main` (`type/short-description`), keep `flutter analyze` and `flutter test` green, use single-line Conventional Commits (`type(scope): subject`), and open a PR with type and complexity labels.
+
+## License
+
+[MIT](LICENSE)
