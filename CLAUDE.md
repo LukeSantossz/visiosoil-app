@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Standards
+
+Before any development work in this repository, read `.standards/docs/standards/INDEX.md` and the documents it lists. Treat them as binding. If `.standards/` is empty (fresh clone, CI, remote agent session), run `git submodule update --init` first.
+
+- Specify before building: produce a `SPEC.md` per `.standards/docs/standards/spec_method.md` and pass the Spec Gate before writing code for any non-trivial change.
+- Follow `.standards/docs/standards/code_conventions.md`, including its precedence order, which is authoritative for resolving any conflict between rules. The project-specific conventions in this file are the project's established pattern (precedence rule 4) and outrank framework defaults.
+- Write tests before implementation (red-green-refactor), per the Testing section of `code_conventions.md`.
+- Follow `.standards/docs/standards/ai_guidelines.md` for self-review and the Review Composition hierarchy. R1 is the internal subagent review; no second-provider reviewer is configured, so R1 plus human PR review stand in for R2 — note this in each PR. CodeRabbit reviews opened PRs and counts as R3.
+- Follow `.standards/docs/standards/github.md` for Conventional Commits, branch naming, and the PR/Issue/README templates. No co-author or AI-attribution lines in commits.
+- Token economy per `.standards/token_economy.md` (the file lives at the submodule root, not under `docs/standards/`): terse mode is allowed in conversation but never in `SPEC.md`, PR, issue, or commit artifacts. This file is not kept in caveman-compress form because Caveman is not configured.
+- All output in English: identifiers, comments, commit/PR/issue text, documentation. User-facing UI strings are pt-BR product copy and are exempt.
+
 ## Project
 
 **VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (5 soil texture classes).
