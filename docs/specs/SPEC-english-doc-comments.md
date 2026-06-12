@@ -25,7 +25,7 @@ Translate every Portuguese comment (`///` dartdoc and `//` inline) in `lib/` and
 
 ## Acceptance Criteria
 
-- `no_accented_comment_chars_remain`: searching `lib/` and `test/` for comment lines containing accented characters returns zero matches.
+- `no_accented_comment_chars_remain`: searching `lib/` and `test/` for comment lines containing accented characters returns zero matches outside quoted product-output samples. Single documented exception: the dartdoc examples in `lib/core/utils/formatters.dart` quote the formatter's literal pt-BR output ("01/04/2026 às 14:30"), which is data, not Portuguese prose.
 - `no_unaccented_portuguese_comments_remain`: a manual sweep for accent-free Portuguese comment lines (e.g. "registro", "tela", "nao") returns none.
 - `strings_and_code_unchanged`: the diff touches only comment text — no string literal, identifier, or statement changes (verified line-by-line in review).
 - `analyzer_and_tests_unaffected`: `flutter analyze` and `flutter test` pass on CI exactly as on `main`, since comments cannot change semantics.
@@ -33,7 +33,7 @@ Translate every Portuguese comment (`///` dartdoc and `//` inline) in `lib/` and
 ## Reproducibility
 
 ```bash
-grep -rEn --include='*.dart' '//.*[áéíóúâêôãõç]' lib test | wc -l   # expect 0
+grep -rEn --include='*.dart' '//.*[áéíóúâêôãõç]' lib test | grep -v 'formatters.dart' | wc -l   # expect 0 (formatters.dart quotes literal pt-BR output)
 flutter analyze && flutter test                                      # via CI on the PR
 ```
 
