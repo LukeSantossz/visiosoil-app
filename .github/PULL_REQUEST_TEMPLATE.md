@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 -->
 <!--
 Title: Conventional Commits format, type from the Type Table in
 .standards/docs/standards/github.md (e.g. feat(auth): implement password recovery).
@@ -34,4 +35,4 @@ Replace every HTML comment below with real content before requesting review.
 - [ ] Commented-out code and unnecessary debug statements removed.
 - [ ] Code follows the project style guide.
 - [ ] New dependencies work without breaking the build.
-- [ ] Review layers recorded: R1 internal review, R2 cross-provider review, R3 automated PR review where applicable, with Author and Reviewer models named (per `ai_guidelines.md` Review Composition). Note any layer that did not run and why.
+- [ ] Review layers recorded: R1 internal review; R2 cross-provider review when a second-provider reviewer is available, otherwise R1 plus the human PR review stand in for R2 and the absence is noted here; R3 automated PR review where applicable. Name the Author and Reviewer models (per `ai_guidelines.md` Review Composition) and note any layer that did not run and why.

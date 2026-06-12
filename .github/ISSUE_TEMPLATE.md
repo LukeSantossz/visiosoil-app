@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 -->
 <!--
 Title: Conventional Commits format, type from the Type Table in
 .standards/docs/standards/github.md. Use fix for defects, not bug
