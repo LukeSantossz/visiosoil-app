@@ -32,7 +32,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    // Sincroniza controller com provider persistido (ex: apos navegacao)
+    // Syncs the controller with the persisted provider (e.g. after navigation)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentTerm = ref.read(searchTermProvider);
       if (currentTerm.isNotEmpty && _searchController.text != currentTerm) {
@@ -168,7 +168,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Campo de busca
+          // Search field
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
@@ -202,7 +202,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               onChanged: _onSearchChanged,
             ),
           ),
-          // Chips de filtro por classe de textura
+          // Texture class filter chips
           availableClasses.when(
             loading: () => const SizedBox.shrink(),
             error: (error, stackTrace) => const SizedBox.shrink(),

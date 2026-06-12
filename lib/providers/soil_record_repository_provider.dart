@@ -5,36 +5,36 @@ import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/database_provider.dart';
 
-/// Expõe o repositório **pela interface** [SoilRecordRepository]. As telas
-/// nunca devem ler diretamente [DriftSoilRecordRepository].
+/// Exposes the repository **through the interface** [SoilRecordRepository]. Screens
+/// must never read [DriftSoilRecordRepository] directly.
 final soilRecordRepositoryProvider = Provider<SoilRecordRepository>((ref) {
   return DriftSoilRecordRepository(ref.watch(appDatabaseProvider));
 });
 
-/// Stream reativa com todos os registros, do mais recente ao mais antigo.
+/// Reactive stream with all records, from most recent to oldest.
 final soilRecordsStreamProvider = StreamProvider<List<SoilRecord>>((ref) {
   return ref.watch(soilRecordRepositoryProvider).watchAll();
 });
 
-/// Último registro (ou `null` se não houver nenhum).
+/// Latest record (or `null` if there is none).
 ///
-/// Derivado da [soilRecordsStreamProvider] para aproveitar o mesmo stream e
-/// reaproveitar o cache do Riverpod, evitando consultas duplicadas.
+/// Derived from [soilRecordsStreamProvider] to share the same stream and
+/// reuse the Riverpod cache, avoiding duplicate queries.
 final latestSoilRecordProvider = Provider<AsyncValue<SoilRecord?>>((ref) {
   final records = ref.watch(soilRecordsStreamProvider);
   return records.whenData((list) => list.isEmpty ? null : list.first);
 });
 
-/// Carrega um registro por id. `family` permite obter o provider específico
-/// para o id desejado — o Riverpod cuida do cache.
+/// Loads a record by id. `family` allows obtaining the specific provider
+/// for the desired id — Riverpod takes care of the cache.
 final soilRecordByIdProvider =
     FutureProvider.family<SoilRecord?, int>((ref, id) {
   return ref.watch(soilRecordRepositoryProvider).getById(id);
 });
 
-/// Dados agregados para a HomeScreen, derivados do stream reativo.
+/// Aggregated data for the HomeScreen, derived from the reactive stream.
 ///
-/// Atualiza automaticamente ao salvar/deletar registros.
+/// Updates automatically when records are saved/deleted.
 final homeStatsProvider = Provider<AsyncValue<HomeStats>>((ref) {
   final records = ref.watch(soilRecordsStreamProvider);
   return records.whenData((list) {
@@ -56,9 +56,9 @@ final homeStatsProvider = Provider<AsyncValue<HomeStats>>((ref) {
   });
 });
 
-// --- Filtros do Historico ---
+// --- History Filters ---
 
-/// Notifier para filtro de classe de textura.
+/// Notifier for the texture class filter.
 class SelectedTextureFilterNotifier extends Notifier<String?> {
   @override
   String? build() => null;
@@ -66,12 +66,12 @@ class SelectedTextureFilterNotifier extends Notifier<String?> {
   void select(String? textureClass) => state = textureClass;
 }
 
-/// Filtro de classe de textura selecionado (null = todas).
+/// Selected texture class filter (null = all).
 final selectedTextureFilterProvider =
     NotifierProvider<SelectedTextureFilterNotifier, String?>(
         SelectedTextureFilterNotifier.new);
 
-/// Notifier para termo de busca.
+/// Notifier for the search term.
 class SearchTermNotifier extends Notifier<String> {
   @override
   String build() => '';
@@ -79,24 +79,24 @@ class SearchTermNotifier extends Notifier<String> {
   void update(String term) => state = term;
 }
 
-/// Termo de busca por endereco.
+/// Address search term.
 final searchTermProvider =
     NotifierProvider<SearchTermNotifier, String>(SearchTermNotifier.new);
 
-/// Classes de textura disponiveis para filtro.
+/// Texture classes available for filtering.
 final availableTextureClassesProvider = FutureProvider<List<String>>((ref) {
   return ref.watch(soilRecordRepositoryProvider).getDistinctTextureClasses();
 });
 
-/// Stream de registros filtrados.
+/// Stream of filtered records.
 ///
-/// Combina filtro de classe e termo de busca. Atualiza automaticamente
-/// quando qualquer filtro muda ou quando o banco e modificado.
+/// Combines class filter and search term. Updates automatically
+/// when any filter changes or when the database is modified.
 final filteredRecordsProvider = StreamProvider<List<SoilRecord>>((ref) {
   final textureClass = ref.watch(selectedTextureFilterProvider);
   final searchTerm = ref.watch(searchTermProvider);
 
-  // Se nenhum filtro ativo, usa stream normal para performance
+  // If no filter is active, uses the regular stream for performance
   if ((textureClass == null || textureClass.isEmpty) &&
       searchTerm.isEmpty) {
     return ref.watch(soilRecordRepositoryProvider).watchAll();

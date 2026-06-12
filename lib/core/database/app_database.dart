@@ -4,16 +4,16 @@ import 'package:visiosoil_app/core/database/tables/soil_records_table.dart';
 
 part 'app_database.g.dart';
 
-/// Banco de dados local do VisioSoil (SQLite + Drift).
+/// VisioSoil local database (SQLite + Drift).
 ///
-/// Contém apenas a tabela [SoilRecords] por enquanto. Futuras tabelas devem
-/// ser adicionadas ao array `tables` e acompanhadas de um aumento em
-/// [schemaVersion] com a respectiva migração em [migration].
+/// Contains only the [SoilRecords] table for now. Future tables must
+/// be added to the `tables` array and accompanied by a bump in
+/// [schemaVersion] with the corresponding migration in [migration].
 @DriftDatabase(tables: [SoilRecords])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
-  /// Construtor usado em testes para injetar um [QueryExecutor] em memória.
+  /// Constructor used in tests to inject an in-memory [QueryExecutor].
   AppDatabase.forTesting(super.executor);
 
   @override
@@ -23,7 +23,7 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (migrator, from, to) async {
           if (from < 2) {
-            // v1 → v2: adiciona colunas de classificação de textura
+            // v1 → v2: adds texture classification columns
             await migrator.addColumn(soilRecords, soilRecords.textureClass);
             await migrator.addColumn(soilRecords, soilRecords.confidenceScore);
           }
@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
 }
 
 QueryExecutor _openConnection() {
-  // `driftDatabase` cuida do path do diretório de documentos, abertura lazy
-  // e isolate adequado em cada plataforma.
+  // `driftDatabase` takes care of the documents directory path, lazy opening,
+  // and the appropriate isolate on each platform.
   return driftDatabase(name: 'visiosoil');
 }

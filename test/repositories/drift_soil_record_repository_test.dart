@@ -1,9 +1,9 @@
-// Testes de [DriftSoilRecordRepository] usando um banco SQLite em memória.
+// Tests for [DriftSoilRecordRepository] using an in-memory SQLite database.
 //
-// Executa no Dart VM (sem device) — `NativeDatabase.memory()` precisa da
-// biblioteca nativa do SQLite. No CI (Linux/macOS/Windows) isso funciona de
-// fábrica porque `sqlite3_flutter_libs` distribui a shared library; em hosts
-// sem SQLite no PATH pode ser necessário instalar o pacote `sqlite3` do SO.
+// Runs on the Dart VM (no device) — `NativeDatabase.memory()` needs the
+// native SQLite library. On CI (Linux/macOS/Windows) this works out of the
+// box because `sqlite3_flutter_libs` ships the shared library; on hosts
+// without SQLite on the PATH, installing the OS `sqlite3` package may be required.
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
@@ -135,7 +135,7 @@ void main() {
       final emissions = <List<SoilRecord>>[];
       final sub = stream.listen(emissions.add);
 
-      // Aguarda a primeira emissão (lista vazia).
+      // Waits for the first emission (empty list).
       await Future<void>.delayed(const Duration(milliseconds: 50));
       final inserted = await repo.create(sample());
       await Future<void>.delayed(const Duration(milliseconds: 50));

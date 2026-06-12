@@ -1,4 +1,4 @@
-/// Constantes de espaçamento para layout consistente.
+/// Spacing constants for consistent layout.
 abstract final class AppSpacing {
   /// 4.0
   static const double xs = 4.0;

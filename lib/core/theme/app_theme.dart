@@ -3,7 +3,7 @@ import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
 
-/// Tema principal do VisioSoil.
+/// Main VisioSoil theme.
 abstract final class AppTheme {
   /// ThemeData light mode
   static ThemeData get light => ThemeData(

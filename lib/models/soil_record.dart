@@ -1,9 +1,9 @@
 import 'package:visiosoil_app/core/utils/formatters.dart';
 
-/// Registro de amostra de solo (modelo de domínio).
+/// Soil sample record (domain model).
 ///
-/// O [id] é nulo antes da persistência e preenchido pelo repositório após
-/// a inserção no banco de dados.
+/// The [id] is null before persistence and filled in by the repository after
+/// the insertion into the database.
 class SoilRecord {
   final int? id;
   final String imagePath;
@@ -25,7 +25,7 @@ class SoilRecord {
     this.confidenceScore,
   });
 
-  /// Retorna uma cópia deste registro com os campos informados substituídos.
+  /// Returns a copy of this record with the given fields replaced.
   SoilRecord copyWith({
     int? id,
     String? imagePath,
@@ -48,40 +48,40 @@ class SoilRecord {
     );
   }
 
-  /// Indica se o registro possui coordenadas GPS válidas.
+  /// Indicates whether the record has valid GPS coordinates.
   bool get hasCoordinates => latitude != null && longitude != null;
 
-  /// Indica se o registro possui um endereço válido.
+  /// Indicates whether the record has a valid address.
   bool get hasValidAddress =>
       address != null &&
       address!.isNotEmpty &&
       address != 'Localização não disponível' &&
       address != 'Localização não informada';
 
-  /// Retorna o timestamp formatado para exibição.
+  /// Returns the timestamp formatted for display.
   String get formattedTimestamp => Formatters.timestamp(timestamp);
 
-  /// Retorna o timestamp formatado de forma compacta.
+  /// Returns the timestamp formatted in compact form.
   String get formattedTimestampCompact =>
       Formatters.timestampCompact(timestamp);
 
-  /// Retorna as coordenadas formatadas.
+  /// Returns the formatted coordinates.
   String get formattedCoordinates => hasCoordinates
       ? Formatters.coordinates(latitude!, longitude!)
       : 'Coordenadas não disponíveis';
 
-  /// Retorna o endereço ou uma mensagem padrão.
+  /// Returns the address or a default message.
   String get displayAddress =>
       hasValidAddress ? address! : 'Endereço não disponível';
 
-  /// Indica se o registro possui classificação de textura.
+  /// Indicates whether the record has a texture classification.
   bool get hasClassification => textureClass != null && textureClass!.isNotEmpty;
 
-  /// Retorna a classe de textura ou uma mensagem padrão.
+  /// Returns the texture class or a default message.
   String get displayTextureClass =>
       hasClassification ? textureClass! : 'Não classificado';
 
-  /// Retorna o score de confiança formatado como porcentagem.
+  /// Returns the confidence score formatted as a percentage.
   String get formattedConfidence => confidenceScore != null
       ? '${(confidenceScore! * 100).toStringAsFixed(1)}%'
       : '-';

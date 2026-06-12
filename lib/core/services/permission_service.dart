@@ -1,58 +1,58 @@
 import 'package:permission_handler/permission_handler.dart' as ph;
 
-/// Status de permissão para uso na UI.
+/// Permission status for use in the UI.
 enum AppPermissionStatus {
-  /// Permissao concedida.
+  /// Permission granted.
   granted,
 
-  /// Permissao negada (pode ser solicitada novamente).
+  /// Permission denied (can be requested again).
   denied,
 
-  /// Permissao negada permanentemente (requer configuracoes do sistema).
+  /// Permission permanently denied (requires system settings).
   permanentlyDenied,
 
-  /// Permissao restrita pelo sistema (iOS parental controls, MDM).
-  /// Nao pode ser alterada pelo usuario.
+  /// Permission restricted by the system (iOS parental controls, MDM).
+  /// Cannot be changed by the user.
   restricted,
 }
 
-/// Servico para gerenciar permissoes do app.
+/// Service for managing app permissions.
 ///
-/// Encapsula verificacao, solicitacao e redirecionamento para configuracoes
-/// do sistema. Usa o pacote `permission_handler` internamente.
+/// Encapsulates checking, requesting, and redirecting to system
+/// settings. Uses the `permission_handler` package internally.
 class PermissionService {
   const PermissionService._();
 
-  /// Verifica o status atual da permissao de camera.
+  /// Checks the current camera permission status.
   static Future<AppPermissionStatus> checkCamera() async {
     return _toStatus(await ph.Permission.camera.status);
   }
 
-  /// Solicita permissao de camera.
+  /// Requests camera permission.
   ///
-  /// Retorna o status apos a solicitacao.
+  /// Returns the status after the request.
   static Future<AppPermissionStatus> requestCamera() async {
     final status = await ph.Permission.camera.request();
     return _toStatus(status);
   }
 
-  /// Verifica o status atual da permissao de localizacao.
+  /// Checks the current location permission status.
   static Future<AppPermissionStatus> checkLocation() async {
     return _toStatus(await ph.Permission.locationWhenInUse.status);
   }
 
-  /// Solicita permissao de localizacao.
+  /// Requests location permission.
   ///
-  /// Retorna o status apos a solicitacao.
+  /// Returns the status after the request.
   static Future<AppPermissionStatus> requestLocation() async {
     final status = await ph.Permission.locationWhenInUse.request();
     return _toStatus(status);
   }
 
-  /// Abre as configuracoes do app no sistema.
+  /// Opens the app settings in the system.
   ///
-  /// Use quando a permissao foi negada permanentemente e o usuario
-  /// precisa habilita-la manualmente.
+  /// Use when the permission was permanently denied and the user
+  /// needs to enable it manually.
   static Future<bool> openSettings() async {
     return await ph.openAppSettings();
   }

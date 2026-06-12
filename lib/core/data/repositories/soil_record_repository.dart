@@ -1,50 +1,50 @@
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// Contrato de persistência para [SoilRecord].
+/// Persistence contract for [SoilRecord].
 ///
-/// A UI depende apenas desta interface: tipos específicos do Drift nunca
-/// vazam para as camadas de apresentação. Uma implementação baseada em outro
-/// mecanismo (ex.: API remota) poderia ser plugada sem alterar as telas.
+/// The UI depends only on this interface: Drift-specific types never
+/// leak into the presentation layers. An implementation based on another
+/// mechanism (e.g. a remote API) could be plugged in without changing the screens.
 abstract class SoilRecordRepository {
-  /// Persiste [record] e retorna uma cópia com o [SoilRecord.id] preenchido.
+  /// Persists [record] and returns a copy with the [SoilRecord.id] filled in.
   Future<SoilRecord> create(SoilRecord record);
 
-  /// Retorna o registro com o [id] informado ou `null` se não existir.
+  /// Returns the record with the given [id] or `null` if it does not exist.
   Future<SoilRecord?> getById(int id);
 
-  /// Emite a lista completa de registros, ordenada do mais recente ao mais
-  /// antigo, reagindo a mudanças no banco.
+  /// Emits the full list of records, ordered from most recent to oldest,
+  /// reacting to database changes.
   Stream<List<SoilRecord>> watchAll();
 
-  /// Lê a lista completa de registros, ordenada do mais recente ao mais
-  /// antigo, em uma única requisição.
+  /// Reads the full list of records, ordered from most recent to oldest,
+  /// in a single request.
   Future<List<SoilRecord>> getAll();
 
-  /// Retorna o registro mais recente ou `null` se o banco estiver vazio.
+  /// Returns the most recent record or `null` if the database is empty.
   Future<SoilRecord?> getLatest();
 
-  /// Retorna a quantidade total de registros.
+  /// Returns the total number of records.
   Future<int> count();
 
-  /// Remove o registro com o [id] informado. No-op se não existir.
+  /// Deletes the record with the given [id]. No-op if it does not exist.
   Future<void> deleteById(int id);
 
-  /// Remove em lote os registros cujos ids constam em [ids].
+  /// Deletes in batch the records whose ids are listed in [ids].
   Future<void> deleteByIds(List<int> ids);
 
-  /// Remove todos os registros do banco em uma unica operacao.
+  /// Deletes all records from the database in a single operation.
   Future<void> deleteAll();
 
-  /// Emite lista filtrada de registros, reagindo a mudancas no banco.
+  /// Emits a filtered list of records, reacting to database changes.
   ///
-  /// [textureClass] filtra por classe de textura (match exato).
-  /// [searchTerm] filtra por endereco (LIKE case-insensitive).
-  /// Se ambos forem null, comportamento identico a [watchAll].
+  /// [textureClass] filters by texture class (exact match).
+  /// [searchTerm] filters by address (case-insensitive LIKE).
+  /// If both are null, behavior is identical to [watchAll].
   Stream<List<SoilRecord>> watchFiltered({
     String? textureClass,
     String? searchTerm,
   });
 
-  /// Retorna lista de classes de textura distintas presentes no banco.
+  /// Returns the list of distinct texture classes present in the database.
   Future<List<String>> getDistinctTextureClasses();
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Widget reutilizavel para exibir estado de erro com botao retry.
+/// Reusable widget for displaying an error state with a retry button.
 class ErrorState extends StatelessWidget {
   const ErrorState({
     super.key,

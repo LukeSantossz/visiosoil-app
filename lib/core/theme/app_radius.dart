@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Constantes de border radius para consistência visual.
+/// Border radius constants for visual consistency.
 abstract final class AppRadius {
   /// 8.0
   static const double sm = 8.0;

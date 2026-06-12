@@ -7,7 +7,7 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-/// Provider para informacoes do app (versao, build).
+/// Provider for app information (version, build).
 final packageInfoProvider = FutureProvider<PackageInfo>((ref) {
   return PackageInfo.fromPlatform();
 });

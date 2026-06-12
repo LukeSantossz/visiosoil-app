@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Escala tipográfica do VisioSoil.
+/// VisioSoil typographic scale.
 /// Display/titles: Manrope (bold, tight tracking)
-/// Body/labels: Inter (legível em campo)
+/// Body/labels: Inter (legible in the field)
 ///
 /// Fonts are bundled in assets/fonts/ and registered in pubspec.yaml
 /// via the Flutter fonts: section (no runtime fetching).
@@ -113,7 +113,7 @@ abstract final class AppTypography {
         height: 1.45,
       );
 
-  /// TextTheme para uso com ThemeData
+  /// TextTheme for use with ThemeData
   static TextTheme get textTheme => TextTheme(
         headlineLarge: headlineLarge.copyWith(color: AppColors.onBackground),
         headlineMedium: headlineMedium.copyWith(color: AppColors.onBackground),

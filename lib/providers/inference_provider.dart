@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 
-/// Provider singleton para o [InferenceService].
+/// Singleton provider for the [InferenceService].
 ///
-/// O serviço é criado sob demanda e descartado quando o [ProviderScope] é
-/// destruído. A inicialização (carregamento do modelo) é lazy — ocorre na
-/// primeira chamada a [InferenceService.classify].
+/// The service is created on demand and discarded when the [ProviderScope] is
+/// destroyed. Initialization (model loading) is lazy — it happens on the
+/// first call to [InferenceService.classify].
 final inferenceServiceProvider = Provider<InferenceService>((ref) {
   final service = InferenceService();
   ref.onDispose(service.dispose);
