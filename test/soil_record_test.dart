@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 void main() {
@@ -35,6 +36,15 @@ void main() {
       );
       expect(noAddr.hasValidAddress, isFalse);
       expect(placeholder.hasValidAddress, isFalse);
+    });
+
+    test('hasValidAddress rejects the shared unavailable sentinel', () {
+      final r = SoilRecord(
+        imagePath: '/i.jpg',
+        address: AppStrings.addressUnavailable,
+        timestamp: ts,
+      );
+      expect(r.hasValidAddress, isFalse);
     });
 
     test('hasClassification is false when textureClass is null or empty', () {
