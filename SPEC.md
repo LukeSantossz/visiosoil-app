@@ -6,7 +6,7 @@ The project has no binding, versioned development-standards layer: conventions l
 
 ## Design Decision
 
-Add [my-framework](https://github.com/LukeSantossz/my-framework) as a git submodule at `.standards/`, pinned to a reviewed commit, and merge a "Development Standards" section into the existing project `CLAUDE.md` pointing at the submodule paths. The existing `CLAUDE.md` is preserved (merge, not overwrite), and where its project-specific conventions differ from framework defaults they win, per the precedence order in `code_conventions.md` (rule 4: the project's established pattern outranks any default). Tooling the framework references but does not ship (Superpowers, Codex, CodeRabbit, Caveman) is not configured by this change; the documented fallbacks apply and deviations are recorded in the merged section.
+Add [my-framework](https://github.com/LukeSantossz/my-framework) as a git submodule at `.standards/`, pinned to a reviewed commit, and merge a "Development Standards" section into the existing project `CLAUDE.md` pointing at the submodule paths. The existing `CLAUDE.md` is preserved (merge, not overwrite), and where its project-specific conventions differ from framework defaults they win, per the precedence order in `code_conventions.md` (rule 4: the project's established pattern outranks any default). Tooling the framework references but does not ship (Superpowers, Codex, Caveman) is not configured by this change; CodeRabbit is already active on opened PRs and serves as the R3 layer. The documented fallbacks apply to the missing layers and deviations are recorded in the merged section.
 
 ## Alternatives Considered
 
@@ -19,12 +19,12 @@ Add [my-framework](https://github.com/LukeSantossz/my-framework) as a git submod
 - Includes:
   - `git submodule add https://github.com/LukeSantossz/my-framework .standards` (creates `.gitmodules` and the `.standards` gitlink pinned at commit `9c291b2`).
   - Merge a "Development Standards" section into the existing `CLAUDE.md`, adapted from the framework's own `CLAUDE.md` with three corrections: paths prefixed with `.standards/`, the token-economy reference pointed at `.standards/token_economy.md` (the file lives at the framework root, not in `docs/standards/` as the adoption guide assumes), and a note that `CLAUDE.md` is not kept in caveman-compress form until the Caveman tool is configured.
-  - In the same section: the R2 fallback note (no second-provider reviewer is configured, so R1 plus human PR review stand in for R2 and the absence is noted in each PR), an instruction to run `git submodule update --init` when `.standards/` is empty (fresh clones, CI, remote agent sessions), and a clarification that user-facing UI strings are pt-BR product copy and are not subject to the all-English rule (which covers identifiers, comments, commits, PR/issue text, and documentation).
+  - In the same section: the R2 fallback note (no second-provider reviewer is configured, so R1 plus human PR review stand in for R2 and the absence is noted in each PR), a note that CodeRabbit reviews opened PRs as the R3 layer, an instruction to run `git submodule update --init` when `.standards/` is empty (fresh clones, CI, remote agent sessions), and a clarification that user-facing UI strings are pt-BR product copy and are not subject to the all-English rule (which covers identifiers, comments, commits, PR/issue text, and documentation).
 - Does NOT include:
   - Translating the 99 Portuguese doc comments found across 23 files in `lib/` (follow-up change with its own spec).
   - Adding the missing `## License` README section or a LICENSE file (follow-up).
   - Adding `.github/PULL_REQUEST_TEMPLATE.md` / issue templates derived from `github.md` (follow-up).
-  - Configuring Superpowers, Codex, CodeRabbit, or Caveman.
+  - Configuring Superpowers, Codex, or Caveman (CodeRabbit is already configured and reviews opened PRs).
   - Any CI workflow change (the build does not read the standards; `actions/checkout@v4` skips submodules by default and stays green).
   - Any Dart code change, and any of the technical-debt items already listed in `CLAUDE.md`.
   - Compressing `CLAUDE.md` with caveman-compress.
