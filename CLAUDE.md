@@ -54,7 +54,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 11 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
+- **Navigation:** `go_router` with 8 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
 - **Persistence:** Drift + SQLite with schema versioning (currently v2). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
 
@@ -72,15 +72,15 @@ lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
 │   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing
-│   ├── routes/app_router.dart         # GoRouter config (11 routes)
+│   ├── routes/app_router.dart         # GoRouter config (8 routes)
 │   ├── widgets/                       # Reusable: VisioAppBar, VisioButton, EmptyState
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
 │   ├── services/inference_service.dart # TFLite classification (isolate-based)
 │   ├── database/                      # Drift DB class + tables + generated code
 │   ├── data/repositories/             # Abstract interface + Drift implementation
 │   └── features/                      # Screens: splash, onboarding, main, home, capture,
-│                                      #          history, details, preview, result, settings
-├── models/                            # Domain models: SoilRecord, CaptureContext, HomeStats
+│                                      #          history, details, preview, settings
+├── models/                            # Domain models: SoilRecord, HomeStats
 └── providers/                         # Riverpod providers (database, repository, inference, image)
 ```
 
@@ -113,7 +113,5 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 
 ## Known Technical Debt
 
-- `/capture/setup` wizard is orphaned: no screen navigates to it, the `/capture` route ignores `state.extra`, and `soil_records` (v2) has no columns for crop/season/depth — either persist `CaptureContext` (schema v3) or remove the wizard
-- `/processing` and `/result` routes are registered but have no callers in the UI — integrate or remove
 - Labels and preprocessing are hardcoded in `InferenceService` — `spec.json` is not read at runtime
 - Address sentinel mismatch: capture saves `'Localizacao nao disponivel'` (unaccented) but `SoilRecord.hasValidAddress` checks accented variants — align the strings
