@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -161,8 +162,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     setState(() => _isSaving = true);
 
     try {
-      final String finalAddress =
-          _address ?? 'Localizacao nao disponivel';
+      final String finalAddress = _address ?? AppStrings.addressUnavailable;
       final double? finalLatitude = _latitude;
       final double? finalLongitude = _longitude;
 

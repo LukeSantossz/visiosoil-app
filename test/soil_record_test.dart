@@ -31,7 +31,7 @@ void main() {
       final noAddr = SoilRecord(imagePath: '/d.jpg', timestamp: ts);
       final placeholder = SoilRecord(
         imagePath: '/e.jpg',
-        address: 'Localização não disponível',
+        address: AppStrings.addressUnavailable,
         timestamp: ts,
       );
       expect(noAddr.hasValidAddress, isFalse);
@@ -45,6 +45,8 @@ void main() {
         timestamp: ts,
       );
       expect(r.hasValidAddress, isFalse);
+      // The stored sentinel must never leak to the UI as a real address.
+      expect(r.displayAddress, isNot(AppStrings.addressUnavailable));
     });
 
     test('hasClassification is false when textureClass is null or empty', () {
