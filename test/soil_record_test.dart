@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 void main() {
@@ -30,11 +31,22 @@ void main() {
       final noAddr = SoilRecord(imagePath: '/d.jpg', timestamp: ts);
       final placeholder = SoilRecord(
         imagePath: '/e.jpg',
-        address: 'Localização não disponível',
+        address: AppStrings.addressUnavailable,
         timestamp: ts,
       );
       expect(noAddr.hasValidAddress, isFalse);
       expect(placeholder.hasValidAddress, isFalse);
+    });
+
+    test('hasValidAddress rejects the shared unavailable sentinel', () {
+      final r = SoilRecord(
+        imagePath: '/i.jpg',
+        address: AppStrings.addressUnavailable,
+        timestamp: ts,
+      );
+      expect(r.hasValidAddress, isFalse);
+      // The stored sentinel must never leak to the UI as a real address.
+      expect(r.displayAddress, isNot(AppStrings.addressUnavailable));
     });
 
     test('hasClassification is false when textureClass is null or empty', () {

@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 
 class LocationService {
   static Future<Position> getCurrentLocation() async {
@@ -31,7 +32,7 @@ class LocationService {
       position.latitude,
       position.longitude,
     );
-    if (placemarks.isEmpty) return 'Endereço não disponível ou mapeado';
+    if (placemarks.isEmpty) return AppStrings.addressUnavailable;
     Placemark placemark = placemarks[0];
     return '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
   }

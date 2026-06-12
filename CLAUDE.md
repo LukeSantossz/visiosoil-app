@@ -116,4 +116,3 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 - `/capture/setup` wizard is orphaned: no screen navigates to it, the `/capture` route ignores `state.extra`, and `soil_records` (v2) has no columns for crop/season/depth — either persist `CaptureContext` (schema v3) or remove the wizard
 - `/processing` and `/result` routes are registered but have no callers in the UI — integrate or remove
 - Labels and preprocessing are hardcoded in `InferenceService` — `spec.json` is not read at runtime
-- Address sentinel mismatch: capture saves `'Localizacao nao disponivel'` (unaccented) but `SoilRecord.hasValidAddress` checks accented variants — align the strings

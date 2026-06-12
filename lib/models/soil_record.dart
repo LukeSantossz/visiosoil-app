@@ -1,3 +1,4 @@
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 
 /// Soil sample record (domain model).
@@ -55,8 +56,7 @@ class SoilRecord {
   bool get hasValidAddress =>
       address != null &&
       address!.isNotEmpty &&
-      address != 'Localização não disponível' &&
-      address != 'Localização não informada';
+      address != AppStrings.addressUnavailable;
 
   /// Returns the timestamp formatted for display.
   String get formattedTimestamp => Formatters.timestamp(timestamp);
