@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// Paleta de cores do VisioSoil seguindo Material Design 3
-/// com tons terrosos e verdes remetendo a solo e agricultura.
+/// VisioSoil color palette following Material Design 3
+/// with earthy and green tones evoking soil and agriculture.
 abstract final class AppColors {
-  // Primary - Verde terroso
+  // Primary - Earthy green
   static const Color primary = Color(0xFF4A7C59);
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color primaryContainer = Color(0xFFCCE8D4);
   static const Color onPrimaryContainer = Color(0xFF0D2818);
 
-  // Secondary - Marrom terroso
+  // Secondary - Earthy brown
   static const Color secondary = Color(0xFF8B6F47);
   static const Color onSecondary = Color(0xFFFFFFFF);
   static const Color secondaryContainer = Color(0xFFF5E6D3);
   static const Color onSecondaryContainer = Color(0xFF2D1F0E);
 
-  // Tertiary - Verde oliva
+  // Tertiary - Olive green
   static const Color tertiary = Color(0xFF6B7F5A);
   static const Color onTertiary = Color(0xFFFFFFFF);
   static const Color tertiaryContainer = Color(0xFFE4F0D9);
@@ -27,7 +27,7 @@ abstract final class AppColors {
   static const Color errorContainer = Color(0xFFFFDAD6);
   static const Color onErrorContainer = Color(0xFF410002);
 
-  // Warning - Amber terroso
+  // Warning - Earthy amber
   static const Color warning = Color(0xFFC88A3D);
   static const Color warningContainer = Color(0xFFFBEBD2);
 
@@ -63,7 +63,7 @@ abstract final class AppColors {
   static const Color soilClay = Color(0xFF7A4E2D);
   static const Color soilVeryClay = Color(0xFF5B3518);
 
-  /// ColorScheme para uso com ThemeData
+  /// ColorScheme for use with ThemeData
   static ColorScheme get colorScheme => const ColorScheme(
         brightness: Brightness.light,
         primary: primary,

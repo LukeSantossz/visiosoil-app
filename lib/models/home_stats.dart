@@ -1,4 +1,4 @@
-/// Dados agregados para exibicao na HomeScreen.
+/// Aggregated data for display on the HomeScreen.
 class HomeStats {
   const HomeStats({
     required this.totalRecords,
@@ -6,16 +6,16 @@ class HomeStats {
     required this.averageConfidence,
   });
 
-  /// Total de registros no banco.
+  /// Total number of records in the database.
   final int totalRecords;
 
-  /// Quantidade de enderecos distintos.
+  /// Number of distinct addresses.
   final int distinctLocations;
 
-  /// Media de confianca (0.0 a 1.0) ou null se nenhum registro com score.
+  /// Average confidence (0.0 to 1.0) or null if no record has a score.
   final double? averageConfidence;
 
-  /// Media formatada como porcentagem, ou '-' se nao disponivel.
+  /// Average formatted as a percentage, or '-' if not available.
   String get formattedConfidence => averageConfidence == null
       ? '-'
       : '${(averageConfidence! * 100).round()}%';

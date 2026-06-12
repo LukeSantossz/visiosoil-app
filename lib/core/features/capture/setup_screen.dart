@@ -5,10 +5,10 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/capture_context.dart';
 
-/// Tela de setup pré-captura com wizard de 2 passos.
+/// Pre-capture setup screen with a 2-step wizard.
 ///
-/// Permite selecionar cultura/época e profundidade antes de
-/// abrir a câmera para captura da amostra de solo.
+/// Allows selecting crop/season and depth before
+/// opening the camera to capture the soil sample.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
 
@@ -20,7 +20,7 @@ class _SetupScreenState extends State<SetupScreen> {
   final _pageController = PageController();
   int _currentStep = 0;
 
-  // Seleções do usuário
+  // User selections
   Crop? _selectedCrop;
   PlantingSeason? _selectedSeason;
   SamplingDepth? _selectedDepth;
@@ -61,7 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
       plantingSeason: _selectedSeason,
       samplingDepth: _selectedDepth,
     );
-    // Navega para a captura passando o contexto
+    // Navigates to capture passing the context
     context.go('/capture', extra: captureContext);
   }
 
@@ -155,7 +155,7 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 }
 
-/// Indicador de progresso do wizard.
+/// Wizard progress indicator.
 class _ProgressIndicator extends StatelessWidget {
   const _ProgressIndicator({
     required this.currentStep,
@@ -201,7 +201,7 @@ class _ProgressIndicator extends StatelessWidget {
   }
 }
 
-/// Passo 1: Seleção de cultura e época.
+/// Step 1: Crop and season selection.
 class _CropSelectionStep extends StatelessWidget {
   const _CropSelectionStep({
     required this.selectedCrop,
@@ -222,7 +222,7 @@ class _CropSelectionStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        // Seção de cultura
+        // Crop section
         Text(
           'Qual cultura está plantada?',
           style: theme.textTheme.bodyLarge?.copyWith(
@@ -230,7 +230,7 @@ class _CropSelectionStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        // Grid de culturas 2x3
+        // 2x3 crop grid
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
@@ -247,7 +247,7 @@ class _CropSelectionStep extends StatelessWidget {
               .toList(),
         ),
         const SizedBox(height: AppSpacing.xxl),
-        // Seção de época
+        // Season section
         Text(
           'Época de plantio',
           style: theme.textTheme.bodyLarge?.copyWith(
@@ -255,7 +255,7 @@ class _CropSelectionStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        // Chips de época
+        // Season chips
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
@@ -278,7 +278,7 @@ class _CropSelectionStep extends StatelessWidget {
   }
 }
 
-/// Card de seleção de cultura.
+/// Crop selection card.
 class _CropCard extends StatelessWidget {
   const _CropCard({
     required this.crop,
@@ -350,7 +350,7 @@ class _CropCard extends StatelessWidget {
   }
 }
 
-/// Passo 2: Seleção de profundidade + resumo.
+/// Step 2: Depth selection + summary.
 class _DepthSelectionStep extends StatelessWidget {
   const _DepthSelectionStep({
     required this.selectedDepth,
@@ -376,14 +376,14 @@ class _DepthSelectionStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        // Cards de profundidade
+        // Depth cards
         ...SamplingDepth.values.map((depth) => _DepthCard(
               depth: depth,
               isSelected: selectedDepth == depth,
               onTap: () => onDepthSelected(depth),
             )),
         const SizedBox(height: AppSpacing.xxl),
-        // Resumo
+        // Summary
         if (context.crop != null) ...[
           Text(
             'Resumo',
@@ -427,7 +427,7 @@ class _DepthSelectionStep extends StatelessWidget {
   }
 }
 
-/// Card de seleção de profundidade.
+/// Depth selection card.
 class _DepthCard extends StatelessWidget {
   const _DepthCard({
     required this.depth,
@@ -522,7 +522,7 @@ class _DepthCard extends StatelessWidget {
   }
 }
 
-/// Linha de resumo.
+/// Summary row.
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.icon,

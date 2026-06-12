@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// AppBar padronizada do VisioSoil.
+/// Standardized VisioSoil AppBar.
 class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
   const VisioAppBar({
     super.key,
@@ -14,19 +14,19 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
           'Não é possível usar title e titleWidget ao mesmo tempo',
         );
 
-  /// Título como String.
+  /// Title as a String.
   final String? title;
 
-  /// Título como Widget customizado.
+  /// Title as a custom Widget.
   final Widget? titleWidget;
 
-  /// Widget à esquerda (ex: botão voltar).
+  /// Widget on the left (e.g. back button).
   final Widget? leading;
 
-  /// Widgets à direita.
+  /// Widgets on the right.
   final List<Widget>? actions;
 
-  /// Centralizar título. Padrão: true.
+  /// Whether to center the title. Default: true.
   final bool centerTitle;
 
   @override

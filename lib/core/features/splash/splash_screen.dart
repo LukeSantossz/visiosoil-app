@@ -4,10 +4,10 @@ import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Tela de splash inicial do app.
+/// Initial splash screen of the app.
 ///
-/// Exibe logo do VisioSoil, solicita permissoes necessarias (camera e
-/// localizacao) e navega para a home apos conclusao.
+/// Displays the VisioSoil logo, requests the required permissions (camera and
+/// location), and navigates to home when finished.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Inicia solicitacao de permissoes apos animacao inicial
+    // Starts the permission requests after the initial animation
     Future.delayed(const Duration(milliseconds: 1200), _requestPermissions);
   }
 
@@ -60,13 +60,13 @@ class _SplashScreenState extends State<SplashScreen>
       _statusMessage = 'Solicitando permissoes...';
     });
 
-    // Solicita permissao de camera
+    // Requests camera permission
     setState(() => _statusMessage = 'Permissao de camera...');
     await PermissionService.requestCamera();
 
     if (!mounted) return;
 
-    // Solicita permissao de localizacao
+    // Requests location permission
     setState(() => _statusMessage = 'Permissao de localizacao...');
     await PermissionService.requestLocation();
 
@@ -74,12 +74,12 @@ class _SplashScreenState extends State<SplashScreen>
 
     setState(() => _statusMessage = 'Iniciando...');
 
-    // Pequeno delay para transicao suave
+    // Small delay for a smooth transition
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
-    // Navega para home
+    // Navigates to home
     context.go('/');
   }
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Variantes do VisioButton.
+/// VisioButton variants.
 enum VisioButtonVariant { primary, secondary }
 
-/// Botão padronizado do VisioSoil.
+/// Standardized VisioSoil button.
 class VisioButton extends StatelessWidget {
   const VisioButton({
     super.key,
@@ -15,22 +15,22 @@ class VisioButton extends StatelessWidget {
     this.expanded = false,
   });
 
-  /// Texto do botão.
+  /// Button text.
   final String label;
 
-  /// Callback ao pressionar.
+  /// Callback when pressed.
   final VoidCallback? onPressed;
 
-  /// Ícone opcional à esquerda do label.
+  /// Optional icon to the left of the label.
   final IconData? icon;
 
-  /// Se true, mostra loading indicator em vez do conteúdo.
+  /// If true, shows a loading indicator instead of the content.
   final bool isLoading;
 
-  /// Variante visual: primary (filled) ou secondary (outlined).
+  /// Visual variant: primary (filled) or secondary (outlined).
   final VisioButtonVariant variant;
 
-  /// Se true, expande para ocupar toda a largura disponível.
+  /// If true, expands to fill all available width.
   final bool expanded;
 
   @override

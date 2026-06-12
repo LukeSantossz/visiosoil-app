@@ -3,10 +3,10 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Tela de processamento exibida durante inferência TFLite.
+/// Processing screen displayed during TFLite inference.
 ///
-/// Recebe [imagePath] para exibir thumbnail da amostra e
-/// [onComplete] callback para quando a inferência terminar.
+/// Receives [imagePath] to display the sample thumbnail and
+/// the [onComplete] callback for when inference finishes.
 class ProcessingScreen extends StatefulWidget {
   const ProcessingScreen({super.key, this.imagePath});
 

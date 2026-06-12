@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Widget para exibir estado vazio em listas.
+/// Widget for displaying an empty state in lists.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -11,16 +11,16 @@ class EmptyState extends StatelessWidget {
     this.action,
   });
 
-  /// Ícone principal.
+  /// Main icon.
   final IconData icon;
 
-  /// Título do estado vazio.
+  /// Empty state title.
   final String title;
 
-  /// Descrição opcional.
+  /// Optional description.
   final String? description;
 
-  /// Widget de ação opcional (ex: botão).
+  /// Optional action widget (e.g. button).
   final Widget? action;
 
   @override

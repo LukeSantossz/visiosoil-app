@@ -10,9 +10,9 @@ import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// Tela de resultado apos classificacao.
+/// Result screen after classification.
 ///
-/// Recebe um [SoilRecord] via [GoRouter.extra] (ja persistido com id).
+/// Receives a [SoilRecord] via [GoRouter.extra] (already persisted with id).
 class ResultScreen extends ConsumerWidget {
   const ResultScreen({super.key, required this.record});
 

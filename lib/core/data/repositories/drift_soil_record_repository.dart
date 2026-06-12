@@ -3,11 +3,11 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// Implementação de [SoilRecordRepository] baseada em Drift/SQLite.
+/// Drift/SQLite-based implementation of [SoilRecordRepository].
 ///
-/// Concentra toda a conversão entre linhas Drift ([SoilRecordRow]) e o modelo
-/// de domínio [SoilRecord]. Nenhum tipo específico do Drift escapa por esta
-/// fronteira.
+/// Concentrates all conversion between Drift rows ([SoilRecordRow]) and the
+/// domain model [SoilRecord]. No Drift-specific type escapes through this
+/// boundary.
 class DriftSoilRecordRepository implements SoilRecordRepository {
   DriftSoilRecordRepository(this._db);
 
@@ -98,18 +98,18 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }) {
     var query = _db.select(_db.soilRecords);
 
-    // Aplica filtros condicionalmente
+    // Applies filters conditionally
     query = query..where((t) {
       Expression<bool>? condition;
 
-      // Filtro por classe de textura (match exato)
+      // Filter by texture class (exact match)
       if (textureClass != null && textureClass.isNotEmpty) {
         condition = t.textureClass.equals(textureClass);
       }
 
-      // Filtro por termo de busca no endereco (LIKE case-insensitive)
-      // Remove wildcards SQL para evitar bypass de busca (% e _ sao tratados
-      // como caracteres literais ao serem removidos)
+      // Filter by search term on the address (case-insensitive LIKE)
+      // Removes SQL wildcards to prevent search bypass (% and _ are treated
+      // as literal characters by being removed)
       if (searchTerm != null && searchTerm.isNotEmpty) {
         final sanitized = searchTerm
             .replaceAll('%', '')
@@ -123,11 +123,11 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         }
       }
 
-      // Se nenhum filtro, retorna todos
+      // If no filter, returns all
       return condition ?? const Constant(true);
     });
 
-    // Ordena do mais recente ao mais antigo
+    // Orders from most recent to oldest
     query = query..orderBy([
       (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
     ]);

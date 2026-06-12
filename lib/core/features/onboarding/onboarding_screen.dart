@@ -4,7 +4,7 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Dados de cada passo do onboarding.
+/// Data for each onboarding step.
 class _OnboardingStep {
   const _OnboardingStep({
     required this.icon,
@@ -46,10 +46,10 @@ const _steps = [
   ),
 ];
 
-/// Onboarding de captura com 3 passos ilustrados.
+/// Capture onboarding with 3 illustrated steps.
 ///
-/// Usa [PageView] para navegação entre passos. O callback [onComplete]
-/// é chamado ao pressionar "Começar" no último passo.
+/// Uses [PageView] for navigation between steps. The [onComplete] callback
+/// is called when pressing the start button on the last step.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, this.onComplete});
 

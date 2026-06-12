@@ -1,7 +1,7 @@
-/// Contexto de captura com informações de cultura, época e profundidade.
+/// Capture context with crop, season, and depth information.
 ///
-/// Usado para associar metadados à análise de solo antes da captura.
-/// Todos os campos são opcionais para permitir flexibilidade no fluxo.
+/// Used to attach metadata to the soil analysis before capture.
+/// All fields are optional to allow flexibility in the flow.
 class CaptureContext {
   final Crop? crop;
   final PlantingSeason? plantingSeason;
@@ -25,11 +25,11 @@ class CaptureContext {
     );
   }
 
-  /// Verifica se o contexto está completo para captura.
+  /// Checks whether the context is complete for capture.
   bool get isComplete =>
       crop != null && plantingSeason != null && samplingDepth != null;
 
-  /// Retorna um resumo do contexto para exibição.
+  /// Returns a summary of the context for display.
   String get summary {
     final parts = <String>[];
     if (crop != null) parts.add(crop!.name);
@@ -38,7 +38,7 @@ class CaptureContext {
   }
 }
 
-/// Representa uma cultura agrícola.
+/// Represents an agricultural crop.
 class Crop {
   final String id;
   final String name;
@@ -50,7 +50,7 @@ class Crop {
     required this.iconCodePoint,
   });
 
-  /// Culturas disponíveis com ícones Material Design.
+  /// Available crops with Material Design icons.
   static const List<Crop> available = [
     Crop(id: 'soy', name: 'Soja', iconCodePoint: 'grass'),
     Crop(id: 'corn', name: 'Milho', iconCodePoint: 'grain'),
@@ -61,7 +61,7 @@ class Crop {
   ];
 }
 
-/// Época de plantio da cultura.
+/// Planting season of the crop.
 enum PlantingSeason {
   safra('Safra', 'Plantio principal'),
   safrinha('Safrinha', 'Segunda safra'),
@@ -73,7 +73,7 @@ enum PlantingSeason {
   const PlantingSeason(this.label, this.description);
 }
 
-/// Profundidade de amostragem do solo.
+/// Soil sampling depth.
 enum SamplingDepth {
   shallow(0, 20, '0-20 cm', 'Camada superficial'),
   medium(20, 40, '20-40 cm', 'Camada intermediária'),

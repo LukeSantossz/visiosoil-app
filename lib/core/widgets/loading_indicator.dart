@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Indicador de loading padronizado do VisioSoil.
+/// Standardized VisioSoil loading indicator.
 class LoadingIndicator extends StatelessWidget {
   const LoadingIndicator({
     super.key,
@@ -9,13 +9,13 @@ class LoadingIndicator extends StatelessWidget {
     this.color,
   });
 
-  /// Tamanho do indicador. Padrão: 40.
+  /// Indicator size. Default: 40.
   final double size;
 
-  /// Espessura do traço. Padrão: 3.
+  /// Stroke width. Default: 3.
   final double strokeWidth;
 
-  /// Cor do indicador. Usa primary se não especificado.
+  /// Indicator color. Uses primary if not specified.
   final Color? color;
 
   @override

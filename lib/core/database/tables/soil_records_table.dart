@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
 
-/// Tabela Drift para registros de solo.
+/// Drift table for soil records.
 ///
-/// O nome explícito da tabela (`soil_records`) evita colisão com o nome da
-/// classe Dart e segue a convenção snake_case do SQLite.
+/// The explicit table name (`soil_records`) avoids collision with the Dart
+/// class name and follows the SQLite snake_case convention.
 @DataClassName('SoilRecordRow')
 class SoilRecords extends Table {
   @override

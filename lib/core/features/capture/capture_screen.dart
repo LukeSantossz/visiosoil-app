@@ -49,8 +49,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Revalida permissao quando o app volta ao foreground (ex: apos Settings)
-    // Nao revalida para `restricted` (iOS) pois nao pode ser alterado pelo usuario
+    // Revalidates permission when the app returns to the foreground (e.g. after Settings)
+    // Does not revalidate for `restricted` (iOS) since it cannot be changed by the user
     if (state == AppLifecycleState.resumed &&
         _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied) {
       _recheckCameraPermission();
@@ -67,7 +67,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _pickImage() async {
-    // Verifica permissao de camera antes de abrir
+    // Checks camera permission before opening
     final status = await PermissionService.checkCamera();
     if (!mounted) return;
 
@@ -80,7 +80,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         return;
       }
     }
-    // Limpa estado de permissao se concedida
+    // Clears the permission state if granted
     if (_cameraPermissionStatus != null) {
       setState(() => _cameraPermissionStatus = null);
     }
@@ -99,7 +99,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       _classificationResult = null;
     });
 
-    // Executa localização e classificação em paralelo (são independentes)
+    // Runs location and classification in parallel (they are independent)
     await Future.wait([
       _fetchCurrentLocation(),
       _classifySoilTexture(image.path),
@@ -142,8 +142,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         });
       }
     } catch (e) {
-      // Localizacao negada ou indisponivel: app funciona sem GPS
-      // O registro sera salvo com coordenadas null
+      // Location denied or unavailable: the app works without GPS
+      // The record will be saved with null coordinates
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -151,7 +151,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _saveRecord() async {
-    // Guard contra double-tap
+    // Guard against double-tap
     if (_isSaving) return;
 
     final selectedImage = ref.read(imageProvider);
@@ -210,7 +210,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Mostra tela de permissao negada se camera foi bloqueada
+    // Shows the permission denied screen if the camera was blocked
     if (_cameraPermissionStatus != null &&
         _cameraPermissionStatus != AppPermissionStatus.granted) {
       final isRestricted =
@@ -246,7 +246,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Preview da imagem
+              // Image preview
               Expanded(
                 child: _ImagePreview(
                   image: image,
@@ -257,7 +257,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Botões de ação
+              // Action buttons
               if (!hasImage) ...[
                 VisioButton(
                   label: 'Câmera',
@@ -349,7 +349,7 @@ class _ImagePreview extends StatelessWidget {
             fit: BoxFit.cover,
             width: double.infinity,
           ),
-          // Gradient para legibilidade dos chips
+          // Gradient for chip legibility
           Positioned(
             left: 0,
             right: 0,
@@ -368,7 +368,7 @@ class _ImagePreview extends StatelessWidget {
               ),
             ),
           ),
-          // Chips de info
+          // Info chips
           Positioned(
             left: AppSpacing.sm,
             right: AppSpacing.sm,

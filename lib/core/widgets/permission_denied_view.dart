@@ -3,10 +3,10 @@ import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Widget reutilizavel para exibir estado de permissao negada.
+/// Reusable widget for displaying a permission denied state.
 ///
-/// Mostra icone, titulo, descricao e botao para abrir configuracoes
-/// quando a permissao foi negada permanentemente.
+/// Shows icon, title, description, and a button to open settings
+/// when the permission was permanently denied.
 class PermissionDeniedView extends StatelessWidget {
   const PermissionDeniedView({
     super.key,
@@ -17,21 +17,21 @@ class PermissionDeniedView extends StatelessWidget {
     this.onRetry,
   });
 
-  /// Icone representando a permissao (ex: Icons.camera_alt).
+  /// Icon representing the permission (e.g. Icons.camera_alt).
   final IconData icon;
 
-  /// Titulo do estado de permissao negada.
+  /// Title of the permission denied state.
   final String title;
 
-  /// Descricao explicando por que a permissao e necessaria.
+  /// Description explaining why the permission is needed.
   final String description;
 
-  /// Se true, mostra botao para abrir configuracoes do sistema.
-  /// Se false, mostra botao para tentar novamente.
+  /// If true, shows a button to open the system settings.
+  /// If false, shows a button to try again.
   final bool isPermanentlyDenied;
 
-  /// Callback quando o usuario toca em "Tentar novamente".
-  /// Ignorado se [isPermanentlyDenied] for true.
+  /// Callback for when the user taps "Tentar novamente".
+  /// Ignored if [isPermanentlyDenied] is true.
   final VoidCallback? onRetry;
 
   @override
