@@ -12,7 +12,7 @@
 
 VisioSoil lets agronomists and field technicians capture, classify, and catalog soil samples directly from a mobile device.
 
-- **Guided field workflow** — a splash screen requests runtime permissions, a 3-step onboarding tutorial explains capture, and a setup wizard tags each sample with its crop and sampling depth
+- **Guided field workflow** — a splash screen requests runtime permissions and a 3-step onboarding tutorial explains capture
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address
 - **On-device classification** — a TensorFlow Lite model labels the sample into one of 5 soil texture classes with a confidence score (shown as a graded confidence banner), running fully offline
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
@@ -102,15 +102,15 @@ visiosoil-app/
 │   ├── main.dart            # Entry: ProviderScope + MaterialApp.router
 │   ├── core/
 │   │   ├── theme/           # AppTheme, AppColors, AppTypography, AppSpacing
-│   │   ├── routes/          # GoRouter config (11 routes)
+│   │   ├── routes/          # GoRouter config (8 routes)
 │   │   ├── widgets/         # VisioAppBar, VisioButton, EmptyState
 │   │   ├── utils/           # LocationService (GPS + geocoding), formatters
 │   │   ├── services/        # InferenceService (TFLite, isolate) + PermissionService
 │   │   ├── database/        # Drift DB class + tables + generated code
 │   │   ├── data/            # SoilRecordRepository (interface + Drift impl)
 │   │   └── features/        # Screens: splash, onboarding, main, home, capture,
-│   │                        #          history, details, preview, result, settings
-│   ├── models/              # SoilRecord, CaptureContext, ConfidenceLevel, HomeStats
+│   │                        #          history, details, preview, settings
+│   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats
 │   └── providers/           # Riverpod providers (database, repository, inference, image)
 ├── ml/                      # TF/Keras training pipeline (MobileNetV2 → TFLite)
 ├── assets/models/           # Deployed .tflite model + spec
@@ -123,14 +123,14 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme, Riverpod state management, GoRouter navigation (11 routes)
+- [x] Material 3 theme, Riverpod state management, GoRouter navigation (8 routes)
 - [x] Splash screen with runtime permission requests via `PermissionService`
-- [x] 3-step onboarding capture tutorial and a capture setup wizard (crop, depth)
+- [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs
 - [x] Camera capture with real GPS (`geolocator` + `geocoding` via `LocationService`)
 - [x] Image preview after capture and zoomable full-screen viewer
 - [x] History grid with texture filters, address search, multi-select, and batch delete
-- [x] Result screen with graded confidence banner; details screen with classification display and delete action
+- [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe)
 - [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v2)
 - [x] On-device TFLite classification into 5 soil texture classes, running in an isolate
