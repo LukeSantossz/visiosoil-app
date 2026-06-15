@@ -83,9 +83,23 @@ class SearchTermNotifier extends Notifier<String> {
 final searchTermProvider =
     NotifierProvider<SearchTermNotifier, String>(SearchTermNotifier.new);
 
-/// Texture classes available for filtering.
-final availableTextureClassesProvider = FutureProvider<List<String>>((ref) {
-  return ref.watch(soilRecordRepositoryProvider).getDistinctTextureClasses();
+/// Distinct texture classes for the history filter, derived reactively from
+/// the records stream so chips refresh as records are added or removed.
+///
+/// Mirrors [latestSoilRecordProvider]/[homeStatsProvider]: shares the single
+/// [soilRecordsStreamProvider] subscription instead of a one-shot query that
+/// would never refresh.
+final availableTextureClassesProvider =
+    Provider<AsyncValue<List<String>>>((ref) {
+  final records = ref.watch(soilRecordsStreamProvider);
+  return records.whenData((list) {
+    final classes = <String>{
+      for (final record in list)
+        if (record.hasClassification) record.textureClass!,
+    }.toList()
+      ..sort();
+    return classes;
+  });
 });
 
 /// Stream of filtered records.
