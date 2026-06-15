@@ -102,7 +102,7 @@ visiosoil-app/
 │   ├── main.dart            # Entry: ProviderScope + MaterialApp.router
 │   ├── core/
 │   │   ├── theme/           # AppTheme, AppColors, AppTypography, AppSpacing
-│   │   ├── routes/          # GoRouter config (8 routes)
+│   │   ├── routes/          # GoRouter config (7 routes)
 │   │   ├── widgets/         # VisioAppBar, VisioButton, EmptyState
 │   │   ├── utils/           # LocationService (GPS + geocoding), formatters
 │   │   ├── services/        # InferenceService (TFLite, isolate) + PermissionService
@@ -123,7 +123,7 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme, Riverpod state management, GoRouter navigation (8 routes)
+- [x] Material 3 theme, Riverpod state management, GoRouter navigation (7 routes)
 - [x] Splash screen with runtime permission requests via `PermissionService`
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs
