@@ -54,7 +54,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 8 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
+- **Navigation:** `go_router` with 7 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
 - **Persistence:** Drift + SQLite with schema versioning (currently v2). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
 
@@ -72,7 +72,7 @@ lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
 │   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing
-│   ├── routes/app_router.dart         # GoRouter config (8 routes)
+│   ├── routes/app_router.dart         # GoRouter config (7 routes)
 │   ├── widgets/                       # Reusable: VisioAppBar, VisioButton, EmptyState
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
 │   ├── services/inference_service.dart # TFLite classification (isolate-based)

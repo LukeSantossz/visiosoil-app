@@ -1,7 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/details/details.dart';
-import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
@@ -14,7 +13,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
     GoRoute(path: '/capture', builder: (context, state) => const CaptureScreen()),
-    GoRoute(path: '/history', builder: (context, state) => const HistoryScreen()),
     GoRoute(
       path: '/details',
       builder: (context, state) {
