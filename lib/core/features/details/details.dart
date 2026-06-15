@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class DetailsPage extends ConsumerWidget {
@@ -423,15 +424,9 @@ class _ActionButtons extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Share placeholder
+        // Share
         OutlinedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Compartilhamento em breve'),
-              ),
-            );
-          },
+          onPressed: () => _shareRecord(context, ref),
           icon: const Icon(Icons.share_outlined),
           label: const Text('Compartilhar'),
         ),
@@ -447,6 +442,19 @@ class _ActionButtons extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _shareRecord(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(shareServiceProvider).shareRecord(record);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível compartilhar o registro.'),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
