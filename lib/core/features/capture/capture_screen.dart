@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -18,8 +19,32 @@ import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+/// A device location reading: coordinates plus a reverse-geocoded address.
+typedef LocationReading = ({double latitude, double longitude, String address});
+
+/// Resolves the current device location, or `null` when unavailable.
+typedef LocationResolver = Future<LocationReading?> Function();
+
+/// Opens the camera and returns the captured image, or `null` if cancelled.
+typedef CameraImagePicker = Future<XFile?> Function();
+
+/// Reports a camera permission status.
+typedef CameraPermissionProbe = Future<AppPermissionStatus> Function();
+
 class CaptureScreen extends ConsumerStatefulWidget {
-  const CaptureScreen({super.key});
+  const CaptureScreen({
+    super.key,
+    this.pickFromCamera,
+    this.locate,
+    this.checkCameraPermission,
+    this.requestCameraPermission,
+  });
+
+  /// Test seams; each defaults to the real platform implementation.
+  final CameraImagePicker? pickFromCamera;
+  final LocationResolver? locate;
+  final CameraPermissionProbe? checkCameraPermission;
+  final CameraPermissionProbe? requestCameraPermission;
 
   @override
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
@@ -27,14 +52,31 @@ class CaptureScreen extends ConsumerStatefulWidget {
 
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
+  static const Duration _locationTimeout = Duration(seconds: 20);
+  static const Duration _classificationTimeout = Duration(seconds: 20);
+
   bool _isLoading = false;
   bool _isClassifying = false;
   bool _isSaving = false;
+  bool _isCapturing = false;
+  bool _classificationFailed = false;
   String? _address;
   double? _latitude;
   double? _longitude;
   InferenceResult? _classificationResult;
   AppPermissionStatus? _cameraPermissionStatus;
+
+  /// Monotonic token identifying the current capture. Async results from a
+  /// superseded or discarded capture carry a stale token and are ignored.
+  int _requestGeneration = 0;
+
+  late final CameraImagePicker _pickFromCamera =
+      widget.pickFromCamera ?? _defaultPickFromCamera;
+  late final LocationResolver _locate = widget.locate ?? _defaultLocate;
+  late final CameraPermissionProbe _checkCameraPermission =
+      widget.checkCameraPermission ?? PermissionService.checkCamera;
+  late final CameraPermissionProbe _requestCameraPermission =
+      widget.requestCameraPermission ?? PermissionService.requestCamera;
 
   @override
   void initState() {
@@ -58,8 +100,21 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
+  Future<XFile?> _defaultPickFromCamera() =>
+      ImagePicker().pickImage(source: ImageSource.camera);
+
+  Future<LocationReading?> _defaultLocate() async {
+    final position = await LocationService.getCurrentLocation();
+    final address = await LocationService.getAddressFromPosition(position);
+    return (
+      latitude: position.latitude,
+      longitude: position.longitude,
+      address: address,
+    );
+  }
+
   Future<void> _recheckCameraPermission() async {
-    final status = await PermissionService.checkCamera();
+    final status = await _checkCameraPermission();
     if (!mounted) return;
 
     if (status == AppPermissionStatus.granted) {
@@ -68,87 +123,118 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _pickImage() async {
-    // Checks camera permission before opening
-    final status = await PermissionService.checkCamera();
-    if (!mounted) return;
+    // Re-entry guard: prevents a rapid double tap from opening two pickers
+    // (and firing duplicate location/classification work).
+    if (_isCapturing) return;
+    _isCapturing = true;
 
-    if (status != AppPermissionStatus.granted) {
-      final requestStatus = await PermissionService.requestCamera();
+    XFile? image;
+    try {
+      final status = await _checkCameraPermission();
       if (!mounted) return;
 
-      if (requestStatus != AppPermissionStatus.granted) {
-        setState(() => _cameraPermissionStatus = requestStatus);
-        return;
-      }
-    }
-    // Clears the permission state if granted
-    if (_cameraPermissionStatus != null) {
-      setState(() => _cameraPermissionStatus = null);
-    }
+      if (status != AppPermissionStatus.granted) {
+        final requestStatus = await _requestCameraPermission();
+        if (!mounted) return;
 
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+        if (requestStatus != AppPermissionStatus.granted) {
+          setState(() => _cameraPermissionStatus = requestStatus);
+          return;
+        }
+      }
+      // Clears the permission state if granted
+      if (_cameraPermissionStatus != null) {
+        setState(() => _cameraPermissionStatus = null);
+      }
+
+      image = await _pickFromCamera();
+    } catch (e) {
+      developer.log('Camera capture failed: $e', name: 'CaptureScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir a câmera.')),
+        );
+      }
+      return;
+    } finally {
+      _isCapturing = false;
+    }
 
     if (!mounted || image == null) return;
 
     ref.read(imageProvider.notifier).setImage(File(image.path));
 
+    // Tags this capture so late results from a superseded one are ignored.
+    final generation = ++_requestGeneration;
     setState(() {
       _address = null;
       _latitude = null;
       _longitude = null;
       _classificationResult = null;
+      _classificationFailed = false;
     });
 
     // Runs location and classification in parallel (they are independent)
     await Future.wait([
-      _fetchCurrentLocation(),
-      _classifySoilTexture(image.path),
+      _fetchCurrentLocation(generation),
+      _classifySoilTexture(image.path, generation),
     ]);
   }
 
-  Future<void> _classifySoilTexture(String imagePath) async {
-    setState(() => _isClassifying = true);
+  Future<void> _classifySoilTexture(String imagePath, int generation) async {
+    if (mounted) {
+      setState(() {
+        _isClassifying = true;
+        _classificationFailed = false;
+      });
+    }
 
+    InferenceResult? result;
     try {
       final inferenceService = ref.read(inferenceServiceProvider);
-      final result = await inferenceService.classify(imagePath);
-
-      if (mounted) {
-        setState(() {
-          _classificationResult = result;
-          _isClassifying = false;
-        });
-      }
+      result = await inferenceService
+          .classify(imagePath)
+          .timeout(_classificationTimeout, onTimeout: () => null);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isClassifying = false);
-      }
+      developer.log('Classification failed: $e', name: 'CaptureScreen');
+      result = null;
     }
+
+    if (!mounted || generation != _requestGeneration) return;
+    setState(() {
+      _classificationResult = result;
+      _classificationFailed = result == null;
+      _isClassifying = false;
+    });
   }
 
-  Future<void> _fetchCurrentLocation() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchCurrentLocation(int generation) async {
+    if (mounted) setState(() => _isLoading = true);
 
+    LocationReading? reading;
     try {
-      final position = await LocationService.getCurrentLocation();
-      final address = await LocationService.getAddressFromPosition(position);
-
-      if (mounted) {
-        setState(() {
-          _latitude = position.latitude;
-          _longitude = position.longitude;
-          _address = address;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      // Location denied or unavailable: the app works without GPS
-      // The record will be saved with null coordinates
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      reading =
+          await _locate().timeout(_locationTimeout, onTimeout: () => null);
+    } catch (_) {
+      // Location is optional: the record can be saved without coordinates.
+      reading = null;
     }
+
+    if (!mounted || generation != _requestGeneration) return;
+    setState(() {
+      if (reading != null) {
+        _latitude = reading.latitude;
+        _longitude = reading.longitude;
+        _address = reading.address;
+      }
+      _isLoading = false;
+    });
+  }
+
+  void _retryClassification() {
+    final image = ref.read(imageProvider).file;
+    if (image == null) return;
+    _classifySoilTexture(image.path, _requestGeneration);
   }
 
   Future<void> _saveRecord() async {
@@ -194,12 +280,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   void _discardImage() {
+    // Invalidates any in-flight location/classification work for this capture.
+    _requestGeneration++;
     ref.read(imageProvider.notifier).clearImage();
     setState(() {
       _address = null;
       _latitude = null;
       _longitude = null;
       _classificationResult = null;
+      _classificationFailed = false;
     });
   }
 
@@ -254,6 +343,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   isClassifying: _isClassifying,
                   address: _address,
                   classificationResult: _classificationResult,
+                  classificationFailed: _classificationFailed,
+                  onRetryClassification: _retryClassification,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -297,6 +388,8 @@ class _ImagePreview extends StatelessWidget {
     required this.isClassifying,
     this.address,
     this.classificationResult,
+    this.classificationFailed = false,
+    this.onRetryClassification,
   });
 
   final File? image;
@@ -304,6 +397,8 @@ class _ImagePreview extends StatelessWidget {
   final bool isClassifying;
   final String? address;
   final InferenceResult? classificationResult;
+  final bool classificationFailed;
+  final VoidCallback? onRetryClassification;
 
   @override
   Widget build(BuildContext context) {
@@ -415,6 +510,16 @@ class _ImagePreview extends StatelessWidget {
       return _InfoChip(
         icon: Icons.eco,
         label: '${classificationResult!.textureClass} · $confidence%',
+      );
+    }
+    if (classificationFailed) {
+      return GestureDetector(
+        key: const Key('retryClassification'),
+        onTap: onRetryClassification,
+        child: const _InfoChip(
+          icon: Icons.refresh,
+          label: 'Classificação falhou · tocar para repetir',
+        ),
       );
     }
     return const _InfoChip(
