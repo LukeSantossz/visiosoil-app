@@ -50,6 +50,7 @@ dependencies:
   permission_handler: ^11.3.1
   # App info (version, build number)
   package_info_plus: ^8.0.0
+  share_plus: ^12.0.2
 
 dev_dependencies:
   flutter_test:
