@@ -29,6 +29,10 @@ class _InferenceParams {
   });
 }
 
+/// Signature for loading the model asset. Injected so tests can drive the
+/// initialization retry logic without the platform asset bundle.
+typedef ModelAssetLoader = Future<ByteData> Function(String key);
+
 /// TensorFlow Lite inference service for soil texture classification.
 ///
 /// Loads the model from assets, preprocesses images, and runs inference
@@ -50,45 +54,73 @@ class InferenceService {
     'Argilosa',
   ];
 
+  /// Maximum attempts to load the model before giving up for the current call.
+  static const int _maxInitAttempts = 3;
+
+  /// Delay between initialization retries.
+  static const Duration _initRetryDelay = Duration(milliseconds: 300);
+
+  /// Maximum time to wait for the model asset to load.
+  static const Duration _modelLoadTimeout = Duration(seconds: 5);
+
+  /// Maximum time to wait for a single inference run before giving up.
+  static const Duration _inferenceTimeout = Duration(seconds: 15);
+
   Uint8List? _modelBytes;
   bool _isInitialized = false;
-  bool _initializationAttempted = false;
+
+  /// Set when the model asset is empty or absent — a build-time fact that
+  /// retrying cannot fix, so further initialization attempts are skipped.
+  bool _modelUnavailable = false;
 
   /// Indicates whether the service is ready for inference.
   bool get isReady => _isInitialized && _modelBytes != null;
 
   /// Initializes the service by loading the model from assets.
   ///
-  /// Returns `true` if initialized successfully, `false` otherwise.
-  /// The model is loaded as bytes so it can be passed to the isolate.
-  /// If initialization was already attempted and failed, returns `false` immediately.
-  Future<bool> initialize() async {
+  /// Returns `true` once the model bytes are loaded, `false` otherwise. The
+  /// model is loaded as bytes so it can be passed to the isolate. Transient
+  /// failures are retried with a short backoff; an empty or absent model is a
+  /// build-time fact and is not retried (see [_modelUnavailable]).
+  ///
+  /// [assetLoader] and [retryDelay] are injectable for tests.
+  Future<bool> initialize({
+    ModelAssetLoader? assetLoader,
+    Duration retryDelay = _initRetryDelay,
+  }) async {
     if (_isInitialized) return true;
+    if (_modelUnavailable) return false;
 
-    // Avoids repeated attempts to load a nonexistent model
-    if (_initializationAttempted) return false;
-    _initializationAttempted = true;
+    final load = assetLoader ?? rootBundle.load;
 
-    try {
-      // Timeout to avoid hanging if the file does not exist
-      final byteData = await rootBundle.load(_modelPath).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => throw Exception('Timeout loading model'),
-      );
-      if (byteData.lengthInBytes == 0) {
-        return false;
+    for (var attempt = 1; attempt <= _maxInitAttempts; attempt++) {
+      try {
+        final byteData = await load(_modelPath).timeout(
+          _modelLoadTimeout,
+          onTimeout: () => throw Exception('Timeout loading model'),
+        );
+        if (byteData.lengthInBytes == 0) {
+          // An empty model will not change without a new build: do not retry.
+          _modelUnavailable = true;
+          return false;
+        }
+        _modelBytes = byteData.buffer.asUint8List();
+        _isInitialized = true;
+        return true;
+      } catch (e) {
+        developer.log(
+          'Failed to initialize InferenceService '
+          '(attempt $attempt/$_maxInitAttempts): $e',
+          name: 'InferenceService',
+        );
+        if (attempt < _maxInitAttempts) {
+          await Future<void>.delayed(retryDelay);
+        }
       }
-      _modelBytes = byteData.buffer.asUint8List();
-      _isInitialized = true;
-      return true;
-    } catch (e) {
-      developer.log(
-        'Failed to initialize InferenceService: $e',
-        name: 'InferenceService',
-      );
-      _isInitialized = false;
-      return false;
     }
+
+    // Transient failures exhausted for this call; a later call may retry.
+    return false;
   }
 
   /// Runs soil texture classification on an image.
@@ -108,11 +140,12 @@ class InferenceService {
         imagePath: imagePath,
         modelBytes: _modelBytes!,
       );
-      final result = await Isolate.run(() => _runInference(params));
+      final result = await Isolate.run(() => _runInference(params))
+          .timeout(_inferenceTimeout);
       return result;
     } catch (e) {
       developer.log(
-        'classify() failed for $imagePath: $e',
+        'classify() failed: $e',
         name: 'InferenceService',
       );
       return null;
@@ -164,17 +197,19 @@ class InferenceService {
         }
       }
 
-      // Maps index to label
-      final label = maxIndex < _textureLabels.length
-          ? _textureLabels[maxIndex]
-          : 'Classe $maxIndex';
+      // Rejects incompatible models instead of fabricating a label.
+      final label = resolveTextureLabel(maxIndex, numClasses);
+      if (label == null) return null;
 
       return InferenceResult(
         textureClass: label,
         confidenceScore: maxProb,
       );
     } catch (e) {
-      debugPrint('InferenceService._runInference failed: $e');
+      developer.log(
+        'InferenceService._runInference failed: $e',
+        name: 'InferenceService',
+      );
       return null;
     }
   }
@@ -202,10 +237,20 @@ class InferenceService {
     return input;
   }
 
+  /// Maps the predicted [index] to a soil texture label, rejecting models whose
+  /// output [numClasses] does not match the known labels (returns null) so an
+  /// incompatible model never yields a fabricated, plausible-looking result.
+  @visibleForTesting
+  static String? resolveTextureLabel(int index, int numClasses) {
+    if (numClasses != _textureLabels.length) return null;
+    if (index < 0 || index >= _textureLabels.length) return null;
+    return _textureLabels[index];
+  }
+
   /// Releases the service's resources.
   void dispose() {
     _modelBytes = null;
     _isInitialized = false;
-    _initializationAttempted = false;
+    _modelUnavailable = false;
   }
 }
