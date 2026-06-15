@@ -58,7 +58,7 @@ void main() {
         () async {
       final address = await LocationService.getAddressFromPosition(
         fakePosition(),
-        geocoder: (_, __) async => <Placemark>[],
+        geocoder: (_, _) async => <Placemark>[],
       );
       expect(address, AppStrings.addressUnavailable);
     });
@@ -66,7 +66,7 @@ void main() {
     test('returns the fallback when the geocoder throws', () async {
       final address = await LocationService.getAddressFromPosition(
         fakePosition(),
-        geocoder: (_, __) async => throw Exception('geocoding failed'),
+        geocoder: (_, _) async => throw Exception('geocoding failed'),
       );
       expect(address, AppStrings.addressUnavailable);
     });
@@ -75,7 +75,7 @@ void main() {
         () async {
       final address = await LocationService.getAddressFromPosition(
         fakePosition(),
-        geocoder: (_, __) async => [Placemark()],
+        geocoder: (_, _) async => [Placemark()],
       );
       expect(address, AppStrings.addressUnavailable);
     });
@@ -83,7 +83,7 @@ void main() {
     test('returns the formatted address for a valid placemark', () async {
       final address = await LocationService.getAddressFromPosition(
         fakePosition(),
-        geocoder: (_, __) async => [
+        geocoder: (_, _) async => [
           Placemark(
             street: 'Rua das Flores',
             locality: 'Sorriso',
