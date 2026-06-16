@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/data/sync/sync_operation.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
+import 'package:visiosoil_app/core/database/soil_record_mapper.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Drift/SQLite-based implementation of [SoilRecordRepository].
@@ -226,19 +227,5 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         );
   }
 
-  SoilRecord _toDomain(SoilRecordRow row) => SoilRecord(
-        id: row.id,
-        uuid: row.uuid,
-        remoteId: row.remoteId,
-        imagePath: row.imagePath,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        address: row.address,
-        timestamp: row.timestamp,
-        updatedAt: row.updatedAt,
-        syncStatus: row.syncStatus,
-        deleted: row.deleted,
-        textureClass: row.textureClass,
-        confidenceScore: row.confidenceScore,
-      );
+  SoilRecord _toDomain(SoilRecordRow row) => soilRecordFromRow(row);
 }
