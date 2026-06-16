@@ -49,6 +49,8 @@ void main() {
 
       expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 13)), isTrue);
       expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 11)), isFalse);
+      // Exactly at expiry counts as expired (conservative boundary).
+      expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 12)), isTrue);
     });
   });
 
