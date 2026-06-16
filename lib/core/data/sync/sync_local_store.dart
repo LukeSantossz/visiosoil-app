@@ -59,12 +59,15 @@ class SyncLocalStore {
     return row == null ? null : soilRecordFromRow(row);
   }
 
-  /// Records the backend handle and marks a local record as synced.
-  Future<void> markRecordSynced(String uuid, String remoteId) async {
+  /// Marks a local record as synced, optionally storing the backend [remoteId].
+  ///
+  /// A delete push leaves [remoteId] null (the tombstone may never have been
+  /// pushed as an upsert), so the existing `remote_id` is left untouched.
+  Future<void> markRecordSynced(String uuid, {String? remoteId}) async {
     await (_db.update(_db.soilRecords)..where((t) => t.uuid.equals(uuid)))
         .write(
       SoilRecordsCompanion(
-        remoteId: Value(remoteId),
+        remoteId: remoteId == null ? const Value.absent() : Value(remoteId),
         syncStatus: const Value('synced'),
       ),
     );

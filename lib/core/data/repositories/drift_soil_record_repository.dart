@@ -126,7 +126,8 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
 
   @override
   Future<void> deleteAll() async {
-    await _tombstone((t) => t.deleted.equals(false));
+    // `_tombstone` already restricts to non-deleted rows.
+    await _tombstone((t) => const Constant(true));
   }
 
   @override

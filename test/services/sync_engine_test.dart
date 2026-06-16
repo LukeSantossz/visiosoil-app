@@ -129,5 +129,36 @@ void main() {
 
       expect(backend.deleted.map((r) => r.uuid), contains(local.uuid));
     });
+
+    test('sync_engine_marks_tombstone_synced_after_delete_push', () async {
+      final local = await repo.create(sample());
+      // Drain the create first so only the delete op remains in the outbox;
+      // otherwise the upsert op would mark the record synced and mask the gap.
+      await engine.sync();
+      await repo.deleteById(local.id!);
+
+      await engine.sync();
+
+      final merged = await store.findByUuid(local.uuid!);
+      expect(merged!.syncStatus, 'synced');
+    });
+
+    test('sync_engine_orders_by_utc_instant_not_lexicographically', () async {
+      final local = await repo.create(sample(address: 'Local'));
+      // Local updated_at is '2026-01-01T12:00:00.000Z'. The remote is stamped
+      // 10:00 at -05:00, i.e. 15:00Z — a LATER instant, yet lexicographically
+      // '...10:00...' sorts before '...12:00...'. UTC ordering must win.
+      backend.toPull = [
+        local.copyWith(
+          address: 'Remote',
+          updatedAt: '2026-01-01T10:00:00.000-05:00',
+        ),
+      ];
+
+      await engine.sync();
+
+      final merged = await store.findByUuid(local.uuid!);
+      expect(merged!.address, 'Remote');
+    });
   });
 }

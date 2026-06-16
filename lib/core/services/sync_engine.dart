@@ -52,9 +52,10 @@ class SyncEngine {
     switch (operation) {
       case SyncOperation.delete:
         await _backend.deleteRecord(record);
+        await _local.markRecordSynced(record.uuid!);
       case SyncOperation.upsert:
         final remoteId = await _backend.pushRecord(record);
-        await _local.markRecordSynced(record.uuid!, remoteId);
+        await _local.markRecordSynced(record.uuid!, remoteId: remoteId);
     }
   }
 
@@ -77,11 +78,20 @@ class SyncEngine {
 
   /// Last-write-wins by `updated_at`; on a tie, a tombstone wins so deletions
   /// propagate instead of resurrecting.
+  ///
+  /// Comparison is by UTC instant, not lexicographic string order, so stamps
+  /// with different timezone offsets are ordered correctly.
   bool _remoteWins(SoilRecord local, SoilRecord remote) {
-    final localStamp = local.updatedAt ?? local.timestamp;
-    final remoteStamp = remote.updatedAt ?? remote.timestamp;
-    final comparison = remoteStamp.compareTo(localStamp);
+    final localInstant = _instant(local.updatedAt ?? local.timestamp);
+    final remoteInstant = _instant(remote.updatedAt ?? remote.timestamp);
+    final comparison = remoteInstant.compareTo(localInstant);
     if (comparison != 0) return comparison > 0;
     return remote.deleted && !local.deleted;
   }
+
+  /// Parses an ISO-8601 timestamp to a UTC [DateTime]. An unparseable value
+  /// sorts oldest so it never wins a merge by accident.
+  DateTime _instant(String value) =>
+      DateTime.tryParse(value)?.toUtc() ??
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 }
