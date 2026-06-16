@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Provider for app information (version, build).
@@ -28,6 +29,13 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          // --- Account ---
+          _SectionHeader(title: 'CONTA'),
+          const SizedBox(height: AppSpacing.sm),
+          const _AccountTile(),
+
+          const SizedBox(height: AppSpacing.xl),
+
           // --- About ---
           _SectionHeader(title: 'SOBRE'),
           const SizedBox(height: AppSpacing.sm),
@@ -120,6 +128,56 @@ class SettingsScreen extends ConsumerWidget {
       }
     }
   }
+}
+
+// --- Account Tile ---
+
+/// Sign-in / sign-out entry reflecting [authNotifierProvider]. Signing in or
+/// out is the only place the app touches authentication; everything else works
+/// unauthenticated.
+class _AccountTile extends ConsumerWidget {
+  const _AccountTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authAsync = ref.watch(authNotifierProvider);
+
+    return authAsync.when(
+      loading: () => const _SettingsTile(
+        icon: Icons.account_circle_outlined,
+        title: 'Conta',
+        trailing: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      error: (_, _) => _signInTile(ref),
+      data: (state) {
+        final account = state.account;
+        if (account == null) return _signInTile(ref);
+        return _SettingsTile(
+          icon: Icons.account_circle_outlined,
+          title: account.displayName ?? account.email,
+          trailing: TextButton(
+            onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+            child: const Text('Sair'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _signInTile(WidgetRef ref) => _SettingsTile(
+        icon: Icons.login,
+        title: 'Entrar com Google',
+        onTap: () => ref.read(authNotifierProvider.notifier).signIn(),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: AppColors.onSurfaceVariant,
+        ),
+      );
 }
 
 // --- Section Header ---
