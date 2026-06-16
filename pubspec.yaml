@@ -51,6 +51,9 @@ dependencies:
   # App info (version, build number)
   package_info_plus: ^8.0.0
   share_plus: ^12.0.2
+  # Google OAuth2 sign-in and secure token storage (sync prerequisite)
+  google_sign_in: ^6.2.1
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:
