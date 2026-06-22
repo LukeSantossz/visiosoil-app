@@ -15,7 +15,10 @@ ok() { PASS=$((PASS + 1)); printf 'ok   - %s\n' "$1"; }
 no() { FAIL=$((FAIL + 1)); printf 'FAIL - %s\n' "$1"; printf '       %s\n' "$2"; }
 
 # A stub `codex` so tests never call the real binary. STUB_EXIT controls its code.
-STUB_DIR="$(mktemp -d)"
+# Fail closed if mktemp cannot create the dir: an empty STUB_DIR would put the real
+# Codex binary back on PATH and let tests hit it instead of the stub.
+STUB_DIR="$(mktemp -d)" || { echo "FAIL - cannot create temp stub dir" >&2; exit 1; }
+[ -n "$STUB_DIR" ] && [ -d "$STUB_DIR" ] || { echo "FAIL - empty temp stub dir" >&2; exit 1; }
 cat > "$STUB_DIR/codex" <<'STUB'
 #!/bin/sh
 echo "STUB_CODEX_CALLED $*"
