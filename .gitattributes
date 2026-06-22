@@ -1,0 +1,4 @@
+# Shell scripts and Git hooks must keep LF endings so bash can execute them
+# on every platform (CRLF breaks the shebang with "\r: command not found").
+*.sh text eol=lf
+.githooks/** text eol=lf
