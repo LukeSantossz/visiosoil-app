@@ -77,6 +77,14 @@ else
   no "advisory_on_codex_failure_does_not_block" "code=$code out=$out"
 fi
 
+# blocking_mode_blocks_on_codex_failure (CODEX_REVIEW_BLOCKING=1 must propagate failure)
+out=$(PATH="$STUB_DIR:$PATH" STUB_EXIT=1 CODEX_REVIEW_BLOCKING=1 CODEX_REVIEW_BRANCH=feature/x bash "$RUNNER" 2>&1); code=$?
+if [ "$code" -ne 0 ]; then
+  ok "blocking_mode_blocks_on_codex_failure"
+else
+  no "blocking_mode_blocks_on_codex_failure" "code=$code out=$out"
+fi
+
 # agents_file_points_to_standards
 if [ -f "$AGENTS_FILE" ] \
   && grep -q "docs/standards/INDEX.md" "$AGENTS_FILE" \
