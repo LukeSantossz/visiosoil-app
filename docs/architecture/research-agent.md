@@ -1,6 +1,8 @@
 # Research Agent — Architecture
 
-Status: **modelled, not yet implemented**. This document is the design reference for the Research Agent feature. The direction and the headline decisions are recorded in [ADR 0001](../adr/0001-research-agent-advisory-web-grounded.md); this document expands them into a buildable model. No `lib/` code ships with this document; the delivery slices at the end are the implementation plan.
+Status: **design reference — pre-SPEC, not an implementation authorization.** This document models the Research Agent feature; the direction and headline decisions are recorded in [ADR 0001](../adr/0001-research-agent-advisory-web-grounded.md). No `lib/` code ships with it. Every delivery slice (§9) passes its own Spec Gate (`.standards/docs/standards/spec_method.md`) before any code is written — accepting this design does not bypass that gate.
+
+The `*.md` names cited in §3 and §8 (e.g. `rag-auto-corretivo.md`, `transformacao-queries.md`, `seguranca-llm.md`) are pages in an **external, private Obsidian knowledge base** (the maintainer's `llm-wiki` vault), **not files in this repository** — they are cited for design provenance, not as resolvable links. The decisions they support stand on their own in this document and ADR 0001.
 
 ## 1. Purpose
 
@@ -37,7 +39,7 @@ flowchart TD
     S9 -- no --> AB[abstain: insufficient evidence + sources]
 ```
 
-1. **AuthN/Z** — verify the Google token (audience = OAuth Web client), identify the user, enforce per-user rate limit/quota.
+1. **AuthN/Z** — verify the caller's Google **ID token** (a JWT) offline at the Worker: signature against Google's keys, `aud` = the OAuth **Web client**, and `exp`; identify the user; enforce per-user rate limit/quota. (Access-token introspection via Google's `tokeninfo` endpoint is a simpler fallback but costs a round-trip and is not audience-bound. See the auth prerequisite in §5.)
 2. **Query transformation** — from {texture, region/address, GPS, date} synthesize agronomic search queries; **multi-query** (several diverse queries) + rewrite into source vocabulary. Thin inputs won't match source wording — the documented trigger for query rewriting (`transformacao-queries.md`, `tema-rag-decisao.md`).
 3. **Web search** — Tavily over the queries; collect candidate sources.
 4. **Grade + metadata filter** — binary-relevance document grader + **authority/recency filter** preferring extension services / agricultural departments / recent material (`padroes-rag-avancados.md` P10). Off-topic and low-authority hits are dropped before generation.
@@ -54,7 +56,7 @@ flowchart TD
 
 ```
 POST /v1/management-tips
-Authorization: Bearer <Google token>
+Authorization: Bearer <Google ID token (JWT)>
 X-App-Version: <semver>
 
 { "recordUuid": "...", "textureClass": "Argilosa",
@@ -83,11 +85,13 @@ Errors: `401` unauthenticated · `429` rate-limited · `503` upstream (Groq/Tavi
 | Service seam | `abstract ResearchService` + `ProxyResearchService` | `lib/core/services/auth/auth_service.dart`, `google_auth_service.dart` |
 | Transport | `abstract HttpTransport` over `package:http` (transitive 1.6.0 today) | `google_sign_in_gateway.dart` (plugin wrap), `key_value_secure_storage.dart` |
 | Config | base URL via `String.fromEnvironment('RESEARCH_PROXY_BASE_URL')`, injected into the provider | none today — new pattern |
-| Auth | inject `AuthService`, call `accessToken()` for the bearer | `google_auth_service.dart:52` — `accessToken()` has **no consumer today**; this is its first |
+| Auth | inject `AuthService`; send a **backend-verifiable Google ID token** as the bearer (see prerequisite below) | `google_auth_service.dart:52` `accessToken()` (its first consumer) |
 | Resilience | `.timeout(...)`, bounded retries, return a typed result (never throw into UI) | `lib/core/services/inference_service.dart` (timeouts, retries, `ModelAssetLoader` injection) |
 | Domain | `ManagementTip`, `ManagementTipsResult` with hand-written `toJson`/`fromJson` | `lib/core/services/auth/auth_session.dart` (house-style JSON, no codegen) |
 
 Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fakes implement the abstract seams (house style — no `mockito`/`mocktail`), as in `test/services/google_auth_service_test.dart` and `test/services/sync_engine_test.dart`.
+
+> **Auth prerequisite (known gap).** The current gateway persists only the Drive **access token** (`GoogleSignInGatewayImpl`, `lib/core/services/auth/google_sign_in_gateway.dart:40`) — not an ID token. A raw access token cannot be audience-verified offline at the Worker. Per-user auth therefore needs a seam change *before* this contract works: configure `GoogleSignIn(serverClientId: <Web client ID>)` and capture `idToken` into `GatewaySignInResult`/`AuthSession`, so the app can send a JWT whose `aud` is the backend Web client. This depends on the OAuth **Web client** (#55, Step 6). The `tokeninfo`-introspection fallback works without the seam change but trades offline verification for a per-request round-trip. This seam change is the first part of slice 8 (§9).
 
 ## 6. Persistence / cache
 
@@ -123,6 +127,6 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 5. App: `ResearchService` + `HttpTransport` + config + domain models (with fakes/tests).
 6. App: `management_tips` table (v4 migration) + repository + providers (with in-memory Drift tests).
 7. App: Details `_ManagementTipsSection` UI + states + disclaimer + pt-BR copy.
-8. Wire `accessToken()` as the bearer; offline cache-first behaviour end-to-end.
+8. Auth seam change (capture `idToken` + set `serverClientId`; Worker verifies `aud`) so the app sends a backend-verifiable token; then offline cache-first behaviour end-to-end.
 
 Each slice is a vertical, independently reviewable change behind its own SPEC gate. Slices 1–4 land in the proxy repo; 5–8 in this app repo.

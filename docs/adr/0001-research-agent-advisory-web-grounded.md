@@ -4,12 +4,12 @@ The Research Agent turns a Soil Record's texture class plus location metadata (G
 
 ## Status
 
-Accepted. The direction above and the decisions below are settled; the full design is modelled in [`docs/architecture/research-agent.md`](../architecture/research-agent.md). Implementation is deferred (no code this round) and will follow that document's delivery slices, each behind its own SPEC gate.
+Accepted. The direction above and the decisions below are settled; the full design is modelled in [`docs/architecture/research-agent.md`](../architecture/research-agent.md). Accepting this ADR records the decision *direction* — it is **not** a Spec Gate pass. Implementation is deferred (no code this round) and each delivery slice goes through its own SPEC gate (`.standards/docs/standards/spec_method.md`) before any code.
 
 ### Decided
 - **Provider stack** — Groq (Llama 3.3 70B free tier) for the tool-calling model + Tavily (free search tier) for web search, both behind swappable `LLMClient` / `SearchClient` interfaces in the proxy.
 - **Proxy host** — Cloudflare Workers (free tier), JS/TS runtime. (Earlier topology question C1-vs-C2 is resolved in favour of a hosted proxy; an on-device Ollama prototype remains a documented future escape hatch, not the v1 path.)
-- **App→proxy authentication** — the user's Google token, carried via the existing `accessToken()` seam, so the proxy can identify the user and enforce per-user rate limits/quota. This **depends on the OAuth Web client** (token audience) tracked under the cloud-sync work (#55).
+- **App→proxy authentication** — a backend-verifiable Google **ID token** (JWT) carried as the bearer, so the proxy verifies the user offline (`aud` = OAuth Web client) and enforces per-user rate limits/quota. The existing `accessToken()` seam is the integration point but exposes only the Drive *access* token today, so a seam change (capture `idToken` + set `serverClientId`) is a prerequisite. This **depends on the OAuth Web client** tracked under the cloud-sync work (#55); see the architecture doc §5 for the gap and the `tokeninfo` fallback.
 - **Pipeline tier** — a full/robust **bounded corrective-RAG chain** (multi-query transformation, source authority/recency filtering, grounding + answer grading, consistency sampling, abstain-or-emit), not a minimal single-shot pipeline and not an autonomous ReAct agent. Rationale and step-by-step in the architecture doc.
 
 ## Considered Options
