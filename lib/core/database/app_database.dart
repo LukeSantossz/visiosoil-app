@@ -39,13 +39,15 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  /// Adds sync metadata to `soil_records`, backfills existing rows, and creates
-  /// the `sync_queue` outbox.
+  /// Adds sync metadata to `soil_records`, backfills existing rows, creates the
+  /// `sync_queue` outbox, and enqueues each legacy record for its first sync.
   ///
   /// `uuid` and `updated_at` cannot be added as NOT NULL columns to a populated
   /// table in SQLite, so they are added nullable, backfilled per row, then a
   /// unique index enforces `uuid`. `remote_id`, `sync_status`, and `deleted`
-  /// carry defaults and migrate directly.
+  /// carry defaults and migrate directly. Backfilled `updated_at` values are
+  /// normalized to a canonical UTC instant, and each migrated record gets an
+  /// `upsert` outbox entry so it is not stranded outside the sync path.
   Future<void> _migrateToV3(Migrator migrator) async {
     await migrator.addColumn(soilRecords, soilRecords.remoteId);
     await migrator.addColumn(soilRecords, soilRecords.syncStatus);
@@ -54,13 +56,28 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('ALTER TABLE soil_records ADD COLUMN uuid TEXT');
     await customStatement('ALTER TABLE soil_records ADD COLUMN updated_at TEXT');
 
+    // The outbox must exist before the backfill so legacy records can be
+    // enqueued in the same pass.
+    await migrator.createTable(syncQueue);
+
     const generator = Uuid();
     final existing =
         await customSelect('SELECT id, timestamp FROM soil_records').get();
     for (final row in existing) {
+      final uuid = generator.v4();
+      // Legacy timestamps were written timezone-naive; normalize to a canonical
+      // UTC instant so last-write-wins ordering is identical across devices.
+      final updatedAt = _toUtcInstant(row.read<String>('timestamp'));
       await customStatement(
         'UPDATE soil_records SET uuid = ?, updated_at = ? WHERE id = ?',
-        [generator.v4(), row.read<String>('timestamp'), row.read<int>('id')],
+        [uuid, updatedAt, row.read<int>('id')],
+      );
+      // SyncEngine only pushes rows present in the outbox, so a legacy record
+      // without an entry would never upload on first sync.
+      await customStatement(
+        'INSERT INTO sync_queue (record_uuid, operation, status, created_at) '
+        'VALUES (?, ?, ?, ?)',
+        [uuid, 'upsert', 'pending', updatedAt],
       );
     }
 
@@ -68,8 +85,14 @@ class AppDatabase extends _$AppDatabase {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_soil_records_uuid '
       'ON soil_records (uuid)',
     );
+  }
 
-    await migrator.createTable(syncQueue);
+  /// Returns the canonical UTC ISO-8601 form of a possibly timezone-naive
+  /// timestamp; an unparseable value is returned unchanged so the migration
+  /// never aborts on unexpected legacy data.
+  String _toUtcInstant(String value) {
+    final parsed = DateTime.tryParse(value);
+    return parsed == null ? value : parsed.toUtc().toIso8601String();
   }
 }
 
