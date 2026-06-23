@@ -83,7 +83,7 @@ Errors: `401` unauthenticated · `429` rate-limited · `503` upstream (Groq/Tavi
 | Concern | New element | Mirror of |
 |---|---|---|
 | Service seam | `abstract ResearchService` + `ProxyResearchService` | `lib/core/services/auth/auth_service.dart`, `google_auth_service.dart` |
-| Transport | `abstract HttpTransport` over `package:http` (transitive 1.6.0 today) | `google_sign_in_gateway.dart` (plugin wrap), `key_value_secure_storage.dart` |
+| Transport | `abstract HttpTransport` over `package:http` — **slice 5 must declare `http` as a direct dependency** (it is transitive 1.6.0 today; importing it directly otherwise trips `depend_on_referenced_packages`) | `google_sign_in_gateway.dart` (plugin wrap), `key_value_secure_storage.dart` |
 | Config | base URL via `String.fromEnvironment('RESEARCH_PROXY_BASE_URL')`, injected into the provider | none today — new pattern |
 | Auth | inject `AuthService`; send a **backend-verifiable Google ID token** as the bearer (see prerequisite below) | `google_auth_service.dart:52` `accessToken()` (its first consumer) |
 | Resilience | `.timeout(...)`, bounded retries, return a typed result (never throw into UI) | `lib/core/services/inference_service.dart` (timeouts, retries, `ModelAssetLoader` injection) |
@@ -124,7 +124,7 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 2. Pipeline core: query-transform → Tavily → grade/filter → trustworthy generation with citations.
 3. Guardrails: grounding/answer graders + abstention + consistency sampling + untrusted-content handling.
 4. Proxy eval harness + CI gate (groundedness set, shadow testing).
-5. App: `ResearchService` + `HttpTransport` + config + domain models (with fakes/tests).
+5. App: add `http` as a direct dependency in `pubspec.yaml`; `ResearchService` + `HttpTransport` + config + domain models (with fakes/tests).
 6. App: `management_tips` table (v4 migration) + repository + providers (with in-memory Drift tests).
 7. App: Details `_ManagementTipsSection` UI + states + disclaimer + pt-BR copy.
 8. Auth seam change (capture `idToken` + set `serverClientId`; Worker verifies `aud`) so the app sends a backend-verifiable token; then offline cache-first behaviour end-to-end.
