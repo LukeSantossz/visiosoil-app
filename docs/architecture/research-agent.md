@@ -67,7 +67,7 @@ Response (`200`):
 
 ```json
 {
-  "status": "grounded",            // or "abstained"
+  "status": "grounded",
   "tips": [{ "text": "...", "citations": [0, 2] }],
   "sources": [{ "title": "...", "url": "...", "publisher": "...", "date": "2025-..." }],
   "disclaimer": "Orientação advisory; valide com análise de solo local.",
@@ -76,7 +76,7 @@ Response (`200`):
 }
 ```
 
-Errors: `401` unauthenticated · `429` rate-limited · `503` upstream (Groq/Tavily) unavailable. The app treats any non-200 as recoverable: show cached tips if present, otherwise an error/offline state.
+`status` is `grounded` or `abstained`; each entry in `citations` indexes into `sources`. Errors: `401` unauthenticated · `429` rate-limited · `503` upstream (Groq/Tavily) unavailable. The app treats any non-200 as recoverable: show cached tips if present, otherwise an error/offline state.
 
 ## 5. App-side seams (mirror existing patterns)
 
@@ -120,7 +120,7 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 
 ## 9. Delivery slices (for `/to-issues` later — not built now)
 
-1. Proxy skeleton on Cloudflare Workers: `/v1/management-tips`, Google-token verification, `LLMClient`/`SearchClient` DI, the contract + error codes.
+1. Proxy skeleton on Cloudflare Workers: `/v1/management-tips`, Google-token verification (via `tokeninfo` introspection of the access token initially — slice 8 adds offline ID-token `aud` verification), `LLMClient`/`SearchClient` DI, the contract + error codes.
 2. Pipeline core: query-transform → Tavily → grade/filter → trustworthy generation with citations.
 3. Guardrails: grounding/answer graders + abstention + consistency sampling + untrusted-content handling.
 4. Proxy eval harness + CI gate (groundedness set, shadow testing).
@@ -130,3 +130,5 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 8. Auth seam change (capture `idToken` + set `serverClientId`; Worker verifies `aud`) so the app sends a backend-verifiable token; then offline cache-first behaviour end-to-end.
 
 Each slice is a vertical, independently reviewable change behind its own SPEC gate. Slices 1–4 land in the proxy repo; 5–8 in this app repo.
+
+**Auth sequencing.** The ID-token contract is reached progressively so no slice is blocked: slices 1 and 5 ship on the `tokeninfo` introspection fallback (proxy introspects the access token the app already has), and slice 8 upgrades to offline `aud` verification once the auth seam (capture `idToken` + set `serverClientId`, dependent on the OAuth Web client #55) lands. Until then the documented `Bearer <Google ID token>` is the target contract, satisfied in the interim by the fallback.
