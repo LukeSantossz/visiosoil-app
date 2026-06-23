@@ -78,6 +78,8 @@ Response (`200`):
 
 `status` is `grounded` or `abstained`; each entry in `citations` indexes into `sources`. Errors: `401` unauthenticated · `429` rate-limited · `503` upstream (Groq/Tavily) unavailable. The app treats any non-200 as recoverable: show cached tips if present, otherwise an error/offline state.
 
+**Bearer, both phases.** The header is `Authorization: Bearer <token>` in all phases; only what the token *is* and how the proxy verifies it changes. Target: a Google **ID token** (JWT) verified offline by `aud` (= Web client). Interim, before the auth seam lands (§5 prerequisite, slice 8): the app sends the Google **access token** and the proxy validates it via `tokeninfo` introspection. Both the proxy and the app are built against this two-phase definition so neither side is implemented for the wrong token.
+
 ## 5. App-side seams (mirror existing patterns)
 
 | Concern | New element | Mirror of |
@@ -96,7 +98,7 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 ## 6. Persistence / cache
 
 - New Drift table **`management_tips`** keyed by the record's **`uuid`** (the stable cross-device identity from `SoilRecords.uuid`), storing the graded/cited result + source URLs + `retrievedAt`. Schema **v3 → v4**; the migration is a single `migrator.createTable(managementTips)` (no backfill — a brand-new table). Add the table to the `@DriftDatabase(tables: [...])` array and bump `schemaVersion` in `lib/core/database/app_database.dart`; regenerate with `dart run build_runner build`.
-- **Read-through cache, NOT the sync outbox.** Tips are server-derived, read-only, with no local mutations and no last-write-wins conflict, so they must not enqueue into `sync_queue` / `SyncEngine` (`lib/core/data/sync/*`, which exist for user-authored records). Keying by `uuid` lets cached tips persist the same way records do across devices/reinstalls.
+- **Read-through cache, NOT the sync outbox.** Tips are server-derived, read-only, with no local mutations and no last-write-wins conflict, so they must not enqueue into `sync_queue` / `SyncEngine` (`lib/core/data/sync/*`, which exist for user-authored records). Keying by `uuid` keeps the cache stable for a record on the same install and makes a future sync-backed restore (if ever added) able to re-associate tips by record. It does **not** restore on a fresh install or another device — those refetch from the proxy (which has its own response cache, §3 step 10). The empty-cache → online-refetch path is mandatory for fresh installs and must be covered by tests.
 - `abstract ManagementTipsRepository` + Drift impl, mirroring `lib/core/data/repositories/soil_record_repository.dart` and `drift_soil_record_repository.dart` (injectable `clock` for deterministic tests). Drift types never leak past the repository.
 - Providers (mirroring `lib/providers/soil_record_repository_provider.dart`):
   - `researchServiceProvider` (`Provider<ResearchService>`, overridable in tests),
