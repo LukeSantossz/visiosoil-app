@@ -89,6 +89,65 @@ void main() {
         reason: 'a unique index on uuid must exist after migration',
       );
     });
+
+    test('migration_enqueues_upsert_outbox_entry_per_legacy_record', () async {
+      final db = AppDatabase.forTesting(NativeDatabase(dbFile));
+      addTearDown(db.close);
+
+      final recordUuids = (await db
+              .customSelect('SELECT uuid FROM soil_records ORDER BY id')
+              .get())
+          .map((r) => r.read<String>('uuid'))
+          .toSet();
+
+      final queue = await db
+          .customSelect(
+            'SELECT record_uuid, operation, status FROM sync_queue',
+          )
+          .get();
+
+      expect(
+        queue.length,
+        2,
+        reason: 'each legacy record needs an outbox entry to push on first sync',
+      );
+      for (final row in queue) {
+        expect(row.read<String>('operation'), 'upsert');
+        expect(row.read<String>('status'), 'pending');
+      }
+      final queuedUuids =
+          queue.map((r) => r.read<String>('record_uuid')).toSet();
+      expect(
+        queuedUuids,
+        recordUuids,
+        reason: 'every legacy record uuid must be enqueued',
+      );
+    });
+
+    test('migration_normalizes_legacy_updated_at_to_utc', () async {
+      final localDbFile = File('${tempDir.path}/visiosoil_v2_local.db');
+      _seedV2DatabaseWithLocalTimestamp(localDbFile.path);
+
+      final db = AppDatabase.forTesting(NativeDatabase(localDbFile));
+      addTearDown(db.close);
+
+      final row = await db
+          .customSelect('SELECT updated_at, timestamp FROM soil_records')
+          .getSingle();
+      final updatedAt = row.read<String>('updated_at');
+      final legacyTimestamp = row.read<String>('timestamp');
+
+      expect(
+        DateTime.parse(updatedAt).isUtc,
+        isTrue,
+        reason: 'updated_at must be a canonical UTC instant for LWW ordering',
+      );
+      expect(
+        DateTime.parse(updatedAt),
+        DateTime.parse(legacyTimestamp).toUtc(),
+        reason: 'the migrated instant must equal the legacy local instant',
+      );
+    });
   });
 }
 
@@ -116,6 +175,34 @@ void _seedV2Database(String path) {
     raw.execute(
       "INSERT INTO soil_records (image_path, timestamp) "
       "VALUES ('/legacy-b.jpg', '2026-02-02T00:00:00.000Z');",
+    );
+    raw.execute('PRAGMA user_version = 2;');
+  } finally {
+    raw.dispose();
+  }
+}
+
+/// Creates a v2-shaped database with a single row whose `timestamp` is
+/// timezone-naive (no UTC suffix), as the capture screen historically wrote it
+/// via `DateTime.now().toIso8601String()`.
+void _seedV2DatabaseWithLocalTimestamp(String path) {
+  final raw = sqlite3.open(path);
+  try {
+    raw.execute('''
+      CREATE TABLE soil_records (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        image_path TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
+        address TEXT,
+        timestamp TEXT NOT NULL,
+        texture_class TEXT,
+        confidence_score REAL
+      );
+    ''');
+    raw.execute(
+      "INSERT INTO soil_records (image_path, timestamp) "
+      "VALUES ('/legacy-local.jpg', '2026-03-03T12:00:00.000');",
     );
     raw.execute('PRAGMA user_version = 2;');
   } finally {
