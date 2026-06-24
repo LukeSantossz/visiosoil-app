@@ -250,6 +250,20 @@ void main() {
           'Bearer tok-123');
     });
 
+    test('returns_unauthenticated_when_token_provider_throws', () async {
+      final transport = _FakeTransport([_ok(_groundedJson)]);
+      final service = _service(
+        transport,
+        tokenProvider: () => Future<String?>.error(Exception('storage broken')),
+      );
+
+      final result = await service.fetchTips(_record());
+
+      expect((result as ResearchFailure).kind,
+          ResearchFailureKind.unauthenticated);
+      expect(transport.callCount, 0); // failed before any network call
+    });
+
     test('surfaces_malformed_body_as_typed_failure', () async {
       final transport = _FakeTransport([_ok('not json {{')]);
 

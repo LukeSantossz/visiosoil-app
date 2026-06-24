@@ -76,7 +76,16 @@ class ProxyResearchService implements ResearchService {
       'address': record.address,
       'locale': locale ?? _defaultLocale,
     });
-    final headers = await _buildHeaders();
+
+    final Map<String, String> headers;
+    try {
+      headers = await _buildHeaders();
+    } on Exception catch (e) {
+      // The token provider may call into secure storage or silent auth (#95);
+      // a failure there must surface as a typed result, not throw into the UI.
+      developer.log('token lookup failed: $e', name: 'ProxyResearchService');
+      return const ResearchFailure(ResearchFailureKind.unauthenticated);
+    }
 
     var lastFailure = const ResearchFailure(ResearchFailureKind.network);
     for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
