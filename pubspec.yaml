@@ -57,6 +57,8 @@ dependencies:
   # Offline-first sync foundation
   uuid: ^4.5.1
   connectivity_plus: ^6.1.0
+  # HTTP client for the research proxy transport
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
