@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:visiosoil_app/core/database/tables/management_tips_table.dart';
 import 'package:visiosoil_app/core/database/tables/soil_records_table.dart';
 import 'package:visiosoil_app/core/database/tables/sync_queue_table.dart';
 
@@ -8,10 +9,11 @@ part 'app_database.g.dart';
 
 /// VisioSoil local database (SQLite + Drift).
 ///
-/// Holds the [SoilRecords] table and the [SyncQueue] outbox. Future tables must
-/// be added to the `tables` array and accompanied by a bump in [schemaVersion]
-/// with the corresponding migration in [migration].
-@DriftDatabase(tables: [SoilRecords, SyncQueue])
+/// Holds the [SoilRecords] table, the [SyncQueue] outbox, and the
+/// [ManagementTips] read-through cache. Future tables must be added to the
+/// `tables` array and accompanied by a bump in [schemaVersion] with the
+/// corresponding migration in [migration].
+@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -19,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,6 +37,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             // v2 -> v3: offline-first sync foundation.
             await _migrateToV3(migrator);
+          }
+          if (from < 4) {
+            // v3 -> v4: management tips read-through cache (new table only).
+            await migrator.createTable(managementTips);
           }
         },
       );
