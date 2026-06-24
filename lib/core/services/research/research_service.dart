@@ -58,9 +58,9 @@ class ResearchFailure extends ResearchResult {
   final int? statusCode;
 }
 
-/// Fetches advisory Management Tips ("dicas de manejo") for a Soil Record from
-/// the backend proxy. The abstract seam mirrors `AuthService` so providers and
-/// tests can substitute a fake.
+/// Fetches advisory management tips for a Soil Record from the backend proxy.
+/// The abstract seam mirrors `AuthService` so providers and tests can
+/// substitute a fake.
 abstract class ResearchService {
   /// Requests cited tips for [record]. [locale] selects the response language
   /// (defaults to `pt-BR` when null). Returns a typed [ResearchResult]; never
