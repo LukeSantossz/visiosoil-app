@@ -119,6 +119,16 @@ void main() {
       expect(req.headers['X-App-Version'], isNotEmpty);
     });
 
+    test('defaults_locale_to_pt_br_when_locale_is_omitted', () async {
+      final transport = _FakeTransport([_ok(_groundedJson)]);
+
+      await _service(transport).fetchTips(_record());
+
+      final body =
+          jsonDecode(transport.captured.single.body) as Map<String, dynamic>;
+      expect(body['locale'], 'pt-BR');
+    });
+
     test('returns_grounded_success_for_grounded_body', () async {
       final transport = _FakeTransport([_ok(_groundedJson)]);
 
@@ -187,6 +197,17 @@ void main() {
 
     test('returns_network_failure_on_connection_error', () async {
       final transport = _FakeTransport([Exception('socket down')]);
+
+      final result = await _service(transport).fetchTips(_record());
+
+      expect((result as ResearchFailure).kind, ResearchFailureKind.network);
+      expect(transport.callCount, 3);
+    });
+
+    test('maps_transport_error_to_typed_failure', () async {
+      // An injected transport that raises an Error (not an Exception) must still
+      // be contained by the never-throws contract.
+      final transport = _FakeTransport([StateError('unexpected')]);
 
       final result = await _service(transport).fetchTips(_record());
 

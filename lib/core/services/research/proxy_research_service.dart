@@ -80,9 +80,10 @@ class ProxyResearchService implements ResearchService {
     final Map<String, String> headers;
     try {
       headers = await _buildHeaders();
-    } on Exception catch (e) {
-      // The token provider may call into secure storage or silent auth (#95);
-      // a failure there must surface as a typed result, not throw into the UI.
+    } catch (e) {
+      // Auth-seam boundary: the injected token provider may reach secure storage
+      // or silent auth (#95) and can throw an Exception OR an Error. To honor the
+      // "never throws into the UI" contract, catch broadly and surface a result.
       developer.log('token lookup failed: $e', name: 'ProxyResearchService');
       return const ResearchFailure(ResearchFailureKind.unauthenticated);
     }
@@ -124,9 +125,10 @@ class ProxyResearchService implements ResearchService {
           .timeout(_timeout);
     } on TimeoutException {
       return const ResearchFailure(ResearchFailureKind.timeout);
-    } on Exception catch (e) {
-      // Connection-level transport failures (socket reset, DNS, TLS) are all
-      // Exceptions; surface them as a typed result instead of throwing into UI.
+    } catch (e) {
+      // Transport boundary: socket/DNS/TLS failures are Exceptions, but an
+      // arbitrary injected transport could also raise an Error. Catch broadly so
+      // the "never throws into the UI" contract holds regardless of the cause.
       developer.log('research request failed: $e',
           name: 'ProxyResearchService');
       return const ResearchFailure(ResearchFailureKind.network);
