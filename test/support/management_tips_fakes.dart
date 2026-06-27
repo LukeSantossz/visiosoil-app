@@ -100,4 +100,24 @@ class ManagementTipsResultBuilder {
         model: 'llama-3.3-70b',
         retrievedAt: DateTime.utc(2026, 6, 26, 12),
       );
+
+  static ManagementTipsResult groundedWithoutDisclaimer() => ManagementTipsResult(
+        status: ManagementTipsStatus.grounded,
+        tips: const [
+          ManagementTip(
+            text: 'Mantenha cobertura vegetal no solo.',
+            citations: [0],
+          ),
+        ],
+        sources: const [
+          TipSource(
+            title: 'Embrapa Solos',
+            url: 'https://embrapa.br',
+            publisher: 'Embrapa',
+          ),
+        ],
+        disclaimer: '',
+        model: 'llama-3.3-70b',
+        retrievedAt: DateTime.utc(2026, 6, 26, 12),
+      );
 }

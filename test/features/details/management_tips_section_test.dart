@@ -174,4 +174,20 @@ void main() {
     expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
   });
+
+  testWidgets('empty disclaimer falls back to the advisory disclaimer copy',
+      (tester) async {
+    final repo = FakeManagementTipsRepository()
+      ..seed('rec-1', ManagementTipsResultBuilder.groundedWithoutDisclaimer());
+    await tester.pumpWidget(harness(
+      record: tipsRecord(),
+      repo: repo,
+      service: okService(),
+      connectivity: ConnectivityStatus.online,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Não substituem avaliação técnica presencial'),
+        findsOneWidget);
+  });
 }
