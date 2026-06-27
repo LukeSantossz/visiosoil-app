@@ -87,3 +87,17 @@ SoilRecord tipsRecord({
       textureClass: textureClass,
       confidenceScore: 0.9,
     );
+
+/// Builders for non-grounded results.
+class ManagementTipsResultBuilder {
+  const ManagementTipsResultBuilder._();
+
+  static ManagementTipsResult abstained() => ManagementTipsResult(
+        status: ManagementTipsStatus.abstained,
+        tips: const [],
+        sources: const [],
+        disclaimer: 'Conteudo consultivo.',
+        model: 'llama-3.3-70b',
+        retrievedAt: DateTime.utc(2026, 6, 26, 12),
+      );
+}
