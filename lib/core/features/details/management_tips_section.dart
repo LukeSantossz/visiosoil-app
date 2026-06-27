@@ -39,6 +39,8 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
   Future<void> _generate() async {
     final uuid = _record.uuid;
     if (uuid == null) return;
+    final hadTips =
+        ref.read(cachedManagementTipsProvider(uuid)).value != null;
     setState(() {
       _generating = true;
       _lastError = null;
@@ -46,10 +48,13 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
     final failure =
         await ref.read(managementTipsControllerProvider).generate(_record);
     if (!mounted) return;
-    final hadTips =
-        ref.read(cachedManagementTipsProvider(uuid)).value != null;
     if (failure == null) {
+      // Re-read the freshly cached tips before clearing the loading flag, so
+      // the section goes straight from loading to data without a one-frame
+      // flash of the empty state during the cache re-read.
       ref.invalidate(cachedManagementTipsProvider(uuid));
+      await ref.read(cachedManagementTipsProvider(uuid).future);
+      if (!mounted) return;
     }
     setState(() {
       _generating = false;
@@ -82,6 +87,9 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
           ConnectivityStatus.offline;
       body = ref.watch(cachedManagementTipsProvider(uuid)).when(
             loading: () => const _TipsLoading(),
+            // A corrupt or unreadable cache entry surfaces here; fall back to
+            // the empty/offline state so the user can regenerate (overwriting
+            // the bad entry) instead of being stuck.
             error: (_, _) => _emptyOrOffline(online),
             data: (result) {
               if (_generating && result == null) return const _TipsLoading();
