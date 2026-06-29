@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/data/sync/sync_operation.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/core/database/soil_record_mapper.dart';
+import 'package:visiosoil_app/core/services/image_storage_service.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Drift/SQLite-based implementation of [SoilRecordRepository].
@@ -21,12 +24,15 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     this._db, {
     String Function()? uuidFactory,
     DateTime Function()? clock,
+    ImageStorageService? imageStorage,
   })  : _uuidFactory = uuidFactory ?? (() => const Uuid().v4()),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _imageStorage = imageStorage ?? DefaultImageStorageService();
 
   final AppDatabase _db;
   final String Function() _uuidFactory;
   final DateTime Function() _clock;
+  final ImageStorageService _imageStorage;
 
   String _now() => _clock().toUtc().toIso8601String();
 
@@ -35,11 +41,18 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     final uuid = _uuidFactory();
     final now = _now();
 
+    // Copy the captured photo into durable storage BEFORE any DB work, so a
+    // copy failure aborts the create with no row inserted (no orphan record).
+    final stableImagePath = await _imageStorage.saveCapturedImage(
+      File(record.imagePath),
+      recordUuid: uuid,
+    );
+
     final id = await _db.transaction(() async {
       final insertedId = await _db.into(_db.soilRecords).insert(
             SoilRecordsCompanion.insert(
               uuid: uuid,
-              imagePath: record.imagePath,
+              imagePath: stableImagePath,
               latitude: Value(record.latitude),
               longitude: Value(record.longitude),
               address: Value(record.address),
@@ -56,6 +69,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     return record.copyWith(
       id: id,
       uuid: uuid,
+      imagePath: stableImagePath,
       updatedAt: now,
       syncStatus: 'pending',
       deleted: false,

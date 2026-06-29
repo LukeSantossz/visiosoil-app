@@ -8,6 +8,8 @@ import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repositor
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
+import '../support/fake_image_storage_service.dart';
+
 void main() {
   group('DriftSoilRecordRepository sync metadata', () {
     late AppDatabase db;
@@ -15,7 +17,7 @@ void main() {
 
     setUp(() {
       db = AppDatabase.forTesting(NativeDatabase.memory());
-      repo = DriftSoilRecordRepository(db);
+      repo = DriftSoilRecordRepository(db, imageStorage: FakeImageStorageService());
     });
 
     tearDown(() async {
@@ -98,7 +100,8 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
 
       var openDb = AppDatabase.forTesting(NativeDatabase(file));
-      await DriftSoilRecordRepository(openDb).create(sample());
+      await DriftSoilRecordRepository(openDb, imageStorage: FakeImageStorageService())
+          .create(sample());
       await openDb.close();
 
       openDb = AppDatabase.forTesting(NativeDatabase(file));

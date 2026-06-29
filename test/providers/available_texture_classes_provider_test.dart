@@ -9,7 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/database_provider.dart';
+import 'package:visiosoil_app/providers/image_storage_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+
+import '../support/fake_image_storage_service.dart';
 
 void main() {
   group('availableTextureClassesProvider', () {
@@ -39,7 +42,10 @@ void main() {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       container = ProviderContainer(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          imageStorageServiceProvider.overrideWithValue(FakeImageStorageService()),
+        ],
       );
       addTearDown(container.dispose);
       // Keep the provider and its underlying stream subscription alive.
