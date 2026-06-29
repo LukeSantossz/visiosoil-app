@@ -49,7 +49,7 @@ void main() {
       );
     }
 
-    test('create atribui id, persiste o caminho estável e mantém os demais campos',
+    test('create assigns id, persists the stable path, and keeps the other fields',
         () async {
       final saved = await repo.create(sample());
 
