@@ -8,8 +8,10 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
+import 'package:visiosoil_app/core/services/image_storage_service.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 import '../support/fake_image_storage_service.dart';
@@ -182,6 +184,42 @@ void main() {
         isTrue,
       );
       expect(emissions.last, isEmpty);
+    });
+
+    test('create_cleans_up_the_copied_file_when_the_db_write_fails', () async {
+      final baseDir = Directory.systemTemp.createTempSync('visiosoil_failbase');
+      addTearDown(() {
+        if (baseDir.existsSync()) baseDir.deleteSync(recursive: true);
+      });
+      final sourceDir = Directory.systemTemp.createTempSync('visiosoil_failsrc');
+      addTearDown(() {
+        if (sourceDir.existsSync()) sourceDir.deleteSync(recursive: true);
+      });
+      final source = File(p.join(sourceDir.path, 'photo.jpg'))
+        ..writeAsBytesSync([1, 2, 3]);
+
+      final failingDb = AppDatabase.forTesting(NativeDatabase.memory());
+      final failingRepo = DriftSoilRecordRepository(
+        failingDb,
+        imageStorage:
+            DefaultImageStorageService(baseDirectory: () async => baseDir),
+      );
+      // Drift skips close() when the database has never been opened (no-op
+      // guard at _ensureOpenCalled). Run any query first so that the
+      // connection is established and close() really tears it down.
+      await failingDb.select(failingDb.soilRecords).get();
+      await failingDb.close(); // force the insert transaction to throw
+
+      await expectLater(
+        failingRepo.create(sample(imagePath: source.path)),
+        throwsA(anything),
+      );
+
+      final soilImagesDir = Directory(p.join(baseDir.path, 'soil_images'));
+      final remaining = soilImagesDir.existsSync()
+          ? soilImagesDir.listSync()
+          : <FileSystemEntity>[];
+      expect(remaining, isEmpty);
     });
   });
 }

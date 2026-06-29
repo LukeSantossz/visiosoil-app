@@ -48,23 +48,36 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
       recordUuid: uuid,
     );
 
-    final id = await _db.transaction(() async {
-      final insertedId = await _db.into(_db.soilRecords).insert(
-            SoilRecordsCompanion.insert(
-              uuid: uuid,
-              imagePath: stableImagePath,
-              latitude: Value(record.latitude),
-              longitude: Value(record.longitude),
-              address: Value(record.address),
-              timestamp: record.timestamp,
-              updatedAt: now,
-              textureClass: Value(record.textureClass),
-              confidenceScore: Value(record.confidenceScore),
-            ),
-          );
-      await _enqueue(uuid, SyncOperation.upsert, now);
-      return insertedId;
-    });
+    final int id;
+    try {
+      id = await _db.transaction(() async {
+        final insertedId = await _db.into(_db.soilRecords).insert(
+              SoilRecordsCompanion.insert(
+                uuid: uuid,
+                imagePath: stableImagePath,
+                latitude: Value(record.latitude),
+                longitude: Value(record.longitude),
+                address: Value(record.address),
+                timestamp: record.timestamp,
+                updatedAt: now,
+                textureClass: Value(record.textureClass),
+                confidenceScore: Value(record.confidenceScore),
+              ),
+            );
+        await _enqueue(uuid, SyncOperation.upsert, now);
+        return insertedId;
+      });
+    } catch (_) {
+      // The copy already succeeded; if the DB write fails the stored file would
+      // be orphaned (no row references it). Best-effort cleanup, then rethrow
+      // the original error so the caller still sees the failure.
+      try {
+        await File(stableImagePath).delete();
+      } on FileSystemException {
+        // File may already be absent; nothing more to do.
+      }
+      rethrow;
+    }
 
     return record.copyWith(
       id: id,
