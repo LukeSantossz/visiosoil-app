@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -83,6 +84,8 @@ class _DetailsContent extends StatelessWidget {
                   _ClassificationHeader(record: record),
                   const SizedBox(height: AppSpacing.xl),
                   _InfoSection(record: record),
+                  const SizedBox(height: AppSpacing.xl),
+                  ManagementTipsSection(record: record),
                   const SizedBox(height: AppSpacing.xl),
                   _ActionButtons(record: record),
                 ],
