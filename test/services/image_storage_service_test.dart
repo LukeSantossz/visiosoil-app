@@ -71,5 +71,18 @@ void main() {
         throwsA(isA<FileSystemException>()),
       );
     });
+
+    test('saveCapturedImage_rejects_recordUuid_with_path_separators', () async {
+      final source = writeSource('photo.jpg', [1]);
+
+      await expectLater(
+        () => service.saveCapturedImage(source, recordUuid: '../evil'),
+        throwsA(isA<ArgumentError>()),
+      );
+      await expectLater(
+        () => service.saveCapturedImage(source, recordUuid: r'..\evil'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 }

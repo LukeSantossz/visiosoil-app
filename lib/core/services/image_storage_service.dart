@@ -37,6 +37,16 @@ class DefaultImageStorageService implements ImageStorageService {
     File source, {
     required String recordUuid,
   }) async {
+    // Guard against path traversal: recordUuid becomes a filename component, so
+    // it must not contain path separators that could escape the target dir.
+    if (recordUuid.contains('/') || recordUuid.contains(r'\')) {
+      throw ArgumentError.value(
+        recordUuid,
+        'recordUuid',
+        'must not contain path separators',
+      );
+    }
+
     final base = await _baseDirectory();
     final targetDir = Directory(p.join(base.path, _subdirectory));
     await targetDir.create(recursive: true);
