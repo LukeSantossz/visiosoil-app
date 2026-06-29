@@ -10,6 +10,8 @@ import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/core/services/sync_engine.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
+import '../support/fake_image_storage_service.dart';
+
 class _FakeBackend implements RemoteSyncBackend {
   final List<SoilRecord> pushed = [];
   final List<SoilRecord> deleted = [];
@@ -51,6 +53,7 @@ void main() {
         db,
         uuidFactory: () => 'uuid-${++counter}',
         clock: () => DateTime.utc(2026, 1, 1, 12),
+        imageStorage: FakeImageStorageService(),
       );
       store = SyncLocalStore(db);
       backend = _FakeBackend();

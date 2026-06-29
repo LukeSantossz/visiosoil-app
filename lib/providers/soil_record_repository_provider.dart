@@ -4,11 +4,15 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/database_provider.dart';
+import 'package:visiosoil_app/providers/image_storage_service_provider.dart';
 
 /// Exposes the repository **through the interface** [SoilRecordRepository]. Screens
 /// must never read [DriftSoilRecordRepository] directly.
 final soilRecordRepositoryProvider = Provider<SoilRecordRepository>((ref) {
-  return DriftSoilRecordRepository(ref.watch(appDatabaseProvider));
+  return DriftSoilRecordRepository(
+    ref.watch(appDatabaseProvider),
+    imageStorage: ref.watch(imageStorageServiceProvider),
+  );
 });
 
 /// Reactive stream with all records, from most recent to oldest.
