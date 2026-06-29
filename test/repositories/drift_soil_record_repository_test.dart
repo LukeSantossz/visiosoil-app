@@ -198,20 +198,18 @@ void main() {
       final source = File(p.join(sourceDir.path, 'photo.jpg'))
         ..writeAsBytesSync([1, 2, 3]);
 
-      final failingDb = AppDatabase.forTesting(NativeDatabase.memory());
-      final failingRepo = DriftSoilRecordRepository(
-        failingDb,
+      final realRepo = DriftSoilRecordRepository(
+        db,
         imageStorage:
             DefaultImageStorageService(baseDirectory: () async => baseDir),
       );
-      // Drift skips close() when the database has never been opened (no-op
-      // guard at _ensureOpenCalled). Run any query first so that the
-      // connection is established and close() really tears it down.
-      await failingDb.select(failingDb.soilRecords).get();
-      await failingDb.close(); // force the insert transaction to throw
+      // Force the DB write to fail while keeping the connection open: drop the
+      // table so the insert throws "no such table". The group's `db` is
+      // recreated for each test, so this stays isolated.
+      await db.customStatement('DROP TABLE soil_records');
 
       await expectLater(
-        failingRepo.create(sample(imagePath: source.path)),
+        realRepo.create(sample(imagePath: source.path)),
         throwsA(anything),
       );
 
