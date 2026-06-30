@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -213,17 +214,18 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }
 
   /// Marks the rows matching [filter] as deleted (tombstone) and enqueues a
-  /// `delete` operation per affected record, in a single transaction. Already
-  /// tombstoned rows are left untouched.
+  /// `delete` operation per affected record, in a single transaction; already
+  /// tombstoned rows are left untouched. After the transaction commits, each
+  /// affected record's image file is deleted best-effort.
   Future<void> _tombstone(
     Expression<bool> Function($SoilRecordsTable t) filter,
   ) async {
     final now = _now();
-    await _db.transaction(() async {
+    final imagePaths = await _db.transaction(() async {
       final rows = await (_db.select(_db.soilRecords)
             ..where((t) => filter(t) & t.deleted.equals(false)))
           .get();
-      if (rows.isEmpty) return;
+      if (rows.isEmpty) return <String>[];
 
       for (final row in rows) {
         await (_db.update(_db.soilRecords)
@@ -237,7 +239,24 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         );
         await _enqueue(row.uuid, SyncOperation.delete, now);
       }
+      return rows.map((row) => row.imagePath).toList();
     });
+
+    // After the tombstone has committed, delete each record's image file
+    // best-effort: the row removal is the user's primary intent, so a failure
+    // to delete a file is logged and tolerated, never allowed to abort the
+    // already-committed tombstone or block the remaining files.
+    for (final imagePath in imagePaths) {
+      try {
+        await _imageStorage.deleteImage(imagePath);
+      } on FileSystemException catch (error) {
+        developer.log(
+          'failed to delete image file: $imagePath',
+          name: 'DriftSoilRecordRepository',
+          error: error,
+        );
+      }
+    }
   }
 
   /// Appends an operation to the `sync_queue` outbox.

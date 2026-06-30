@@ -49,6 +49,14 @@ void main() {
       );
     }
 
+    Directory makeTempDir(String prefix) {
+      final dir = Directory.systemTemp.createTempSync(prefix);
+      addTearDown(() {
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      });
+      return dir;
+    }
+
     test('create assigns id, persists the stable path, and keeps the other fields',
         () async {
       final saved = await repo.create(sample());
@@ -218,6 +226,87 @@ void main() {
           ? soilImagesDir.listSync()
           : <FileSystemEntity>[];
       expect(remaining, isEmpty);
+    });
+
+    test('deleteById_removes_the_record_image_file_from_durable_storage',
+        () async {
+      final baseDir = makeTempDir('visiosoil_delbase');
+      final sourceDir = makeTempDir('visiosoil_delsrc');
+      final source = File(p.join(sourceDir.path, 'photo.jpg'))
+        ..writeAsBytesSync([1, 2, 3]);
+      final realRepo = DriftSoilRecordRepository(
+        db,
+        imageStorage:
+            DefaultImageStorageService(baseDirectory: () async => baseDir),
+      );
+
+      final saved = await realRepo.create(sample(imagePath: source.path));
+      expect(File(saved.imagePath).existsSync(), isTrue);
+
+      await realRepo.deleteById(saved.id!);
+
+      expect(File(saved.imagePath).existsSync(), isFalse);
+    });
+
+    test('deleteByIds_removes_every_selected_record_image_file', () async {
+      final baseDir = makeTempDir('visiosoil_delbase');
+      final sourceDir = makeTempDir('visiosoil_delsrc');
+      final realRepo = DriftSoilRecordRepository(
+        db,
+        imageStorage:
+            DefaultImageStorageService(baseDirectory: () async => baseDir),
+      );
+      Future<SoilRecord> createWith(String name) async {
+        final src = File(p.join(sourceDir.path, name))..writeAsBytesSync([1]);
+        return realRepo.create(sample(imagePath: src.path));
+      }
+
+      final a = await createWith('a.jpg');
+      final b = await createWith('b.jpg');
+      final c = await createWith('c.jpg');
+
+      await realRepo.deleteByIds([a.id!, c.id!]);
+
+      expect(File(a.imagePath).existsSync(), isFalse);
+      expect(File(c.imagePath).existsSync(), isFalse);
+      expect(File(b.imagePath).existsSync(), isTrue);
+    });
+
+    test('deleteAll_removes_all_record_image_files', () async {
+      final baseDir = makeTempDir('visiosoil_delbase');
+      final sourceDir = makeTempDir('visiosoil_delsrc');
+      final realRepo = DriftSoilRecordRepository(
+        db,
+        imageStorage:
+            DefaultImageStorageService(baseDirectory: () async => baseDir),
+      );
+      Future<SoilRecord> createWith(String name) async {
+        final src = File(p.join(sourceDir.path, name))..writeAsBytesSync([1]);
+        return realRepo.create(sample(imagePath: src.path));
+      }
+
+      final a = await createWith('a.jpg');
+      final b = await createWith('b.jpg');
+
+      await realRepo.deleteAll();
+
+      expect(File(a.imagePath).existsSync(), isFalse);
+      expect(File(b.imagePath).existsSync(), isFalse);
+    });
+
+    test('tombstone_survives_when_an_image_file_delete_throws_io_error',
+        () async {
+      final saved = await repo.create(sample());
+      storage.throwOnDelete = true;
+
+      // A real I/O failure on the file delete must not abort the committed
+      // tombstone or rethrow: deleteById completes normally. The failure is
+      // surfaced via developer.log — observability verified by review, not
+      // interceptable here without a logger seam the ADR deliberately omits.
+      await repo.deleteById(saved.id!);
+
+      expect(await repo.getById(saved.id!), isNull);
+      expect(storage.deletedPaths, isNotEmpty);
     });
   });
 }
