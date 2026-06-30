@@ -9,8 +9,8 @@ import 'package:path_provider/path_provider.dart';
 /// (in an OS cache directory that can be purged at any time). The repository
 /// uses this service to copy that file into durable app storage before
 /// persisting the record, so a saved record never points at a path the OS can
-/// evict. Centralizing image-file persistence here keeps the file lifecycle in
-/// one place (the future delete path, #71, will live alongside).
+/// evict. Centralizing image-file persistence here keeps the file lifecycle —
+/// both the copy on capture and the delete on record removal — in one place.
 abstract class ImageStorageService {
   /// Copies [source] into stable app storage under a name derived from
   /// [recordUuid] and returns the absolute path of the stored copy.
@@ -18,6 +18,12 @@ abstract class ImageStorageService {
   /// Throws a [FileSystemException] when [source] cannot be read or the copy
   /// fails; callers must not persist a record when this throws.
   Future<String> saveCapturedImage(File source, {required String recordUuid});
+
+  /// Deletes the stored image at [imagePath].
+  ///
+  /// An already-absent file is an idempotent no-op; any other I/O failure
+  /// throws a [FileSystemException] for the caller to handle.
+  Future<void> deleteImage(String imagePath);
 }
 
 /// Default [ImageStorageService] backed by the application documents directory.
@@ -55,7 +61,25 @@ class DefaultImageStorageService implements ImageStorageService {
     final extension = sourceExtension.isEmpty ? '.jpg' : sourceExtension;
     final targetPath = p.join(targetDir.path, '$recordUuid$extension');
 
+    // Exclusive write: never overwrite an existing image, so a UUID collision
+    // cannot clobber another record's stored photo.
+    if (await File(targetPath).exists()) {
+      throw FileSystemException(
+        'refusing to overwrite an existing stored image',
+        targetPath,
+      );
+    }
+
     final stored = await source.copy(targetPath);
     return stored.path;
+  }
+
+  @override
+  Future<void> deleteImage(String imagePath) async {
+    try {
+      await File(imagePath).delete();
+    } on PathNotFoundException {
+      // Already absent: deletion is idempotent, so a missing file is success.
+    }
   }
 }
