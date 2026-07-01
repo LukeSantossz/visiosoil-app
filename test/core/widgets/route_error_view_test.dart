@@ -16,11 +16,12 @@ void main() {
       );
 
       expect(find.text('Tela não encontrada'), findsOneWidget);
+      expect(find.text('Voltar ao início'), findsOneWidget);
 
-      final button = find.widgetWithText(FilledButton, 'Voltar ao início');
-      expect(button, findsOneWidget);
-
-      await tester.tap(button);
+      // Tap the label rather than matching the button's exact runtime type:
+      // FilledButton.icon yields a subtype that find.byType(FilledButton) does
+      // not match on some Flutter versions (the CI toolchain vs. local).
+      await tester.tap(find.text('Voltar ao início'));
       expect(goHomeCalls, 1);
     },
   );
