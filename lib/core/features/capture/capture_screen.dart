@@ -245,8 +245,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     if (image == null) return;
 
+    // Capture the notifier before the await so the post-save cleanup never
+    // touches `ref` after the widget is disposed.
+    final imageNotifier = ref.read(imageProvider.notifier);
+
     setState(() => _isSaving = true);
 
+    var didCreate = false;
     try {
       final String finalAddress = _address ?? AppStrings.addressUnavailable;
       final double? finalLatitude = _latitude;
@@ -263,18 +268,38 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               confidenceScore: _classificationResult?.confidenceScore,
             ),
           );
+      didCreate = true;
+    } catch (e) {
+      // A repository write failure must not leave the user without feedback:
+      // surface it and keep the image (no clearImage/pop) so they can retry.
+      developer.log('Save failed: $e', name: 'CaptureScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Não foi possível salvar o registro. Tente novamente.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
 
-      ref.read(imageProvider.notifier).clearImage();
-
+    // Only after a confirmed write, and outside the try so a post-save UI error
+    // is never mis-reported as a save failure (which would prompt a retry and
+    // write a duplicate). Clear via the captured notifier — even if the screen
+    // was disposed mid-save — but only if the provider still holds the photo we
+    // saved, so a slow write finishing after a newer capture does not wipe it.
+    // Only the snackbar/pop need the widget still mounted.
+    if (didCreate) {
+      imageNotifier.clearIfPath(image.path);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro salvo com sucesso!')),
         );
         context.pop();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
       }
     }
   }
