@@ -308,5 +308,28 @@ void main() {
       expect(await repo.getById(saved.id!), isNull);
       expect(storage.deletedPaths, isNotEmpty);
     });
+
+    test('deleteAll_continues_deleting_remaining_images_when_one_delete_throws',
+        () async {
+      final selectiveStorage = FakeImageStorageService(uniqueStoredPaths: true);
+      final selectiveRepo =
+          DriftSoilRecordRepository(db, imageStorage: selectiveStorage);
+      final a = await selectiveRepo.create(sample());
+      final b = await selectiveRepo.create(sample());
+      final c = await selectiveRepo.create(sample());
+      // Only b's file delete fails; a and c must still be deleted.
+      selectiveStorage.throwDeleteForPaths.add(b.imagePath);
+
+      await selectiveRepo.deleteAll();
+
+      // Every record was tombstoned despite the one failure...
+      expect(await selectiveRepo.count(), 0);
+      // ...and every image delete was attempted — b's failure did not stop the
+      // loop from reaching a and c.
+      expect(
+        selectiveStorage.deletedPaths,
+        containsAll(<String>[a.imagePath, b.imagePath, c.imagePath]),
+      );
+    });
   });
 }
