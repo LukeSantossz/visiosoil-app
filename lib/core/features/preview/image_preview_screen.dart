@@ -104,13 +104,15 @@ class _ImageViewer extends StatelessWidget {
           minScale: 0.5,
           maxScale: 4.0,
           child: Center(
-            child: imageFile.existsSync()
-                ? Image.file(imageFile, fit: BoxFit.contain)
-                : const Icon(
-                    Icons.broken_image,
-                    color: Colors.white54,
-                    size: 64,
-                  ),
+            child: Image.file(
+              imageFile,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
+              ),
+            ),
           ),
         ),
         _TopBar(recordId: recordId),
