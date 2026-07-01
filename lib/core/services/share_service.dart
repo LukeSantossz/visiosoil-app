@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:share_plus/share_plus.dart';
@@ -25,13 +26,28 @@ class ShareService {
     final cardBytes = await ShareContentBuilder.composeCard(record, photoBytes);
 
     final tempDir = await Directory.systemTemp.createTemp('visiosoil_share');
-    final cardFile = File(
-      '${tempDir.path}/visiosoil_${record.id ?? 'record'}.png',
-    );
-    await cardFile.writeAsBytes(cardBytes);
+    try {
+      final cardFile = File(
+        '${tempDir.path}/visiosoil_${record.id ?? 'record'}.png',
+      );
+      await cardFile.writeAsBytes(cardBytes);
 
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(cardFile.path)], text: caption),
-    );
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(cardFile.path)], text: caption),
+      );
+    } finally {
+      // Delete the card and its directory after the share sheet has read them,
+      // whether the share succeeded, failed, or was cancelled. A filesystem
+      // cleanup failure is logged rather than masking the share outcome; any
+      // other error surfaces as an unexpected fault.
+      try {
+        await tempDir.delete(recursive: true);
+      } on FileSystemException catch (e) {
+        developer.log(
+          'Failed to delete temporary share directory: $e',
+          name: 'ShareService',
+        );
+      }
+    }
   }
 }
