@@ -6,9 +6,12 @@ import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
+import 'package:visiosoil_app/core/widgets/route_error_view.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
+  errorBuilder: (context, state) =>
+      RouteErrorView(onGoHome: () => context.go('/')),
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
