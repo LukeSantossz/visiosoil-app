@@ -2,9 +2,10 @@
 
 ## Problem
 
-`appRouter` (GoRouter) declares no `errorBuilder`, so an unknown path or a throwing route
-builder falls through to go_router's default error screen — an untranslated English page,
-inconsistent with the pt-BR UI.
+`appRouter` (GoRouter) declares no `errorBuilder`, so an unmatched path (and any redirect or
+parse error) falls through to go_router's default error screen — an untranslated English page,
+inconsistent with the pt-BR UI. (A synchronous throw inside a `GoRoute.builder` surfaces via
+Flutter's `ErrorWidget`, not go_router's `errorBuilder`, so it is out of this boundary's reach.)
 
 ## Design Decision
 

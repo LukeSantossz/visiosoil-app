@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
-/// Full-screen fallback shown by the router when a route is unknown or a route
-/// builder throws. Renders a localized message and a button that returns home.
+/// Full-screen fallback the router shows when no route matches the requested
+/// location (go_router also routes redirect and parse errors here). Renders a
+/// localized message and a button that returns home.
 class RouteErrorView extends StatelessWidget {
   const RouteErrorView({super.key, required this.onGoHome});
 
