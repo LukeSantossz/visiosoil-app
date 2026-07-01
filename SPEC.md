@@ -31,7 +31,7 @@ added.
   - `try`/`finally` cleanup around the card write and share in `shareRecord`.
   - `finally` deletes the temp directory `recursive: true`, inside a logged `catch`.
   - New `test/services/share_service_test.dart` using a fake `SharePlatform` to assert the
-    card exists at share time and the directory is gone afterwards.
+    card exists at share time and the directory is gone afterward.
   - Update the stale "ShareService is not unit-tested" comment in the builder test.
   - Add `share_plus_platform_interface` as a dev-only dependency so the test can reference
     `SharePlatform` (not re-exported by `share_plus`); resolves to the already-locked 6.1.0,

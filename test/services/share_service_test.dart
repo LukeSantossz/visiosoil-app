@@ -1,6 +1,6 @@
 // Tests for [ShareService]: the native share flow that composes a PNG card,
 // writes it to a temporary directory, hands it to `share_plus`, and cleans the
-// directory up afterwards. The platform share sheet is replaced by a fake
+// directory up afterward. The platform share sheet is replaced by a fake
 // [SharePlatform] injected through the public `SharePlatform.instance` seam, so
 // no production seam is added to [ShareService].
 import 'dart:io';
