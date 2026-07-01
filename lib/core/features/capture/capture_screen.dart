@@ -247,6 +247,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     setState(() => _isSaving = true);
 
+    var didCreate = false;
     try {
       final String finalAddress = _address ?? AppStrings.addressUnavailable;
       final double? finalLatitude = _latitude;
@@ -263,18 +264,35 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               confidenceScore: _classificationResult?.confidenceScore,
             ),
           );
+      didCreate = true;
+    } catch (e) {
+      // A repository write failure must not leave the user without feedback:
+      // surface it and keep the image (no clearImage/pop) so they can retry.
+      developer.log('Save failed: $e', name: 'CaptureScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Não foi possível salvar o registro. Tente novamente.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
 
+    // Only after a confirmed write: clear the image and leave the screen. Kept
+    // outside the try so a post-save UI error is never mis-reported as a save
+    // failure (which would prompt a retry and write a duplicate record).
+    if (didCreate) {
       ref.read(imageProvider.notifier).clearImage();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro salvo com sucesso!')),
         );
         context.pop();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
       }
     }
   }
