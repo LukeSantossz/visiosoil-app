@@ -37,11 +37,12 @@ class ShareService {
       );
     } finally {
       // Delete the card and its directory after the share sheet has read them,
-      // whether the share succeeded, failed, or was cancelled. Guarded so a
-      // cleanup failure is logged rather than masking the share outcome.
+      // whether the share succeeded, failed, or was cancelled. A filesystem
+      // cleanup failure is logged rather than masking the share outcome; any
+      // other error surfaces as an unexpected fault.
       try {
         await tempDir.delete(recursive: true);
-      } catch (e) {
+      } on FileSystemException catch (e) {
         developer.log(
           'Failed to delete temporary share directory: $e',
           name: 'ShareService',
