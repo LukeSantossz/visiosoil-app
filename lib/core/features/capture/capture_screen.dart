@@ -285,15 +285,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     // Only after a confirmed write: clear the image and leave the screen. Kept
     // outside the try so a post-save UI error is never mis-reported as a save
-    // failure (which would prompt a retry and write a duplicate record).
-    if (didCreate) {
+    // failure (which would prompt a retry and write a duplicate record). The
+    // whole block is mounted-guarded so it never touches ref/context after the
+    // widget was disposed.
+    if (didCreate && mounted) {
       ref.read(imageProvider.notifier).clearImage();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro salvo com sucesso!')),
-        );
-        context.pop();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registro salvo com sucesso!')),
+      );
+      context.pop();
     }
   }
 
