@@ -245,6 +245,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     if (image == null) return;
 
+    // Capture the notifier before the await so the post-save cleanup never
+    // touches `ref` after the widget is disposed.
+    final imageNotifier = ref.read(imageProvider.notifier);
+
     setState(() => _isSaving = true);
 
     var didCreate = false;
@@ -283,17 +287,20 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
     }
 
-    // Only after a confirmed write: clear the image and leave the screen. Kept
-    // outside the try so a post-save UI error is never mis-reported as a save
-    // failure (which would prompt a retry and write a duplicate record). The
-    // whole block is mounted-guarded so it never touches ref/context after the
-    // widget was disposed.
-    if (didCreate && mounted) {
-      ref.read(imageProvider.notifier).clearImage();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro salvo com sucesso!')),
-      );
-      context.pop();
+    // Only after a confirmed write, and outside the try so a post-save UI error
+    // is never mis-reported as a save failure (which would prompt a retry and
+    // write a duplicate). Clear the image via the captured notifier even if the
+    // screen was disposed mid-save, otherwise a reopened Capture could show the
+    // already-persisted photo and allow a duplicate save. Only the snackbar/pop
+    // need the widget still mounted.
+    if (didCreate) {
+      imageNotifier.clearImage();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registro salvo com sucesso!')),
+        );
+        context.pop();
+      }
     }
   }
 
