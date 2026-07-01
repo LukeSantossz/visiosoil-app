@@ -22,6 +22,14 @@ class ImageNotifier extends Notifier<SelectedImageState> {
   void clearImage() {
     state = const SelectedImageState();
   }
+
+  /// Clears the selection only if it still holds [path], so a late clear from a
+  /// slow save does not wipe a newer capture selected in the meantime.
+  void clearIfPath(String path) {
+    if (state.file?.path == path) {
+      state = const SelectedImageState();
+    }
+  }
 }
 
 final imageProvider = NotifierProvider<ImageNotifier, SelectedImageState>(
