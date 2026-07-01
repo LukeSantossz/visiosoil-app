@@ -84,5 +84,50 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+
+    test('deleteImage_removes_the_file_at_the_given_path', () async {
+      final source = writeSource('photo.jpg', [1, 2, 3]);
+      final stored = await service.saveCapturedImage(source, recordUuid: 'gone');
+      expect(File(stored).existsSync(), isTrue);
+
+      await service.deleteImage(stored);
+
+      expect(File(stored).existsSync(), isFalse);
+    });
+
+    test('deleteImage_is_a_noop_when_the_file_is_already_absent', () async {
+      final absent = p.join(baseDir.path, 'soil_images', 'missing.jpg');
+
+      await service.deleteImage(absent);
+
+      expect(File(absent).existsSync(), isFalse);
+    });
+
+    test('saveCapturedImage_throws_filesystemexception_when_target_path_already_exists',
+        () async {
+      final first = writeSource('first.jpg', [1, 1, 1]);
+      await service.saveCapturedImage(first, recordUuid: 'dup');
+
+      final second = writeSource('second.jpg', [2, 2, 2]);
+      await expectLater(
+        () => service.saveCapturedImage(second, recordUuid: 'dup'),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+
+    test('saveCapturedImage_preserves_the_existing_file_when_it_refuses_to_overwrite',
+        () async {
+      final first = writeSource('first.jpg', [1, 1, 1]);
+      final stored = await service.saveCapturedImage(first, recordUuid: 'dup');
+
+      final second = writeSource('second.jpg', [2, 2, 2]);
+      try {
+        await service.saveCapturedImage(second, recordUuid: 'dup');
+      } on FileSystemException {
+        // expected: the write refuses to overwrite.
+      }
+
+      expect(File(stored).readAsBytesSync(), [1, 1, 1]);
+    });
   });
 }
