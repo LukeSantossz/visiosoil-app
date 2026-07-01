@@ -1,6 +1,6 @@
 // Tests for [ShareContentBuilder]: the pure, I/O-free content used by the share
-// flow — the text caption and the composed PNG card. The native share sheet
-// (ShareService) is not unit-tested; it is verified manually.
+// flow — the text caption and the composed PNG card. The [ShareService] flow
+// around it (temp-file write, share, cleanup) is covered in share_service_test.dart.
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
