@@ -1,67 +1,59 @@
-# SPEC: fix(share): delete temporary share card directory after sharing
+# SPEC: perf(preview): replace synchronous existsSync gate with image errorBuilder
 
 ## Problem
 
-Every `ShareService.shareRecord` call creates a uniquely-named temp directory holding a
-full-resolution PNG card (photo + GPS-derived address) that is never deleted, so sensitive
-artifacts accumulate without bound on field devices (#74).
+`_ImageViewer.build` calls `imageFile.existsSync()` on the UI thread on every build to choose
+between `Image.file` and a broken-image icon — synchronous filesystem I/O in build, redundant
+with the `errorBuilder` that `Image` already provides.
 
 ## Design Decision
 
-Wrap the card write and the awaited `SharePlus.instance.share(...)` call in `try`/`finally`;
-the `finally` deletes the temp directory recursively, so cleanup runs after the share
-completes — on success, failure, or cancellation — never eagerly during it (`share_plus`
-reads the file while the sheet is open). The delete is guarded by a narrow `catch` that logs
-via `developer.log(name: 'ShareService')` — matching the #72 handler precedent — so a cleanup
-failure cannot mask the share result. Tests inject a fake `SharePlatform` through the public
-`SharePlatform.instance` setter (the share_plus 12.0.2 federated seam); no production seam is
-added.
+Remove the `existsSync()` gate and render `Image.file(imageFile, fit: BoxFit.contain,
+errorBuilder: ...)` unconditionally, moving the existing
+`Icon(Icons.broken_image, color: Colors.white54, size: 64)` into the `errorBuilder`. Mirrors the
+established `_ThumbnailImage` pattern in `history_screen.dart`, preserving the exact fallback
+visual suited to the black preview backdrop.
 
 ## Alternatives Considered
 
-- **Fixed well-known path overwritten per share** — rejected: bounds growth to one file but
-  permanently leaves the last card (photo + address) resident in temp and races overlapping
-  shares, contradicting the privacy concern the issue raises.
-- **Sweep-on-next-share / on-startup** — rejected: avoids any delete-after-share race but keeps
-  sensitive artifacts resident between shares and never cleans up if the user stops sharing.
+- **Move `existsSync` off the UI thread via a `FutureBuilder`** — rejected: adds a loading state
+  and complexity for a check `errorBuilder` already subsumes, against the issue's idiomatic
+  direction.
+- **Adopt history's themed error container** (`surfaceContainerHighest` + error color) — rejected:
+  the preview backdrop is black; the current white54 icon is the correct styling to keep, and
+  changing visuals is out of scope.
 
 ## Scope
 
 - Includes:
-  - `try`/`finally` cleanup around the card write and share in `shareRecord`.
-  - `finally` deletes the temp directory `recursive: true`, inside a logged `catch`.
-  - New `test/services/share_service_test.dart` using a fake `SharePlatform` to assert the
-    card exists at share time and the directory is gone afterward.
-  - Update the stale "ShareService is not unit-tested" comment in the builder test.
-  - Add `share_plus_platform_interface` as a dev-only dependency so the test can reference
-    `SharePlatform` (not re-exported by `share_plus`); resolves to the already-locked 6.1.0,
-    so the `pubspec.lock` change is limited to its `transitive` -> `direct dev` reclassification.
+  - Remove the `existsSync()` gate in `_ImageViewer.build`.
+  - Add an `errorBuilder` to `Image.file` returning the existing broken-image `Icon`.
+  - New `test/features/preview/image_preview_screen_test.dart`.
 - Does NOT include:
-  - Sweeping historical leaked `visiosoil_share*` directories from already-shipped installs
-    (OS evicts app cache under pressure; a follow-up issue can add it if wanted).
-  - Changes to card composition, caption, or the photo-missing branch behavior beyond
-    asserting it creates no temp artifacts.
-  - Surfacing share failures in the UI (#78); any runtime dependency change or unrelated
-    transitive-version bumps in `pubspec.lock`.
+  - Changing the fallback styling, or adding a loading `frameBuilder`.
+  - Touching `_ThumbnailImage`/history or any other screen.
+  - Changes to record lookup, `_InfoPanel`, `_TopBar`, or `_RecordNotFoundView`.
 
 ## Acceptance Criteria
 
-- `deletes_temp_dir_after_successful_share` (card file exists when the platform share runs;
-  directory is gone after `shareRecord` returns)
-- `deletes_temp_dir_and_rethrows_when_platform_share_throws`
-- `shares_caption_only_and_creates_no_temp_artifacts_when_photo_is_missing`
+- `preview_image_file_has_error_builder_rendering_broken_image_fallback` (locate the `Image.file`;
+  its `errorBuilder` is non-null and, when invoked, yields `Icons.broken_image`)
+- `existsSync_gate_removed_from_image_viewer_build` (the synchronous `existsSync()` no longer
+  appears in `_ImageViewer.build`; verified in the diff)
 - `flutter_analyze_clean_and_full_suite_green`
 
 ## Reproducibility
 
-- `flutter analyze`; `flutter test test/services/share_service_test.dart` (+ full suite).
-- Versions: Flutter 3.x / Dart 3.10.4+, share_plus 12.0.2. No randomness involved.
+- `flutter analyze`; `flutter test test/features/preview/image_preview_screen_test.dart`
+  (+ full suite). The test overrides `soilRecordByIdProvider` (pattern from
+  `details_screen_test.dart`) to supply a record whose `imagePath` is a real temp file, pumps
+  `ImagePreviewScreen`, finds the `Image`, and invokes its `errorBuilder` directly. Flutter 3.x /
+  Dart 3.10.4+.
 
 ## Risks and Assumptions
 
-- Assumption: an awaited `share()` return means the platform finished reading the card file
-  (the issue's own premise); a target app that defers reading could lose it — accepted.
-- Assumption: `SharePlus.instance` binds `SharePlatform.instance` lazily on first access, so a
-  test installing the fake first is reliable (one isolate per test file).
-- Risk: directories leaked by already-shipped builds remain until OS cache eviction. No ADR —
-  this is a localized handler-level fix, not a hard-to-reverse decision.
+- Assumption: inspecting and directly invoking `Image.errorBuilder` is a sound, deterministic
+  test — real `FileImage` load failures do not resolve under `flutter_test`'s fake-async
+  `pumpAndSettle` without `runAsync`, so the builder is exercised directly rather than via I/O.
+- Behavior preserved: a missing or undecodable file still shows the same broken-image icon; only
+  the mechanism (errorBuilder vs pre-check) changes. No ADR — localized idiomatic refactor.
