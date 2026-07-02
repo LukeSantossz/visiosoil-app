@@ -1,59 +1,59 @@
-# SPEC: perf(preview): replace synchronous existsSync gate with image errorBuilder
+# SPEC: fix(router): add errorBuilder fallback for unknown routes and route-build failures
 
 ## Problem
 
-`_ImageViewer.build` calls `imageFile.existsSync()` on the UI thread on every build to choose
-between `Image.file` and a broken-image icon — synchronous filesystem I/O in build, redundant
-with the `errorBuilder` that `Image` already provides.
+`appRouter` (GoRouter) declares no `errorBuilder`, so an unmatched path (and any redirect or
+parse error) falls through to go_router's default error screen — an untranslated English page,
+inconsistent with the pt-BR UI. (A synchronous throw inside a `GoRoute.builder` surfaces via
+Flutter's `ErrorWidget`, not go_router's `errorBuilder`, so it is out of this boundary's reach.)
 
 ## Design Decision
 
-Remove the `existsSync()` gate and render `Image.file(imageFile, fit: BoxFit.contain,
-errorBuilder: ...)` unconditionally, moving the existing
-`Icon(Icons.broken_image, color: Colors.white54, size: 64)` into the `errorBuilder`. Mirrors the
-established `_ThumbnailImage` pattern in `history_screen.dart`, preserving the exact fallback
-visual suited to the black preview backdrop.
+Add a `RouteErrorView` widget under `lib/core/widgets/` — a localized "Tela não encontrada"
+`Scaffold` with a "Voltar ao início" button that invokes an injected `onGoHome` callback — and
+wire `appRouter`'s `errorBuilder: (context, state) => RouteErrorView(onGoHome: () => context.go('/'))`.
+The callback keeps the view testable in isolation, with no live router. Scope is the router
+boundary only; the optional `main()` global `FlutterError.onError` / `runZonedGuarded` is left out
+(the issue marks it optional and it is a separate concern).
 
 ## Alternatives Considered
 
-- **Move `existsSync` off the UI thread via a `FutureBuilder`** — rejected: adds a loading state
-  and complexity for a check `errorBuilder` already subsumes, against the issue's idiomatic
-  direction.
-- **Adopt history's themed error container** (`surfaceContainerHighest` + error color) — rejected:
-  the preview backdrop is black; the current white54 icon is the correct styling to keep, and
-  changing visuals is out of scope.
+- **Reuse `ErrorState` unchanged** (`onRetry: () => context.go('/')`) — rejected: its button is
+  hardcoded to "Tentar novamente"/refresh, which misrepresents a "go home" action on a not-found
+  screen.
+- **Generalize `ErrorState` with a configurable action label/icon** — rejected: modifies a shared
+  widget (used by history and management_tips) to serve one new caller; a dedicated purpose-view
+  matches the existing pattern (`permission_denied_view.dart`) and leaves `ErrorState` untouched.
 
 ## Scope
 
 - Includes:
-  - Remove the `existsSync()` gate in `_ImageViewer.build`.
-  - Add an `errorBuilder` to `Image.file` returning the existing broken-image `Icon`.
-  - New `test/features/preview/image_preview_screen_test.dart`.
+  - `RouteErrorView` widget (localized message + "Voltar ao início" button → `onGoHome`).
+  - `errorBuilder` on `appRouter` rendering `RouteErrorView` with `context.go('/')`.
+  - Tests for the view and for unknown-route rendering.
 - Does NOT include:
-  - Changing the fallback styling, or adding a loading `frameBuilder`.
-  - Touching `_ThumbnailImage`/history or any other screen.
-  - Changes to record lookup, `_InfoPanel`, `_TopBar`, or `_RecordNotFoundView`.
+  - `main()` global error handling (`runZonedGuarded` / `FlutterError.onError`) — optional per the issue.
+  - Changes to existing routes or the `/details` / `/preview` `state.extra` coercion.
+  - Any change to `ErrorState`.
 
 ## Acceptance Criteria
 
-- `preview_image_file_has_error_builder_rendering_broken_image_fallback` (locate the `Image.file`;
-  its `errorBuilder` is non-null and, when invoked, yields `Icons.broken_image`)
-- `existsSync_gate_removed_from_image_viewer_build` (the synchronous `existsSync()` no longer
-  appears in `_ImageViewer.build`; verified in the diff)
+- `route_error_view_shows_localized_message_and_calls_on_go_home_on_button_tap`
+- `router_error_builder_renders_route_error_view_for_an_unknown_route` (a minimal
+  `MaterialApp.router` with the same `errorBuilder` wiring, navigating to an unregistered path —
+  deterministic, avoids the real `appRouter`'s splash timer and permission calls)
 - `flutter_analyze_clean_and_full_suite_green`
 
 ## Reproducibility
 
-- `flutter analyze`; `flutter test test/features/preview/image_preview_screen_test.dart`
-  (+ full suite). The test overrides `soilRecordByIdProvider` (pattern from
-  `details_screen_test.dart`) to supply a record whose `imagePath` is a real temp file, pumps
-  `ImagePreviewScreen`, finds the `Image`, and invokes its `errorBuilder` directly. Flutter 3.x /
-  Dart 3.10.4+.
+- `flutter analyze`; `flutter test test/core/widgets/route_error_view_test.dart test/routes/app_router_test.dart`
+  (+ full suite). Flutter 3.x / Dart 3.10.4+, go_router ^17.1.0.
 
 ## Risks and Assumptions
 
-- Assumption: inspecting and directly invoking `Image.errorBuilder` is a sound, deterministic
-  test — real `FileImage` load failures do not resolve under `flutter_test`'s fake-async
-  `pumpAndSettle` without `runAsync`, so the builder is exercised directly rather than via I/O.
-- Behavior preserved: a missing or undecodable file still shows the same broken-image icon; only
-  the mechanism (errorBuilder vs pre-check) changes. No ADR — localized idiomatic refactor.
+- Assumption: testing via a minimal local `GoRouter` (not the global `appRouter`) is sound — the
+  real `appRouter` starts at `/splash`, whose 1200 ms permission timer and platform permission
+  calls make an end-to-end navigation test flaky; the local router exercises the identical
+  `errorBuilder` wiring deterministically.
+- Assumption: `context.go('/')` is valid from the errorBuilder's context (it runs within the router).
+- No ADR — localized robustness / i18n fix, not a hard-to-reverse decision.
