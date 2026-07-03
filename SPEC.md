@@ -1,65 +1,64 @@
-# SPEC: fix(share): fall back to text-only share when the record photo is corrupt or zero-width
+# SPEC: ci: align Flutter toolchain version across CI and local development
 
 ## Problem
 
-When a record's photo file is present but corrupt, truncated, or empty, `ShareService.shareRecord`
-hands its bytes to `ShareContentBuilder.composeCard`, whose `instantiateImageCodec` throws, so
-sharing fails with a generic error snackbar instead of degrading to the text-only caption the
-service already produces for the missing-file case.
+CI pins Flutter 3.38.5 while local development runs 3.44.1, so the newer local SDK forces newer
+SDK-pinned transitive packages and `flutter pub get` rewrites `pubspec.lock` on every local run,
+leaving the working tree perpetually dirty and out of sync with CI.
 
 ## Design Decision
 
-Wrap only the `composeCard` call in `ShareService.shareRecord` in a `try`; on a decode/compose
-failure, `developer.log` it and fall back to `SharePlus.instance.share(ShareParams(text: caption))`
-then return, mirroring the existing missing-file path. The wrap is narrow (around `composeCard`
-alone) so a genuine platform `share()` failure still propagates and the temp-dir write/cleanup
-semantics are unchanged. The corrupt/empty case is thus handled inside `ShareService`, before it
-ever reaches the last-resort `catch (_)` in `details._shareRecord`.
+Adopt Flutter 3.44.1 as the single source of truth: set `flutter-version: "3.44.1"` in all three
+CI jobs (`ci.yml` lines 25/42/62), regenerate `pubspec.lock` once on 3.44.1 and commit it, and
+document 3.44.1 as the required toolchain (README Getting Started + CLAUDE.md). Chosen over
+downgrading local because contributors already run 3.44.1, so this moves the toolchain forward
+rather than forcing a downgrade plus an fvm dependency; verification is CI analyze/test/build going
+green on the bumped version, observable on the PR.
 
 ## Alternatives Considered
 
-- **Positive-dimension guard in `composeCard` (`photo.width > 0`)** — rejected: `instantiateImageCodec`
-  throws on undecodable/empty/truncated bytes before any dimension is read, and Flutter codecs never
-  yield a zero dimension without throwing, so the guard defends an unreachable state.
-- **Broaden `catch (_)` in `details._shareRecord` to retry text-only** — rejected: pushes share-domain
-  fallback into the UI layer, duplicates the caption path, and leaves `ShareService` still throwing
-  for a case it owns.
-- **Up-front probe decode to validate the photo** — rejected: doubles the decode work and still needs
-  the same try/catch, cost for no behavioral gain.
+- **(b) Pin local to 3.38.5 via a committed `.fvmrc`/`.flutter-version`** — rejected: keeps the
+  known-green CI but forces every contributor onto an older SDK via fvm, a downgrade from what they
+  already run.
+- **(c) Committed version file consumed by both (fvm action / `flutter-version-file`)** — rejected as
+  primary: mechanically the cleanest single-source, but depends on an unverified
+  `subosito/flutter-action` capability; deferred as a follow-up once the version itself is aligned.
+- **Do nothing / keep reverting the lock manually** — rejected: the drift recurs on the next local
+  `pub get`; a standing tax, not a one-off.
 
 ## Scope
 
 - Includes:
-  - A narrow `try` around `composeCard` in `ShareService.shareRecord`; on failure, log the cause and
-    share `ShareParams(text: caption)` then return.
-  - Tests in `test/services/share_service_test.dart` for a present-but-corrupt (truncated) photo and an
-    empty (zero-byte) photo: both share caption-only, create no temp artifacts, leak no directory.
+  - `flutter-version: "3.44.1"` in the analyze, test, and build jobs of `.github/workflows/ci.yml`.
+  - A single `flutter pub get` on 3.44.1, committing the regenerated `pubspec.lock`.
+  - Documenting 3.44.1 as the source-of-truth toolchain (README Getting Started, CLAUDE.md).
 - Does NOT include:
-  - Any positive-dimension guard in `share_content_builder.dart` (unreachable given the codec throws first).
-  - Any change to `details._shareRecord` — its `catch (_)` stays as the last-resort net for genuinely
-    unexpected faults (e.g. a platform `share()` throw).
-  - Any change to `caption`/`composeCard` output for valid photos, or to the missing-file path.
+  - Adopting fvm or a `flutter-version-file` mechanism (option c) — separate follow-up.
+  - Any Dart source or `pubspec.yaml` constraint change beyond the lock regeneration.
+  - The iOS build job (#90) or any other CI restructuring.
 
 ## Acceptance Criteria
 
-- `shares_caption_only_when_photo_is_present_but_corrupt` — a record whose file holds truncated/undecodable
-  bytes shares with `files` null/empty and `text` non-null; no temp directory remains.
-- `shares_caption_only_when_photo_is_empty` — a zero-byte photo file behaves identically.
-- `deletes_temp_dir_and_rethrows_when_platform_share_throws` (existing) still passes — the new fallback
-  wraps only `composeCard`, so a real platform `share()` throw is not swallowed.
-- `flutter_analyze_clean_and_full_suite_green`.
+- `single_flutter_version_documented_and_consumed_by_ci` — `ci.yml` uses `3.44.1` in all three jobs
+  and the README/CLAUDE.md name it as the required version.
+- `pub_get_leaves_lock_unchanged_on_the_chosen_version` — `flutter pub get` on 3.44.1 produces no
+  diff in `pubspec.lock`.
+- `ci_analyze_test_build_green_on_3_44_1` — the three jobs pass on the PR.
 
 ## Reproducibility
 
-- `flutter analyze`; `flutter test test/services/share_service_test.dart` (+ full suite). Flutter 3.x /
-  Dart 3.10.4+, `share_plus` with the `share_plus_platform_interface` dev-dependency fake seam
-  (`SharePlatform.instance`) already used by the existing tests. No randomness.
+- Local (Flutter 3.44.1 / Dart 3.12.1): `flutter pub get` then `git status --porcelain pubspec.lock`
+  is empty; `flutter analyze` and `flutter test` green.
+- CI: the analyze/test/build jobs on the PR at `flutter-version: "3.44.1"`.
+- Note: config change with no unit test; the "test-first" step maps to first demonstrating the lock
+  drift on the current split, then showing it resolved on the aligned version.
 
 ## Risks and Assumptions
 
-- Assumption: `ui.instantiateImageCodec` throws (not returns) on empty/truncated bytes, so one `try`
-  around `composeCard` covers both empty and corrupt; if a future codec returned a zero-dimension image
-  instead, `scale` would go non-finite and this spec would need the excluded dimension guard.
-- Assumption: silent degrade-to-caption is the desired UX for a corrupt photo (consistent with the
-  missing-file path); a visible "photo unavailable" notice would be a separate UI change.
-- No ADR — a localized graceful-degradation fix, not a hard-to-reverse decision.
+- Assumption: 3.44.1 is a released stable Flutter version fetchable by `subosito/flutter-action@v2`
+  (contributors run it locally); if the action cannot fetch it, fall back to (b) or (c).
+- Assumption: analyze/test/build stay green under the newer SDK-pinned packages (`test` 1.31.0,
+  `material_color_utilities` 0.13.0, `meta`/`matcher`/`characters`); if the bump surfaces breakage,
+  fixing it is in-scope or is the trigger to reconsider (b).
+- Candidate ADR: "Flutter toolchain version as single source of truth" — a durable, mildly
+  hard-to-reverse policy; promote to `docs/adr/` at the gate if approved.

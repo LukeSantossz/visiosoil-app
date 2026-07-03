@@ -64,7 +64,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 
 ### Prerequisites
 
-- Flutter SDK 3.x (Dart 3.10.4+)
+- Flutter 3.44.1 (Dart 3.12.1) — pinned to match CI (`.github/workflows/ci.yml`); a different 3.x SDK will rewrite `pubspec.lock`
 - Android Studio with an emulator, or a connected device
 - Xcode (for iOS builds)
 

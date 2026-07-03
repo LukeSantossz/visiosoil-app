@@ -20,6 +20,8 @@ Before any development work in this repository, read `.standards/docs/standards/
 
 **Stack:** Flutter 3.x / Dart 3.10.4+ / Riverpod / GoRouter / Drift+SQLite / TFLite
 
+**Toolchain:** Flutter 3.44.1 / Dart 3.12.1, pinned to match CI (`.github/workflows/ci.yml`). Using another 3.x local SDK rewrites `pubspec.lock` on `flutter pub get`.
+
 ## Commands
 
 ```bash

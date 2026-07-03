@@ -22,7 +22,7 @@ jobs:
           java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.38.5"
+          flutter-version: "3.44.1"
           cache: true
       - run: flutter pub get
       - name: Generate Drift adapters
@@ -39,7 +39,7 @@ jobs:
           java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.38.5"
+          flutter-version: "3.44.1"
           cache: true
       - name: Install SQLite (for Drift in-memory tests)
         run: sudo apt-get update && sudo apt-get install -y libsqlite3-0 libsqlite3-dev
@@ -59,7 +59,7 @@ jobs:
           java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.38.5"
+          flutter-version: "3.44.1"
           cache: true
       - run: flutter pub get
       - name: Generate Drift adapters
