@@ -1,6 +1,6 @@
 ---
 name: Issue
-about: Standard issue per docs/standards/github.md Issue Model
+about: Standard issue per .standards/docs/standards/github.md Issue Model
 labels: needs-triage
 ---
 
