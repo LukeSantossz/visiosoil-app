@@ -1,59 +1,64 @@
-# SPEC: fix(router): add errorBuilder fallback for unknown routes and route-build failures
+# SPEC: ci: align Flutter toolchain version across CI and local development
 
 ## Problem
 
-`appRouter` (GoRouter) declares no `errorBuilder`, so an unmatched path (and any redirect or
-parse error) falls through to go_router's default error screen — an untranslated English page,
-inconsistent with the pt-BR UI. (A synchronous throw inside a `GoRoute.builder` surfaces via
-Flutter's `ErrorWidget`, not go_router's `errorBuilder`, so it is out of this boundary's reach.)
+CI pins Flutter 3.38.5 while local development runs 3.44.1, so the newer local SDK forces newer
+SDK-pinned transitive packages and `flutter pub get` rewrites `pubspec.lock` on every local run,
+leaving the working tree perpetually dirty and out of sync with CI.
 
 ## Design Decision
 
-Add a `RouteErrorView` widget under `lib/core/widgets/` — a localized "Tela não encontrada"
-`Scaffold` with a "Voltar ao início" button that invokes an injected `onGoHome` callback — and
-wire `appRouter`'s `errorBuilder: (context, state) => RouteErrorView(onGoHome: () => context.go('/'))`.
-The callback keeps the view testable in isolation, with no live router. Scope is the router
-boundary only; the optional `main()` global `FlutterError.onError` / `runZonedGuarded` is left out
-(the issue marks it optional and it is a separate concern).
+Adopt Flutter 3.44.1 as the single source of truth: set `flutter-version: "3.44.1"` in all three
+CI jobs (`ci.yml` lines 25/42/62), regenerate `pubspec.lock` once on 3.44.1 and commit it, and
+document 3.44.1 as the required toolchain (README Getting Started + CLAUDE.md). Chosen over
+downgrading local because contributors already run 3.44.1, so this moves the toolchain forward
+rather than forcing a downgrade plus an fvm dependency; verification is CI analyze/test/build going
+green on the bumped version, observable on the PR.
 
 ## Alternatives Considered
 
-- **Reuse `ErrorState` unchanged** (`onRetry: () => context.go('/')`) — rejected: its button is
-  hardcoded to "Tentar novamente"/refresh, which misrepresents a "go home" action on a not-found
-  screen.
-- **Generalize `ErrorState` with a configurable action label/icon** — rejected: modifies a shared
-  widget (used by history and management_tips) to serve one new caller; a dedicated purpose-view
-  matches the existing pattern (`permission_denied_view.dart`) and leaves `ErrorState` untouched.
+- **(b) Pin local to 3.38.5 via a committed `.fvmrc`/`.flutter-version`** — rejected: keeps the
+  known-green CI but forces every contributor onto an older SDK via fvm, a downgrade from what they
+  already run.
+- **(c) Committed version file consumed by both (fvm action / `flutter-version-file`)** — rejected as
+  primary: mechanically the cleanest single-source, but depends on an unverified
+  `subosito/flutter-action` capability; deferred as a follow-up once the version itself is aligned.
+- **Do nothing / keep reverting the lock manually** — rejected: the drift recurs on the next local
+  `pub get`; a standing tax, not a one-off.
 
 ## Scope
 
 - Includes:
-  - `RouteErrorView` widget (localized message + "Voltar ao início" button → `onGoHome`).
-  - `errorBuilder` on `appRouter` rendering `RouteErrorView` with `context.go('/')`.
-  - Tests for the view and for unknown-route rendering.
+  - `flutter-version: "3.44.1"` in the analyze, test, and build jobs of `.github/workflows/ci.yml`.
+  - A single `flutter pub get` on 3.44.1, committing the regenerated `pubspec.lock`.
+  - Documenting 3.44.1 as the source-of-truth toolchain (README Getting Started, CLAUDE.md).
 - Does NOT include:
-  - `main()` global error handling (`runZonedGuarded` / `FlutterError.onError`) — optional per the issue.
-  - Changes to existing routes or the `/details` / `/preview` `state.extra` coercion.
-  - Any change to `ErrorState`.
+  - Adopting fvm or a `flutter-version-file` mechanism (option c) — separate follow-up.
+  - Any Dart source or `pubspec.yaml` constraint change beyond the lock regeneration.
+  - The iOS build job (#90) or any other CI restructuring.
 
 ## Acceptance Criteria
 
-- `route_error_view_shows_localized_message_and_calls_on_go_home_on_button_tap`
-- `router_error_builder_renders_route_error_view_for_an_unknown_route` (a minimal
-  `MaterialApp.router` with the same `errorBuilder` wiring, navigating to an unregistered path —
-  deterministic, avoids the real `appRouter`'s splash timer and permission calls)
-- `flutter_analyze_clean_and_full_suite_green`
+- `single_flutter_version_documented_and_consumed_by_ci` — `ci.yml` uses `3.44.1` in all three jobs
+  and the README/CLAUDE.md name it as the required version.
+- `pub_get_leaves_lock_unchanged_on_the_chosen_version` — `flutter pub get` on 3.44.1 produces no
+  diff in `pubspec.lock`.
+- `ci_analyze_test_build_green_on_3_44_1` — the three jobs pass on the PR.
 
 ## Reproducibility
 
-- `flutter analyze`; `flutter test test/core/widgets/route_error_view_test.dart test/routes/app_router_test.dart`
-  (+ full suite). Flutter 3.x / Dart 3.10.4+, go_router ^17.1.0.
+- Local (Flutter 3.44.1 / Dart 3.12.1): `flutter pub get` then `git status --porcelain pubspec.lock`
+  is empty; `flutter analyze` and `flutter test` green.
+- CI: the analyze/test/build jobs on the PR at `flutter-version: "3.44.1"`.
+- Note: config change with no unit test; the "test-first" step maps to first demonstrating the lock
+  drift on the current split, then showing it resolved on the aligned version.
 
 ## Risks and Assumptions
 
-- Assumption: testing via a minimal local `GoRouter` (not the global `appRouter`) is sound — the
-  real `appRouter` starts at `/splash`, whose 1200 ms permission timer and platform permission
-  calls make an end-to-end navigation test flaky; the local router exercises the identical
-  `errorBuilder` wiring deterministically.
-- Assumption: `context.go('/')` is valid from the errorBuilder's context (it runs within the router).
-- No ADR — localized robustness / i18n fix, not a hard-to-reverse decision.
+- Assumption: 3.44.1 is a released stable Flutter version fetchable by `subosito/flutter-action@v2`
+  (contributors run it locally); if the action cannot fetch it, fall back to (b) or (c).
+- Assumption: analyze/test/build stay green under the newer SDK-pinned packages (`test` 1.31.0,
+  `material_color_utilities` 0.13.0, `meta`/`matcher`/`characters`); if the bump surfaces breakage,
+  fixing it is in-scope or is the trigger to reconsider (b).
+- Candidate ADR: "Flutter toolchain version as single source of truth" — a durable, mildly
+  hard-to-reverse policy; promote to `docs/adr/` at the gate if approved.
