@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:share_plus/share_plus.dart';
 import 'package:visiosoil_app/core/services/share_content_builder.dart';
@@ -9,7 +10,8 @@ import 'package:visiosoil_app/models/soil_record.dart';
 ///
 /// Composes a PNG card from the record's photo and metadata, writes it to a
 /// temporary file, and hands it to `share_plus` with a text caption. Falls back
-/// to sharing the caption alone when the photo file is missing.
+/// to sharing the caption alone when the photo file is missing or its bytes
+/// cannot be decoded.
 class ShareService {
   const ShareService();
 
@@ -23,7 +25,22 @@ class ShareService {
     }
 
     final photoBytes = await photoFile.readAsBytes();
-    final cardBytes = await ShareContentBuilder.composeCard(record, photoBytes);
+
+    final Uint8List cardBytes;
+    try {
+      cardBytes = await ShareContentBuilder.composeCard(record, photoBytes);
+    } on Exception catch (e) {
+      // Present but undecodable photo (corrupt, truncated, or empty): degrade
+      // to the text-only caption, mirroring the missing-file path above.
+      // `on Exception` scopes this to decode failures; a genuine engine Error
+      // is not a recoverable share problem and deliberately propagates.
+      developer.log(
+        'Failed to compose share card; sharing caption only: $e',
+        name: 'ShareService',
+      );
+      await SharePlus.instance.share(ShareParams(text: caption));
+      return;
+    }
 
     final tempDir = await Directory.systemTemp.createTemp('visiosoil_share');
     try {

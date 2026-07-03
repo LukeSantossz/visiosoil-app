@@ -71,6 +71,13 @@ void main() {
     return File(p.join(sourceDir.path, 'photo.png'))..writeAsBytesSync(bytes);
   }
 
+  // A present file whose bytes are a bare PNG signature with no chunks: it
+  // exists on disk but `instantiateImageCodec` cannot decode it.
+  File writeCorruptPhoto() {
+    final bytes = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    return File(p.join(sourceDir.path, 'corrupt.png'))..writeAsBytesSync(bytes);
+  }
+
   SoilRecord recordFor(String imagePath) => SoilRecord(
         id: 7,
         imagePath: imagePath,
@@ -111,6 +118,29 @@ void main() {
     final missingPath = p.join(sourceDir.path, 'missing.png');
 
     await service.shareRecord(recordFor(missingPath));
+
+    expect(platform.receivedParams, isNotNull);
+    expect(platform.receivedParams!.files, anyOf(isNull, isEmpty));
+    expect(platform.receivedParams!.text, isNotNull);
+    expect(platform.sharedCardPath, isNull);
+  });
+
+  test('shares_caption_only_when_photo_is_present_but_corrupt', () async {
+    final corrupt = writeCorruptPhoto();
+
+    await service.shareRecord(recordFor(corrupt.path));
+
+    expect(platform.receivedParams, isNotNull);
+    expect(platform.receivedParams!.files, anyOf(isNull, isEmpty));
+    expect(platform.receivedParams!.text, isNotNull);
+    expect(platform.sharedCardPath, isNull);
+  });
+
+  test('shares_caption_only_when_photo_is_empty', () async {
+    final empty = File(p.join(sourceDir.path, 'empty.png'))
+      ..writeAsBytesSync(<int>[]);
+
+    await service.shareRecord(recordFor(empty.path));
 
     expect(platform.receivedParams, isNotNull);
     expect(platform.receivedParams!.files, anyOf(isNull, isEmpty));
