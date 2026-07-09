@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
@@ -84,14 +85,26 @@ class DefaultImageStorageService implements ImageStorageService {
     // anything else (including short or malformed inputs) is copied as-is, so
     // the raw-copy contract holds for every non-JPEG source.
     if (bytes.length >= 2 && bytes[0] == 0xff && bytes[1] == 0xd8) {
-      final sourceExif = img.decodeJpgExif(bytes);
-      if (sourceExif != null) {
-        final kept = img.ExifData();
-        final orientation = sourceExif.imageIfd.orientation;
-        if (orientation != null) {
-          kept.imageIfd.orientation = orientation;
+      try {
+        final sourceExif = img.decodeJpgExif(bytes);
+        if (sourceExif != null) {
+          final kept = img.ExifData();
+          final orientation = sourceExif.imageIfd.orientation;
+          if (orientation != null) {
+            kept.imageIfd.orientation = orientation;
+          }
+          outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
         }
-        outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
+      } catch (e) {
+        // A corrupt JPEG can overrun the EXIF parser. Degrade to a raw copy —
+        // the pre-existing contract — instead of failing the save, and log so a
+        // real decode regression stays visible rather than being swallowed.
+        developer.log(
+          'EXIF strip failed for a malformed JPEG; storing original bytes',
+          name: 'ImageStorageService',
+          error: e,
+        );
+        outputBytes = bytes;
       }
     }
     await File(targetPath).writeAsBytes(outputBytes, flush: true);
