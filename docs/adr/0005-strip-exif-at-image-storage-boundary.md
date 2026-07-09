@@ -1,0 +1,48 @@
+# Strip EXIF from captured photos at the storage boundary: lossless JPEG EXIF removal on copy, raw-copy for non-JPEG
+
+The durable-storage copy owned by `ImageStorageService` (ADR 0002) stops passing
+captured photo bytes through verbatim. `saveCapturedImage` now removes EXIF
+(including GPS) from JPEG sources as it writes them into `soil_images/`, so stored
+originals carry no uncontrolled location duplicate — the location the app keeps is
+only the explicit one it records through `LocationService`. The removal is
+lossless: it rewrites the JPEG's EXIF APP1 segment keeping only the orientation
+tag and leaves the entropy-coded scan untouched, so decoded pixels are
+byte-identical to the source and the on-device classifier sees no distribution
+shift. The orientation tag is kept because `Image.file` honors it for display.
+Non-JPEG sources are raw-copied unchanged. `requestFullMetadata: false` is also
+set at the capture site as iOS-side defense-in-depth.
+
+## Status
+
+Accepted. Implemented under issue #113 (SPEC `docs/specs/0002-strip-exif-from-captured-photos.md`
+approved at the Spec Gate). Extends ADR 0002, which owns the storage/copy side of
+the image-file lifecycle. Prompted by the 2026-07-03 security audit and confirmed
+by the cross-provider (R2) review, which showed the capture-site flag alone does
+not strip camera EXIF on Android.
+
+### Decided
+- **Strip at the storage boundary, not the capture site** — `image_picker`'s `requestFullMetadata: false` is ignored for camera captures on Android (verified: the flag has no reference in `image_picker_android` 0.8.13+15), so the removal must happen where every capture is durably written: `saveCapturedImage`.
+- **Lossless EXIF removal for JPEG, keeping orientation** — read the source EXIF with `decodeJpgExif`, keep only the orientation tag, and rewrite it with `image`'s `injectJpgExif`, which replaces the EXIF APP1 segment while preserving the scan; stored pixels stay byte-identical to the source (avoiding train/serve skew for the future model) and the photo displays with the same orientation, since `Image.file` honors the tag.
+- **Raw-copy non-JPEG sources** — capture is camera-only (JPEG on both platforms; iOS converts HEIC to JPG), and the `image` package cannot round-trip non-JPEG metadata (its PNG encoder omits EXIF; PNG `eXIf` decode is a disabled TODO), so re-encoding non-JPEG would strip nothing verifiable while risking pixels.
+- **Fail safe on malformed JPEGs** — the strip runs only on data starting with the JPEG SOI marker, and any EXIF parser failure on a corrupt JPEG is logged and falls back to a raw copy, so a malformed file degrades to the prior copy behavior instead of aborting the save (R2 flagged that the parser can overrun on corrupt SOI-prefixed input).
+- **Keep the capture-site flag** — retained as cheap iOS-side defense-in-depth, not relied on for Android.
+
+## Considered Options
+
+### Where to remove the metadata
+- **Capture-site flag only (`requestFullMetadata: false`)** — rejected: ignored by Android for camera captures, so GPS survives on the primary platform.
+- **Upload time, in `RemoteSyncBackend.uploadBlob`** — rejected: leaves EXIF-bearing originals at rest until sync ships (#55–57 open); the goal is no leak at rest.
+- **Storage boundary (chosen)** — the single durable-write chokepoint; removes the data before anything can read it back.
+
+### How to strip a JPEG
+- **Decode → re-encode JPEG dropping EXIF** — rejected: DCT requantization shifts pixel values, changing the distribution the model sees versus training.
+- **Decode → re-encode PNG** — rejected: pixel-lossless but inflates stored size several-fold, and does not help non-JPEG (the library cannot carry non-JPEG EXIF anyway).
+- **`injectJpgExif` keeping only the orientation tag (chosen)** — segment-level swap, lossless, keeps the small JPEG, uses the existing `image` dependency, no hand-rolled JPEG parser; drops GPS and all other metadata but preserves display orientation (R1 review caught that stripping orientation would rotate Android captures under `Image.file`).
+
+## Consequences
+
+- Stored soil photos no longer carry an EXIF GPS duplicate; when blob upload lands (#55/#56), raw image bytes will not exfiltrate a location the user did not choose to attach.
+- Both the classifier and display are unaffected: `img.decodeImage` (the classifier's decode) and `Image.file` (the preview, details, home, and history screens) both apply the EXIF orientation, so keeping the tag holds their pixels identical to before; the strip preserves the entropy-coded scan exactly. Stripping orientation would have rotated both — the defect R1 caught.
+- Photos already stored before this change are not rewritten; the guarantee holds from this change forward.
+- Residual: `injectJpgExif` strips the EXIF APP1 segment, not XMP; camera GPS lives in EXIF, so an XMP-embedded location (rare) would remain — out of scope.
+- A non-JPEG source (only reachable if a gallery source is ever added, explicitly out of scope) would be raw-copied with any metadata retained.

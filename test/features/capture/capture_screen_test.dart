@@ -267,4 +267,46 @@ void main() {
     expect(find.text('open capture'), findsOneWidget); // popped back to '/'
   });
 
+  testWidgets('the default camera picker requests images without full metadata',
+      (tester) async {
+    // In a unit test ImagePickerPlatform.instance is MethodChannelImagePicker,
+    // which invokes `pickImage` on this channel with a `requestFullMetadata`
+    // arg. Intercept it to assert the flag the real default picker sends.
+    const channel = MethodChannel('plugins.flutter.io/image_picker');
+    Object? requestedFullMetadata;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (call) async {
+        if (call.method == 'pickImage') {
+          requestedFullMetadata =
+              (call.arguments as Map)['requestFullMetadata'];
+          return samplePath;
+        }
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+
+    // pickFromCamera is left as the real default on purpose, so the capture
+    // drives ImagePicker().pickImage down to the intercepted channel.
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        inferenceServiceProvider
+            .overrideWithValue(_FakeInference((_) async => null)),
+      ],
+      child: MaterialApp(
+        home: CaptureScreen(
+          locate: () async => null,
+          checkCameraPermission: () async => AppPermissionStatus.granted,
+          requestCameraPermission: () async => AppPermissionStatus.granted,
+        ),
+      ),
+    ));
+
+    await capture(tester);
+
+    expect(requestedFullMetadata, isFalse);
+  });
+
 }

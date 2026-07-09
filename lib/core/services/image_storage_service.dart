@@ -1,5 +1,7 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -70,8 +72,43 @@ class DefaultImageStorageService implements ImageStorageService {
       );
     }
 
-    final stored = await source.copy(targetPath);
-    return stored.path;
+    // JPEG captures carry EXIF (including GPS) that duplicates, uncontrolled,
+    // the location the app records explicitly. Strip it losslessly at this
+    // durable-storage boundary, keeping only the orientation tag: injectJpgExif
+    // swaps the EXIF APP1 segment while leaving the entropy-coded scan intact, so
+    // the stored pixels are byte-identical to the source. Orientation is kept
+    // because Image.file honors it for display. A non-JPEG source (never produced
+    // by camera-only capture) yields no EXIF and is copied through unchanged.
+    final bytes = await source.readAsBytes();
+    var outputBytes = bytes;
+    // Only attempt an EXIF strip on data that starts with a JPEG SOI marker;
+    // anything else (including short or malformed inputs) is copied as-is, so
+    // the raw-copy contract holds for every non-JPEG source.
+    if (bytes.length >= 2 && bytes[0] == 0xff && bytes[1] == 0xd8) {
+      try {
+        final sourceExif = img.decodeJpgExif(bytes);
+        if (sourceExif != null) {
+          final kept = img.ExifData();
+          final orientation = sourceExif.imageIfd.orientation;
+          if (orientation != null) {
+            kept.imageIfd.orientation = orientation;
+          }
+          outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
+        }
+      } catch (e) {
+        // A corrupt JPEG can overrun the EXIF parser. Degrade to a raw copy —
+        // the pre-existing contract — instead of failing the save, and log so a
+        // real decode regression stays visible rather than being swallowed.
+        developer.log(
+          'EXIF strip failed for a malformed JPEG; storing original bytes',
+          name: 'ImageStorageService',
+          error: e,
+        );
+        outputBytes = bytes;
+      }
+    }
+    await File(targetPath).writeAsBytes(outputBytes, flush: true);
+    return targetPath;
   }
 
   @override

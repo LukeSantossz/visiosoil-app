@@ -100,8 +100,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
-  Future<XFile?> _defaultPickFromCamera() =>
-      ImagePicker().pickImage(source: ImageSource.camera);
+  Future<XFile?> _defaultPickFromCamera() => ImagePicker().pickImage(
+        source: ImageSource.camera,
+        // Drop EXIF (including GPS) at the source so stored originals carry no
+        // uncontrolled location duplicate; the app never reads image metadata.
+        requestFullMetadata: false,
+      );
 
   Future<LocationReading?> _defaultLocate() async {
     final position = await LocationService.getCurrentLocation();

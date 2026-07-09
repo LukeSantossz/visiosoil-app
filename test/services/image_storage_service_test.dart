@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:visiosoil_app/core/services/image_storage_service.dart';
 
@@ -128,6 +130,94 @@ void main() {
       }
 
       expect(File(stored).readAsBytesSync(), [1, 1, 1]);
+    });
+
+    // --- EXIF stripping at the storage boundary (spec 0002) ---
+
+    Uint8List jpegWithGpsAndOrientation() {
+      final image = img.Image(width: 8, height: 8);
+      // A non-uniform pattern makes the pixel-identity assertion meaningful.
+      for (final pixel in image) {
+        pixel
+          ..r = pixel.x * 32
+          ..g = pixel.y * 32
+          ..b = 64;
+      }
+      image.exif.gpsIfd.setGpsLocation(latitude: -23.55, longitude: -46.63);
+      image.exif.imageIfd.orientation = 6; // rotate 90 CW; display relies on it
+      return img.encodeJpg(image);
+    }
+
+    test('saveCapturedImage_strips_gps_exif_from_a_jpeg_source', () async {
+      final bytes = jpegWithGpsAndOrientation();
+      // Sanity: the fixture actually carries GPS before storage.
+      expect(img.decodeJpg(bytes)!.exif.gpsIfd.isEmpty, isFalse);
+      final source = writeSource('gps.jpg', bytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'gps');
+
+      final storedExif = img.decodeJpg(File(stored).readAsBytesSync())!.exif;
+      expect(storedExif.gpsIfd.isEmpty, isTrue);
+    });
+
+    test('saveCapturedImage_preserves_exif_orientation_of_a_jpeg_source',
+        () async {
+      final bytes = jpegWithGpsAndOrientation();
+      // Sanity: the fixture carries an orientation tag before storage.
+      expect(img.decodeJpgExif(bytes)!.imageIfd.orientation, 6);
+      final source = writeSource('gps.jpg', bytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'ori');
+
+      final storedExif = img.decodeJpgExif(File(stored).readAsBytesSync());
+      expect(storedExif?.imageIfd.orientation, 6);
+    });
+
+    test('saveCapturedImage_preserves_decoded_pixels_of_a_jpeg_source',
+        () async {
+      final bytes = jpegWithGpsAndOrientation();
+      final source = writeSource('gps.jpg', bytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'px');
+
+      final sourcePixels = img.decodeJpg(bytes)!.getBytes();
+      final storedPixels =
+          img.decodeJpg(File(stored).readAsBytesSync())!.getBytes();
+      expect(storedPixels, sourcePixels);
+    });
+
+    test('saveCapturedImage_raw_copies_a_non_jpeg_source_unchanged', () async {
+      // Capture is camera-only (always JPEG); a non-JPEG source is raw-copied,
+      // preserving the existing byte-for-byte contract.
+      final pngBytes = img.encodePng(img.Image(width: 8, height: 8));
+      final source = writeSource('photo.png', pngBytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'png');
+
+      expect(File(stored).readAsBytesSync(), pngBytes);
+    });
+
+    test('saveCapturedImage_raw_copies_a_short_malformed_source_without_throwing',
+        () async {
+      // A one-byte source that starts with the JPEG marker byte must be
+      // raw-copied, not crash the EXIF parser mid-signature-check.
+      final source = writeSource('odd.bin', [0xff]);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'odd');
+
+      expect(File(stored).readAsBytesSync(), [0xff]);
+    });
+
+    test('saveCapturedImage_raw_copies_a_malformed_jpeg_source_without_throwing',
+        () async {
+      // Valid SOI but a corrupt APP1 length: the EXIF parser overruns and
+      // throws. The save must degrade to a raw copy, not abort.
+      final malformed = [0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff];
+      final source = writeSource('malformed.jpg', malformed);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'bad');
+
+      expect(File(stored).readAsBytesSync(), malformed);
     });
   });
 }
