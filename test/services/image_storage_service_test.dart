@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:visiosoil_app/core/services/image_storage_service.dart';
 
@@ -128,6 +130,57 @@ void main() {
       }
 
       expect(File(stored).readAsBytesSync(), [1, 1, 1]);
+    });
+
+    // --- EXIF stripping at the storage boundary (spec 0002) ---
+
+    Uint8List jpegWithGps() {
+      final image = img.Image(width: 8, height: 8);
+      // A non-uniform pattern makes the pixel-identity assertion meaningful.
+      for (final pixel in image) {
+        pixel
+          ..r = pixel.x * 32
+          ..g = pixel.y * 32
+          ..b = 64;
+      }
+      image.exif.gpsIfd.setGpsLocation(latitude: -23.55, longitude: -46.63);
+      return img.encodeJpg(image);
+    }
+
+    test('saveCapturedImage_strips_gps_exif_from_a_jpeg_source', () async {
+      final bytes = jpegWithGps();
+      // Sanity: the fixture actually carries GPS before storage.
+      expect(img.decodeJpg(bytes)!.exif.gpsIfd.isEmpty, isFalse);
+      final source = writeSource('gps.jpg', bytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'gps');
+
+      final storedExif = img.decodeJpg(File(stored).readAsBytesSync())!.exif;
+      expect(storedExif.gpsIfd.isEmpty, isTrue);
+    });
+
+    test('saveCapturedImage_preserves_decoded_pixels_of_a_jpeg_source',
+        () async {
+      final bytes = jpegWithGps();
+      final source = writeSource('gps.jpg', bytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'px');
+
+      final sourcePixels = img.decodeJpg(bytes)!.getBytes();
+      final storedPixels =
+          img.decodeJpg(File(stored).readAsBytesSync())!.getBytes();
+      expect(storedPixels, sourcePixels);
+    });
+
+    test('saveCapturedImage_raw_copies_a_non_jpeg_source_unchanged', () async {
+      // Capture is camera-only (always JPEG); a non-JPEG source is raw-copied,
+      // preserving the existing byte-for-byte contract.
+      final pngBytes = img.encodePng(img.Image(width: 8, height: 8));
+      final source = writeSource('photo.png', pngBytes);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'png');
+
+      expect(File(stored).readAsBytesSync(), pngBytes);
     });
   });
 }
