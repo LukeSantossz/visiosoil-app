@@ -196,5 +196,16 @@ void main() {
 
       expect(File(stored).readAsBytesSync(), pngBytes);
     });
+
+    test('saveCapturedImage_raw_copies_a_short_malformed_source_without_throwing',
+        () async {
+      // A one-byte source that starts with the JPEG marker byte must be
+      // raw-copied, not crash the EXIF parser mid-signature-check.
+      final source = writeSource('odd.bin', [0xff]);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'odd');
+
+      expect(File(stored).readAsBytesSync(), [0xff]);
+    });
   });
 }
