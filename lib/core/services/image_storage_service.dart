@@ -73,12 +73,22 @@ class DefaultImageStorageService implements ImageStorageService {
 
     // JPEG captures carry EXIF (including GPS) that duplicates, uncontrolled,
     // the location the app records explicitly. Strip it losslessly at this
-    // durable-storage boundary: injectJpgExif swaps the EXIF APP1 segment for an
-    // empty one and leaves the entropy-coded scan intact, so the stored pixels
-    // are byte-identical to the source. A non-JPEG source (never produced by
-    // camera-only capture) yields null and is copied through unchanged.
+    // durable-storage boundary, keeping only the orientation tag: injectJpgExif
+    // swaps the EXIF APP1 segment while leaving the entropy-coded scan intact, so
+    // the stored pixels are byte-identical to the source. Orientation is kept
+    // because Image.file honors it for display. A non-JPEG source (never produced
+    // by camera-only capture) yields no EXIF and is copied through unchanged.
     final bytes = await source.readAsBytes();
-    final outputBytes = img.injectJpgExif(bytes, img.ExifData()) ?? bytes;
+    var outputBytes = bytes;
+    final sourceExif = img.decodeJpgExif(bytes);
+    if (sourceExif != null) {
+      final kept = img.ExifData();
+      final orientation = sourceExif.imageIfd.orientation;
+      if (orientation != null) {
+        kept.imageIfd.orientation = orientation;
+      }
+      outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
+    }
     await File(targetPath).writeAsBytes(outputBytes, flush: true);
     return targetPath;
   }
