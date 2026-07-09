@@ -80,14 +80,19 @@ class DefaultImageStorageService implements ImageStorageService {
     // by camera-only capture) yields no EXIF and is copied through unchanged.
     final bytes = await source.readAsBytes();
     var outputBytes = bytes;
-    final sourceExif = img.decodeJpgExif(bytes);
-    if (sourceExif != null) {
-      final kept = img.ExifData();
-      final orientation = sourceExif.imageIfd.orientation;
-      if (orientation != null) {
-        kept.imageIfd.orientation = orientation;
+    // Only attempt an EXIF strip on data that starts with a JPEG SOI marker;
+    // anything else (including short or malformed inputs) is copied as-is, so
+    // the raw-copy contract holds for every non-JPEG source.
+    if (bytes.length >= 2 && bytes[0] == 0xff && bytes[1] == 0xd8) {
+      final sourceExif = img.decodeJpgExif(bytes);
+      if (sourceExif != null) {
+        final kept = img.ExifData();
+        final orientation = sourceExif.imageIfd.orientation;
+        if (orientation != null) {
+          kept.imageIfd.orientation = orientation;
+        }
+        outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
       }
-      outputBytes = img.injectJpgExif(bytes, kept) ?? bytes;
     }
     await File(targetPath).writeAsBytes(outputBytes, flush: true);
     return targetPath;
