@@ -11,12 +11,15 @@ false` does not remove it, so the leak persists at rest and would exfiltrate onc
 ## Design Decision
 
 Strip metadata at the single durable-storage boundary,
-`DefaultImageStorageService.saveCapturedImage`. For a JPEG source, replace the
-byte-for-byte `source.copy` with the `image` package's `injectJpgExif(bytes,
-ExifData())`, which replaces the existing EXIF APP1 segment with an empty one
-while preserving the entropy-coded scan data, so the stored file is lossless, its
-decoded pixels are byte-identical to the source (no inference-distribution
-change), and it stays a small JPEG. Any non-JPEG source is raw-copied unchanged:
+`DefaultImageStorageService.saveCapturedImage`. For a JPEG source, read its EXIF
+with `decodeJpgExif`, rebuild an EXIF block that keeps only the orientation tag,
+and rewrite it with the `image` package's `injectJpgExif`, which swaps the EXIF
+APP1 segment while preserving the entropy-coded scan data. This drops GPS and all
+other metadata but keeps orientation, because both `Image.file` (display) and
+`img.decodeImage` (the classifier's decode) apply the EXIF orientation — so
+keeping the tag holds the stored file lossless, its decoded pixels byte-identical
+to the source (no inference-distribution change and same on-screen orientation),
+while it stays a small JPEG. Any non-JPEG source is raw-copied unchanged:
 capture is camera-only (JPEG on both platforms; iOS converts HEIC to JPG), and
 the `image` package cannot read or write non-JPEG metadata (its PNG encoder omits
 EXIF and its PNG `eXIf` decode is disabled), so a non-JPEG re-encode would add
@@ -67,6 +70,9 @@ dependency.
   yields a stored file whose decoded EXIF has no GPS tags.
 - `stored_jpeg_pixels_identical_to_source`: the decoded pixels of the stored
   JPEG equal the decoded pixels of the source (no inference drift).
+- `stored_jpeg_preserves_exif_orientation`: a source JPEG with an EXIF
+  orientation tag yields a stored file whose EXIF orientation tag is unchanged
+  (display parity preserved).
 - `non_jpeg_source_is_raw_copied_unchanged`: a non-JPEG (or non-image) source is
   stored byte-for-byte, preserving the existing copy contract.
 - `save_still_throws_filesystemexception_on_unreadable_source`: an unreadable or
@@ -88,10 +94,13 @@ test`; `flutter analyze`. Deterministic, no randomness. Toolchain Flutter 3.44.1
   capture. Invalidated only if a non-JPEG camera source is introduced (e.g. a
   gallery source, explicitly out of scope), in which case that file would be
   raw-copied and any embedded metadata retained.
-- Assumption: `InferenceService` decodes stored files to pixels and does not rely
-  on EXIF orientation — verified: it uses `img.decodeImage` + `copyResize` with no
-  `bakeOrientation` — so dropping EXIF (including the orientation tag) does not
-  change the inference tensor.
+- Orientation: the EXIF orientation tag is deliberately preserved. Both
+  `Image.file` (display) and `img.decodeImage` (the classifier's decode) apply
+  the EXIF orientation, so stripping it would rotate camera photos on screen and
+  change the pixels the model receives (Android often tags orientation instead of
+  rotating pixels). Keeping the tag holds both paths identical to today —
+  verified by the pixel-identity test, which fails when orientation is stripped
+  and passes when it is preserved.
 - Residual: `injectJpgExif` strips the EXIF APP1 segment, not XMP; camera GPS
   lives in EXIF, so the documented threat is covered, but an XMP-embedded
   location (rare) would remain. Out of scope for this change.
