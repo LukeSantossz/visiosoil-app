@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -70,8 +71,16 @@ class DefaultImageStorageService implements ImageStorageService {
       );
     }
 
-    final stored = await source.copy(targetPath);
-    return stored.path;
+    // JPEG captures carry EXIF (including GPS) that duplicates, uncontrolled,
+    // the location the app records explicitly. Strip it losslessly at this
+    // durable-storage boundary: injectJpgExif swaps the EXIF APP1 segment for an
+    // empty one and leaves the entropy-coded scan intact, so the stored pixels
+    // are byte-identical to the source. A non-JPEG source (never produced by
+    // camera-only capture) yields null and is copied through unchanged.
+    final bytes = await source.readAsBytes();
+    final outputBytes = img.injectJpgExif(bytes, img.ExifData()) ?? bytes;
+    await File(targetPath).writeAsBytes(outputBytes, flush: true);
+    return targetPath;
   }
 
   @override
