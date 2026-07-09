@@ -24,6 +24,7 @@ not strip camera EXIF on Android.
 - **Strip at the storage boundary, not the capture site** — `image_picker`'s `requestFullMetadata: false` is ignored for camera captures on Android (verified: the flag has no reference in `image_picker_android` 0.8.13+15), so the removal must happen where every capture is durably written: `saveCapturedImage`.
 - **Lossless EXIF removal for JPEG, keeping orientation** — read the source EXIF with `decodeJpgExif`, keep only the orientation tag, and rewrite it with `image`'s `injectJpgExif`, which replaces the EXIF APP1 segment while preserving the scan; stored pixels stay byte-identical to the source (avoiding train/serve skew for the future model) and the photo displays with the same orientation, since `Image.file` honors the tag.
 - **Raw-copy non-JPEG sources** — capture is camera-only (JPEG on both platforms; iOS converts HEIC to JPG), and the `image` package cannot round-trip non-JPEG metadata (its PNG encoder omits EXIF; PNG `eXIf` decode is a disabled TODO), so re-encoding non-JPEG would strip nothing verifiable while risking pixels.
+- **Fail safe on malformed JPEGs** — the strip runs only on data starting with the JPEG SOI marker, and any EXIF parser failure on a corrupt JPEG is logged and falls back to a raw copy, so a malformed file degrades to the prior copy behavior instead of aborting the save (R2 flagged that the parser can overrun on corrupt SOI-prefixed input).
 - **Keep the capture-site flag** — retained as cheap iOS-side defense-in-depth, not relied on for Android.
 
 ## Considered Options

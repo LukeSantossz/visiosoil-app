@@ -19,7 +19,10 @@ other metadata but keeps orientation, because both `Image.file` (display) and
 `img.decodeImage` (the classifier's decode) apply the EXIF orientation — so
 keeping the tag holds the stored file lossless, its decoded pixels byte-identical
 to the source (no inference-distribution change and same on-screen orientation),
-while it stays a small JPEG. Any non-JPEG source is raw-copied unchanged:
+while it stays a small JPEG. The strip runs only on data that starts with the
+JPEG SOI marker, and a parser failure on a corrupt JPEG falls back (logged) to a
+raw copy, so a malformed source never aborts the save. Any non-JPEG source is
+raw-copied unchanged:
 capture is camera-only (JPEG on both platforms; iOS converts HEIC to JPG), and
 the `image` package cannot read or write non-JPEG metadata (its PNG encoder omits
 EXIF and its PNG `eXIf` decode is disabled), so a non-JPEG re-encode would add
@@ -75,6 +78,10 @@ dependency.
   (display parity preserved).
 - `non_jpeg_source_is_raw_copied_unchanged`: a non-JPEG (or non-image) source is
   stored byte-for-byte, preserving the existing copy contract.
+- `malformed_jpeg_source_is_raw_copied_without_throwing`: a source with a valid
+  JPEG SOI marker but a corrupt structure that overruns the EXIF parser is
+  raw-copied (the strip is guarded by the SOI signature and a parser-failure
+  fallback), so the save never aborts.
 - `save_still_throws_filesystemexception_on_unreadable_source`: an unreadable or
   missing source still throws `FileSystemException` (existing contract).
 - `refusing_to_overwrite_existing_stored_image_preserved`: the existing
