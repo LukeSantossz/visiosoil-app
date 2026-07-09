@@ -207,5 +207,17 @@ void main() {
 
       expect(File(stored).readAsBytesSync(), [0xff]);
     });
+
+    test('saveCapturedImage_raw_copies_a_malformed_jpeg_source_without_throwing',
+        () async {
+      // Valid SOI but a corrupt APP1 length: the EXIF parser overruns and
+      // throws. The save must degrade to a raw copy, not abort.
+      final malformed = [0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff];
+      final source = writeSource('malformed.jpg', malformed);
+
+      final stored = await service.saveCapturedImage(source, recordUuid: 'bad');
+
+      expect(File(stored).readAsBytesSync(), malformed);
+    });
   });
 }
