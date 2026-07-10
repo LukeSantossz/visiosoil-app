@@ -22,7 +22,7 @@ requirement. Part of the Auth & Release Readiness milestone (M1).
 
 ### Decided
 - **Cover every API level explicitly** — `allowBackup="false"` disables backup and `adb backup` on API ≤ 30; `dataExtractionRules` excludes all domains from cloud backup and device transfer on API 31+, where `allowBackup` no longer governs device-to-device transfer.
-- **Full exclude, not scoped** — the rules exclude all domains (`root`, `file`, `database`, `sharedpref`, `external`) with `path="/"`, so no future file becomes backup-eligible by default.
+- **Full exclude, not scoped** — the rules exclude all domains (`root`, `file`, `database`, `sharedpref`, `external`) whole, omitting the path so each matches its entire domain directory (an absolute `path` would resolve to the filesystem root and match nothing), so no future file becomes backup-eligible by default.
 - **Explicit and guarded** — the attributes and the rules file are set explicitly rather than relying on defaults, and a config test (`test/android_config_test.dart`, mirroring `test/ios_config_test.dart`) guards them.
 - **Replication is the app's job, not the OS's** — durability of records is deferred to the app's Google Drive sync (#55–57), which the app controls, unlike the opaque OS backup/transfer.
 
