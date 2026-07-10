@@ -95,6 +95,43 @@ flutter analyze
 flutter test
 ```
 
+### Release Signing (Android)
+
+Release APKs are signed from an untracked keystore. Without it,
+`flutter build apk --release` falls back to the debug key (with a warning), so
+contributors and CI still build. To produce a distributable, release-signed APK:
+
+1. Generate a keystore (store it and its passwords safely and back them up —
+   losing the key means you can no longer update a published app):
+
+   ```bash
+   keytool -genkey -v -keystore visiosoil-release.jks \
+     -keyalg RSA -keysize 2048 -validity 10000 -alias visiosoil
+   ```
+
+2. Create `android/key.properties` (already git-ignored) with:
+
+   ```properties
+   storePassword=<store password>
+   keyPassword=<key password>
+   keyAlias=visiosoil
+   storeFile=C:/Users/you/visiosoil-release.jks
+   ```
+
+   `key.properties` is a Java properties file, so a backslash is an escape
+   character. On Windows, write `storeFile` with forward slashes
+   (`C:/Users/...`) or doubled backslashes (`C:\\Users\\...`); a plain
+   `C:\Users\...` will not resolve.
+
+3. Build and verify the signing certificate:
+
+   ```bash
+   flutter build apk --release
+   apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk
+   ```
+
+Never commit the keystore or `key.properties`.
+
 ## Project Structure
 
 ```
