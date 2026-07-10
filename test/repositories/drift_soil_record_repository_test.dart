@@ -4,6 +4,7 @@
 // native SQLite library. On CI (Linux/macOS/Windows) this works out of the
 // box because `sqlite3_flutter_libs` ships the shared library; on hosts
 // without SQLite on the PATH, installing the OS `sqlite3` package may be required.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -174,25 +175,29 @@ void main() {
 
     test('watchAll emite a lista atualizada após inserções e deleções',
         () async {
-      final stream = repo.watchAll();
-      final emissions = <List<SoilRecord>>[];
-      final sub = stream.listen(emissions.add);
+      // Pull emissions one at a time, gating each mutation on the previous one
+      // having been observed. Waiting on the next event (not a fixed delay)
+      // keeps the sequence deterministic and removes the CI-flakiness source.
+      final events = StreamIterator(repo.watchAll());
 
-      // Waits for the first emission (empty list).
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      // Initial snapshot: the database is empty.
+      expect(await events.moveNext(), isTrue);
+      expect(events.current, isEmpty);
+
       final inserted = await repo.create(sample());
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Emission reflecting the insert: exactly the record just created.
+      expect(await events.moveNext(), isTrue);
+      expect(events.current, hasLength(1));
+      expect(events.current.single.id, inserted.id);
+
       await repo.deleteById(inserted.id!);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      await sub.cancel();
+      // Emission reflecting the delete: empty again.
+      expect(await events.moveNext(), isTrue);
+      expect(events.current, isEmpty);
 
-      expect(emissions.first, isEmpty);
-      expect(
-        emissions.any((list) => list.length == 1 && list.first.id == inserted.id),
-        isTrue,
-      );
-      expect(emissions.last, isEmpty);
+      await events.cancel();
     });
 
     test('create_cleans_up_the_copied_file_when_the_db_write_fails', () async {
