@@ -37,7 +37,7 @@ void main() {
     );
   });
 
-  test('rules_exclude_data_from_cloud_backup_and_device_transfer', () {
+  test('rules_exclude_all_domains_from_cloud_backup_and_device_transfer', () {
     expect(
       rulesFile.existsSync(),
       isTrue,
@@ -50,10 +50,25 @@ void main() {
       contains('<device-transfer>'),
       reason: 'device-transfer must be excluded to block Android 12+ D2D copy',
     );
+    // path="/" is the filesystem root, not the domain directory, so it excludes
+    // nothing; a whole-domain exclude omits the path.
     expect(
-      RegExp(r'<device-transfer>.*<exclude', dotAll: true).hasMatch(rules),
-      isTrue,
-      reason: 'device-transfer section must contain exclude rules',
+      rules.contains('path="/"'),
+      isFalse,
+      reason: 'path="/" does not match a domain directory; omit path instead',
     );
+    for (final domain in const [
+      'root',
+      'file',
+      'database',
+      'sharedpref',
+      'external',
+    ]) {
+      expect(
+        rules,
+        contains('domain="$domain"'),
+        reason: 'domain "$domain" must be excluded from backups',
+      );
+    }
   });
 }
