@@ -37,6 +37,37 @@ SoilRecord _locatedRecord() => SoilRecord(
       confidenceScore: 0.9,
     );
 
+SoilRecord _unlocatedRecord() => SoilRecord(
+      id: 1,
+      imagePath: 'x.png',
+      timestamp: '2026-06-26T12:00:00Z',
+      textureClass: 'Argilosa',
+      confidenceScore: 0.9,
+    );
+
+Widget _detailsUnderTest({
+  required ShareService share,
+  required SoilRecord record,
+}) {
+  return ProviderScope(
+    overrides: [
+      soilRecordByIdProvider.overrideWith((ref, id) async => record),
+      shareServiceProvider.overrideWithValue(share),
+      managementTipsRepositoryProvider
+          .overrideWithValue(FakeManagementTipsRepository()),
+      researchServiceProvider.overrideWithValue(
+        FakeResearchService(
+          (_) async =>
+              const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+        ),
+      ),
+      connectivityServiceProvider
+          .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
+    ],
+    child: const MaterialApp(home: DetailsPage(recordId: 1)),
+  );
+}
+
 void main() {
   testWidgets('tips section sits between the info section and the actions',
       (tester) async {
@@ -68,29 +99,15 @@ void main() {
     expect(tipsDy < actionsDy, isTrue);
   });
 
-  testWidgets('sharing a located record prompts before disclosing location',
+  testWidgets('sharing a located record omits location by default',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final share = _RecordingShareService();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        soilRecordByIdProvider.overrideWith((ref, id) async => _locatedRecord()),
-        shareServiceProvider.overrideWithValue(share),
-        managementTipsRepositoryProvider
-            .overrideWithValue(FakeManagementTipsRepository()),
-        researchServiceProvider.overrideWithValue(
-          FakeResearchService(
-            (_) async =>
-                const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
-          ),
-        ),
-        connectivityServiceProvider.overrideWithValue(
-            FakeConnectivityService(ConnectivityStatus.online)),
-      ],
-      child: const MaterialApp(home: DetailsPage(recordId: 1)),
-    ));
+    await tester.pumpWidget(
+      _detailsUnderTest(share: share, record: _locatedRecord()),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Compartilhar'));
@@ -101,6 +118,43 @@ void main() {
     await tester.tap(find.text('Compartilhar sem localização'));
     await tester.pumpAndSettle();
 
+    expect(share.calledIncludeLocation, isFalse);
+  });
+
+  testWidgets('choosing to include location forwards the opt-in',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final share = _RecordingShareService();
+
+    await tester.pumpWidget(
+      _detailsUnderTest(share: share, record: _locatedRecord()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Compartilhar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Incluir localização'));
+    await tester.pumpAndSettle();
+
+    expect(share.calledIncludeLocation, isTrue);
+  });
+
+  testWidgets('a record with no location shares without a dialog',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final share = _RecordingShareService();
+
+    await tester.pumpWidget(
+      _detailsUnderTest(share: share, record: _unlocatedRecord()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Compartilhar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Incluir localização?'), findsNothing);
     expect(share.calledIncludeLocation, isFalse);
   });
 }
