@@ -15,8 +15,12 @@ import 'package:visiosoil_app/models/soil_record.dart';
 class ShareService {
   const ShareService();
 
-  Future<void> shareRecord(SoilRecord record) async {
-    final caption = ShareContentBuilder.caption(record);
+  Future<void> shareRecord(
+    SoilRecord record, {
+    bool includeLocation = false,
+  }) async {
+    final caption =
+        ShareContentBuilder.caption(record, includeLocation: includeLocation);
     final photoFile = File(record.imagePath);
 
     if (!await photoFile.exists()) {
@@ -28,7 +32,11 @@ class ShareService {
 
     final Uint8List cardBytes;
     try {
-      cardBytes = await ShareContentBuilder.composeCard(record, photoBytes);
+      cardBytes = await ShareContentBuilder.composeCard(
+        record,
+        photoBytes,
+        includeLocation: includeLocation,
+      );
     } on Exception catch (e) {
       // Present but undecodable photo (corrupt, truncated, or empty): degrade
       // to the text-only caption, mirroring the missing-file path above.

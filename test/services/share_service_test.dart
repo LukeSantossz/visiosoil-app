@@ -99,6 +99,26 @@ void main() {
     expect(cardDir.existsSync(), isFalse);
   });
 
+  test('share_text_omits_location_by_default', () async {
+    final photo = writePhoto();
+
+    await service.shareRecord(recordFor(photo.path));
+
+    final text = platform.receivedParams!.text!;
+    expect(text, isNot(contains('Coordenadas:')));
+    expect(text, isNot(contains('São Paulo, SP')));
+  });
+
+  test('share_text_includes_location_when_opted_in', () async {
+    final photo = writePhoto();
+
+    await service.shareRecord(recordFor(photo.path), includeLocation: true);
+
+    final text = platform.receivedParams!.text!;
+    expect(text, contains('Coordenadas:'));
+    expect(text, contains('São Paulo, SP'));
+  });
+
   test('deletes_temp_dir_and_rethrows_when_platform_share_throws', () async {
     final photo = writePhoto();
     platform.shouldThrow = true;

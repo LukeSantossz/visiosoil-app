@@ -59,6 +59,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v2) |
 | Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
 | Local JSON for experiment tracking | MLflow / Weights & Biases | Disproportionate overhead for the project size; each model version emits `metrics.json` + `config.json` under `ml/models/vN/` |
+| Share omits location by default, opt-in per share ([ADR 0007](docs/adr/0007-share-location-opt-in.md)) | Coarsen coordinates to ~1 km, or omit location entirely | Preserves the legitimate use of sending a colleague the sample's location while defaulting to non-disclosure of a client's field coordinates |
 
 ## Getting Started
 
