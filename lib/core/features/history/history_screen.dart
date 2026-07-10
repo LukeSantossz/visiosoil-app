@@ -205,7 +205,35 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           // Texture class filter chips
           availableClasses.when(
             loading: () => const SizedBox.shrink(),
-            error: (error, stackTrace) => const SizedBox.shrink(),
+            // Surface a load failure inline with a retry instead of silently
+            // collapsing the chip bar (#117).
+            error: (error, stackTrace) => Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 18,
+                    color: AppColors.error.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Não foi possível carregar os filtros',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        ref.invalidate(availableTextureClassesProvider),
+                    child: const Text('Tentar novamente'),
+                  ),
+                ],
+              ),
+            ),
             data: (classes) {
               if (classes.isEmpty) return const SizedBox.shrink();
 
