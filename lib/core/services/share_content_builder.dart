@@ -19,7 +19,11 @@ abstract final class ShareContentBuilder {
 
   /// Plain-text caption with one metadata field per line; fields that are
   /// missing or unavailable are omitted.
-  static String caption(SoilRecord record) {
+  ///
+  /// Location (address and coordinates) is disclosed only when
+  /// [includeLocation] is true, so a default share does not leak a client's
+  /// precise field location; the caller opts in per share.
+  static String caption(SoilRecord record, {bool includeLocation = false}) {
     final lines = <String>['VisioSoil — análise de solo'];
     if (record.hasClassification) {
       final confidence = record.confidenceScore != null
@@ -27,11 +31,13 @@ abstract final class ShareContentBuilder {
           : '';
       lines.add('Classe: ${record.displayTextureClass}$confidence');
     }
-    if (record.hasValidAddress) {
-      lines.add('Local: ${record.address}');
-    }
-    if (record.hasCoordinates) {
-      lines.add('Coordenadas: ${record.formattedCoordinates}');
+    if (includeLocation) {
+      if (record.hasValidAddress) {
+        lines.add('Local: ${record.address}');
+      }
+      if (record.hasCoordinates) {
+        lines.add('Coordenadas: ${record.formattedCoordinates}');
+      }
     }
     lines.add('Data: ${record.formattedTimestamp}');
     return lines.join('\n');
@@ -42,8 +48,9 @@ abstract final class ShareContentBuilder {
   /// drawn in a footer band below it.
   static Future<Uint8List> composeCard(
     SoilRecord record,
-    Uint8List photoBytes,
-  ) async {
+    Uint8List photoBytes, {
+    bool includeLocation = false,
+  }) async {
     final codec = await ui.instantiateImageCodec(photoBytes);
     final frame = await codec.getNextFrame();
     final photo = frame.image;
@@ -53,7 +60,7 @@ abstract final class ShareContentBuilder {
 
     final footer = TextPainter(
       text: TextSpan(
-        text: caption(record),
+        text: caption(record, includeLocation: includeLocation),
         style: const TextStyle(
           color: Color(0xFF1A1C19),
           fontSize: 34,
