@@ -22,13 +22,18 @@ void main() {
     );
   });
 
-  test('gradle_defines_a_release_signing_config', () {
+  test('gradle_defines_and_uses_a_release_signing_config', () {
+    // Both the definition and the use are required: an unused release config
+    // while the release build still signs with debug must not pass.
     expect(
-      gradle.contains('create("release")') ||
-          gradle.contains('signingConfigs.getByName("release")'),
-      isTrue,
-      reason: 'a release signingConfig must exist and be used by the release '
-          'build type',
+      gradle,
+      contains('create("release")'),
+      reason: 'a release signingConfig must be defined from key.properties',
+    );
+    expect(
+      gradle,
+      contains('signingConfigs.getByName("release")'),
+      reason: 'the release build type must use the release signingConfig',
     );
   });
 
