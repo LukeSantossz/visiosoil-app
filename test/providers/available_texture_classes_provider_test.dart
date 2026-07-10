@@ -3,6 +3,8 @@
 //
 // Runs on the Dart VM with an in-memory SQLite database, the same setup as the
 // repository tests.
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,13 +32,24 @@ void main() {
       );
     }
 
-    // Lets the Drift watch() stream emit and the derived provider recompute,
-    // mirroring the delay used in the repository stream tests.
-    Future<void> settle() =>
-        Future<void>.delayed(const Duration(milliseconds: 50));
-
-    List<String> classes() =>
-        container.read(availableTextureClassesProvider).value ?? const [];
+    // Resolves with the provider's class list once it satisfies [test], firing
+    // immediately when the current value already does. Event-driven: it waits
+    // for the Drift stream to propagate to the provider instead of sleeping a
+    // fixed interval, removing a latent CI-flakiness source.
+    Future<List<String>> classesMatching(bool Function(List<String>) test) {
+      final completer = Completer<List<String>>();
+      final sub = container.listen<AsyncValue<List<String>>>(
+        availableTextureClassesProvider,
+        (_, next) {
+          final value = next.value;
+          if (value != null && !completer.isCompleted && test(value)) {
+            completer.complete(value);
+          }
+        },
+        fireImmediately: true,
+      );
+      return completer.future.whenComplete(sub.close);
+    }
 
     setUp(() {
       db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -54,48 +67,49 @@ void main() {
     });
 
     test('is empty when there are no records', () async {
-      await settle();
-      expect(classes(), isEmpty);
+      expect(await classesMatching((c) => c.isEmpty), isEmpty);
     });
 
     test('adds a class reactively when a new classified record is created',
         () async {
-      await settle();
-      expect(classes(), isEmpty);
+      expect(await classesMatching((c) => c.isEmpty), isEmpty);
 
       await container
           .read(soilRecordRepositoryProvider)
           .create(sample(textureClass: 'Arenosa', imagePath: '/a.jpg'));
-      await settle();
 
-      expect(classes(), contains('Arenosa'));
+      expect(
+        await classesMatching((c) => c.contains('Arenosa')),
+        contains('Arenosa'),
+      );
     });
 
     test('returns distinct, sorted classes and ignores unclassified records',
         () async {
-      await settle();
       final repo = container.read(soilRecordRepositoryProvider);
       await repo.create(sample(textureClass: 'Arenosa', imagePath: '/a.jpg'));
       await repo.create(sample(textureClass: 'Argilosa', imagePath: '/b.jpg'));
       await repo.create(sample(textureClass: 'Arenosa', imagePath: '/c.jpg'));
       await repo.create(sample(imagePath: '/d.jpg')); // unclassified
-      await settle();
 
-      expect(classes(), ['Arenosa', 'Argilosa']);
+      expect(
+        await classesMatching((c) => c.length == 2),
+        ['Arenosa', 'Argilosa'],
+      );
     });
 
     test('removes a class when its last record is deleted', () async {
-      await settle();
       final repo = container.read(soilRecordRepositoryProvider);
       final saved = await repo
           .create(sample(textureClass: 'Arenosa', imagePath: '/a.jpg'));
-      await settle();
-      expect(classes(), contains('Arenosa'));
+      expect(
+        await classesMatching((c) => c.contains('Arenosa')),
+        contains('Arenosa'),
+      );
 
       await repo.deleteById(saved.id!);
-      await settle();
 
-      expect(classes(), isEmpty);
+      expect(await classesMatching((c) => c.isEmpty), isEmpty);
     });
   });
 }
