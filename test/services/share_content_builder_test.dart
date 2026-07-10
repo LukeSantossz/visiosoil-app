@@ -30,16 +30,29 @@ void main() {
   }
 
   group('ShareContentBuilder.caption', () {
-    test('includes class, confidence, address and date when present', () {
+    test('includes class, confidence and date by default', () {
       final text = ShareContentBuilder.caption(record());
 
       expect(text, contains('Argilosa'));
       expect(text, contains('91.0%'));
-      expect(text, contains('São Paulo, SP'));
       expect(text, contains('02/01/2026'));
     });
 
-    test('omits fields that are missing or unavailable', () {
+    test('omits location by default', () {
+      final text = ShareContentBuilder.caption(record());
+
+      expect(text, isNot(contains('Local:')));
+      expect(text, isNot(contains('Coordenadas:')));
+    });
+
+    test('includes location only when opted in', () {
+      final text = ShareContentBuilder.caption(record(), includeLocation: true);
+
+      expect(text, contains('Local: São Paulo, SP'));
+      expect(text, contains('Coordenadas:'));
+    });
+
+    test('omits fields that are missing or unavailable even when opted in', () {
       final text = ShareContentBuilder.caption(
         record(
           textureClass: null,
@@ -48,6 +61,7 @@ void main() {
           latitude: null,
           longitude: null,
         ),
+        includeLocation: true,
       );
 
       expect(text, isNot(contains('Classe:')));
