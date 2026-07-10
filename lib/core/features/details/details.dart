@@ -449,8 +449,40 @@ class _ActionButtons extends ConsumerWidget {
 
   Future<void> _shareRecord(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+
+    // Location is confidential client data; disclose it only on an explicit,
+    // per-share opt-in. A record with no location shares directly.
+    var includeLocation = false;
+    if (record.hasCoordinates || record.hasValidAddress) {
+      final choice = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Incluir localização?'),
+          content: const Text(
+            'As coordenadas exatas do local ficarão visíveis para quem '
+            'receber o compartilhamento.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Compartilhar sem localização'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Incluir localização'),
+            ),
+          ],
+        ),
+      );
+      // Dismissing the dialog (barrier tap / back) cancels the share.
+      if (choice == null) return;
+      includeLocation = choice;
+    }
+
     try {
-      await ref.read(shareServiceProvider).shareRecord(record);
+      await ref
+          .read(shareServiceProvider)
+          .shareRecord(record, includeLocation: includeLocation);
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(
