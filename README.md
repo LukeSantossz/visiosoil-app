@@ -115,8 +115,13 @@ contributors and CI still build. To produce a distributable, release-signed APK:
    storePassword=<store password>
    keyPassword=<key password>
    keyAlias=visiosoil
-   storeFile=<absolute path to visiosoil-release.jks>
+   storeFile=C:/Users/you/visiosoil-release.jks
    ```
+
+   `key.properties` is a Java properties file, so a backslash is an escape
+   character. On Windows, write `storeFile` with forward slashes
+   (`C:/Users/...`) or doubled backslashes (`C:\\Users\\...`); a plain
+   `C:\Users\...` will not resolve.
 
 3. Build and verify the signing certificate:
 
