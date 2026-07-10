@@ -227,8 +227,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () =>
-                        ref.invalidate(availableTextureClassesProvider),
+                    // Invalidate the root records stream the chips derive from,
+                    // so a transient failure actually re-runs; refreshing only
+                    // the derived wrapper re-reads the same cached failed stream.
+                    onPressed: () => ref.invalidate(soilRecordsStreamProvider),
                     child: const Text('Tentar novamente'),
                   ),
                 ],
