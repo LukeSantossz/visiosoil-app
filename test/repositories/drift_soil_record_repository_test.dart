@@ -37,12 +37,13 @@ void main() {
       String? ts,
       String? textureClass,
       double? confidenceScore,
+      String? address = 'São Paulo',
     }) {
       return SoilRecord(
         imagePath: imagePath,
         latitude: -23.5,
         longitude: -46.6,
-        address: 'São Paulo',
+        address: address,
         timestamp: ts ?? DateTime.utc(2026, 1, 1).toIso8601String(),
         textureClass: textureClass,
         confidenceScore: confidenceScore,
@@ -330,6 +331,111 @@ void main() {
         selectiveStorage.deletedPaths,
         containsAll(<String>[a.imagePath, b.imagePath, c.imagePath]),
       );
+    });
+
+    // Reads the current snapshot of a reactive query without a fixed delay:
+    // Drift emits the query result on subscription, so `.first` resolves as
+    // soon as that first event arrives.
+    Future<List<int>> filteredIds({
+      String? textureClass,
+      String? searchTerm,
+    }) async {
+      final records = await repo
+          .watchFiltered(textureClass: textureClass, searchTerm: searchTerm)
+          .first;
+      return records.map((r) => r.id!).toList();
+    }
+
+    test('watchFiltered by textureClass returns only rows of that class',
+        () async {
+      final argiloso =
+          await repo.create(sample(imagePath: '/a.jpg', textureClass: 'Argiloso'));
+      await repo.create(sample(imagePath: '/b.jpg', textureClass: 'Arenoso'));
+      await repo.create(sample(imagePath: '/c.jpg')); // null texture class
+
+      expect(await filteredIds(textureClass: 'Argiloso'), [argiloso.id]);
+    });
+
+    test('watchFiltered by searchTerm matches the address case-insensitively',
+        () async {
+      final saoPaulo =
+          await repo.create(sample(imagePath: '/a.jpg', address: 'São Paulo'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Rio de Janeiro'));
+
+      expect(await filteredIds(searchTerm: 'paulo'), [saoPaulo.id]);
+      expect(await filteredIds(searchTerm: 'PAULO'), [saoPaulo.id]);
+    });
+
+    test('watchFiltered combines textureClass and searchTerm with AND semantics',
+        () async {
+      final match = await repo.create(sample(
+          imagePath: '/a.jpg', textureClass: 'Argiloso', address: 'São Paulo'));
+      // Matches the class but not the term.
+      await repo.create(sample(
+          imagePath: '/b.jpg',
+          textureClass: 'Argiloso',
+          address: 'Rio de Janeiro'));
+      // Matches the term but not the class.
+      await repo.create(sample(
+          imagePath: '/c.jpg', textureClass: 'Arenoso', address: 'São Paulo'));
+
+      expect(
+        await filteredIds(textureClass: 'Argiloso', searchTerm: 'paulo'),
+        [match.id],
+      );
+    });
+
+    test(
+        'watchFiltered with an empty searchTerm and null textureClass behaves like watchAll',
+        () async {
+      await repo.create(sample(imagePath: '/a.jpg', address: 'São Paulo'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Curitiba'));
+
+      final all = (await repo.watchAll().first).map((r) => r.id).toList();
+
+      // No arguments, empty strings, and null are all the no-filter path.
+      expect(await filteredIds(), all);
+      expect(await filteredIds(searchTerm: '', textureClass: ''), all);
+      expect(
+        await filteredIds(searchTerm: null, textureClass: null),
+        all,
+      );
+    });
+
+    test(
+        'watchFiltered strips SQL wildcards so % and _ in the term are not treated as wildcards',
+        () async {
+      // `_` matches any single character in SQL LIKE; the sanitizer removes it.
+      final ab = await repo.create(sample(imagePath: '/a.jpg', address: 'ab'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'a_b'));
+
+      // Searching a literal 'axb' matches neither stored address.
+      expect(await filteredIds(searchTerm: 'axb'), isEmpty);
+
+      // 'a_b' is sanitized to 'ab': it matches the literal 'ab' row and NOT the
+      // 'a_b' row. An unsanitized wildcard would have matched the reverse, so
+      // this discriminates the strip from a real LIKE wildcard.
+      expect(await filteredIds(searchTerm: 'a_b'), [ab.id]);
+
+      // A term of only wildcards sanitizes to empty, so no address filter is
+      // applied and every row is returned (same set as watchAll). Documents
+      // current behavior: a bare '%' does not scope the results down.
+      final all = (await repo.watchAll().first).map((r) => r.id).toList();
+      expect(await filteredIds(searchTerm: '%'), all);
+    });
+
+    test(
+        'getDistinctTextureClasses de-duplicates and excludes null and empty classes',
+        () async {
+      await repo.create(sample(imagePath: '/a.jpg', textureClass: 'Argiloso'));
+      await repo.create(sample(imagePath: '/b.jpg', textureClass: 'Argiloso'));
+      await repo.create(sample(imagePath: '/c.jpg', textureClass: 'Arenoso'));
+      await repo.create(sample(imagePath: '/d.jpg', textureClass: null));
+      await repo.create(sample(imagePath: '/e.jpg', textureClass: ''));
+
+      final classes = await repo.getDistinctTextureClasses();
+
+      expect(classes, unorderedEquals(<String>['Argiloso', 'Arenoso']));
     });
   });
 }
