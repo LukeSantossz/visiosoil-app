@@ -4,22 +4,24 @@
   Android 12+ (API 31+). The cleartext soil-records database and the captured
   soil_images/ originals are confidential field data (#111); on API 31+
   allowBackup="false" no longer covers device-to-device transfer, so every data
-  domain is excluded from both paths here. The database and sharedpref domains
-  are flat (no subdirectories), so they are excluded whole, without a path.
+  domain is excluded from both paths here. Each exclude omits the path attribute
+  so it matches the whole domain directory (an absolute filesystem path would
+  match nothing). getApplicationDocumentsDirectory() (app_flutter, which holds
+  soil_images/) falls under the `root` domain.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="root" path="/" />
-        <exclude domain="file" path="/" />
+        <exclude domain="root" />
+        <exclude domain="file" />
         <exclude domain="database" />
         <exclude domain="sharedpref" />
-        <exclude domain="external" path="/" />
+        <exclude domain="external" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="root" path="/" />
-        <exclude domain="file" path="/" />
+        <exclude domain="root" />
+        <exclude domain="file" />
         <exclude domain="database" />
         <exclude domain="sharedpref" />
-        <exclude domain="external" path="/" />
+        <exclude domain="external" />
     </device-transfer>
 </data-extraction-rules>
