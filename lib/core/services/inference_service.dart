@@ -177,34 +177,40 @@ class InferenceService {
       // Loads the model from bytes (works in an isolate)
       final interpreter = Interpreter.fromBuffer(params.modelBytes);
 
-      // Output shape: [1, numClasses]
-      final outputShape = interpreter.getOutputTensor(0).shape;
-      final numClasses = outputShape.last;
-      final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
+      // `finally` releases the native handle on every exit: the success path,
+      // the early return for an incompatible model, and any throw from tensor
+      // inspection or the run itself.
+      try {
+        // Output shape: [1, numClasses]
+        final outputShape = interpreter.getOutputTensor(0).shape;
+        final numClasses = outputShape.last;
+        final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
 
-      // Runs inference
-      interpreter.run(input, output);
-      interpreter.close();
+        // Runs inference
+        interpreter.run(input, output);
 
-      // Finds the class with the highest probability
-      final probabilities = (output[0] as List<double>);
-      int maxIndex = 0;
-      double maxProb = probabilities[0];
-      for (int i = 1; i < probabilities.length; i++) {
-        if (probabilities[i] > maxProb) {
-          maxProb = probabilities[i];
-          maxIndex = i;
+        // Finds the class with the highest probability
+        final probabilities = (output[0] as List<double>);
+        int maxIndex = 0;
+        double maxProb = probabilities[0];
+        for (int i = 1; i < probabilities.length; i++) {
+          if (probabilities[i] > maxProb) {
+            maxProb = probabilities[i];
+            maxIndex = i;
+          }
         }
+
+        // Rejects incompatible models instead of fabricating a label.
+        final label = resolveTextureLabel(maxIndex, numClasses);
+        if (label == null) return null;
+
+        return InferenceResult(
+          textureClass: label,
+          confidenceScore: maxProb,
+        );
+      } finally {
+        interpreter.close();
       }
-
-      // Rejects incompatible models instead of fabricating a label.
-      final label = resolveTextureLabel(maxIndex, numClasses);
-      if (label == null) return null;
-
-      return InferenceResult(
-        textureClass: label,
-        confidenceScore: maxProb,
-      );
     } catch (e) {
       developer.log(
         'InferenceService._runInference failed: $e',
