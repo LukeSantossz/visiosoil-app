@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
@@ -32,8 +34,16 @@ final authNotifierProvider =
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    final account = await ref.watch(authServiceProvider).restoreSession();
-    return _stateFor(account);
+    // The store already absorbs an undecodable blob; this guards the rest of the
+    // restore path (secure-storage platform failures) so the signed-out fallback
+    // this provider documents holds instead of surfacing as AsyncError.
+    try {
+      final account = await ref.watch(authServiceProvider).restoreSession();
+      return _stateFor(account);
+    } on Exception catch (e) {
+      developer.log('session restore failed: $e', name: 'AuthNotifier');
+      return const AuthState.signedOut();
+    }
   }
 
   Future<void> signIn() async {
