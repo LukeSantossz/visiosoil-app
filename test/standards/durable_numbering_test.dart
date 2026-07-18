@@ -184,18 +184,22 @@ List<RecordEvent> parseHistory(String gitOutput, String dirPrefix) {
 
     if (status.startsWith('R') && parts.length >= 3) {
       final from = parts[1], to = parts[2];
-      if (!_inDir(to, dirPrefix)) continue;
-      final number = _numberOf(to);
-      if (number == null) continue;
-      // A rename that also changes the number vacates the old one and takes the
-      // new one; only a same-number rename is continuity.
-      if (_numberOf(from) == number) {
-        events.add(RecordEvent.renamed(number, _slug(from), _slug(to)));
+      final fromIn = _inDir(from, dirPrefix), toIn = _inDir(to, dirPrefix);
+      final fromNumber = _numberOf(from), toNumber = _numberOf(to);
+
+      // Continuity only when the record stays in the governed directory and
+      // keeps its number. Everything else is a departure, an arrival, or both:
+      // moving a record out of docs/specs removes it just as surely as deleting
+      // it, and dropping the event would leave its number falsely live.
+      if (fromIn && toIn && fromNumber != null && fromNumber == toNumber) {
+        events.add(RecordEvent.renamed(fromNumber, _slug(from), _slug(to)));
       } else {
-        if (_numberOf(from) != null && _inDir(from, dirPrefix)) {
-          events.add(RecordEvent.deleted(_numberOf(from)!, _slug(from)));
+        if (fromIn && fromNumber != null) {
+          events.add(RecordEvent.deleted(fromNumber, _slug(from)));
         }
-        events.add(RecordEvent.added(number, _slug(to)));
+        if (toIn && toNumber != null) {
+          events.add(RecordEvent.added(toNumber, _slug(to)));
+        }
       }
     } else if (status == 'A' || status == 'D') {
       final path = parts[1];
@@ -359,6 +363,41 @@ void main() {
       // The ADR line belongs to another directory and is filtered out.
       expect(events.every((e) => e.number == '0009'), isTrue);
       expect(replayRecordHistory(events).vanished, ['0009']);
+    });
+
+    test('a_record_renamed_out_of_the_governed_directory_reads_as_a_deletion',
+        () {
+      final events = parseHistory(
+        'A\tdocs/specs/0009-one.md\n'
+        'R100\tdocs/specs/0009-one.md\tdocs/archive/0009-one.md\n',
+        _specsDir,
+      );
+
+      expect(events.map((e) => e.status).toList(), ['A', 'D']);
+      expect(replayRecordHistory(events).vanished, ['0009']);
+    });
+
+    test('a_record_renamed_into_the_governed_directory_reads_as_an_addition',
+        () {
+      final events = parseHistory(
+        'R100\tdocs/drafts/0009-one.md\tdocs/specs/0009-one.md\n',
+        _specsDir,
+      );
+
+      expect(events.map((e) => e.status).toList(), ['A']);
+      expect(replayRecordHistory(events).vanished, isEmpty);
+    });
+
+    test('a_rename_that_changes_the_number_vacates_the_old_one', () {
+      final events = parseHistory(
+        'A\tdocs/specs/0009-one.md\n'
+        'R100\tdocs/specs/0009-one.md\tdocs/specs/0010-one.md\n',
+        _specsDir,
+      );
+
+      final verdict = replayRecordHistory(events);
+      expect(verdict.vanished, ['0009']);
+      expect(verdict.reused, isEmpty);
     });
 
     test('an_allowlisted_retirement_requires_a_non_empty_reason', () {

@@ -13,9 +13,13 @@ job it already runs and developers see a violation on every local test run rathe
 Track each number's **history of events**, not a final set of numbers. Comparing sets cannot tell a
 rename from a deletion followed by reassignment — in both, the number is present before and after —
 and reassignment is the incident the rule exists for. So replay `git log --name-status
---find-renames` in commit order per number: `R` is continuity, `D` removes a record, and an `A`
-introducing a *different* slug after the number was emptied is reuse. Re-adding the same slug is a
-restoration, not reuse. Duplicates, deletions, and reuse fail everywhere; contiguity fails only on `main`,
+--find-renames` and decide reuse by **record identity**: a rename links two slugs into one record,
+and a number held by more than one record identity was reassigned. Identity is order-independent,
+which matters because a replacement staged as add-then-delete never leaves the number empty, and
+that is the order git emits whenever the new slug sorts first. Re-adding a slug the number already
+carried is a restoration, not reuse. A rename is continuity only when the record stays in the
+governed directory and keeps its number; moving it out removes it as surely as deleting it.
+Duplicates, deletions, and reuse fail everywhere; contiguity fails only on `main`,
 because on a feature branch a missing number is normally one legitimately reserved by a concurrent
 pull request. Detect that by the checked-out branch name rather than a CI variable, which also makes
 the local run behave the same way.
