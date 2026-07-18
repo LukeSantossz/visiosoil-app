@@ -23,7 +23,12 @@ class _FakeInference extends InferenceService {
   final Future<InferenceResult?> Function(String imagePath) _handler;
 
   @override
-  Future<InferenceResult?> classify(String imagePath) => _handler(imagePath);
+  Future<InferenceResult?> classify(
+    String imagePath, {
+    Duration? timeout,
+    InferenceIsolateEntry? entryPoint,
+  }) =>
+      _handler(imagePath);
 }
 
 void main() {

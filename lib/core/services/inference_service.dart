@@ -18,16 +18,27 @@ class InferenceResult {
   });
 }
 
-/// Parameters for running inference in an isolate.
-class _InferenceParams {
+/// Everything the inference isolate needs: the work to do, and the port to
+/// answer on.
+class InferenceRequest {
+  /// Port the entry point sends its [InferenceResult] (or `null`) back on.
+  final SendPort responsePort;
   final String imagePath;
   final Uint8List modelBytes;
 
-  const _InferenceParams({
+  const InferenceRequest({
+    required this.responsePort,
     required this.imagePath,
     required this.modelBytes,
   });
 }
+
+/// Signature of the inference isolate's entry point. Injected so tests can
+/// drive the timeout and teardown paths without a real TFLite model.
+///
+/// An implementation must be a top-level or static function: a closure
+/// capturing local state cannot be sent to a spawned isolate.
+typedef InferenceIsolateEntry = void Function(InferenceRequest request);
 
 /// Signature for loading the model asset. Injected so tests can drive the
 /// initialization retry logic without the platform asset bundle.
@@ -127,33 +138,62 @@ class InferenceService {
   ///
   /// [imagePath] is the absolute path of the image to classify.
   /// Returns `null` if the service is not initialized or if an error occurs.
-  Future<InferenceResult?> classify(String imagePath) async {
+  ///
+  /// This is the single timeout governing a classification: callers await it
+  /// rather than layering one of their own, because only this method holds the
+  /// isolate handle and can therefore stop the work instead of abandoning it.
+  ///
+  /// [timeout] and [entryPoint] are injectable for tests.
+  Future<InferenceResult?> classify(
+    String imagePath, {
+    Duration timeout = _inferenceTimeout,
+    InferenceIsolateEntry entryPoint = _inferenceEntryPoint,
+  }) async {
     if (!isReady) {
       final initialized = await initialize();
       if (!initialized) return null;
     }
 
+    // Spawned rather than `Isolate.run` so the timeout has a handle to kill.
+    // `Isolate.run` exposes none, so its timeout can only stop awaiting while
+    // the worker keeps holding the native interpreter and the input tensor.
+    final responsePort = ReceivePort();
+    Isolate? isolate;
     try {
-      // Runs inference in an isolate to avoid blocking the UI
       // Passes the model as bytes since rootBundle does not work in isolates
-      final params = _InferenceParams(
-        imagePath: imagePath,
-        modelBytes: _modelBytes!,
+      isolate = await Isolate.spawn(
+        entryPoint,
+        InferenceRequest(
+          responsePort: responsePort.sendPort,
+          imagePath: imagePath,
+          modelBytes: _modelBytes!,
+        ),
       );
-      final result = await Isolate.run(() => _runInference(params))
-          .timeout(_inferenceTimeout);
-      return result;
+      final result = await responsePort.first.timeout(timeout);
+      return result as InferenceResult?;
     } catch (e) {
       developer.log(
         'classify() failed: $e',
         name: 'InferenceService',
       );
       return null;
+    } finally {
+      // Releases the worker and the port on every path. On success the isolate
+      // has already done its work; on timeout or error this is what stops it.
+      isolate?.kill(priority: Isolate.immediate);
+      responsePort.close();
     }
   }
 
+  /// Entry point of the inference isolate: runs the work and answers on the
+  /// request's port. Static so it can be sent to a spawned isolate.
+  static Future<void> _inferenceEntryPoint(InferenceRequest request) async {
+    final result = await _runInference(request);
+    request.responsePort.send(result);
+  }
+
   /// Runs the actual inference (called inside the isolate).
-  static Future<InferenceResult?> _runInference(_InferenceParams params) async {
+  static Future<InferenceResult?> _runInference(InferenceRequest params) async {
     try {
       // Loads and preprocesses the image
       final imageFile = File(params.imagePath);
