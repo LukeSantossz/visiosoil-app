@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
+
 import 'package:visiosoil_app/core/services/auth/auth_session.dart';
 import 'package:visiosoil_app/core/services/auth/key_value_secure_storage.dart';
 
@@ -36,9 +38,20 @@ class SecureCredentialStore {
     }
   }
 
+  /// Describes a decode failure using only its type.
+  ///
+  /// The formatted exception must never be logged: `FormatException.toString()`
+  /// echoes an excerpt of the string it failed to parse, and that string is the
+  /// session blob, so a truncated write would put the OAuth access token into
+  /// device logs. The type alone distinguishes malformed JSON from a bad field,
+  /// which is all the log needs.
+  @visibleForTesting
+  static String describeDecodeFailure(Object error) =>
+      'discarding undecodable session blob (${error.runtimeType})';
+
   Future<void> _discardCorruptSession(Object error) async {
     developer.log(
-      'discarding undecodable session blob: $error',
+      describeDecodeFailure(error),
       name: 'SecureCredentialStore',
     );
     await _storage.delete(_sessionKey);

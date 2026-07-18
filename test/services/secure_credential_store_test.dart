@@ -3,6 +3,8 @@
 // The store delegates secret storage to a [KeyValueSecureStorage]; tests use an
 // in-memory fake so the real store logic (JSON encode/decode, key, clear) runs
 // without the flutter_secure_storage platform channel.
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/auth/auth_session.dart';
 import 'package:visiosoil_app/core/services/auth/key_value_secure_storage.dart';
@@ -127,6 +129,29 @@ void main() {
       );
 
       expect(await store.read(), isNull);
+    });
+
+    test('secure_credential_store_decode_failure_log_excludes_the_blob_contents',
+        () {
+      // FormatException.toString() echoes the source it failed to parse, and the
+      // source here is the session blob, so interpolating the error would put the
+      // access token into device logs.
+      const token = 'ya29.SUPER_SECRET_TOKEN';
+      const partial = '{"email":"a@b.com","accessToken":"$token","exp';
+      late final Object error;
+      try {
+        jsonDecode(partial);
+        fail('expected the partial blob to fail decoding');
+      } on FormatException catch (e) {
+        error = e;
+      }
+
+      // Guard the premise: the raw error really does carry the token.
+      expect('$error', contains(token));
+
+      final described = SecureCredentialStore.describeDecodeFailure(error);
+      expect(described, isNot(contains(token)));
+      expect(described, contains('FormatException'));
     });
 
     test('secure_credential_store_deletes_the_bad_blob_so_the_next_read_is_empty',
