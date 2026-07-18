@@ -53,7 +53,6 @@ class CaptureScreen extends ConsumerStatefulWidget {
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   static const Duration _locationTimeout = Duration(seconds: 20);
-  static const Duration _classificationTimeout = Duration(seconds: 20);
 
   bool _isLoading = false;
   bool _isClassifying = false;
@@ -196,9 +195,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     InferenceResult? result;
     try {
       final inferenceService = ref.read(inferenceServiceProvider);
-      result = await inferenceService
-          .classify(imagePath)
-          .timeout(_classificationTimeout, onTimeout: () => null);
+      // No deadline here: `classify` owns the only one, because it holds the
+      // isolate handle and can stop the work. A second timeout at this layer
+      // would abandon the future while the isolate kept running.
+      result = await inferenceService.classify(imagePath);
     } catch (e) {
       developer.log('Classification failed: $e', name: 'CaptureScreen');
       result = null;
@@ -236,6 +236,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   void _retryClassification() {
+    // Mirrors the `_isCapturing`/`_isSaving` guards. The retry chip is only
+    // rendered once a classification has failed, so a second tap is already
+    // improbable; this closes the same-frame window where two taps hit the
+    // chip before the rebuild removes it, each spawning its own isolate.
+    if (_isClassifying) return;
     final image = ref.read(imageProvider).file;
     if (image == null) return;
     _classifySoilTexture(image.path, _requestGeneration);
