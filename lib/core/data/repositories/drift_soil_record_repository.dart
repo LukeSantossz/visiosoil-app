@@ -30,6 +30,10 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         _clock = clock ?? DateTime.now,
         _imageStorage = imageStorage ?? DefaultImageStorageService();
 
+  /// Escape character for the `LIKE` clause in [watchFiltered], so a `%` or
+  /// `_` typed by the user matches itself instead of acting as a wildcard.
+  static const String _likeEscapeChar = r'\';
+
   final AppDatabase _db;
   final String Function() _uuidFactory;
   final DateTime Function() _clock;
@@ -174,17 +178,23 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         condition = condition & t.textureClass.equals(textureClass);
       }
 
-      // Filter by search term on the address (case-insensitive LIKE)
-      // Removes SQL wildcards to prevent search bypass (% and _ are treated
-      // as literal characters by being removed)
-      if (searchTerm != null && searchTerm.isNotEmpty) {
-        final sanitized = searchTerm
-            .replaceAll('%', '')
-            .replaceAll('_', '');
-        if (sanitized.isNotEmpty) {
-          condition = condition &
-              t.address.lower().like('%${sanitized.toLowerCase()}%');
-        }
+      // Filter by search term on the address (case-insensitive LIKE).
+      // The term is a literal substring, not a pattern: it is trimmed, and the
+      // LIKE metacharacters (% and _) plus the escape character itself are
+      // escaped so they match themselves. A term that is empty after trimming
+      // carries no content and joins the no-filter path.
+      final trimmed = searchTerm?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) {
+        final escaped = trimmed
+            .toLowerCase()
+            .replaceAll(_likeEscapeChar, '$_likeEscapeChar$_likeEscapeChar')
+            .replaceAll('%', '$_likeEscapeChar%')
+            .replaceAll('_', '${_likeEscapeChar}_');
+        condition = condition &
+            t.address.lower().like(
+                  '%$escaped%',
+                  escapeChar: _likeEscapeChar,
+                );
       }
 
       return condition;
