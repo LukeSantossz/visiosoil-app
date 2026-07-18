@@ -169,19 +169,31 @@ void main() {
     expect(find.textContaining('Argilosa'), findsOneWidget);
   });
 
-  testWidgets('a hanging classification times out and shows the retry affordance',
+  testWidgets('the screen applies no classification deadline of its own',
       (tester) async {
-    final never = Completer<InferenceResult?>();
+    final pending = Completer<InferenceResult?>();
     await tester.pumpWidget(buildScreen(
       pickFromCamera: () async => XFile(samplePath),
       locate: () async => null,
-      classify: (_) => never.future,
+      classify: (_) => pending.future,
     ));
 
     await capture(tester);
     expect(find.byKey(const Key('retryClassification')), findsNothing);
 
-    await tester.pump(const Duration(seconds: 21));
+    // Well past the 20s deadline the screen used to impose. The single deadline
+    // now lives in InferenceService, which is the only layer holding the isolate
+    // handle and so the only one that can stop the work rather than abandon it.
+    await tester.pump(const Duration(seconds: 25));
+    expect(find.byKey(const Key('retryClassification')), findsNothing,
+        reason: 'the screen must wait for the service instead of timing out');
+
+    // The service resolving to null — its own timeout, or a failed run — is
+    // what surfaces the retry affordance.
+    pending.complete(null);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
 
     expect(find.byKey(const Key('retryClassification')), findsOneWidget);
   });
