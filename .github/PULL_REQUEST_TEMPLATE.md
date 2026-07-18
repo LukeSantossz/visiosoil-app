@@ -11,6 +11,7 @@ Replace every HTML comment below with real content before requesting review.
 - **Motivation:** <!-- reason for the change -->
 - **Task Link:** <!-- tracker URL, or "none (no tracker in use)" -->
 - **Spec Link:** <!-- link to the approved SPEC for this change, or "none (trivial change)" -->
+- **Closes:** <!-- "Closes #N" for every issue this PR completes, or "none (no issue)". GitHub only closes the issue when this keyword is present. -->
 
 ## 2. What Was Done
 
@@ -30,6 +31,7 @@ Replace every HTML comment below with real content before requesting review.
 ## 5. Self-Review Checklist
 
 - [ ] Self-review done in the Files Changed tab.
+- [ ] Every issue this PR completes is listed under **Closes** with the `Closes #N` keyword, so it closes on merge instead of lingering open.
 - [ ] Spec approved at the Gate before implementation, and the change matches its Scope (per `spec_method.md`).
 - [ ] Each Acceptance Criterion has a passing test; tests were written before their implementation.
 - [ ] Commented-out code and unnecessary debug statements removed.

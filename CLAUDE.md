@@ -56,16 +56,19 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 7 routes. `/details` and `/preview` pass record id via `state.extra` (not URL params)
-- **Persistence:** Drift + SQLite with schema versioning (currently v2). Repository pattern abstracts Drift from UI
+- **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
+- **Persistence:** Drift + SQLite with schema versioning (currently v4). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
+- **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
+- **Research agent:** `ProxyResearchService` (HTTP) and a `management_tips` cache table exist, but `researchServiceProvider` returns `UnavailableResearchService` until #95 wires the proxy — no tip is fetched today (see ADR 0001)
 
 ### Key Architectural Decisions
 
 - **Repository pattern:** `SoilRecordRepository` (abstract) → `DriftSoilRecordRepository`. UI only imports the interface via providers, never Drift types directly
 - **Reactive data:** `watchAll()` stream from Drift feeds `StreamProvider`, so history/home auto-update on DB changes
 - **Testing DB:** `AppDatabase.forTesting(NativeDatabase.memory())` enables in-memory SQLite for repository tests
-- **Schema migrations:** Handled in `AppDatabase.migration` with version checks (`if (from < 2)`)
+- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`)
+- **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows
 
 ### Code Organization
 
@@ -73,22 +76,48 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
-│   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing
-│   ├── routes/app_router.dart         # GoRouter config (7 routes)
-│   ├── widgets/                       # Reusable: VisioAppBar, VisioButton, EmptyState
+│   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing,
+│   │                                  #   SoilTextureColors
+│   ├── routes/app_router.dart         # GoRouter config (7 routes + errorBuilder)
+│   ├── constants/app_strings.dart     # Centralized pt-BR UI strings
+│   ├── widgets/                       # 7 reusable: VisioAppBar, VisioButton, EmptyState,
+│   │                                  #   ErrorState, LoadingIndicator, PermissionDeniedView,
+│   │                                  #   RouteErrorView
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
-│   ├── services/inference_service.dart # TFLite classification (isolate-based)
-│   ├── database/                      # Drift DB class + tables + generated code
-│   ├── data/repositories/             # Abstract interface + Drift implementation
+│   ├── services/                      # inference_service.dart (TFLite, isolate-based),
+│   │   │                              #   image_storage_service.dart (EXIF strip boundary),
+│   │   │                              #   share_service.dart + share_content_builder.dart,
+│   │   │                              #   connectivity_service.dart, permission_service.dart,
+│   │   │                              #   sync_engine.dart
+│   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
+│   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
+│   │   └── research/                  # ResearchService, ProxyResearchService, HttpTransport,
+│   │                                  #   ManagementTipsController
+│   ├── database/                      # Drift DB class + tables/ + generated code + mapper
+│   ├── data/
+│   │   ├── repositories/              # Abstract interfaces + Drift implementations
+│   │   │                              #   (soil records, management tips)
+│   │   └── sync/                      # RemoteSyncBackend contract, SyncLocalStore, SyncOperation
 │   └── features/                      # Screens: splash, onboarding, main, home, capture,
 │                                      #          history, details, preview, settings
-├── models/                            # Domain models: SoilRecord, HomeStats
-└── providers/                         # Riverpod providers (database, repository, inference, image)
+├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
+│                                      #   ManagementTipsResult
+└── providers/                         # 11 Riverpod providers (database, repository, inference,
+                                       #   image, auth, connectivity, share, research,
+                                       #   management tips, image storage)
 ```
 
-### Database Schema (v2)
+### Database Schema (v4)
 
-`soil_records` table: `id` (PK auto), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `texture_class?`, `confidence_score?`
+Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])`.
+
+`soil_records`: `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`
+
+`sync_queue`: outbox of pending sync operations, drained by `SyncEngine`.
+
+`management_tips`: read-through cache for the research agent.
+
+Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`.
 
 ## Conventions
 
@@ -108,11 +137,15 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 
 ## Current Limitations
 
-- TFLite model file (`assets/models/soil_classifier.tflite`) is a placeholder — production model not yet trained
+- No TFLite model artifact is tracked in the repo — `assets/models/` holds only `.gitkeep`, and `assets/models/*.tflite` is git-ignored. `InferenceService` expects `assets/models/soil_classifier.tflite`; classification stays unavailable until the training pipeline exports that artifact into `assets/models/`
 - Camera-only capture by design — gallery source will not be added
-- No remote sync yet (repository interface prepared for it)
+- Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
+- Management tips are wired to `UnavailableResearchService`, so the feature always reports unavailable until #95
 - `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
 
 ## Known Technical Debt
 
-- Labels and preprocessing are hardcoded in `InferenceService` — `spec.json` is not read at runtime
+- Labels and preprocessing are hardcoded in `InferenceService` — `spec.json` is generated by `ml/src/export.py` into `models/<version>/`, not into `assets/models/`, and is not read at runtime (#116, #79)
+- The label list exists in four independent copies (`ml/config.yaml`, `InferenceService`, `SoilTextureColors`, `ml/README.md`) with no test asserting they agree. `SoilTextureColors.all` documents itself as "model output order" but orders Siltosa before Media, contradicting `InferenceService`; the getter currently has no consumers, so this is a latent trap rather than a live defect
+- No test exercises any delete-confirmation dialog, and `home_page.dart` has no test file (#118, #120)
+- CI does not run the Python tests under `ml/tests/` (#28) and has no iOS job (#90)
