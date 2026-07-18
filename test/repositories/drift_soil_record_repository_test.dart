@@ -408,25 +408,73 @@ void main() {
     });
 
     test(
-        'watchFiltered strips SQL wildcards so % and _ in the term are not treated as wildcards',
+        'watchFiltered treats SQL wildcards in the term as literal characters',
         () async {
-      // `_` matches any single character in SQL LIKE; the sanitizer removes it.
-      final ab = await repo.create(sample(imagePath: '/a.jpg', address: 'ab'));
-      await repo.create(sample(imagePath: '/b.jpg', address: 'a_b'));
+      // `_` matches any single character in an unescaped SQL LIKE.
+      await repo.create(sample(imagePath: '/a.jpg', address: 'ab'));
+      final aUnderscoreB =
+          await repo.create(sample(imagePath: '/b.jpg', address: 'a_b'));
 
       // Searching a literal 'axb' matches neither stored address.
       expect(await filteredIds(searchTerm: 'axb'), isEmpty);
 
-      // 'a_b' is sanitized to 'ab': it matches the literal 'ab' row and NOT the
-      // 'a_b' row. An unsanitized wildcard would have matched the reverse, so
-      // this discriminates the strip from a real LIKE wildcard.
-      expect(await filteredIds(searchTerm: 'a_b'), [ab.id]);
+      // 'a_b' matches the row literally addressed 'a_b' and NOT 'ab'. An
+      // unescaped wildcard would have matched both; the old strip-based
+      // sanitizer matched only 'ab', the exact inverse.
+      expect(await filteredIds(searchTerm: 'a_b'), [aUnderscoreB.id]);
+    });
 
-      // A term of only wildcards sanitizes to empty, so no address filter is
-      // applied and every row is returned (same set as watchAll). Documents
-      // current behavior: a bare '%' does not scope the results down.
+    test('watchFiltered matches a literal percent sign in the term', () async {
+      final shaded = await repo
+          .create(sample(imagePath: '/a.jpg', address: 'Lot 50% Shade'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Lot 50 Shade'));
+
+      expect(await filteredIds(searchTerm: '50%'), [shaded.id]);
+    });
+
+    test(
+        'watchFiltered with a wildcard-only term returns no matches instead of every row',
+        () async {
+      await repo.create(sample(imagePath: '/a.jpg', address: 'São Paulo'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Curitiba'));
+
+      // A bare '%' is a literal term now: no address contains it, so nothing
+      // matches. Previously the sanitizer emptied the term and returned all.
+      expect(await filteredIds(searchTerm: '%'), isEmpty);
+      expect(await filteredIds(searchTerm: '_'), isEmpty);
+    });
+
+    test('watchFiltered matches a literal escape character in the term',
+        () async {
+      // The escape character must itself be escaped, or it would silently
+      // disappear from the pattern and corrupt the match.
+      final withBackslash = await repo
+          .create(sample(imagePath: '/a.jpg', address: r'Sector C\D'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Sector CD'));
+
+      expect(await filteredIds(searchTerm: r'C\D'), [withBackslash.id]);
+    });
+
+    test('watchFiltered trims the search term before matching', () async {
+      final loam =
+          await repo.create(sample(imagePath: '/a.jpg', address: 'Loam Street'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Clay Avenue'));
+
+      // Padding around the term is not part of what the user meant to search.
+      expect(await filteredIds(searchTerm: '  loam  '), [loam.id]);
+    });
+
+    test(
+        'watchFiltered with a whitespace-only term behaves like the no-filter path',
+        () async {
+      await repo.create(sample(imagePath: '/a.jpg', address: 'São Paulo'));
+      await repo.create(sample(imagePath: '/b.jpg', address: 'Curitiba'));
+
       final all = (await repo.watchAll().first).map((r) => r.id).toList();
-      expect(await filteredIds(searchTerm: '%'), all);
+
+      // Trimming empties the term, so it joins the documented null/empty path
+      // rather than filtering for rows containing consecutive spaces.
+      expect(await filteredIds(searchTerm: '   '), all);
     });
 
     test(
