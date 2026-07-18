@@ -17,7 +17,6 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 - **On-device classification** — a TensorFlow Lite model labels the sample into one of 5 soil texture classes with a confidence score (shown as a graded confidence banner), running fully offline
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
-- **Management tips** — an optional research agent fetches agronomic guidance for the classified texture over HTTP, cached locally and clearly marked advisory
 - **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer
 
 ## What It Is
@@ -198,7 +197,7 @@ visiosoil-app/
 - [x] Android hardened for release: OS backup and device-transfer disabled, signing from an untracked keystore
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
 - [x] Optional Google sign-in with the session in secure storage
-- [x] Management tips from the research agent, cached in the database and marked advisory
+- [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
 - [x] Repository, widget and migration tests with `NativeDatabase.memory()`
 - [x] CI pipeline (analyze → test → APK build)
@@ -209,6 +208,7 @@ visiosoil-app/
 - [ ] Train and deploy the production model, then export and ship the `.tflite` to `assets/models/`
 - [ ] Load labels, input size, and normalization from `spec.json` at runtime instead of hardcoding them in `InferenceService`
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
+- [ ] Wire `ProxyResearchService` and per-user auth so management tips actually resolve
 - [ ] Run the `ml/` Python tests in CI, and add an iOS build job
 
 ## Known Issues & Limitations
@@ -217,6 +217,7 @@ visiosoil-app/
 - **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/`, not into `assets/models/`, and is never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in four independent copies with no test asserting they agree.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
+- **Management tips always report unavailable** — `researchServiceProvider` returns `UnavailableResearchService` until the proxy and per-user auth wiring lands, so the UI, cache table and `ProxyResearchService` exist but no tip is ever fetched.
 - **Delete flows are untested** — no test exercises a delete-confirmation dialog, and `home_page.dart` has no test file.
 - **`drift_flutter` pinned to `>=0.2.0 <0.2.4`** — do not bump without verifying compatibility.
 

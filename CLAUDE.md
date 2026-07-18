@@ -60,7 +60,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 - **Persistence:** Drift + SQLite with schema versioning (currently v4). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
-- **Research agent:** `ProxyResearchService` fetches management tips over HTTP, cached in the `management_tips` table (see ADR 0001)
+- **Research agent:** `ProxyResearchService` (HTTP) and a `management_tips` cache table exist, but `researchServiceProvider` returns `UnavailableResearchService` until #95 wires the proxy — no tip is fetched today (see ADR 0001)
 
 ### Key Architectural Decisions
 
@@ -140,6 +140,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 - No TFLite model artifact is tracked in the repo — `assets/models/` holds only `.gitkeep`, and `assets/models/*.tflite` is git-ignored. `InferenceService` expects `assets/models/soil_classifier.tflite` to be supplied by the training pipeline; classification does not work until it is
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
+- Management tips are wired to `UnavailableResearchService`, so the feature always reports unavailable until #95
 - `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
 
 ## Known Technical Debt
