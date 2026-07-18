@@ -32,7 +32,10 @@ STUB
 chmod +x "$STUB_DIR/codex"
 
 # Throwaway git repos so codexreview.* config never leaks from this repo.
-REPO_SANDBOX="$(mktemp -d)"
+# Fail closed for the same reason STUB_DIR does: an empty REPO_SANDBOX would send
+# new_repo's `git init` to absolute paths like /repo-default instead of a sandbox.
+REPO_SANDBOX="$(mktemp -d)" || { echo "FAIL - cannot create temp repo sandbox" >&2; exit 1; }
+[ -n "$REPO_SANDBOX" ] && [ -d "$REPO_SANDBOX" ] || { echo "FAIL - empty temp repo sandbox" >&2; exit 1; }
 trap 'rm -rf "$STUB_DIR" "$REPO_SANDBOX"' EXIT
 new_repo() {
   d="$REPO_SANDBOX/repo-$1"
