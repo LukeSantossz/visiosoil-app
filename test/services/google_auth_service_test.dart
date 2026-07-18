@@ -51,14 +51,19 @@ GatewaySignInResult _result({
 void main() {
   group('GoogleAuthService', () {
     late _FakeGateway gateway;
+    late _InMemorySecureStorage storage;
     late SecureCredentialStore store;
     late GoogleAuthService service;
     var now = DateTime.utc(2026, 6, 15, 12);
 
+    // The store's own key, repeated here because it is private.
+    const sessionKey = 'auth_session';
+
     setUp(() {
       now = DateTime.utc(2026, 6, 15, 12);
       gateway = _FakeGateway();
-      store = SecureCredentialStore(_InMemorySecureStorage());
+      storage = _InMemorySecureStorage();
+      store = SecureCredentialStore(storage);
       service = GoogleAuthService(gateway, store, clock: () => now);
     });
 
@@ -156,6 +161,21 @@ void main() {
       expect(token, isNull);
       expect(await store.read(), isNull);
       expect(service.currentAccount, isNull);
+    });
+
+    test('restore_session_returns_null_on_a_corrupt_blob', () async {
+      await storage.write(sessionKey, 'not-json-at-all');
+
+      expect(await service.restoreSession(), isNull);
+      expect(service.currentAccount, isNull);
+    });
+
+    test('access_token_returns_null_on_a_corrupt_blob', () async {
+      await storage.write(sessionKey, 'not-json-at-all');
+
+      // Degrades to signed-out rather than throwing on every call, which is what
+      // the sync layer needs from a token source.
+      expect(await service.accessToken(), isNull);
     });
   });
 }
