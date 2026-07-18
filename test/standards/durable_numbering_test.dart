@@ -105,6 +105,18 @@ List<String> _presentRecords(String dir) => Directory(dir)
 /// Scoped to HEAD rather than `--all`: a record on an unrelated branch was never
 /// committed *here*, and counting it would report a deletion that never happened.
 List<String> _recordsEverCommitted() {
+  // Ask git directly whether history is truncated. Inferring it from an empty
+  // result is not enough: a depth-1 clone whose tip commit happens to touch a
+  // spec still yields paths, so the guard would pass while every deletion before
+  // the shallow boundary stayed invisible.
+  final shallow = _git(['rev-parse', '--is-shallow-repository']);
+  expect(
+    (shallow.stdout as String).trim(),
+    'false',
+    reason: 'the repository is a shallow clone, so deletions before the '
+        'boundary cannot be seen; CI must check out with fetch-depth: 0',
+  );
+
   final result = _git([
     'log',
     '--pretty=format:',
@@ -124,14 +136,13 @@ List<String> _recordsEverCommitted() {
       .map((line) => line.trim())
       .where((line) => line.isNotEmpty)
       .toList();
-  // A shallow clone would yield nothing and let every deletion check pass
-  // vacuously, which is the one failure mode that still looks green. CI must
-  // check out with fetch-depth: 0.
+  // Secondary sanity check, now that shallowness is ruled out above: a full
+  // history that still shows no record at all means the query itself is wrong.
   expect(
     paths,
     isNotEmpty,
-    reason: 'git history shows no spec or ADR files ever committed; this is a '
-        'shallow clone, not a clean repository',
+    reason: 'git history shows no spec or ADR files ever committed, which '
+        'cannot be true of a full clone of this repository',
   );
   return paths;
 }
