@@ -137,7 +137,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`:
 
 ## Current Limitations
 
-- No TFLite model artifact is tracked in the repo — `assets/models/` holds only `.gitkeep`, and `assets/models/*.tflite` is git-ignored. `InferenceService` expects `assets/models/soil_classifier.tflite` to be supplied by the training pipeline; classification does not work until it is
+- No TFLite model artifact is tracked in the repo — `assets/models/` holds only `.gitkeep`, and `assets/models/*.tflite` is git-ignored. `InferenceService` expects `assets/models/soil_classifier.tflite`; classification stays unavailable until the training pipeline exports that artifact into `assets/models/`
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
 - Management tips are wired to `UnavailableResearchService`, so the feature always reports unavailable until #95

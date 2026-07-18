@@ -51,6 +51,16 @@ flowchart LR
     DB --> UI[Home / History / Details\nreactive streams]
 ```
 
+### Database schema (v4)
+
+Three tables: `soil_records`, `sync_queue` (the outbox `SyncEngine` drains) and `management_tips` (a read-through cache).
+
+`soil_records` holds `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?` and `confidence_score?`.
+
+Migrations are cumulative: **v1→v2** adds the classification columns; **v2→v3** adds the sync metadata, creates `sync_queue`, backfills `uuid`/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; **v3→v4** creates `management_tips`.
+
+Deletes are soft: a tombstone sets `deleted` and enqueues a sync operation instead of removing the row, and every read excludes tombstoned rows.
+
 The UI talks only to Riverpod providers, which depend on an abstract `SoilRecordRepository` — never on Drift types directly. TFLite inference runs in a separate Dart isolate to keep the UI thread free; model bytes are loaded from assets and passed into the isolate because `rootBundle` is unavailable there. The model itself is produced by a separate training pipeline under `ml/`, which is decoupled from the app and integrates through a `.tflite` artifact copied into `assets/models/`. The pipeline also emits a `spec.json` describing the labels and normalization, but the app does not read it yet — that contract is currently honored by hand on the Dart side.
 
 ## Engineering Decisions
