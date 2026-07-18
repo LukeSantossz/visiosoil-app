@@ -10,9 +10,12 @@ unnoticed.
 
 Add `test/standards/durable_numbering_test.dart`, so CI enforces the rule through the `flutter test`
 job it already runs and developers see a violation on every local test run rather than only on push.
-Track **numbers, not file paths**: the rule protects the number a reference resolves to, so renaming
-`0009-old-slug.md` to `0009-new-slug.md` must not read as a deletion, while removing the only file
-bearing `0009` must. Duplicates and deletions fail everywhere; contiguity fails only on `main`,
+Track each number's **history of events**, not a final set of numbers. Comparing sets cannot tell a
+rename from a deletion followed by reassignment — in both, the number is present before and after —
+and reassignment is the incident the rule exists for. So replay `git log --name-status
+--find-renames` in commit order per number: `R` is continuity, `D` removes a record, and an `A`
+introducing a *different* slug after the number was emptied is reuse. Re-adding the same slug is a
+restoration, not reuse. Duplicates, deletions, and reuse fail everywhere; contiguity fails only on `main`,
 because on a feature branch a missing number is normally one legitimately reserved by a concurrent
 pull request. Detect that by the checked-out branch name rather than a CI variable, which also makes
 the local run behave the same way.
@@ -31,10 +34,14 @@ the local run behave the same way.
   abandoned before any record used it makes nothing ambiguous. But that reasoning also silently
   narrows a norm this repository declares it follows, and it would hide a gap left by a branch
   abandoned mid-flight. Enforcing on `main` keeps the norm whole at the only place it is unambiguous.
-- **Compare deletions by file path via `git log --diff-filter=D`** — rejected: rename detection is
-  not reliably on, so correcting a slug would surface as a deletion and a false failure. Comparing
-  the set of numbers ever committed against the numbers present today is immune to renames and
-  matches what the rule actually protects.
+- **Compare the set of numbers ever committed against the set present today** — rejected after it was
+  implemented and reviewed. It is immune to renames, which is why it was chosen, but immunity to
+  renames turned out to be indistinguishable from blindness to reuse: delete `0009-old.md`, add an
+  unrelated `0009-new.md`, and `0009` sits in both sets, so the difference is empty and the guard
+  passes. That is the exact shape of the incident recorded in the framework's ADR 0004 under
+  "Numbering history". A set difference cannot express an ordering rule; replaying events can.
+- **Compare deletions by file path via `git log --diff-filter=D` alone** — rejected: without rename
+  detection, correcting a slug surfaces as a deletion and fails falsely.
 - **Gate on the GitHub event type or `GITHUB_REF`** — rejected: it makes the test behave differently
   in CI than locally, so a developer cannot reproduce a CI failure. `git rev-parse --abbrev-ref HEAD`
   answers the same question in both places, and returns `HEAD` on the detached merge commit a
@@ -63,7 +70,12 @@ the local run behave the same way.
 - `contiguity_is_skipped_with_a_stated_reason_when_not_on_main`
 - `no_number_ever_committed_is_absent_unless_allowlisted`
 - `a_renamed_record_keeping_its_number_does_not_read_as_a_deletion`
+- `a_number_deleted_and_later_reassigned_is_reported_as_reuse`
+- `a_deleted_record_restored_under_its_own_slug_is_not_reuse`
+- `no_number_was_deleted_and_reassigned_unless_allowlisted`
+- `git_status_lines_are_parsed_into_ordered_events`
 - `an_allowlisted_retirement_requires_a_non_empty_reason`
+- `the_allowlists_state_their_reasons`
 - `the_guard_passes_against_the_current_tree`
 
 ## Reproducibility
@@ -90,9 +102,17 @@ the local run behave the same way.
 - Assumption: `git rev-parse --abbrev-ref HEAD` returns `main` on a push-to-main CI run and `HEAD`
   on a `pull_request` run's detached merge commit. This is what gates contiguity, so it is pinned by
   its own criterion rather than trusted.
-- Risk: a shallow clone would make the history check see no deletions and pass vacuously — the worst
-  failure mode, since it looks green. Mitigated by asserting the history query returned a non-empty
-  commit set, so an unexpectedly shallow clone fails instead of passing.
+- Risk: a shallow clone would make the history checks see nothing and pass vacuously — the worst
+  failure mode, since it looks green. Asserting the query returned a non-empty result is *not*
+  sufficient, and was the first attempt: a depth-1 clone's grafted root commit lists every tracked
+  file as an addition, so the result is non-empty and the "ever committed" view equals the present
+  one, making the guard fully vacuous rather than merely weak. Mitigated by asking git directly with
+  `git rev-parse --is-shallow-repository` and failing when it reports `true`.
+- Risk: git's rename detection is similarity-based, so renaming a record while substantially
+  rewriting it is recorded as `D` plus `A` rather than `R`, and the guard reports reuse where none
+  occurred. Accepted deliberately: the failure biases toward a false positive costing one allowlist
+  entry with a stated reason, rather than a false negative that admits exactly what the rule exists
+  to prevent. `renamedWithRewriteSpecNumbers` / `renamedWithRewriteAdrNumbers` carry those cases.
 - Risk: this spec takes number `0013` while `0012` is already on `main`, so the sequence stays
   contiguous; no concurrent spec is in flight at authoring time.
 - What would invalidate this spec: adopting the framework's own self-test suite, which would supply

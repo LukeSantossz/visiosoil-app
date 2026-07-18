@@ -2,9 +2,10 @@
 // a spec or ADR number is never reused, a superseded record is marked Retired in
 // place rather than deleted, and the numbers run from 0001 with no gap.
 //
-// The rule protects the number a reference resolves to, not a filename, so every
-// check below works over sets of numbers. Renaming 0009-old-slug.md to
-// 0009-new-slug.md keeps the number and is therefore not a deletion.
+// The rule is about ordering, not membership. Comparing the set of numbers ever
+// committed against the set present today cannot tell a rename from a deletion
+// followed by reassignment: in both, the number is there before and after. So the
+// deletion and reuse checks replay each number's history in commit order.
 //
 // Contiguity is enforced on `main` only. On a feature branch a missing number is
 // normally one legitimately reserved by a concurrent pull request, which is what
@@ -20,6 +21,12 @@ const _adrDir = 'docs/adr';
 /// trace, so an entry without a reason is itself a failure.
 const retiredSpecNumbers = <String, String>{};
 const retiredAdrNumbers = <String, String>{};
+
+/// Numbers whose slug changed in a commit that also rewrote the record enough for
+/// git's similarity detection to record a delete plus an add rather than a
+/// rename. Each needs a stated reason, same as a retirement.
+const renamedWithRewriteSpecNumbers = <String, String>{};
+const renamedWithRewriteAdrNumbers = <String, String>{};
 
 final _numberedRecord = RegExp(r'(\d{4})-[a-z0-9-]+\.md$');
 
@@ -62,19 +69,12 @@ List<String> gapsIn(Set<String> numbers) {
   ];
 }
 
-/// Numbers that history shows were committed but are absent today and not
-/// allowlisted as retired.
-List<String> vanishedNumbers({
-  required Set<String> everCommitted,
-  required Set<String> presentNow,
-  required Map<String, String> retired,
-}) =>
-    (everCommitted.difference(presentNow)..removeAll(retired.keys)).toList()
-      ..sort();
-
-/// Allowlist entries that fail to state why the number was retired.
-List<String> allowlistEntriesWithoutReason(Map<String, String> retired) =>
-    retired.entries.where((e) => e.value.trim().isEmpty).map((e) => e.key).toList()
+/// Allowlist entries that fail to state why the number was retired or renamed.
+List<String> allowlistEntriesWithoutReason(Map<String, String> allowlist) =>
+    allowlist.entries
+        .where((e) => e.value.trim().isEmpty)
+        .map((e) => e.key)
+        .toList()
       ..sort();
 
 /// `false` to run the contiguity checks, or the reason they are skipped.
@@ -86,6 +86,115 @@ Object contiguitySkipReason(String branch) => branch == 'main'
     ? false
     : 'contiguity is enforced on main only; on "$branch" a missing number is '
         'normally one reserved by a concurrent pull request';
+
+/// One change to one record, in commit order.
+class RecordEvent {
+  const RecordEvent.added(this.number, this.slug)
+      : status = 'A',
+        newSlug = null;
+  const RecordEvent.deleted(this.number, this.slug)
+      : status = 'D',
+        newSlug = null;
+  const RecordEvent.renamed(this.number, this.slug, this.newSlug) : status = 'R';
+
+  final String status;
+  final String number;
+  final String slug;
+  final String? newSlug;
+}
+
+/// What replaying a number's history revealed.
+class HistoryVerdict {
+  const HistoryVerdict({required this.vanished, required this.reused});
+
+  /// Numbers deleted and never restored.
+  final List<String> vanished;
+
+  /// Numbers emptied and then handed to a different record.
+  final List<String> reused;
+}
+
+/// Replays [events] in commit order to separate the shapes a number's history
+/// can take: continuous, renamed, deleted, restored, or reassigned.
+HistoryVerdict replayRecordHistory(List<RecordEvent> events) {
+  final live = <String, Set<String>>{};
+  final everDeleted = <String, Set<String>>{};
+  final reused = <String>{};
+
+  for (final event in events) {
+    final slugs = live.putIfAbsent(event.number, () => <String>{});
+    switch (event.status) {
+      case 'A':
+        // Re-adding a slug this number previously carried restores that record.
+        // Introducing a different slug into an emptied number reassigns it.
+        final deletedSlugs = everDeleted[event.number] ?? const <String>{};
+        if (slugs.isEmpty &&
+            deletedSlugs.isNotEmpty &&
+            !deletedSlugs.contains(event.slug)) {
+          reused.add(event.number);
+        }
+        slugs.add(event.slug);
+      case 'D':
+        slugs.remove(event.slug);
+        everDeleted.putIfAbsent(event.number, () => <String>{}).add(event.slug);
+      case 'R':
+        slugs.remove(event.slug);
+        slugs.add(event.newSlug!);
+    }
+  }
+
+  final vanished = live.entries
+      .where((e) => e.value.isEmpty)
+      .map((e) => e.key)
+      .toList()
+    ..sort();
+  return HistoryVerdict(vanished: vanished, reused: reused.toList()..sort());
+}
+
+String _slug(String path) => path.replaceAll(r'\', '/').split('/').last;
+
+String? _numberOf(String path) =>
+    _numberedRecord.firstMatch(path.replaceAll(r'\', '/'))?.group(1);
+
+bool _inDir(String path, String dirPrefix) =>
+    path.replaceAll(r'\', '/').startsWith('$dirPrefix/');
+
+/// Parses `git log --name-status --find-renames` output into ordered events for
+/// records under [dirPrefix].
+List<RecordEvent> parseHistory(String gitOutput, String dirPrefix) {
+  final events = <RecordEvent>[];
+  for (final line in gitOutput.split('\n')) {
+    final parts = line.trim().split('\t');
+    if (parts.length < 2) continue;
+    final status = parts[0];
+
+    if (status.startsWith('R') && parts.length >= 3) {
+      final from = parts[1], to = parts[2];
+      if (!_inDir(to, dirPrefix)) continue;
+      final number = _numberOf(to);
+      if (number == null) continue;
+      // A rename that also changes the number vacates the old one and takes the
+      // new one; only a same-number rename is continuity.
+      if (_numberOf(from) == number) {
+        events.add(RecordEvent.renamed(number, _slug(from), _slug(to)));
+      } else {
+        if (_numberOf(from) != null && _inDir(from, dirPrefix)) {
+          events.add(RecordEvent.deleted(_numberOf(from)!, _slug(from)));
+        }
+        events.add(RecordEvent.added(number, _slug(to)));
+      }
+    } else if (status == 'A' || status == 'D') {
+      final path = parts[1];
+      if (!_inDir(path, dirPrefix)) continue;
+      final number = _numberOf(path);
+      if (number == null) continue;
+      events.add(status == 'A'
+          ? RecordEvent.added(number, _slug(path))
+          : RecordEvent.deleted(number, _slug(path)));
+    }
+  }
+  return events;
+}
 
 // --- Repository state ---
 
@@ -100,15 +209,15 @@ List<String> _presentRecords(String dir) => Directory(dir)
     .map((f) => '$dir/${f.uri.pathSegments.last}')
     .toList();
 
-/// Every record path this branch's history has ever contained.
+/// Every record change this branch's history contains, oldest first.
 ///
 /// Scoped to HEAD rather than `--all`: a record on an unrelated branch was never
 /// committed *here*, and counting it would report a deletion that never happened.
-List<String> _recordsEverCommitted() {
+String _historyOutput() {
   // Ask git directly whether history is truncated. Inferring it from an empty
-  // result is not enough: a depth-1 clone whose tip commit happens to touch a
-  // spec still yields paths, so the guard would pass while every deletion before
-  // the shallow boundary stayed invisible.
+  // result is not enough: a depth-1 clone's grafted root commit lists every
+  // tracked file as an addition, so the query returns plenty and the guard would
+  // pass while every deletion before the boundary stayed invisible.
   final shallow = _git(['rev-parse', '--is-shallow-repository']);
   expect(
     (shallow.stdout as String).trim(),
@@ -119,8 +228,10 @@ List<String> _recordsEverCommitted() {
 
   final result = _git([
     'log',
+    '--reverse', // oldest first: the replay depends on commit order
     '--pretty=format:',
-    '--name-only',
+    '--name-status',
+    '--find-renames',
     'HEAD',
     '--',
     _specsDir,
@@ -129,22 +240,18 @@ List<String> _recordsEverCommitted() {
   expect(
     result.exitCode,
     0,
-    reason: 'git log failed, so the deletion guard cannot run: ${result.stderr}',
+    reason: 'git log failed, so the history guards cannot run: ${result.stderr}',
   );
-  final paths = (result.stdout as String)
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
+  final output = result.stdout as String;
   // Secondary sanity check, now that shallowness is ruled out above: a full
   // history that still shows no record at all means the query itself is wrong.
   expect(
-    paths,
+    output.trim(),
     isNotEmpty,
     reason: 'git history shows no spec or ADR files ever committed, which '
         'cannot be true of a full clone of this repository',
   );
-  return paths;
+  return output;
 }
 
 void main() {
@@ -164,42 +271,66 @@ void main() {
     });
 
     test('a_renamed_record_keeping_its_number_does_not_read_as_a_deletion', () {
-      // History holds both filenames; the number never left.
-      final everCommitted = numbersUnder([
-        'docs/specs/0009-old-slug.md',
-        'docs/specs/0009-new-slug.md',
-      ], _specsDir);
-      final presentNow = numbersUnder(
-        ['docs/specs/0009-new-slug.md'],
+      final verdict = replayRecordHistory(const [
+        RecordEvent.added('0009', '0009-old-slug.md'),
+        RecordEvent.renamed('0009', '0009-old-slug.md', '0009-new-slug.md'),
+      ]);
+
+      expect(verdict.vanished, isEmpty);
+      expect(verdict.reused, isEmpty);
+    });
+
+    test('a_removed_number_reads_as_a_deletion', () {
+      final verdict = replayRecordHistory(const [
+        RecordEvent.added('0001', '0001-one.md'),
+        RecordEvent.added('0002', '0002-two.md'),
+        RecordEvent.deleted('0002', '0002-two.md'),
+      ]);
+
+      expect(verdict.vanished, ['0002']);
+      expect(verdict.reused, isEmpty);
+    });
+
+    test('a_number_deleted_and_later_reassigned_is_reported_as_reuse', () {
+      // The incident the rule exists for: 0009 removed, then handed to an
+      // unrelated record. Comparing sets sees 0009 before and after and reports
+      // nothing, which is why the guard replays events instead.
+      final verdict = replayRecordHistory(const [
+        RecordEvent.added('0009', '0009-benchmark.md'),
+        RecordEvent.deleted('0009', '0009-benchmark.md'),
+        RecordEvent.added('0009', '0009-something-else.md'),
+      ]);
+
+      expect(verdict.reused, ['0009']);
+      // It is present again, so it is not also reported as vanished.
+      expect(verdict.vanished, isEmpty);
+    });
+
+    test('a_deleted_record_restored_under_its_own_slug_is_not_reuse', () {
+      final verdict = replayRecordHistory(const [
+        RecordEvent.added('0009', '0009-benchmark.md'),
+        RecordEvent.deleted('0009', '0009-benchmark.md'),
+        RecordEvent.added('0009', '0009-benchmark.md'),
+      ]);
+
+      expect(verdict.reused, isEmpty);
+      expect(verdict.vanished, isEmpty);
+    });
+
+    test('git_status_lines_are_parsed_into_ordered_events', () {
+      final events = parseHistory(
+        'A\tdocs/specs/0009-old.md\n'
+        'R100\tdocs/specs/0009-old.md\tdocs/specs/0009-new.md\n'
+        'M\tdocs/specs/0009-new.md\n'
+        'D\tdocs/specs/0009-new.md\n'
+        'A\tdocs/adr/0001-elsewhere.md\n',
         _specsDir,
       );
 
-      expect(
-        vanishedNumbers(
-          everCommitted: everCommitted,
-          presentNow: presentNow,
-          retired: const {},
-        ),
-        isEmpty,
-      );
-    });
-
-    test('a_removed_number_reads_as_a_deletion_unless_allowlisted', () {
-      const ever = {'0001', '0002'};
-      const now = {'0001'};
-
-      expect(
-        vanishedNumbers(everCommitted: ever, presentNow: now, retired: const {}),
-        ['0002'],
-      );
-      expect(
-        vanishedNumbers(
-          everCommitted: ever,
-          presentNow: now,
-          retired: const {'0002': 'withdrawn before implementation'},
-        ),
-        isEmpty,
-      );
+      expect(events.map((e) => e.status).toList(), ['A', 'R', 'D']);
+      // The ADR line belongs to another directory and is filtered out.
+      expect(events.every((e) => e.number == '0009'), isTrue);
+      expect(replayRecordHistory(events).vanished, ['0009']);
     });
 
     test('an_allowlisted_retirement_requires_a_non_empty_reason', () {
@@ -251,31 +382,56 @@ void main() {
     });
 
     test('no_number_ever_committed_is_absent_unless_allowlisted', () {
-      final ever = _recordsEverCommitted();
+      final history = _historyOutput();
 
       expect(
-        vanishedNumbers(
-          everCommitted: numbersUnder(ever, _specsDir),
-          presentNow: numbersUnder(_presentRecords(_specsDir), _specsDir),
-          retired: retiredSpecNumbers,
-        ),
+        replayRecordHistory(parseHistory(history, _specsDir))
+            .vanished
+            .where((n) => !retiredSpecNumbers.containsKey(n)),
         isEmpty,
         reason: 'a spec number was deleted rather than retired in place',
       );
       expect(
-        vanishedNumbers(
-          everCommitted: numbersUnder(ever, _adrDir),
-          presentNow: numbersUnder(_presentRecords(_adrDir), _adrDir),
-          retired: retiredAdrNumbers,
-        ),
+        replayRecordHistory(parseHistory(history, _adrDir))
+            .vanished
+            .where((n) => !retiredAdrNumbers.containsKey(n)),
         isEmpty,
         reason: 'an ADR number was deleted rather than retired in place',
       );
     });
 
-    test('the_retirement_allowlists_state_their_reasons', () {
+    test('no_number_was_deleted_and_reassigned_unless_allowlisted', () {
+      final history = _historyOutput();
+
+      expect(
+        replayRecordHistory(parseHistory(history, _specsDir))
+            .reused
+            .where((n) => !renamedWithRewriteSpecNumbers.containsKey(n)),
+        isEmpty,
+        reason: 'a spec number was reassigned to a different record; if this is '
+            'a rename whose rewrite defeated git similarity detection, add it '
+            'to renamedWithRewriteSpecNumbers with a reason',
+      );
+      expect(
+        replayRecordHistory(parseHistory(history, _adrDir))
+            .reused
+            .where((n) => !renamedWithRewriteAdrNumbers.containsKey(n)),
+        isEmpty,
+        reason: 'an ADR number was reassigned to a different record',
+      );
+    });
+
+    test('the_allowlists_state_their_reasons', () {
       expect(allowlistEntriesWithoutReason(retiredSpecNumbers), isEmpty);
       expect(allowlistEntriesWithoutReason(retiredAdrNumbers), isEmpty);
+      expect(
+        allowlistEntriesWithoutReason(renamedWithRewriteSpecNumbers),
+        isEmpty,
+      );
+      expect(
+        allowlistEntriesWithoutReason(renamedWithRewriteAdrNumbers),
+        isEmpty,
+      );
     });
 
     test(
