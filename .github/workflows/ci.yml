@@ -33,6 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The durable-numbering guard reads git history to detect a deleted
+          # spec or ADR. A shallow clone would show none and pass vacuously.
+          fetch-depth: 0
+          # The steps below run repository-controlled code (build_runner, tests)
+          # and need no GitHub credentials, so do not leave a token in .git.
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: zulu
