@@ -169,6 +169,55 @@ void main() {
     expect(find.textContaining('Argilosa'), findsOneWidget);
   });
 
+  testWidgets(
+      'a double tap on retry starts one classification, and retry works again '
+      'once it settles', (tester) async {
+    var calls = 0;
+    var gate = Completer<InferenceResult?>();
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) {
+        calls++;
+        // The automatic run after capture fails, surfacing the retry chip.
+        if (calls == 1) return Future<InferenceResult?>.value(null);
+        return gate.future;
+      },
+    ));
+
+    await capture(tester);
+    expect(calls, 1);
+    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+
+    // Both taps land in the same frame: no pump has run in between, so the chip
+    // is still in the tree for the second hit-test even though the first tap
+    // already set the in-flight flag. This is the window the guard closes.
+    await tester.tap(find.byKey(const Key('retryClassification')));
+    await tester.tap(find.byKey(const Key('retryClassification')));
+    await tester.pump();
+
+    expect(calls, 2, reason: 'the second tap must be rejected while in flight');
+
+    // Settle the retry as another failure, which brings the chip back.
+    gate.complete(null);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+
+    // The guard must have cleared: a later tap is accepted.
+    gate = Completer<InferenceResult?>();
+    await tester.tap(find.byKey(const Key('retryClassification')));
+    await tester.pump();
+
+    expect(calls, 3, reason: 'the guard must clear once the run settles');
+
+    gate.complete(null);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+  });
+
   testWidgets('the screen applies no classification deadline of its own',
       (tester) async {
     final pending = Completer<InferenceResult?>();
