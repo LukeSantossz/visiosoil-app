@@ -114,41 +114,53 @@ class HistoryVerdict {
   final List<String> reused;
 }
 
-/// Replays [events] in commit order to separate the shapes a number's history
-/// can take: continuous, renamed, deleted, restored, or reassigned.
+/// Replays [events] to separate the shapes a number's history can take:
+/// continuous, renamed, deleted, restored, or reassigned.
+///
+/// Reuse is decided by counting how many distinct *records* ever held a number,
+/// not by watching for an add into an emptied number. The latter is
+/// order-dependent and misses a reassignment staged as add-then-delete —
+/// `A(0009-old)`, `A(0009-new)`, `D(0009-old)` — which git emits whenever the
+/// new slug sorts before the old one in a single commit. Two slugs belong to the
+/// same record only when a rename links them, so a number held by more than one
+/// record identity was reassigned, however the commits were ordered.
 HistoryVerdict replayRecordHistory(List<RecordEvent> events) {
   final live = <String, Set<String>>{};
-  final everDeleted = <String, Set<String>>{};
-  final reused = <String>{};
+  // Per number: slug -> the record identity that slug belongs to.
+  final identityOf = <String, Map<String, String>>{};
 
   for (final event in events) {
     final slugs = live.putIfAbsent(event.number, () => <String>{});
+    final identities = identityOf.putIfAbsent(event.number, () => {});
     switch (event.status) {
       case 'A':
-        // Re-adding a slug this number previously carried restores that record.
-        // Introducing a different slug into an emptied number reassigns it.
-        final deletedSlugs = everDeleted[event.number] ?? const <String>{};
-        if (slugs.isEmpty &&
-            deletedSlugs.isNotEmpty &&
-            !deletedSlugs.contains(event.slug)) {
-          reused.add(event.number);
-        }
+        identities.putIfAbsent(event.slug, () => event.slug);
         slugs.add(event.slug);
       case 'D':
+        identities.putIfAbsent(event.slug, () => event.slug);
         slugs.remove(event.slug);
-        everDeleted.putIfAbsent(event.number, () => <String>{}).add(event.slug);
       case 'R':
+        // A rename carries the record's identity to the new slug, so the pair
+        // counts once.
+        final carried = identities[event.slug] ?? event.slug;
+        identities[event.slug] = carried;
+        identities[event.newSlug!] = carried;
         slugs.remove(event.slug);
         slugs.add(event.newSlug!);
     }
   }
 
-  final vanished = live.entries
-      .where((e) => e.value.isEmpty)
-      .map((e) => e.key)
-      .toList()
-    ..sort();
-  return HistoryVerdict(vanished: vanished, reused: reused.toList()..sort());
+  final vanished = <String>[];
+  final reused = <String>[];
+  live.forEach((number, slugs) {
+    if (slugs.isEmpty) vanished.add(number);
+    final distinctRecords = identityOf[number]!.values.toSet();
+    if (distinctRecords.length > 1) reused.add(number);
+  });
+  return HistoryVerdict(
+    vanished: vanished..sort(),
+    reused: reused..sort(),
+  );
 }
 
 String _slug(String path) => path.replaceAll(r'\', '/').split('/').last;
@@ -303,6 +315,20 @@ void main() {
 
       expect(verdict.reused, ['0009']);
       // It is present again, so it is not also reported as vanished.
+      expect(verdict.vanished, isEmpty);
+    });
+
+    test('reuse_staged_as_add_before_delete_is_still_reported', () {
+      // git emits a single commit's statuses in path order, so a replacement
+      // whose new slug sorts first arrives as add-then-delete. The number is
+      // never empty at the add, so watching for that moment misses it.
+      final verdict = replayRecordHistory(const [
+        RecordEvent.added('0009', '0009-benchmark.md'),
+        RecordEvent.added('0009', '0009-alternative.md'),
+        RecordEvent.deleted('0009', '0009-benchmark.md'),
+      ]);
+
+      expect(verdict.reused, ['0009']);
       expect(verdict.vanished, isEmpty);
     });
 
