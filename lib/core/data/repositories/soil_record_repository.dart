@@ -38,8 +38,15 @@ abstract class SoilRecordRepository {
   /// Emits a filtered list of records, reacting to database changes.
   ///
   /// [textureClass] filters by texture class (exact match).
-  /// [searchTerm] filters by address (case-insensitive LIKE).
-  /// If both are null, behavior is identical to [watchAll].
+  ///
+  /// [searchTerm] filters by address, case-insensitively. It is matched as a
+  /// literal substring: it is trimmed first, and `%` and `_` match themselves
+  /// rather than acting as SQL wildcards.
+  ///
+  /// A filter that carries no content is not applied. For either argument that
+  /// means null or empty; for [searchTerm] it also means a value that is empty
+  /// once trimmed. When neither filter applies, behavior is identical to
+  /// [watchAll].
   Stream<List<SoilRecord>> watchFiltered({
     String? textureClass,
     String? searchTerm,
