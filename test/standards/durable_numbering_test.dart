@@ -132,6 +132,8 @@ HistoryVerdict replayRecordHistory(List<RecordEvent> events) {
   for (final event in events) {
     final slugs = live.putIfAbsent(event.number, () => <String>{});
     final identities = identityOf.putIfAbsent(event.number, () => {});
+    // Dart 3 switch statements do not fall through: a non-empty case ends
+    // implicitly, so no `break` is needed and adding one changes nothing.
     switch (event.status) {
       case 'A':
         identities.putIfAbsent(event.slug, () => event.slug);
