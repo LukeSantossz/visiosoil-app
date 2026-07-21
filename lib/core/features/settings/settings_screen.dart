@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -169,19 +170,25 @@ class _AccountTile extends ConsumerWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
-      error: (_, _) => _signInTile(ref),
-      data: (state) {
-        final account = state.account;
-        if (account == null) return _signInTile(ref);
-        return _SettingsTile(
-          icon: Icons.account_circle_outlined,
-          title: account.displayName ?? account.email,
-          trailing: TextButton(
-            onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
-            child: const Text('Sair'),
-          ),
-        );
-      },
+      // On error, derive the tile from the service's authoritative sign-in
+      // snapshot rather than assuming signed-out: a sign-out that fails to clear
+      // local credentials leaves the account present, so it must keep showing
+      // the account instead of the sign-in affordance.
+      error: (_, _) =>
+          _accountTile(ref, ref.read(authServiceProvider).currentAccount),
+      data: (state) => _accountTile(ref, state.account),
+    );
+  }
+
+  Widget _accountTile(WidgetRef ref, AuthAccount? account) {
+    if (account == null) return _signInTile(ref);
+    return _SettingsTile(
+      icon: Icons.account_circle_outlined,
+      title: account.displayName ?? account.email,
+      trailing: TextButton(
+        onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+        child: const Text('Sair'),
+      ),
     );
   }
 
