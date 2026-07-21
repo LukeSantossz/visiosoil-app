@@ -12,9 +12,13 @@ and surface them with a `ref.listen` `SnackBar` in the account tile. In
 `GoogleAuthService.signOut`, clear the local credential store and the in-memory
 account *before* calling the remote revoke, so a throwing revoke can never leave
 credentials on disk; the remote error still propagates so the UI can report it.
-The tile keeps mapping an error state to the sign-in affordance, which is the
-correct visual in both cases — a failed sign-in leaves the user signed out, and
-a failed sign-out has already cleared local credentials.
+On a sign-out failure the notifier re-derives the displayed state from the
+service's `currentAccount`: if the local store clear itself failed the account is
+still present, so the tile keeps showing the signed-in state (never a false
+"signed out" while credentials remain); if only the remote revoke failed, local
+credentials are already gone and the tile shows signed-out. The tile therefore
+renders from the last known auth state carried on the error (`copyWithPrevious`)
+rather than mapping every error to the sign-in affordance.
 
 ## Alternatives Considered
 1. Put `_store.clear()` / `_currentAccount = null` in a `finally` after the
@@ -35,6 +39,11 @@ a failed sign-out has already cleared local credentials.
    no persistent error slot; an inline message would need a new stateful surface,
    whereas a `SnackBar` is the app's existing feedback pattern (already used by
    "Apagar todos os dados") and needs no new widget.
+5. Map every auth error to the sign-in affordance (the naive tile behavior).
+   Rejected: a failed `_store.clear()` leaves credentials on disk, and showing
+   the sign-in tile then reports "signed out" while `accessToken()` can still
+   return a usable token — the exact defect this issue targets. The tile instead
+   renders from the last known state carried on the error.
 
 ## Scope
 - Includes:
@@ -67,14 +76,21 @@ Provider — `test/providers/auth_provider_test.dart`:
 - `sign_in_failure_is_captured_as_error_state`: with `AuthService.signIn`
   throwing, after `notifier.signIn()`, `read(authNotifierProvider).hasError` is
   true. (Locks the existing `guard` behavior.)
+- `sign_out_local_clear_failure_keeps_signed_in_state`: `signOut` throws with
+  `currentAccount` still set (a store-clear failure); the resolved state has an
+  error AND is still signed in.
+- `sign_out_remote_revoke_failure_resolves_to_signed_out`: `signOut` throws
+  after `currentAccount` was cleared (only the remote revoke failed); the
+  resolved state has an error AND is signed out.
 
 Widget — `test/features/settings/settings_screen_test.dart`:
 - `settings_shows_failure_snackbar_when_sign_in_throws`: fake `signIn` throws;
   tapping "Entrar com Google" shows a `SnackBar` with the failure message and the
   tile still shows "Entrar com Google".
 - `settings_shows_failure_snackbar_when_sign_out_throws`: signed in; fake
-  `signOut` throws (after clearing local); tapping "Sair" shows the failure
-  `SnackBar` and the tile now shows "Entrar com Google".
+  `signOut` throws before clearing local (credentials remain); tapping "Sair"
+  shows the failure `SnackBar` and the tile keeps showing the account, not
+  "Entrar com Google".
 - `settings_no_failure_snackbar_on_successful_sign_out`: signed in; tapping
   "Sair" leaves the tile showing "Entrar com Google" and shows no failure
   `SnackBar`.
@@ -108,3 +124,8 @@ No randomness; no seed needed.
   decision that is surprising without context but easily reversible (a 3-line
   reorder). Flagging it for the Developer to decide whether it warrants an ADR;
   the default proposal is to record it in the spec archive only, not a new ADR.
+- Residual limitation: if `_store.clear()` itself throws, the on-disk session
+  genuinely survives (a secure-storage delete cannot be forced), so the honest
+  outcome is to keep the signed-in view plus the failure `SnackBar`, not to claim
+  signed-out. `restoreSession` on the next launch will read the surviving session
+  and sign the user back in, which is correct given the credentials still exist.
