@@ -99,7 +99,7 @@ derivation lives in the tile, so it is verified here):
 
 ## Reproducibility
 Toolchain: Flutter 3.44.1 / Dart 3.12.1 (pinned to CI).
-```
+```bash
 flutter analyze
 flutter test test/services/google_auth_service_test.dart \
              test/providers/auth_provider_test.dart \
@@ -109,10 +109,13 @@ flutter test
 No randomness; no seed needed.
 
 ## Risks and Assumptions
-- Assumption: mapping an `AsyncError` to the sign-in tile is the correct visual
-  after a sign-out failure, because the local store is now cleared, so the user
-  is genuinely signed out locally. Invalidated if product wants the signed-in
-  view preserved on a remote-revoke failure (rejected here — credential hygiene
+- Assumption: showing the sign-in tile is the correct visual only when local
+  credentials are actually gone — a sign-in failure, or a sign-out where the
+  local store was cleared but the remote revoke failed. When the local store
+  clear itself fails the credentials remain, so the tile keeps showing the
+  account; the display follows the service's `currentAccount`, not the mere
+  presence of an error. Invalidated if product wants the signed-in view
+  preserved even on a remote-revoke failure (rejected here — credential hygiene
   wins).
 - Assumption: one generic pt-BR failure message is acceptable UX. Invalidated if
   product wants per-operation copy (Alternative 3).
