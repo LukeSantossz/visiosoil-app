@@ -27,6 +27,10 @@ class _FakeGateway implements GoogleSignInGateway {
   GatewaySignInResult? refreshResult;
   int signOutCalls = 0;
 
+  /// When set, [signOut] throws it, standing in for a remote revoke failure
+  /// (network down, token already invalid) that must not strand local state.
+  Object? signOutError;
+
   @override
   Future<GatewaySignInResult?> signIn() async => signInResult;
 
@@ -34,7 +38,11 @@ class _FakeGateway implements GoogleSignInGateway {
   Future<GatewaySignInResult?> refresh() async => refreshResult;
 
   @override
-  Future<void> signOut() async => signOutCalls++;
+  Future<void> signOut() async {
+    signOutCalls++;
+    final error = signOutError;
+    if (error != null) throw error;
+  }
 }
 
 GatewaySignInResult _result({
@@ -96,6 +104,21 @@ void main() {
       expect(service.currentAccount, isNull);
       expect(await store.read(), isNull);
       expect(gateway.signOutCalls, 1);
+    });
+
+    test('sign_out_clears_local_credentials_even_when_remote_revoke_throws',
+        () async {
+      gateway.signInResult = _result();
+      await service.signIn();
+      gateway.signOutError = Exception('revoke failed');
+
+      // The remote error still surfaces to the caller...
+      await expectLater(service.signOut(), throwsA(isA<Exception>()));
+
+      // ...but the persisted session and in-memory account are already gone,
+      // so a lost device does not retain a usable OAuth token.
+      expect(await store.read(), isNull);
+      expect(service.currentAccount, isNull);
     });
 
     test('restore_session_returns_account_when_stored', () async {
