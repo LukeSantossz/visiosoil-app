@@ -15,6 +15,12 @@ class _FakeAuthService implements AuthService {
   /// failure the store itself cannot absorb.
   Object? restoreError;
 
+  /// When set, [signIn] throws it, standing in for an OAuth/network failure.
+  Object? signInError;
+
+  /// When set, [signOut] throws it, standing in for a sign-out failure.
+  Object? signOutError;
+
   @override
   AuthAccount? get currentAccount => _current;
 
@@ -28,12 +34,16 @@ class _FakeAuthService implements AuthService {
 
   @override
   Future<AuthAccount?> signIn() async {
+    final error = signInError;
+    if (error != null) throw error;
     _current = nextSignIn;
     return nextSignIn;
   }
 
   @override
   Future<void> signOut() async {
+    final error = signOutError;
+    if (error != null) throw error;
     _current = null;
   }
 
@@ -102,5 +112,29 @@ void main() {
     // than to AsyncError.
     expect(async.hasError, isFalse);
     expect(async.value?.isSignedIn, isFalse);
+  });
+
+  test('sign_in_failure_is_captured_as_error_state', () async {
+    final fake = _FakeAuthService()..signInError = Exception('oauth failed');
+    final container = _containerWith(fake);
+    await container.read(authNotifierProvider.future);
+
+    await container.read(authNotifierProvider.notifier).signIn();
+
+    // A thrown sign-in must land in an observed error state, not vanish.
+    expect(container.read(authNotifierProvider).hasError, isTrue);
+  });
+
+  test('sign_out_failure_is_captured_as_error_state_not_thrown', () async {
+    final fake = _FakeAuthService()
+      ..restored = const AuthAccount(email: 'a@b.com', displayName: 'A')
+      ..signOutError = Exception('revoke failed');
+    final container = _containerWith(fake);
+    await container.read(authNotifierProvider.future);
+
+    // signOut must not rethrow uncaught; the failure is captured in state.
+    await container.read(authNotifierProvider.notifier).signOut();
+
+    expect(container.read(authNotifierProvider).hasError, isTrue);
   });
 }

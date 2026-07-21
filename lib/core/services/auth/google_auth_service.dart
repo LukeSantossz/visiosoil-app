@@ -35,9 +35,12 @@ class GoogleAuthService implements AuthService {
 
   @override
   Future<void> signOut() async {
-    await _gateway.signOut();
+    // Clear local credentials first so a throwing remote revoke can never leave
+    // a usable session on the device; the remote error still propagates so the
+    // caller can report it.
     await _store.clear();
     _currentAccount = null;
+    await _gateway.signOut();
   }
 
   @override
