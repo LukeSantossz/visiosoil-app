@@ -132,6 +132,11 @@ class SettingsScreen extends ConsumerWidget {
 
 // --- Account Tile ---
 
+/// Shown when an interactive sign-in or sign-out fails, so the failure is never
+/// silently swallowed. Kept in step with the literal in the widget test.
+const String _authFailureMessage =
+    'Não foi possível concluir a operação. Tente novamente.';
+
 /// Sign-in / sign-out entry reflecting [authNotifierProvider]. Signing in or
 /// out is the only place the app touches authentication; everything else works
 /// unauthenticated.
@@ -140,6 +145,18 @@ class _AccountTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Surface auth failures the user would otherwise never see: signIn/signOut
+    // route errors into an AsyncError state, reported here as a one-off
+    // SnackBar. Guarded on a loading -> error transition so an unrelated
+    // rebuild cannot re-toast a stale error.
+    ref.listen(authNotifierProvider, (previous, next) {
+      if (next.hasError && (previous?.isLoading ?? false)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(_authFailureMessage)),
+        );
+      }
+    });
+
     final authAsync = ref.watch(authNotifierProvider);
 
     return authAsync.when(

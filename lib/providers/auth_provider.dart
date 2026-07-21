@@ -55,8 +55,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<void> signOut() async {
-    await ref.read(authServiceProvider).signOut();
-    state = const AsyncValue.data(AuthState.signedOut());
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(authServiceProvider).signOut();
+      return const AuthState.signedOut();
+    });
   }
 
   AuthState _stateFor(AuthAccount? account) => account == null
