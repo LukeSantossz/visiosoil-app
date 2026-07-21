@@ -12,6 +12,10 @@ import 'package:visiosoil_app/core/services/auth/secure_credential_store.dart';
 class _InMemorySecureStorage implements KeyValueSecureStorage {
   final Map<String, String> _data = {};
 
+  /// When set, [delete] throws it, standing in for a secure-storage delete that
+  /// fails at the platform boundary (Keystore/Keychain error).
+  Object? deleteError;
+
   @override
   Future<String?> read(String key) async => _data[key];
 
@@ -19,7 +23,11 @@ class _InMemorySecureStorage implements KeyValueSecureStorage {
   Future<void> write(String key, String value) async => _data[key] = value;
 
   @override
-  Future<void> delete(String key) async => _data.remove(key);
+  Future<void> delete(String key) async {
+    final error = deleteError;
+    if (error != null) throw error;
+    _data.remove(key);
+  }
 }
 
 class _FakeGateway implements GoogleSignInGateway {
@@ -119,6 +127,22 @@ void main() {
       // so a lost device does not retain a usable OAuth token.
       expect(await store.read(), isNull);
       expect(service.currentAccount, isNull);
+    });
+
+    test('sign_out_propagates_and_keeps_account_when_local_clear_fails',
+        () async {
+      gateway.signInResult = _result();
+      await service.signIn();
+      storage.deleteError = Exception('secure storage delete failed');
+
+      // A local-clear failure is a real sign-out failure, so it propagates...
+      await expectLater(service.signOut(), throwsA(isA<Exception>()));
+
+      // ...the remote revoke is never attempted (clear runs first), and the
+      // account stays present because the credentials could not be removed —
+      // the UI must not then report signed-out.
+      expect(gateway.signOutCalls, 0);
+      expect(service.currentAccount, isNotNull);
     });
 
     test('restore_session_returns_account_when_stored', () async {
