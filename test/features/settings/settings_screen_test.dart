@@ -126,7 +126,7 @@ void main() {
     await tester.pump();
 
     expect(find.text(_failureMessage), findsOneWidget);
-    // Local credentials are cleared, so the tile reflects signed-out.
+    // An auth error maps to the sign-in tile, so the user can retry.
     expect(find.text('Entrar com Google'), findsOneWidget);
   });
 
