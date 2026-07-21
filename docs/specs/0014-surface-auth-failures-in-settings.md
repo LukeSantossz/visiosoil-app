@@ -12,13 +12,15 @@ and surface them with a `ref.listen` `SnackBar` in the account tile. In
 `GoogleAuthService.signOut`, clear the local credential store and the in-memory
 account *before* calling the remote revoke, so a throwing revoke can never leave
 credentials on disk; the remote error still propagates so the UI can report it.
-On a sign-out failure the notifier re-derives the displayed state from the
-service's `currentAccount`: if the local store clear itself failed the account is
-still present, so the tile keeps showing the signed-in state (never a false
-"signed out" while credentials remain); if only the remote revoke failed, local
-credentials are already gone and the tile shows signed-out. The tile therefore
-renders from the last known auth state carried on the error (`copyWithPrevious`)
-rather than mapping every error to the sign-in affordance.
+On an auth error the tile derives its content from the service's authoritative
+`currentAccount` snapshot rather than assuming signed-out: if the local store
+clear itself failed the account is still present, so the tile keeps showing the
+signed-in state (never a false "signed out" while credentials remain); if only
+the remote revoke failed, local credentials are already gone and the tile shows
+signed-out. Reading `currentAccount` on error (instead of carrying the value on
+the `AsyncError`) avoids Riverpod's `@internal` `copyWithPrevious`, whose stale
+carried value would otherwise show signed-in even after a successful local
+clear.
 
 ## Alternatives Considered
 1. Put `_store.clear()` / `_currentAccount = null` in a `finally` after the
@@ -76,20 +78,19 @@ Provider — `test/providers/auth_provider_test.dart`:
 - `sign_in_failure_is_captured_as_error_state`: with `AuthService.signIn`
   throwing, after `notifier.signIn()`, `read(authNotifierProvider).hasError` is
   true. (Locks the existing `guard` behavior.)
-- `sign_out_local_clear_failure_keeps_signed_in_state`: `signOut` throws with
-  `currentAccount` still set (a store-clear failure); the resolved state has an
-  error AND is still signed in.
-- `sign_out_remote_revoke_failure_resolves_to_signed_out`: `signOut` throws
-  after `currentAccount` was cleared (only the remote revoke failed); the
-  resolved state has an error AND is signed out.
 
-Widget — `test/features/settings/settings_screen_test.dart`:
+Widget — `test/features/settings/settings_screen_test.dart` (the account-display
+derivation lives in the tile, so it is verified here):
 - `settings_shows_failure_snackbar_when_sign_in_throws`: fake `signIn` throws;
   tapping "Entrar com Google" shows a `SnackBar` with the failure message and the
   tile still shows "Entrar com Google".
 - `settings_shows_failure_snackbar_when_sign_out_throws`: signed in; fake
-  `signOut` throws before clearing local (credentials remain); tapping "Sair"
-  shows the failure `SnackBar` and the tile keeps showing the account, not
+  `signOut` throws before clearing local (`currentAccount` still set, a
+  store-clear failure); tapping "Sair" shows the failure `SnackBar` and the tile
+  keeps showing the account, not "Entrar com Google".
+- `settings_shows_signed_out_when_sign_out_clears_then_remote_fails`: signed in;
+  fake `signOut` clears local then throws (`currentAccount` null, only the remote
+  revoke failed); tapping "Sair" shows the failure `SnackBar` and the tile shows
   "Entrar com Google".
 - `settings_no_failure_snackbar_on_successful_sign_out`: signed in; tapping
   "Sair" leaves the tile showing "Entrar com Google" and shows no failure
