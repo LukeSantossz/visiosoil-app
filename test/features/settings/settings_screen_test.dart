@@ -10,15 +10,25 @@ import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 
 class _FakeAuthService implements AuthService {
-  _FakeAuthService(this.restored, {this.signInError, this.signOutError});
+  _FakeAuthService(
+    this.restored, {
+    this.signInError,
+    this.signOutError,
+    this.signOutClearsBeforeError = false,
+  });
 
   final AuthAccount? restored;
 
   /// When set, [signIn] throws it, standing in for an OAuth/network failure.
   final Object? signInError;
 
-  /// When set, [signOut] throws it, standing in for a remote revoke failure.
+  /// When set, [signOut] throws it, standing in for a sign-out failure.
   final Object? signOutError;
+
+  /// With [signOutError] set: when true, [signOut] clears local state before
+  /// throwing (models a remote-revoke failure after local cleanup); when false,
+  /// it throws with local state intact (models a store-clear failure).
+  final bool signOutClearsBeforeError;
 
   AuthAccount? _current;
 
@@ -41,7 +51,10 @@ class _FakeAuthService implements AuthService {
   @override
   Future<void> signOut() async {
     final error = signOutError;
-    if (error != null) throw error;
+    if (error != null) {
+      if (signOutClearsBeforeError) _current = null;
+      throw error;
+    }
     _current = null;
   }
 
@@ -53,6 +66,7 @@ Widget _app(
   AuthAccount? account, {
   Object? signInError,
   Object? signOutError,
+  bool signOutClearsBeforeError = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -61,6 +75,7 @@ Widget _app(
           account,
           signInError: signInError,
           signOutError: signOutError,
+          signOutClearsBeforeError: signOutClearsBeforeError,
         ),
       ),
       packageInfoProvider.overrideWith(
@@ -131,6 +146,29 @@ void main() {
     expect(find.text('Agro'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
     expect(find.text('Entrar com Google'), findsNothing);
+  });
+
+  testWidgets('settings_shows_signed_out_when_sign_out_clears_then_remote_fails',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
+        signOutError: Exception('revoke failed'),
+        signOutClearsBeforeError: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Sair'), findsOneWidget);
+
+    await tester.tap(find.text('Sair'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text(_failureMessage), findsOneWidget);
+    // Local credentials were cleared, so the tile reflects signed-out.
+    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Sair'), findsNothing);
   });
 
   testWidgets('settings_no_failure_snackbar_on_successful_sign_out',
