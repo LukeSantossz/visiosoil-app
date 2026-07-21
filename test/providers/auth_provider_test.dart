@@ -18,8 +18,13 @@ class _FakeAuthService implements AuthService {
   /// When set, [signIn] throws it, standing in for an OAuth/network failure.
   Object? signInError;
 
-  /// When set, [signOut] throws it, standing in for a remote revoke failure.
+  /// When set, [signOut] throws it, standing in for a sign-out failure.
   Object? signOutError;
+
+  /// With [signOutError] set: when true, [signOut] clears local state before
+  /// throwing (models a remote-revoke failure after local cleanup); when false,
+  /// it throws with local state intact (models a store-clear failure).
+  bool signOutClearsBeforeError = false;
 
   @override
   AuthAccount? get currentAccount => _current;
@@ -43,7 +48,10 @@ class _FakeAuthService implements AuthService {
   @override
   Future<void> signOut() async {
     final error = signOutError;
-    if (error != null) throw error;
+    if (error != null) {
+      if (signOutClearsBeforeError) _current = null;
+      throw error;
+    }
     _current = null;
   }
 
@@ -136,5 +144,37 @@ void main() {
     await container.read(authNotifierProvider.notifier).signOut();
 
     expect(container.read(authNotifierProvider).hasError, isTrue);
+  });
+
+  test('sign_out_local_clear_failure_keeps_signed_in_state', () async {
+    final fake = _FakeAuthService()
+      ..restored = const AuthAccount(email: 'a@b.com', displayName: 'A')
+      ..signOutError = Exception('secure storage delete failed');
+    final container = _containerWith(fake);
+    await container.read(authNotifierProvider.future);
+
+    await container.read(authNotifierProvider.notifier).signOut();
+
+    // Local credentials remain, so the state stays signed in while surfacing the
+    // error, rather than falsely reporting signed-out.
+    final async = container.read(authNotifierProvider);
+    expect(async.hasError, isTrue);
+    expect(async.value?.isSignedIn, isTrue);
+  });
+
+  test('sign_out_remote_revoke_failure_resolves_to_signed_out', () async {
+    final fake = _FakeAuthService()
+      ..restored = const AuthAccount(email: 'a@b.com', displayName: 'A')
+      ..signOutError = Exception('revoke failed')
+      ..signOutClearsBeforeError = true;
+    final container = _containerWith(fake);
+    await container.read(authNotifierProvider.future);
+
+    await container.read(authNotifierProvider.notifier).signOut();
+
+    // Only the remote revoke failed; local credentials are gone, so signed-out.
+    final async = container.read(authNotifierProvider);
+    expect(async.hasError, isTrue);
+    expect(async.value?.isSignedIn, isFalse);
   });
 }

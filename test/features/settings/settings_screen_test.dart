@@ -126,8 +126,11 @@ void main() {
     await tester.pump();
 
     expect(find.text(_failureMessage), findsOneWidget);
-    // An auth error maps to the sign-in tile, so the user can retry.
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    // A failed sign-out that leaves credentials must not claim signed-out: the
+    // tile keeps showing the account, not the sign-in affordance.
+    expect(find.text('Agro'), findsOneWidget);
+    expect(find.text('Sair'), findsOneWidget);
+    expect(find.text('Entrar com Google'), findsNothing);
   });
 
   testWidgets('settings_no_failure_snackbar_on_successful_sign_out',
