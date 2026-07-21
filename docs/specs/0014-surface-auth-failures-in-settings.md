@@ -45,7 +45,8 @@ clear.
    Rejected: a failed `_store.clear()` leaves credentials on disk, and showing
    the sign-in tile then reports "signed out" while `accessToken()` can still
    return a usable token — the exact defect this issue targets. The tile instead
-   renders from the last known state carried on the error.
+   reads the service's `currentAccount` snapshot on error (see the Design
+   Decision).
 
 ## Scope
 - Includes:
