@@ -72,8 +72,12 @@ needs, and the Google account picker cannot run headless).
   - Changing the release signing fallback (ADR 0004 / #68 territory).
 
 ## Acceptance Criteria
-Verifiable via CI, since a build-config change and a CI job are not unit-testable
-by construction (the "code-inspection plus prove-by-mutation" precedent applies):
+A versioned guard test (`test/android_proguard_rules_test.dart`) asserts the keep
+rules and the CI release checks are present (following the `android_config_test.dart`
+pattern), written test-first (red before each). Their runtime behaviour — R8
+actually retaining the classes, the app actually booting — is verified on CI and
+proven non-vacuous by mutation, since a running build-config change and a CI job
+are not unit-testable by construction:
 - `keep_rules_present`: `proguard-rules.pro` contains `keep` rules for
   `com.google.crypto.tink.**` and the `google_sign_in` Play Services auth
   classes, verified by `test/android_proguard_rules_test.dart`. Tink carries a
