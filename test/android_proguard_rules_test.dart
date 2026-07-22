@@ -36,17 +36,24 @@ void main() {
   });
 
   group('ci release checks', () {
-    test('build_job_verifies_auth_classes_survive_r8_in_the_dex', () {
+    // Assert executable command tokens, not tokens that also appear in comments,
+    // so the guard fails when the actual check step is removed.
+    test('build_job_verifies_auth_class_definitions_in_the_release_dex', () {
+      expect(
+        ci.contains('-name dexdump'),
+        isTrue,
+        reason: 'the dexdump DEX-definition inspection step is gone',
+      );
       expect(
         ci.contains('Lcom/google/crypto/tink/') &&
             ci.contains('Lcom/google/android/gms/auth/'),
         isTrue,
-        reason: 'the DEX-retention check is missing; a stripped auth class '
-            'would no longer fail the release build',
+        reason: 'the DEX class-definition checks for the auth classes are gone; '
+            'a stripped auth class would no longer fail the release build',
       );
     });
 
-    test('has_a_release_boot_smoke_job_on_an_emulator', () {
+    test('has_a_release_boot_smoke_job_that_runs_the_apk', () {
       expect(
         ci.contains('reactivecircus/android-emulator-runner'),
         isTrue,
@@ -54,9 +61,12 @@ void main() {
             'but never run in CI',
       );
       expect(
-        ci.contains('FATAL EXCEPTION'),
+        ci.contains('adb install -r apk/app-release.apk') &&
+            ci.contains('adb shell pidof com.visiosoil.visiosoil_app') &&
+            ci.contains('logcat -d --pid='),
         isTrue,
-        reason: 'the smoke job no longer fails on a startup crash',
+        reason: 'the smoke job no longer installs the release APK, checks the '
+            'app process is alive, and scans its PID log for a startup crash',
       );
     });
   });
