@@ -44,7 +44,16 @@ and import updates.
     removing their inline `AlertDialog` code; each keeps its existing copy passed
     as arguments and its own delete + post-action.
   - Rename `HomePage`->`HomeScreen` and `DetailsPage`->`DetailsScreen`, with file
-    renames and updates to `app_router.dart`, `main_screen.dart`, and any tests.
+    renames and updates to `app_router.dart`, `main_screen.dart`, any tests, and
+    the stale file-path references in `README.md`, `CLAUDE.md`, and
+    `docs/architecture/research-agent.md` that pointed at the old files.
+  - Screen-level delete-flow tests for all three call sites (a confirmed-delete
+    test that asserts the delete operation ran and the post-action fired, plus a
+    cancel test that asserts nothing was deleted), added in response to the R2
+    review so the refactored flows are covered end to end rather than by
+    inspection alone. This needs recording delete counters on the shared
+    `FakeSoilRecordRepository` test double, and a minimal `GoRouter` harness for
+    the details flow's `context.go('/')` post-action.
 - Does NOT include:
   - Changing any dialog copy, button labels, or snackbar text (byte-preserved).
   - Changing the delete operations or the details navigate-back behaviour.
@@ -59,7 +68,12 @@ and import updates.
   calls the helper (verifiable: only the helper builds the destructive dialog).
 - No `HomePage`/`DetailsPage` symbols and no `home_page.dart`/`details.dart` files
   remain; `HomeScreen`/`DetailsScreen` and `home_screen.dart`/`details_screen.dart`
-  exist; `app_router.dart` and `main_screen.dart` reference the new names.
+  exist; `app_router.dart` and `main_screen.dart` reference the new names; and no
+  doc still links to the old file paths.
+- Each of the three delete flows has a screen-level test proving the confirmed
+  path runs its delete operation and post-action, and that cancelling deletes
+  nothing (verified non-tautological by mutation: breaking the confirm guard
+  turns each confirmed-delete test red).
 - `flutter analyze` and `flutter test` are green.
 
 ## Reproducibility
