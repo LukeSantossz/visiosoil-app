@@ -118,7 +118,10 @@ flutter build apk --release
   reads it only on the `/settings` route (`_AccountTile`), and `MainScreen` is a
   two-tab `IndexedStack` (Home, History) that never builds Settings. So the boot
   smoke exercises general startup R8 integrity but not the Tink path; the
-  DEX-retention check is what validates the auth keep rules, deterministically.
+  DEX-retention check is a class-presence regression guard on the release APK. It
+  confirms the auth classes are defined but, per the finding above, does not
+  prove the keep rules are what retained them, nor does it verify their
+  reflectively-accessed members.
 - Assumption: GitHub `ubuntu-latest` provides the KVM acceleration
   `android-emulator-runner` needs. Invalidated if the runner lacks nested
   virtualization, which would force a different runner or approach.
