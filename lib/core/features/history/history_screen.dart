@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -87,36 +88,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final count = _selectedIds.length;
     final confirmed = await _showDeleteConfirmation(count);
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await _performDeletion();
       _showDeletionSnackbar(count);
     }
   }
 
-  Future<bool?> _showDeleteConfirmation(int count) {
+  Future<bool> _showDeleteConfirmation(int count) {
     final itemLabel = count == 1 ? 'registro' : 'registros';
 
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir registros'),
-        content: Text(
+    return confirmDestructiveAction(
+      context,
+      title: 'Excluir registros',
+      message:
           'Tem certeza que deseja excluir $count $itemLabel? Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Excluir',
     );
   }
 

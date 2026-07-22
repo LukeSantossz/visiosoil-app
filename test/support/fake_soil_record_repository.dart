@@ -29,20 +29,20 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
   @override
   Future<List<SoilRecord>> getAll() async => const <SoilRecord>[];
 
-  @override
-  Future<SoilRecord?> getLatest() async => null;
+  /// Delete calls in order, so screen-level tests can assert the delete
+  /// operation actually ran with the expected argument.
+  final List<int> deleteByIdCalls = <int>[];
+  final List<List<int>> deleteByIdsCalls = <List<int>>[];
+  int deleteAllCalls = 0;
 
   @override
-  Future<int> count() async => createCalls.length;
+  Future<void> deleteById(int id) async => deleteByIdCalls.add(id);
 
   @override
-  Future<void> deleteById(int id) async {}
+  Future<void> deleteByIds(List<int> ids) async => deleteByIdsCalls.add(ids);
 
   @override
-  Future<void> deleteByIds(List<int> ids) async {}
-
-  @override
-  Future<void> deleteAll() async {}
+  Future<void> deleteAll() async => deleteAllCalls++;
 
   @override
   Stream<List<SoilRecord>> watchFiltered({
@@ -50,7 +50,4 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
     String? searchTerm,
   }) =>
       Stream.value(const <SoilRecord>[]);
-
-  @override
-  Future<List<String>> getDistinctTextureClasses() async => const <String>[];
 }

@@ -124,28 +124,6 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }
 
   @override
-  Future<SoilRecord?> getLatest() async {
-    final query = _db.select(_db.soilRecords)
-      ..where((t) => t.deleted.equals(false))
-      ..orderBy([
-        (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
-      ])
-      ..limit(1);
-    final row = await query.getSingleOrNull();
-    return row == null ? null : _toDomain(row);
-  }
-
-  @override
-  Future<int> count() async {
-    final countExp = _db.soilRecords.id.count();
-    final query = _db.selectOnly(_db.soilRecords)
-      ..addColumns([countExp])
-      ..where(_db.soilRecords.deleted.equals(false));
-    final row = await query.getSingle();
-    return row.read(countExp) ?? 0;
-  }
-
-  @override
   Future<void> deleteById(int id) async {
     await _tombstone((t) => t.id.equals(id));
   }
@@ -206,21 +184,6 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     ]);
 
     return query.watch().map((rows) => rows.map(_toDomain).toList());
-  }
-
-  @override
-  Future<List<String>> getDistinctTextureClasses() async {
-    final query = _db.selectOnly(_db.soilRecords, distinct: true)
-      ..addColumns([_db.soilRecords.textureClass])
-      ..where(_db.soilRecords.textureClass.isNotNull() &
-          _db.soilRecords.deleted.equals(false));
-
-    final rows = await query.get();
-    return rows
-        .map((row) => row.read(_db.soilRecords.textureClass))
-        .where((c) => c != null && c.isNotEmpty)
-        .cast<String>()
-        .toList();
   }
 
   /// Marks the rows matching [filter] as deleted (tombstone) and enqueues a
