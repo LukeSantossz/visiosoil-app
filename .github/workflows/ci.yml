@@ -83,12 +83,15 @@ jobs:
           # dexdump prints "Class descriptor  : 'L...;'" only for classes DEFINED
           # in the DEX, so this asserts the auth classes survived R8 rather than
           # merely being referenced somewhere in the string pool.
-          defs="$(for d in "$tmp"/classes*.dex; do "$dexdump" "$d"; done | grep 'Class descriptor')"
-          if ! printf '%s' "$defs" | grep -q "Lcom/google/crypto/tink/"; then
+          defs="$(for d in "$tmp"/classes*.dex; do "$dexdump" "$d"; done | grep 'Class descriptor' || true)"
+          # Use a here-string, not a pipe: `grep -q` exits on the first match and
+          # would SIGPIPE the writer, which under `pipefail` flips a found class
+          # into a false "stripped" failure on a large DEX.
+          if ! grep -q "Lcom/google/crypto/tink/" <<< "$defs"; then
             echo "::error::R8 stripped the Tink class definitions from the release APK"
             exit 1
           fi
-          if ! printf '%s' "$defs" | grep -q "Lcom/google/android/gms/auth/"; then
+          if ! grep -q "Lcom/google/android/gms/auth/" <<< "$defs"; then
             echo "::error::R8 stripped the Google Play Services auth class definitions from the release APK"
             exit 1
           fi
