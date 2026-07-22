@@ -128,18 +128,16 @@ jobs:
           target: default
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          # android-emulator-runner runs each line as a separate `sh -c`, so every
-          # shell construct must stay on a single line (no multi-line if/fi).
+          # android-emulator-runner runs each line as a separate `sh -c`, so a
+          # variable cannot span lines and every construct stays on one line. The
+          # last line captures the PID, checks the process is alive (a crash that
+          # kills it), and scopes the crash scan to that PID (so an unrelated system
+          # process cannot false-fail the job) — all in one shell. It catches
+          # native/Java crashes AND Dart-side failures (Flutter logs an uncaught
+          # error under E/flutter as "Unhandled Exception" or "EXCEPTION CAUGHT BY").
           script: |
             adb install -r apk/app-release.apk
             adb logcat -c
             adb shell monkey -p com.visiosoil.visiosoil_app -c android.intent.category.LAUNCHER 1
             sleep 25
-            pid="$(adb shell pidof com.visiosoil.visiosoil_app | tr -d '[:space:]')"
-            if [ -z "$pid" ]; then echo "::error::App process not running after launch (crashed on startup)"; exit 1; fi
-            # Scope the crash scan to this app's PID so an unrelated system process
-            # cannot false-fail the job. Catches native/Java crashes AND Dart-side
-            # failures (Flutter logs an uncaught error under E/flutter as "Unhandled
-            # Exception" or the "EXCEPTION CAUGHT BY" banner while the process lives).
-            if adb logcat -d --pid="$pid" | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY"; then echo "::error::App logged a fatal error on startup"; exit 1; fi
-            echo "Boot smoke passed."
+            if pid=$(adb shell pidof com.visiosoil.visiosoil_app | tr -d '[:space:]'); [ -n "$pid" ]; then adb logcat -d --pid="$pid" | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY" && { echo "::error::App logged a fatal error on startup"; exit 1; }; echo "Boot smoke passed."; else echo "::error::App process not running after launch (crashed on startup)"; exit 1; fi
