@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
-import 'package:visiosoil_app/core/features/home/home_page.dart';
+import 'package:visiosoil_app/core/features/home/home_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,7 +13,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    HomePage(),
+    HomeScreen(),
     HistoryScreen(),
   ];
 

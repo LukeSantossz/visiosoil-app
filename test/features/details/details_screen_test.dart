@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/core/features/details/details.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
@@ -64,7 +64,7 @@ Widget _detailsUnderTest({
       connectivityServiceProvider
           .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
     ],
-    child: const MaterialApp(home: DetailsPage(recordId: 1)),
+    child: const MaterialApp(home: DetailsScreen(recordId: 1)),
   );
 }
 
@@ -87,7 +87,7 @@ void main() {
         connectivityServiceProvider
             .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
       ],
-      child: const MaterialApp(home: DetailsPage(recordId: 1)),
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
     ));
     await tester.pumpAndSettle();
 

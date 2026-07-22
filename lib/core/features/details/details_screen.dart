@@ -15,8 +15,8 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-class DetailsPage extends ConsumerWidget {
-  const DetailsPage({super.key, required this.recordId});
+class DetailsScreen extends ConsumerWidget {
+  const DetailsScreen({super.key, required this.recordId});
 
   final int recordId;
 

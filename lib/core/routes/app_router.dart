@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
-import 'package:visiosoil_app/core/features/details/details.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
@@ -21,7 +21,7 @@ final appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra;
         final id = extra is int ? extra : -1;
-        return DetailsPage(recordId: id);
+        return DetailsScreen(recordId: id);
       },
     ),
     GoRoute(
