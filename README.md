@@ -27,7 +27,7 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 
 | Layer | Technology |
 | --- | --- |
-| Language | Dart 3.12.1 (pinned; `pubspec.yaml` allows `^3.10.4`) |
+| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.11.0`) |
 | Framework / Runtime | Flutter 3.44.1, pinned to match CI (Android + iOS) |
 | State management | Riverpod (`flutter_riverpod`) |
 | Navigation | GoRouter |
@@ -210,7 +210,7 @@ visiosoil-app/
 - [x] Optional Google sign-in with the session in secure storage
 - [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
-- [x] Repository, widget and migration tests with `NativeDatabase.memory()` — 240 tests passing
+- [x] Repository, widget and migration tests with `NativeDatabase.memory()` — 260 tests passing
 - [x] CI pipeline (analyze → test → APK build), with the Flutter toolchain pinned in all three jobs
 - [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
 
@@ -228,7 +228,7 @@ visiosoil-app/
 ## Known Issues & Limitations
 
 - **No model artifact ships with the repo** — `assets/models/` contains only `.gitkeep` and `assets/models/*.tflite` is git-ignored, so classification does not work until a trained model is supplied by the pipeline.
-- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in seven files with no test asserting they agree.
+- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in six independent copies with no test asserting they agree.
 - **`SoilTextureColors.all` is ordered inconsistently** — it documents itself as being in model-output order but transposes `Siltosa` and `Media` relative to `InferenceService` and `ml/config.yaml`. The getter has no call sites today, so this is a latent trap rather than a live defect.
 - **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
 - **No iOS build is exercised** — there is no `Podfile`, no `DEVELOPMENT_TEAM` set, and no iOS job in CI, so only Android is verified on every change.
