@@ -228,7 +228,7 @@ visiosoil-app/
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
 - **Management tips always report unavailable** — `researchServiceProvider` returns `UnavailableResearchService` until the proxy and per-user auth wiring lands, so the UI, cache table and `ProxyResearchService` exist but no tip is ever fetched.
-- **Delete flows are untested** — no test exercises a delete-confirmation dialog, and `home_page.dart` has no test file.
+- **`home_screen.dart` has no test file** — the home dashboard surface is untested (#120).
 - **`drift_flutter` pinned to `>=0.2.0 <0.2.4`** — do not bump without verifying compatibility.
 
 ## Contributing
