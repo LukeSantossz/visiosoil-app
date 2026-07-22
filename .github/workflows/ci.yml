@@ -78,20 +78,21 @@ jobs:
           apk=build/app/outputs/flutter-apk/app-release.apk
           tmp=$(mktemp -d)
           unzip -o -q "$apk" 'classes*.dex' -d "$tmp"
-          # A fully R8-stripped class leaves no type descriptor in the DEX string
-          # table, so a missing descriptor means the class was stripped from the
-          # release build. This is a heuristic guard against wholesale stripping:
-          # the grep matches the descriptor anywhere in the string pool, not only
-          # class definitions, and does not observe member-level shrinking.
-          if ! grep -aq 'Lcom/google/crypto/tink/' "$tmp"/classes*.dex; then
-            echo "::error::R8 stripped the Tink classes from the release APK"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          dexdump="$(find "$sdk/build-tools" -name dexdump -type f | sort -V | tail -1)"
+          # dexdump prints "Class descriptor  : 'L...;'" only for classes DEFINED
+          # in the DEX, so this asserts the auth classes survived R8 rather than
+          # merely being referenced somewhere in the string pool.
+          defs="$(for d in "$tmp"/classes*.dex; do "$dexdump" "$d"; done | grep 'Class descriptor')"
+          if ! printf '%s' "$defs" | grep -q "Lcom/google/crypto/tink/"; then
+            echo "::error::R8 stripped the Tink class definitions from the release APK"
             exit 1
           fi
-          if ! grep -aq 'Lcom/google/android/gms/auth/' "$tmp"/classes*.dex; then
-            echo "::error::R8 stripped the Google Play Services auth classes from the release APK"
+          if ! printf '%s' "$defs" | grep -q "Lcom/google/android/gms/auth/"; then
+            echo "::error::R8 stripped the Google Play Services auth class definitions from the release APK"
             exit 1
           fi
-          echo "Auth classes retained in the release DEX."
+          echo "Auth classes defined in the release DEX."
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
@@ -131,10 +132,11 @@ jobs:
             adb logcat -c
             adb shell monkey -p com.visiosoil.visiosoil_app -c android.intent.category.LAUNCHER 1
             sleep 25
-            # Catch native/Java crashes (FATAL EXCEPTION) AND Dart-side startup
-            # failures (Flutter logs an uncaught error under E/flutter as
-            # "Unhandled Exception" or the "EXCEPTION CAUGHT BY" banner while the
-            # process stays alive), so a broken-but-running app is not a false pass.
-            if adb logcat -d | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY"; then echo "::error::App crashed on startup"; exit 1; fi
-            if [ -z "$(adb shell pidof com.visiosoil.visiosoil_app)" ]; then echo "::error::App process not running after launch"; exit 1; fi
+            pid="$(adb shell pidof com.visiosoil.visiosoil_app | tr -d '[:space:]')"
+            if [ -z "$pid" ]; then echo "::error::App process not running after launch (crashed on startup)"; exit 1; fi
+            # Scope the crash scan to this app's PID so an unrelated system process
+            # cannot false-fail the job. Catches native/Java crashes AND Dart-side
+            # failures (Flutter logs an uncaught error under E/flutter as "Unhandled
+            # Exception" or the "EXCEPTION CAUGHT BY" banner while the process lives).
+            if adb logcat -d --pid="$pid" | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY"; then echo "::error::App logged a fatal error on startup"; exit 1; fi
             echo "Boot smoke passed."
