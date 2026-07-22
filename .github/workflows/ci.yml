@@ -72,7 +72,69 @@ jobs:
       - name: Generate Drift adapters
         run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build apk --release
+      - name: Verify R8 kept the auth classes in the release APK
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          tmp=$(mktemp -d)
+          unzip -o -q "$apk" 'classes*.dex' -d "$tmp"
+          # A fully R8-stripped class leaves no type descriptor in the DEX string
+          # table, so a missing descriptor means the class was stripped from the
+          # release build. This is a heuristic guard against wholesale stripping:
+          # the grep matches the descriptor anywhere in the string pool, not only
+          # class definitions, and does not observe member-level shrinking.
+          if ! grep -aq 'Lcom/google/crypto/tink/' "$tmp"/classes*.dex; then
+            echo "::error::R8 stripped the Tink classes from the release APK"
+            exit 1
+          fi
+          if ! grep -aq 'Lcom/google/android/gms/auth/' "$tmp"/classes*.dex; then
+            echo "::error::R8 stripped the Google Play Services auth classes from the release APK"
+            exit 1
+          fi
+          echo "Auth classes retained in the release DEX."
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+  smoke:
+    # Boot the minified release APK on an emulator so R8 regressions that only
+    # surface at runtime (issue #69, problem 2) fail the pipeline. The DEX check
+    # in `build` guards that the auth classes survived R8; this proves the release
+    # build actually starts.
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Download release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apk
+          path: apk
+      - name: Boot smoke on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: default
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          # android-emulator-runner runs each line as a separate `sh -c`, so every
+          # shell construct must stay on a single line (no multi-line if/fi).
+          script: |
+            adb install -r apk/app-release.apk
+            adb logcat -c
+            adb shell monkey -p com.visiosoil.visiosoil_app -c android.intent.category.LAUNCHER 1
+            sleep 25
+            # Catch native/Java crashes (FATAL EXCEPTION) AND Dart-side startup
+            # failures (Flutter logs an uncaught error under E/flutter as
+            # "Unhandled Exception" or the "EXCEPTION CAUGHT BY" banner while the
+            # process stays alive), so a broken-but-running app is not a false pass.
+            if adb logcat -d | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY"; then echo "::error::App crashed on startup"; exit 1; fi
+            if [ -z "$(adb shell pidof com.visiosoil.visiosoil_app)" ]; then echo "::error::App process not running after launch"; exit 1; fi
+            echo "Boot smoke passed."
