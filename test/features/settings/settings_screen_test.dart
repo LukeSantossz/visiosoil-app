@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+
+import '../../support/fake_soil_record_repository.dart';
 
 class _FakeAuthService implements AuthService {
   _FakeAuthService(
@@ -67,6 +71,7 @@ Widget _app(
   Object? signInError,
   Object? signOutError,
   bool signOutClearsBeforeError = false,
+  SoilRecordRepository? repository,
 }) {
   return ProviderScope(
     overrides: [
@@ -86,6 +91,8 @@ Widget _app(
           buildNumber: '2',
         ),
       ),
+      if (repository != null)
+        soilRecordRepositoryProvider.overrideWithValue(repository),
     ],
     child: const MaterialApp(home: SettingsScreen()),
   );
@@ -184,6 +191,39 @@ void main() {
 
     expect(find.text(_failureMessage), findsNothing);
     expect(find.text('Entrar com Google'), findsOneWidget);
+  });
+
+  testWidgets('confirming apagar tudo deletes all records and shows a snackbar',
+      (tester) async {
+    final repository = FakeSoilRecordRepository();
+    await tester.pumpWidget(_app(null, repository: repository));
+    await tester.pumpAndSettle();
+
+    // Open the shared destructive dialog from the delete-all tile.
+    await tester.tap(find.text('Apagar todos os dados'));
+    await tester.pumpAndSettle();
+
+    // Confirm; the delete-all runs and its own snackbar is shown.
+    await tester.tap(find.text('Apagar tudo'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deleteAllCalls, 1);
+    expect(find.text('Todos os dados foram apagados.'), findsOneWidget);
+  });
+
+  testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
+    final repository = FakeSoilRecordRepository();
+    await tester.pumpWidget(_app(null, repository: repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apagar todos os dados'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deleteAllCalls, 0);
+    expect(find.text('Todos os dados foram apagados.'), findsNothing);
   });
 }
 

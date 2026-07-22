@@ -107,7 +107,7 @@ Service shape: `Future<ManagementTipsResult> fetchTips(SoilRecord record)`. Fake
 
 ## 7. UI
 
-- `_ManagementTipsSection(record)` on the **Details** screen (`lib/core/features/details/details.dart`), inserted between `_InfoSection` and `_ActionButtons` on the existing `AppSpacing.xl` rhythm.
+- `_ManagementTipsSection(record)` on the **Details** screen (`lib/core/features/details/details_screen.dart`), inserted between `_InfoSection` and `_ActionButtons` on the existing `AppSpacing.xl` rhythm.
 - States: loading (`LoadingIndicator`), empty/offline (`EmptyState`), error (`error_state.dart`); data = tip cards (mirror `_InfoTile`) + citation chips (`AppRadius.borderRadiusPill`) + a **mandatory advisory disclaimer banner** (mirror `_LowConfidenceBanner`, `AppColors.warningContainer`).
 - "Gerar / atualizar dicas" action via `VisioButton(isLoading:)`.
 - pt-BR copy written inline at the widget; use the glossary term **"dicas de manejo"** and avoid "recomendação" (`CONTEXT.md`).

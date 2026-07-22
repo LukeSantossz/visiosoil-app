@@ -8,14 +8,15 @@ import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-class DetailsPage extends ConsumerWidget {
-  const DetailsPage({super.key, required this.recordId});
+class DetailsScreen extends ConsumerWidget {
+  const DetailsScreen({super.key, required this.recordId});
 
   final int recordId;
 
@@ -493,29 +494,15 @@ class _ActionButtons extends ConsumerWidget {
   }
 
   Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Excluir registro'),
-        content: const Text(
-          'Tem certeza que deseja excluir este registro? '
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Excluir registro',
+      message: 'Tem certeza que deseja excluir este registro? '
           'Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Excluir',
     );
 
-    if (confirmed == true && context.mounted && record.id != null) {
+    if (confirmed && context.mounted && record.id != null) {
       await ref.read(soilRecordRepositoryProvider).deleteById(record.id!);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

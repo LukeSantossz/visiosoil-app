@@ -29,14 +29,20 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
   @override
   Future<List<SoilRecord>> getAll() async => const <SoilRecord>[];
 
-  @override
-  Future<void> deleteById(int id) async {}
+  /// Delete calls in order, so screen-level tests can assert the delete
+  /// operation actually ran with the expected argument.
+  final List<int> deleteByIdCalls = <int>[];
+  final List<List<int>> deleteByIdsCalls = <List<int>>[];
+  int deleteAllCalls = 0;
 
   @override
-  Future<void> deleteByIds(List<int> ids) async {}
+  Future<void> deleteById(int id) async => deleteByIdCalls.add(id);
 
   @override
-  Future<void> deleteAll() async {}
+  Future<void> deleteByIds(List<int> ids) async => deleteByIdsCalls.add(ids);
+
+  @override
+  Future<void> deleteAll() async => deleteAllCalls++;
 
   @override
   Stream<List<SoilRecord>> watchFiltered({
