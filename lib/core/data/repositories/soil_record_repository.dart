@@ -20,12 +20,6 @@ abstract class SoilRecordRepository {
   /// in a single request.
   Future<List<SoilRecord>> getAll();
 
-  /// Returns the most recent record or `null` if the database is empty.
-  Future<SoilRecord?> getLatest();
-
-  /// Returns the total number of records.
-  Future<int> count();
-
   /// Deletes the record with the given [id]. No-op if it does not exist.
   Future<void> deleteById(int id);
 
@@ -51,7 +45,4 @@ abstract class SoilRecordRepository {
     String? textureClass,
     String? searchTerm,
   });
-
-  /// Returns the list of distinct texture classes present in the database.
-  Future<List<String>> getDistinctTextureClasses();
 }

@@ -92,7 +92,7 @@ void main() {
         repo.create(sample()),
         throwsA(isA<FileSystemException>()),
       );
-      expect(await repo.count(), 0);
+      expect(await repo.getAll(), isEmpty);
     });
 
     test('create persiste campos de classificação de textura', () async {
@@ -132,23 +132,6 @@ void main() {
       expect(all.map((r) => r.id).toList(), [third.id, second.id, first.id]);
     });
 
-    test('getLatest retorna o registro mais recente ou null', () async {
-      expect(await repo.getLatest(), isNull);
-
-      await repo.create(sample(imagePath: '/a.jpg'));
-      final second = await repo.create(sample(imagePath: '/b.jpg'));
-
-      final latest = await repo.getLatest();
-      expect(latest?.id, second.id);
-    });
-
-    test('count reflete o total de registros', () async {
-      expect(await repo.count(), 0);
-      await repo.create(sample());
-      await repo.create(sample());
-      expect(await repo.count(), 2);
-    });
-
     test('deleteById remove apenas o registro informado', () async {
       final a = await repo.create(sample(imagePath: '/a.jpg'));
       final b = await repo.create(sample(imagePath: '/b.jpg'));
@@ -165,11 +148,11 @@ void main() {
       final c = await repo.create(sample(imagePath: '/c.jpg'));
 
       await repo.deleteByIds([]); // no-op
-      expect(await repo.count(), 3);
+      expect(await repo.getAll(), hasLength(3));
 
       await repo.deleteByIds([a.id!, c.id!]);
 
-      expect(await repo.count(), 1);
+      expect(await repo.getAll(), hasLength(1));
       expect(await repo.getById(b.id!), isNotNull);
     });
 
@@ -329,7 +312,7 @@ void main() {
       await selectiveRepo.deleteAll();
 
       // Every record was tombstoned despite the one failure...
-      expect(await selectiveRepo.count(), 0);
+      expect(await selectiveRepo.getAll(), isEmpty);
       // ...and every image delete was attempted — b's failure did not stop the
       // loop from reaching a and c.
       expect(
@@ -475,20 +458,6 @@ void main() {
       // Trimming empties the term, so it joins the documented null/empty path
       // rather than filtering for rows containing consecutive spaces.
       expect(await filteredIds(searchTerm: '   '), all);
-    });
-
-    test(
-        'getDistinctTextureClasses de-duplicates and excludes null and empty classes',
-        () async {
-      await repo.create(sample(imagePath: '/a.jpg', textureClass: 'Argiloso'));
-      await repo.create(sample(imagePath: '/b.jpg', textureClass: 'Argiloso'));
-      await repo.create(sample(imagePath: '/c.jpg', textureClass: 'Arenoso'));
-      await repo.create(sample(imagePath: '/d.jpg', textureClass: null));
-      await repo.create(sample(imagePath: '/e.jpg', textureClass: ''));
-
-      final classes = await repo.getDistinctTextureClasses();
-
-      expect(classes, unorderedEquals(<String>['Argiloso', 'Arenoso']));
     });
   });
 }

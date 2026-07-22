@@ -87,9 +87,7 @@ void main() {
 
       await repo.deleteById(a.id!);
 
-      expect(await repo.count(), 1);
       expect((await repo.getAll()).map((r) => r.id), [b.id]);
-      expect((await repo.getLatest())?.id, b.id);
       final filtered = await repo.watchFiltered().first;
       expect(filtered.map((r) => r.id), [b.id]);
     });
