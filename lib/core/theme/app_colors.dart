@@ -56,6 +56,13 @@ abstract final class AppColors {
   static const Color shadow = Color(0xFF000000);
   static const Color scrim = Color(0xFF000000);
 
+  // Elevation shadows — [onSurface] (or brand [primary]) at fixed alphas, kept as
+  // const values so they can be used inside `const BoxShadow` lists.
+  static const Color shadowCard = Color(0x0A1A1C19); // onSurface @ ~4% — cards
+  static const Color shadowControl = Color(0x0F1A1C19); // onSurface @ ~6% — controls
+  static const Color shadowElevated = Color(0x331A1C19); // onSurface @ ~20% — primary action
+  static const Color shadowBrand = Color(0x4D4A7C59); // primary @ ~30% — brand logo
+
   // --- Soil texture class colors ---
   static const Color soilSandy = Color(0xFFD8B384);
   static const Color soilSilt = Color(0xFFB8A27C);
