@@ -375,4 +375,49 @@ void main() {
     expect(requestedFullMetadata, isFalse);
   });
 
+  testWidgets('a denied camera permission shows the permission-denied view',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        inferenceServiceProvider
+            .overrideWithValue(_FakeInference((_) async => null)),
+      ],
+      child: MaterialApp(
+        home: CaptureScreen(
+          pickFromCamera: () async => null,
+          locate: () async => null,
+          checkCameraPermission: () async => AppPermissionStatus.denied,
+          requestCameraPermission: () async => AppPermissionStatus.denied,
+        ),
+      ),
+    ));
+
+    await capture(tester);
+
+    expect(find.text('Acesso a camera necessario'), findsOneWidget);
+    expect(find.text('Câmera'), findsNothing);
+  });
+
+  testWidgets('the location chip shows loading, then the resolved address',
+      (tester) async {
+    final locateGate = Completer<LocationReading?>();
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () => locateGate.future,
+      classify: (_) async => null,
+    ));
+
+    await capture(tester);
+    expect(find.text('Localizando...'), findsOneWidget);
+
+    locateGate.complete(
+      (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(find.text('São Paulo'), findsOneWidget);
+    expect(find.text('Localizando...'), findsNothing);
+  });
 }

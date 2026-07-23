@@ -6,14 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
-import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
-import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
-import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
@@ -54,20 +55,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   static const Duration _locationTimeout = Duration(seconds: 20);
 
-  bool _isLoading = false;
-  bool _isClassifying = false;
-  bool _isSaving = false;
-  bool _isCapturing = false;
-  bool _classificationFailed = false;
-  String? _address;
-  double? _latitude;
-  double? _longitude;
-  InferenceResult? _classificationResult;
-  AppPermissionStatus? _cameraPermissionStatus;
-
-  /// Monotonic token identifying the current capture. Async results from a
-  /// superseded or discarded capture carry a stale token and are ignored.
-  int _requestGeneration = 0;
+  /// Single immutable UI state. Every mutation goes through
+  /// `setState(() => _state = _state.copyWith(...))` (or a named transition),
+  /// replacing the previously scattered booleans, payload fields, and request
+  /// token. See [CaptureUiState] for why location and classification are
+  /// independent axes rather than one flat enum.
+  CaptureUiState _state = const CaptureUiState();
 
   late final CameraImagePicker _pickFromCamera =
       widget.pickFromCamera ?? _defaultPickFromCamera;
@@ -94,7 +87,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Revalidates permission when the app returns to the foreground (e.g. after Settings)
     // Does not revalidate for `restricted` (iOS) since it cannot be changed by the user
     if (state == AppLifecycleState.resumed &&
-        _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied) {
+        _state.cameraPermission == AppPermissionStatus.permanentlyDenied) {
       _recheckCameraPermission();
     }
   }
@@ -121,15 +114,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     if (!mounted) return;
 
     if (status == AppPermissionStatus.granted) {
-      setState(() => _cameraPermissionStatus = null);
+      setState(() => _state = _state.copyWith(cameraPermission: null));
     }
   }
 
   Future<void> _pickImage() async {
     // Re-entry guard: prevents a rapid double tap from opening two pickers
     // (and firing duplicate location/classification work).
-    if (_isCapturing) return;
-    _isCapturing = true;
+    if (_state.isCapturing) return;
+    _state = _state.copyWith(isCapturing: true);
 
     XFile? image;
     try {
@@ -141,13 +134,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         if (!mounted) return;
 
         if (requestStatus != AppPermissionStatus.granted) {
-          setState(() => _cameraPermissionStatus = requestStatus);
+          setState(
+              () => _state = _state.copyWith(cameraPermission: requestStatus));
           return;
         }
       }
       // Clears the permission state if granted
-      if (_cameraPermissionStatus != null) {
-        setState(() => _cameraPermissionStatus = null);
+      if (_state.cameraPermission != null) {
+        setState(() => _state = _state.copyWith(cameraPermission: null));
       }
 
       image = await _pickFromCamera();
@@ -160,7 +154,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
       return;
     } finally {
-      _isCapturing = false;
+      _state = _state.copyWith(isCapturing: false);
     }
 
     if (!mounted || image == null) return;
@@ -168,14 +162,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     ref.read(imageProvider.notifier).setImage(File(image.path));
 
     // Tags this capture so late results from a superseded one are ignored.
-    final generation = ++_requestGeneration;
-    setState(() {
-      _address = null;
-      _latitude = null;
-      _longitude = null;
-      _classificationResult = null;
-      _classificationFailed = false;
-    });
+    final generation = _state.generation + 1;
+    setState(() => _state = _state.startingCapture(generation));
 
     // Runs location and classification in parallel (they are independent)
     await Future.wait([
@@ -186,10 +174,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   Future<void> _classifySoilTexture(String imagePath, int generation) async {
     if (mounted) {
-      setState(() {
-        _isClassifying = true;
-        _classificationFailed = false;
-      });
+      setState(() => _state =
+          _state.copyWith(classification: ClassificationStatus.running));
     }
 
     InferenceResult? result;
@@ -204,16 +190,19 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       result = null;
     }
 
-    if (!mounted || generation != _requestGeneration) return;
-    setState(() {
-      _classificationResult = result;
-      _classificationFailed = result == null;
-      _isClassifying = false;
-    });
+    if (!mounted || generation != _state.generation) return;
+    setState(() => _state = _state.copyWith(
+          classificationResult: result,
+          classification: result == null
+              ? ClassificationStatus.failed
+              : ClassificationStatus.done,
+        ));
   }
 
   Future<void> _fetchCurrentLocation(int generation) async {
-    if (mounted) setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _state = _state.copyWith(location: LocationStatus.loading));
+    }
 
     LocationReading? reading;
     try {
@@ -224,14 +213,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       reading = null;
     }
 
-    if (!mounted || generation != _requestGeneration) return;
+    if (!mounted || generation != _state.generation) return;
     setState(() {
       if (reading != null) {
-        _latitude = reading.latitude;
-        _longitude = reading.longitude;
-        _address = reading.address;
+        _state = _state.copyWith(
+          location: LocationStatus.resolved,
+          latitude: reading.latitude,
+          longitude: reading.longitude,
+          address: reading.address,
+        );
+      } else {
+        _state = _state.copyWith(location: LocationStatus.unavailable);
       }
-      _isLoading = false;
     });
   }
 
@@ -240,15 +233,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // rendered once a classification has failed, so a second tap is already
     // improbable; this closes the same-frame window where two taps hit the
     // chip before the rebuild removes it, each spawning its own isolate.
-    if (_isClassifying) return;
+    if (_state.isClassifying) return;
     final image = ref.read(imageProvider).file;
     if (image == null) return;
-    _classifySoilTexture(image.path, _requestGeneration);
+    _classifySoilTexture(image.path, _state.generation);
   }
 
   Future<void> _saveRecord() async {
     // Guard against double-tap
-    if (_isSaving) return;
+    if (_state.isSaving) return;
 
     final selectedImage = ref.read(imageProvider);
     final image = selectedImage.file;
@@ -258,13 +251,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // touches `ref` after the widget is disposed.
     final imageNotifier = ref.read(imageProvider.notifier);
 
-    setState(() => _isSaving = true);
+    setState(() => _state = _state.copyWith(isSaving: true));
 
     var didCreate = false;
     try {
-      final String finalAddress = _address ?? AppStrings.addressUnavailable;
-      final double? finalLatitude = _latitude;
-      final double? finalLongitude = _longitude;
+      final String finalAddress = _state.address ?? AppStrings.addressUnavailable;
+      final double? finalLatitude = _state.latitude;
+      final double? finalLongitude = _state.longitude;
 
       await ref.read(soilRecordRepositoryProvider).create(
             SoilRecord(
@@ -273,8 +266,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               longitude: finalLongitude,
               address: finalAddress,
               timestamp: DateTime.now().toIso8601String(),
-              textureClass: _classificationResult?.textureClass,
-              confidenceScore: _classificationResult?.confidenceScore,
+              textureClass: _state.classificationResult?.textureClass,
+              confidenceScore: _state.classificationResult?.confidenceScore,
             ),
           );
       didCreate = true;
@@ -292,7 +285,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() => _state = _state.copyWith(isSaving: false));
       }
     }
 
@@ -315,45 +308,25 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   void _discardImage() {
     // Invalidates any in-flight location/classification work for this capture.
-    _requestGeneration++;
+    final generation = _state.generation + 1;
     ref.read(imageProvider.notifier).clearImage();
-    setState(() {
-      _address = null;
-      _latitude = null;
-      _longitude = null;
-      _classificationResult = null;
-      _classificationFailed = false;
-    });
+    setState(() => _state = _state.startingCapture(generation));
   }
 
   void _retryCameraPermission() {
-    setState(() => _cameraPermissionStatus = null);
+    setState(() => _state = _state.copyWith(cameraPermission: null));
     _pickImage();
   }
 
   @override
   Widget build(BuildContext context) {
     // Shows the permission denied screen if the camera was blocked
-    if (_cameraPermissionStatus != null &&
-        _cameraPermissionStatus != AppPermissionStatus.granted) {
-      final isRestricted =
-          _cameraPermissionStatus == AppPermissionStatus.restricted;
-      final isPermanentlyDenied =
-          _cameraPermissionStatus == AppPermissionStatus.permanentlyDenied;
-
-      return Scaffold(
-        appBar: const VisioAppBar(title: 'Nova Captura'),
-        body: PermissionDeniedView(
-          icon: Icons.camera_alt,
-          title: isRestricted
-              ? 'Camera restrita'
-              : 'Acesso a camera necessario',
-          description: isRestricted
-              ? 'O acesso a camera esta restrito por configuracoes do dispositivo (controle parental ou MDM). Contacte o administrador.'
-              : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso a camera do dispositivo.',
-          isPermanentlyDenied: isPermanentlyDenied || isRestricted,
-          onRetry: isRestricted ? null : _retryCameraPermission,
-        ),
+    final cameraPermission = _state.cameraPermission;
+    if (cameraPermission != null &&
+        cameraPermission != AppPermissionStatus.granted) {
+      return CameraPermissionDeniedView(
+        status: cameraPermission,
+        onRetry: _retryCameraPermission,
       );
     }
 
@@ -369,245 +342,28 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image preview
               Expanded(
-                child: _ImagePreview(
+                child: CaptureImagePreview(
                   image: image,
-                  isLoading: _isLoading,
-                  isClassifying: _isClassifying,
-                  address: _address,
-                  classificationResult: _classificationResult,
-                  classificationFailed: _classificationFailed,
+                  isLoading: _state.isLocating,
+                  isClassifying: _state.isClassifying,
+                  address: _state.address,
+                  classificationResult: _state.classificationResult,
+                  classificationFailed: _state.classificationFailed,
                   onRetryClassification: _retryClassification,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Action buttons
-              if (!hasImage) ...[
-                VisioButton(
-                  label: 'Câmera',
-                  icon: Icons.camera_alt,
-                  onPressed: _pickImage,
-                  expanded: true,
-                ),
-              ] else ...[
-                VisioButton(
-                  label: 'Salvar Registro',
-                  icon: Icons.check,
-                  onPressed: (_isLoading || _isClassifying || _isSaving) ? null : _saveRecord,
-                  isLoading: _isLoading || _isClassifying || _isSaving,
-                  expanded: true,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                VisioButton(
-                  label: 'Descartar',
-                  icon: Icons.close,
-                  onPressed: _discardImage,
-                  variant: VisioButtonVariant.secondary,
-                  expanded: true,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ImagePreview extends StatelessWidget {
-  const _ImagePreview({
-    required this.image,
-    required this.isLoading,
-    required this.isClassifying,
-    this.address,
-    this.classificationResult,
-    this.classificationFailed = false,
-    this.onRetryClassification,
-  });
-
-  final File? image;
-  final bool isLoading;
-  final bool isClassifying;
-  final String? address;
-  final InferenceResult? classificationResult;
-  final bool classificationFailed;
-  final VoidCallback? onRetryClassification;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (image == null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add_a_photo,
-                size: 64,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.5,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Selecione uma imagem',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              CaptureActions(
+                hasImage: hasImage,
+                isBusy: _state.isLocating || _state.isClassifying || _state.isSaving,
+                onCapture: _pickImage,
+                onSave: _saveRecord,
+                onDiscard: _discardImage,
               ),
             ],
           ),
         ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(
-            image!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-          ),
-          // Gradient for chip legibility
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 100,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Info chips
-          Positioned(
-            left: AppSpacing.sm,
-            right: AppSpacing.sm,
-            bottom: AppSpacing.sm,
-            child: Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                _buildLocationChip(theme),
-                _buildClassificationChip(theme),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationChip(ThemeData theme) {
-    if (isLoading) {
-      return _InfoChip(
-        icon: Icons.location_on,
-        label: 'Localizando...',
-        isLoading: true,
-      );
-    }
-    return _InfoChip(
-      icon: Icons.location_on,
-      label: address ?? 'Sem localização',
-    );
-  }
-
-  Widget _buildClassificationChip(ThemeData theme) {
-    if (isClassifying) {
-      return _InfoChip(
-        icon: Icons.eco,
-        label: 'Classificando...',
-        isLoading: true,
-      );
-    }
-    if (classificationResult != null) {
-      final confidence = (classificationResult!.confidenceScore * 100)
-          .toStringAsFixed(0);
-      return _InfoChip(
-        icon: Icons.eco,
-        label: '${classificationResult!.textureClass} · $confidence%',
-      );
-    }
-    if (classificationFailed) {
-      return GestureDetector(
-        key: const Key('retryClassification'),
-        onTap: onRetryClassification,
-        child: const _InfoChip(
-          icon: Icons.refresh,
-          label: 'Classificação falhou · tocar para repetir',
-        ),
-      );
-    }
-    return const _InfoChip(
-      icon: Icons.eco_outlined,
-      label: 'Classificação indisponível',
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    this.isLoading = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLoading)
-            const SizedBox(
-              width: 14,
-              height: 14,
-              child: LoadingIndicator(size: 14, strokeWidth: 1.5),
-            )
-          else
-            Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white,
-                  ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }
