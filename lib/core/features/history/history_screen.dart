@@ -143,7 +143,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-
   AppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
@@ -176,4 +175,3 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 }
-
