@@ -7,14 +7,14 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
-import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
-import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
-import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
@@ -324,23 +324,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final cameraPermission = _state.cameraPermission;
     if (cameraPermission != null &&
         cameraPermission != AppPermissionStatus.granted) {
-      final isRestricted = cameraPermission == AppPermissionStatus.restricted;
-      final isPermanentlyDenied =
-          cameraPermission == AppPermissionStatus.permanentlyDenied;
-
-      return Scaffold(
-        appBar: const VisioAppBar(title: 'Nova Captura'),
-        body: PermissionDeniedView(
-          icon: Icons.camera_alt,
-          title: isRestricted
-              ? 'Camera restrita'
-              : 'Acesso a camera necessario',
-          description: isRestricted
-              ? 'O acesso a camera esta restrito por configuracoes do dispositivo (controle parental ou MDM). Contacte o administrador.'
-              : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso a camera do dispositivo.',
-          isPermanentlyDenied: isPermanentlyDenied || isRestricted,
-          onRetry: isRestricted ? null : _retryCameraPermission,
-        ),
+      return CameraPermissionDeniedView(
+        status: cameraPermission,
+        onRetry: _retryCameraPermission,
       );
     }
 
@@ -358,7 +344,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             children: [
               // Image preview
               Expanded(
-                child: _ImagePreview(
+                child: CaptureImagePreview(
                   image: image,
                   isLoading: _state.isLocating,
                   isClassifying: _state.isClassifying,
@@ -369,237 +355,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Action buttons
-              if (!hasImage) ...[
-                VisioButton(
-                  label: 'Câmera',
-                  icon: Icons.camera_alt,
-                  onPressed: _pickImage,
-                  expanded: true,
-                ),
-              ] else ...[
-                VisioButton(
-                  label: 'Salvar Registro',
-                  icon: Icons.check,
-                  onPressed:
-                      (_state.isLocating || _state.isClassifying || _state.isSaving)
-                          ? null
-                          : _saveRecord,
-                  isLoading: _state.isLocating ||
-                      _state.isClassifying ||
-                      _state.isSaving,
-                  expanded: true,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                VisioButton(
-                  label: 'Descartar',
-                  icon: Icons.close,
-                  onPressed: _discardImage,
-                  variant: VisioButtonVariant.secondary,
-                  expanded: true,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ImagePreview extends StatelessWidget {
-  const _ImagePreview({
-    required this.image,
-    required this.isLoading,
-    required this.isClassifying,
-    this.address,
-    this.classificationResult,
-    this.classificationFailed = false,
-    this.onRetryClassification,
-  });
-
-  final File? image;
-  final bool isLoading;
-  final bool isClassifying;
-  final String? address;
-  final InferenceResult? classificationResult;
-  final bool classificationFailed;
-  final VoidCallback? onRetryClassification;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (image == null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add_a_photo,
-                size: 64,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.5,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Selecione uma imagem',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              CaptureActions(
+                hasImage: hasImage,
+                isBusy: _state.isLocating ||
+                    _state.isClassifying ||
+                    _state.isSaving,
+                onCapture: _pickImage,
+                onSave: _saveRecord,
+                onDiscard: _discardImage,
               ),
             ],
           ),
         ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(
-            image!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-          ),
-          // Gradient for chip legibility
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 100,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Info chips
-          Positioned(
-            left: AppSpacing.sm,
-            right: AppSpacing.sm,
-            bottom: AppSpacing.sm,
-            child: Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                _buildLocationChip(theme),
-                _buildClassificationChip(theme),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationChip(ThemeData theme) {
-    if (isLoading) {
-      return _InfoChip(
-        icon: Icons.location_on,
-        label: 'Localizando...',
-        isLoading: true,
-      );
-    }
-    return _InfoChip(
-      icon: Icons.location_on,
-      label: address ?? 'Sem localização',
-    );
-  }
-
-  Widget _buildClassificationChip(ThemeData theme) {
-    if (isClassifying) {
-      return _InfoChip(
-        icon: Icons.eco,
-        label: 'Classificando...',
-        isLoading: true,
-      );
-    }
-    if (classificationResult != null) {
-      final confidence = (classificationResult!.confidenceScore * 100)
-          .toStringAsFixed(0);
-      return _InfoChip(
-        icon: Icons.eco,
-        label: '${classificationResult!.textureClass} · $confidence%',
-      );
-    }
-    if (classificationFailed) {
-      return GestureDetector(
-        key: const Key('retryClassification'),
-        onTap: onRetryClassification,
-        child: const _InfoChip(
-          icon: Icons.refresh,
-          label: 'Classificação falhou · tocar para repetir',
-        ),
-      );
-    }
-    return const _InfoChip(
-      icon: Icons.eco_outlined,
-      label: 'Classificação indisponível',
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    this.isLoading = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLoading)
-            const SizedBox(
-              width: 14,
-              height: 14,
-              child: LoadingIndicator(size: 14, strokeWidth: 1.5),
-            )
-          else
-            Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white,
-                  ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }
