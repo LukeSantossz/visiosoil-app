@@ -342,7 +342,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image preview
               Expanded(
                 child: CaptureImagePreview(
                   image: image,
@@ -357,9 +356,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               const SizedBox(height: AppSpacing.lg),
               CaptureActions(
                 hasImage: hasImage,
-                isBusy: _state.isLocating ||
-                    _state.isClassifying ||
-                    _state.isSaving,
+                isBusy: _state.isLocating || _state.isClassifying || _state.isSaving,
                 onCapture: _pickImage,
                 onSave: _saveRecord,
                 onDiscard: _discardImage,
