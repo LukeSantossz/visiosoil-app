@@ -8,7 +8,7 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// The "Última análise" card on the home screen: a tappable summary of the most
+/// The last-analysis card on the home screen: a tappable summary of the most
 /// recent record that opens its details. Renders nothing until a record exists.
 class LastAnalysisSection extends StatelessWidget {
   const LastAnalysisSection({super.key, required this.latestAsync});

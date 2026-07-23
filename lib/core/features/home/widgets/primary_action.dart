@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 
-/// The prominent "Nova análise" call-to-action card on the home screen.
+/// The prominent new-analysis call-to-action card on the home screen.
 class PrimaryAction extends StatelessWidget {
   const PrimaryAction({super.key, required this.onTap});
 

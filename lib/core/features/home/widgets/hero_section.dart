@@ -6,8 +6,8 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// The home dashboard header: a brand bar, a time-of-day greeting, and (when a
-/// classified record exists) a one-line "última análise" summary, over the
-/// primary→tertiary gradient.
+/// classified record exists) a one-line last-analysis summary, over the
+/// primary-to-tertiary gradient.
 class HeroSection extends StatelessWidget {
   const HeroSection({super.key, required this.latestAsync});
 
@@ -127,7 +127,7 @@ class _HeroTopBar extends StatelessWidget {
   }
 }
 
-/// The "Última análise: texture class, timestamp" line under the greeting.
+/// The last-analysis line under the greeting (texture class + timestamp).
 class _LastAnalysisLine extends StatelessWidget {
   const _LastAnalysisLine({required this.latest});
 
