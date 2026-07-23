@@ -1,5 +1,5 @@
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.10%2B-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.44.1-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.12.1-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=main&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
 
 # VisioSoil — Geolocated Soil Texture Analysis
@@ -14,7 +14,7 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 
 - **Guided field workflow** — a splash screen requests runtime permissions and a 3-step onboarding tutorial explains capture
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
-- **On-device classification** — a TensorFlow Lite model labels the sample into one of 5 soil texture classes with a confidence score (shown as a graded confidence banner), running fully offline
+- **On-device classification path** — an isolate-based TensorFlow Lite pipeline labels the sample into one of 5 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. The inference code, retry handling and UI are complete, but **no trained model artifact ships with this repository**, so classification currently returns no result and records save without a texture class (see Known Issues)
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
 - **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer
@@ -27,8 +27,8 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 
 | Layer | Technology |
 | --- | --- |
-| Language | Dart 3.10.4+ |
-| Framework / Runtime | Flutter 3.x (Android + iOS) |
+| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.11.0`) |
+| Framework / Runtime | Flutter 3.44.1, pinned to match CI (Android + iOS) |
 | State management | Riverpod (`flutter_riverpod`) |
 | Navigation | GoRouter |
 | Data layer | Drift + SQLite (`sqlite3_flutter_libs`) |
@@ -69,7 +69,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | --- | --- | --- |
 | Repository pattern abstracting Drift | UI queries Drift directly | UI imports only the interface, so the persistence backend (local DB, remote API, cache) can be swapped without touching screens |
 | TFLite inference in a separate isolate | Run inference on the main thread | Classification never blocks the UI; model bytes are passed as `Uint8List` since `rootBundle` cannot be used inside an isolate |
-| Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight; `spec.json` is the single integration contract between the pipeline and `InferenceService` |
+| Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The intended integration contract is `spec.json`, but the app does not read it yet — the `.tflite` artifact is currently the only real interface |
 | Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v4) |
 | Image files stored outside the cache, repository-owned lifecycle ([ADR 0002](docs/adr/0002-image-file-storage-and-lifecycle.md)) | Keep the `image_picker` cache path in the DB | The picker's cache path is transient, so a stored record could outlive its photo; the repository copies into durable storage before the row is written |
 | Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
@@ -117,9 +117,9 @@ flutter test
 
 ### Release Signing (Android)
 
-Release APKs are signed from an untracked keystore. Without it,
-`flutter build apk --release` falls back to the debug key (with a warning), so
-contributors and CI still build. To produce a distributable, release-signed APK:
+No keystore is configured in this repository today, so `flutter build apk --release`
+falls back to the debug key (with a warning) and contributors and CI still build —
+but the resulting APK is not distributable. To produce a genuinely release-signed APK:
 
 1. Generate a keystore (store it and its passwords safely and back them up —
    losing the key means you can no longer update a published app):
@@ -178,8 +178,9 @@ visiosoil-app/
 │   │   └── features/        # Screens: splash, onboarding, main, home, capture,
 │   │                        #          history, details, preview, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 11 Riverpod providers (database, repository, inference, image,
-│                            #   auth, connectivity, share, research, management tips)
+│   └── providers/           # 11 files declaring 22 Riverpod providers (database, repository,
+│                            #   inference, image, auth, connectivity, share, research,
+│                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # TF/Keras training pipeline (MobileNetV2 → TFLite)
 ├── assets/models/           # Destination for the trained .tflite (artifact is git-ignored)
 ├── docs/                    # specs/ (durable SPEC archive), adr/, architecture/
@@ -188,7 +189,7 @@ visiosoil-app/
 
 ## Project Status
 
-**Status: in development — v2.0.0**
+**Status: in development.** The most recent tag is `v2.0.0` (2026-05-03); `main` has advanced well beyond it, so the tag does not describe the state below. ADRs 0002–0007, the EXIF strip, the Android backup hardening and the share opt-in all landed after it.
 
 ### Done
 
@@ -202,20 +203,23 @@ visiosoil-app/
 - [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
 - [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v4, soft deletes)
-- [x] On-device TFLite classification into 5 soil texture classes, running in an isolate
+- [x] On-device TFLite inference path into 5 soil texture classes, running in an isolate with retry and timeout handling — awaiting a trained model artifact to become functional
 - [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
-- [x] Android hardened for release: OS backup and device-transfer disabled, signing from an untracked keystore
+- [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
 - [x] Optional Google sign-in with the session in secure storage
 - [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
-- [x] Repository, widget and migration tests with `NativeDatabase.memory()`
-- [x] CI pipeline (analyze → test → APK build)
-- [x] Reproducible ML pipeline under `ml/` (MobileNetV2 transfer learning, 2-phase training)
+- [x] Repository, widget and migration tests with `NativeDatabase.memory()` — 260 tests passing
+- [x] CI pipeline (analyze → test → APK build), with the Flutter toolchain pinned in all three jobs
+- [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
 
 ### Pending
 
 - [ ] Train and deploy the production model, then export and ship the `.tflite` to `assets/models/`
+- [ ] Track the model's provenance — no dataset, split manifest, checkpoint or metrics file is versioned, so no published training run is reproducible from this repository
+- [ ] Add an asset-existence test so a missing model cannot pass a green suite, and produce a genuinely release-signed APK in CI
+- [ ] Add a contract test asserting the label list agrees across every copy, and correct the `SoilTextureColors` ordering
 - [ ] Load labels, input size, and normalization from `spec.json` at runtime instead of hardcoding them in `InferenceService`
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
 - [ ] Wire `ProxyResearchService` and per-user auth so management tips actually resolve
@@ -224,7 +228,10 @@ visiosoil-app/
 ## Known Issues & Limitations
 
 - **No model artifact ships with the repo** — `assets/models/` contains only `.gitkeep` and `assets/models/*.tflite` is git-ignored, so classification does not work until a trained model is supplied by the pipeline.
-- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/`, not into `assets/models/`, and is never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in four independent copies with no test asserting they agree.
+- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in six independent copies with no test asserting they agree.
+- **`SoilTextureColors.all` is ordered inconsistently** — it documents itself as being in model-output order but transposes `Siltosa` and `Media` relative to `InferenceService` and `ml/config.yaml`. The getter has no call sites today, so this is a latent trap rather than a live defect.
+- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
+- **No iOS build is exercised** — there is no `Podfile`, no `DEVELOPMENT_TEAM` set, and no iOS job in CI, so only Android is verified on every change.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
 - **Management tips always report unavailable** — `researchServiceProvider` returns `UnavailableResearchService` until the proxy and per-user auth wiring lands, so the UI, cache table and `ProxyResearchService` exist but no tip is ever fetched.
