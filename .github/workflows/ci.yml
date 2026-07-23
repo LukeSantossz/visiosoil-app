@@ -141,3 +141,22 @@ jobs:
             adb shell monkey -p com.visiosoil.visiosoil_app -c android.intent.category.LAUNCHER 1
             sleep 25
             if pid=$(adb shell pidof com.visiosoil.visiosoil_app | tr -d '[:space:]'); [ -n "$pid" ]; then adb logcat -d --pid="$pid" | grep -E "FATAL EXCEPTION|E AndroidRuntime|Unhandled Exception|EXCEPTION CAUGHT BY" && { echo "::error::App logged a fatal error on startup"; exit 1; }; echo "Boot smoke passed."; else echo "::error::App process not running after launch (crashed on startup)"; exit 1; fi
+
+  build-ios:
+    # Compile the real iOS target so an iOS-only platform-config break (e.g. the
+    # missing reversed-client-id URL scheme fixed in #66) fails the pipeline
+    # instead of merging green. macos-latest is the only runner that can run
+    # xcodebuild; --no-codesign exercises the Xcode/Info.plist build without
+    # needing signing certificates or provisioning profiles.
+    needs: [analyze, test]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.1"
+          cache: true
+      - run: flutter pub get
+      - name: Generate Drift adapters
+        run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter build ios --release --no-codesign
