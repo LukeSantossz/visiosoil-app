@@ -14,7 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const corrections = <String, List<(String bad, String good)>>{
     'lib/core/widgets/permission_denied_view.dart': [
-      ('Abrir Configuracoes', 'Abrir Configurações'),
+      ('Abrir Configuracoes', 'Abrir configurações'),
+      ('Abrir Configurações', 'Abrir configurações'),
     ],
     'lib/core/features/settings/settings_screen.dart': [
       ('Configuracoes', 'Configurações'),
@@ -23,6 +24,7 @@ void main() {
       ('Esta acao nao pode ser desfeita.', 'Esta ação não pode ser desfeita.'),
     ],
     'lib/core/features/capture/widgets/camera_permission_denied_view.dart': [
+      ('Nova Captura', 'Nova captura'),
       ('Camera restrita', 'Câmera restrita'),
       ('Acesso a camera necessario', 'Acesso à câmera necessário'),
       ('acesso a camera esta restrito', 'acesso à câmera está restrito'),
@@ -46,10 +48,17 @@ void main() {
       ('Buscar por endereco', 'Buscar por endereço'),
     ],
     'lib/core/features/history/widgets/history_grid.dart': [
+      ('Nova Captura', 'Nova captura'),
       (
         'Nao foi possivel carregar o historico',
         'Não foi possível carregar o histórico',
       ),
+    ],
+    'lib/core/features/capture/capture_screen.dart': [
+      ('Nova Captura', 'Nova captura'),
+    ],
+    'lib/core/features/capture/widgets/capture_actions.dart': [
+      ('Salvar Registro', 'Salvar registro'),
     ],
     'lib/core/features/splash/splash_screen.dart': [
       ('Solicitando permissoes...', 'Solicitando permissões...'),
