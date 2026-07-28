@@ -17,4 +17,29 @@ void main() {
     expect(find.byType(VisioSoilLogo), findsOneWidget);
     expect(find.bySemanticsLabel('VisioSoil'), findsOneWidget);
   });
+
+  testWidgets('paints at its declared size even under tight constraints',
+      (tester) async {
+    // The call sites place the logo in a fixed-size Container (tight
+    // constraints); the mark must still render at `size`, not stretch to fill.
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 100,
+            height: 100,
+            child: VisioSoilLogo(size: 24, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+
+    final paintSize = tester.getSize(
+      find.descendant(
+        of: find.byType(VisioSoilLogo),
+        matching: find.byType(CustomPaint),
+      ),
+    );
+    expect(paintSize, const Size(24, 24));
+  });
 }
