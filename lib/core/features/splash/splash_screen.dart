@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
 /// Initial splash screen of the app.
 ///
-/// Displays the VisioSoil logo, requests the required permissions (camera and
-/// location), and navigates to home when finished.
-class SplashScreen extends StatefulWidget {
+/// Displays the VisioSoil logo and requests the required permissions (camera
+/// and location). On first launch it then routes to the onboarding; on later
+/// launches it goes straight to home.
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -79,8 +82,12 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // Navigates to home
-    context.go('/');
+    // First launch shows the onboarding once; later launches go straight home.
+    final completed =
+        await ref.read(onboardingStoreProvider).hasCompletedOnboarding();
+    if (!mounted) return;
+
+    context.go(completed ? '/' : '/onboarding');
   }
 
   @override
