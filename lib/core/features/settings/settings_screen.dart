@@ -25,7 +25,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuracoes'),
+        title: const Text('Configurações'),
         centerTitle: true,
       ),
       body: ListView(
@@ -43,7 +43,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           _SettingsTile(
             icon: Icons.info_outline,
-            title: 'Versao do app',
+            title: 'Versão do app',
             trailing: pkgAsync.when(
               data: (pkg) => Text(
                 '${pkg.version}+${pkg.buildNumber}',
@@ -103,8 +103,8 @@ class SettingsScreen extends ConsumerWidget {
       context,
       title: 'Apagar todos os dados',
       message:
-          'Tem certeza? Todos os registros de solo serao removidos permanentemente. '
-          'Esta acao nao pode ser desfeita.',
+          'Tem certeza? Todos os registros de solo serão removidos permanentemente. '
+          'Esta ação não pode ser desfeita.',
       confirmLabel: 'Apagar tudo',
     );
 

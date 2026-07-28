@@ -75,7 +75,7 @@ void main() {
         onRetry: () {},
       )));
 
-      expect(find.text('Acesso a camera necessario'), findsOneWidget);
+      expect(find.text('Acesso à câmera necessário'), findsOneWidget);
       expect(
         tester
             .widget<PermissionDeniedView>(find.byType(PermissionDeniedView))
@@ -90,7 +90,7 @@ void main() {
         onRetry: () {},
       )));
 
-      expect(find.text('Camera restrita'), findsOneWidget);
+      expect(find.text('Câmera restrita'), findsOneWidget);
       expect(
         tester
             .widget<PermissionDeniedView>(find.byType(PermissionDeniedView))

@@ -22,7 +22,7 @@ class StatsGrid extends StatelessWidget {
         children: [
           _StatCard(
             value: stats != null ? '${stats.totalRecords}' : '-',
-            label: 'Analises',
+            label: 'Análises',
             icon: Icons.layers,
             color: AppColors.primary,
           ),
@@ -36,7 +36,7 @@ class StatsGrid extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
             value: stats?.formattedConfidence ?? '-',
-            label: 'Confianca',
+            label: 'Confiança',
             icon: Icons.track_changes,
             color: AppColors.tertiary,
           ),

@@ -57,17 +57,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     setState(() {
       _isRequestingPermissions = true;
-      _statusMessage = 'Solicitando permissoes...';
+      _statusMessage = 'Solicitando permissões...';
     });
 
     // Requests camera permission
-    setState(() => _statusMessage = 'Permissao de camera...');
+    setState(() => _statusMessage = 'Permissão de câmera...');
     await PermissionService.requestCamera();
 
     if (!mounted) return;
 
     // Requests location permission
-    setState(() => _statusMessage = 'Permissao de localizacao...');
+    setState(() => _statusMessage = 'Permissão de localização...');
     await PermissionService.requestLocation();
 
     if (!mounted) return;
@@ -142,7 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
                 const SizedBox(height: AppSpacing.sm),
                 // Tagline
                 Text(
-                  'Analise de textura do solo',
+                  'Análise de textura do solo',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppColors.onSurfaceVariant,
                   ),

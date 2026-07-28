@@ -43,7 +43,7 @@ class HistoryFilterBar extends ConsumerWidget {
             child: TextField(
               controller: searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar por endereco...',
+                hintText: 'Buscar por endereço...',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: searchTerm.isNotEmpty
                     ? IconButton(

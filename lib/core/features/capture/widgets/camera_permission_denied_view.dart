@@ -26,10 +26,10 @@ class CameraPermissionDeniedView extends StatelessWidget {
       appBar: const VisioAppBar(title: 'Nova Captura'),
       body: PermissionDeniedView(
         icon: Icons.camera_alt,
-        title: isRestricted ? 'Camera restrita' : 'Acesso a camera necessario',
+        title: isRestricted ? 'Câmera restrita' : 'Acesso à câmera necessário',
         description: isRestricted
-            ? 'O acesso a camera esta restrito por configuracoes do dispositivo (controle parental ou MDM). Contacte o administrador.'
-            : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso a camera do dispositivo.',
+            ? 'O acesso à câmera está restrito por configurações do dispositivo (controle parental ou MDM). Contacte o administrador.'
+            : 'Para capturar fotos de amostras de solo, o VisioSoil precisa de acesso à câmera do dispositivo.',
         isPermanentlyDenied: isPermanentlyDenied || isRestricted,
         onRetry: isRestricted ? null : onRetry,
       ),

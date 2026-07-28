@@ -30,23 +30,23 @@ void main() {
   testWidgets('shows the low-confidence banner below 60%', (tester) async {
     await pumpHeader(tester, 0.4);
 
-    expect(find.textContaining('Confianca baixa'), findsOneWidget);
-    expect(find.textContaining('Confianca moderada'), findsNothing);
+    expect(find.textContaining('Confiança baixa'), findsOneWidget);
+    expect(find.textContaining('Confiança moderada'), findsNothing);
   });
 
   testWidgets('shows the moderate-confidence banner in the 60-79% range',
       (tester) async {
     await pumpHeader(tester, 0.7);
 
-    expect(find.textContaining('Confianca moderada'), findsOneWidget);
-    expect(find.textContaining('Confianca baixa'), findsNothing);
+    expect(find.textContaining('Confiança moderada'), findsOneWidget);
+    expect(find.textContaining('Confiança baixa'), findsNothing);
   });
 
   testWidgets('shows no advisory banner at high confidence', (tester) async {
     await pumpHeader(tester, 0.95);
 
-    expect(find.textContaining('Confianca baixa'), findsNothing);
-    expect(find.textContaining('Confianca moderada'), findsNothing);
+    expect(find.textContaining('Confiança baixa'), findsNothing);
+    expect(find.textContaining('Confiança moderada'), findsNothing);
   });
 
   testWidgets('renders the texture class name and the confidence badge',

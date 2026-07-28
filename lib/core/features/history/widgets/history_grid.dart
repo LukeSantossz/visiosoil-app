@@ -38,12 +38,14 @@ class HistoryGrid extends ConsumerWidget {
     return asyncRecords.when(
       loading: () => const LoadingIndicator(),
       error: (error, stackTrace) => ErrorState(
-        message: 'Nao foi possivel carregar o historico.',
+        message: 'Não foi possível carregar o histórico.',
         onRetry: () => ref.invalidate(filteredRecordsProvider),
       ),
       data: (records) {
         if (records.isEmpty) {
-          return hasActiveFilter ? _EmptySearchState() : _EmptyHistoryState();
+          return hasActiveFilter
+              ? const _EmptySearchState()
+              : const _EmptyHistoryState();
         }
         return _buildGrid(records);
       },
@@ -81,6 +83,8 @@ class HistoryGrid extends ConsumerWidget {
 }
 
 class _EmptyHistoryState extends StatelessWidget {
+  const _EmptyHistoryState();
+
   @override
   Widget build(BuildContext context) {
     return EmptyState(
@@ -97,6 +101,8 @@ class _EmptyHistoryState extends StatelessWidget {
 }
 
 class _EmptySearchState extends StatelessWidget {
+  const _EmptySearchState();
+
   @override
   Widget build(BuildContext context) {
     return const EmptyState(
@@ -133,7 +139,7 @@ class _ThumbnailCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             _ThumbnailImage(imagePath: record.imagePath),
-            _GradientOverlay(),
+            const _GradientOverlay(),
             _TimestampLabel(timestamp: record.formattedTimestampCompact),
             if (isSelectionMode) _SelectionOverlay(isSelected: isSelected),
             if (isSelectionMode) _SelectionCheckbox(isSelected: isSelected),
@@ -190,6 +196,8 @@ class _ThumbnailImage extends StatelessWidget {
 }
 
 class _GradientOverlay extends StatelessWidget {
+  const _GradientOverlay();
+
   @override
   Widget build(BuildContext context) {
     return Positioned(
