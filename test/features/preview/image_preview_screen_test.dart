@@ -63,4 +63,31 @@ void main() {
       expect((fallback as Icon).icon, Icons.broken_image);
     },
   );
+
+  testWidgets('a load error shows a retry action', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider
+            .overrideWith((ref, id) async => throw Exception('boom')),
+      ],
+      child: const MaterialApp(home: ImagePreviewScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsOneWidget);
+  });
+
+  testWidgets('a null record shows the not-found view with no retry',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => null),
+      ],
+      child: const MaterialApp(home: ImagePreviewScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsNothing);
+  });
 }

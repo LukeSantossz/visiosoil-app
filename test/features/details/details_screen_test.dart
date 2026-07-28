@@ -262,4 +262,69 @@ void main() {
     expect(repository.deleteByIdCalls, isEmpty);
     expect(find.text('HOME_STUB'), findsNothing);
   });
+
+  testWidgets('a load error shows a retry action, not the not-found view',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider
+            .overrideWith((ref, id) async => throw Exception('boom')),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(find.text('Registro não encontrado'), findsNothing);
+  });
+
+  testWidgets('a null record shows the not-found view with no retry',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => null),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsNothing);
+  });
+
+  testWidgets('retry re-fetches and renders the record', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    var call = 0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async {
+          call++;
+          if (call == 1) throw Exception('boom');
+          return _locatedRecord();
+        }),
+        managementTipsRepositoryProvider
+            .overrideWithValue(FakeManagementTipsRepository()),
+        researchServiceProvider.overrideWithValue(
+          FakeResearchService(
+            (_) async =>
+                const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+          ),
+        ),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsOneWidget);
+
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsNothing);
+    expect(find.text('Compartilhar'), findsOneWidget);
+  });
 }
