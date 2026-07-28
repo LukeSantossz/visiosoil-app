@@ -9,6 +9,7 @@ import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
@@ -27,11 +28,32 @@ class DetailsScreen extends ConsumerWidget {
       loading: () => const Scaffold(
         body: LoadingIndicator(),
       ),
-      error: (_, _) => const _RecordNotFoundView(),
+      error: (_, _) => _DetailsErrorView(
+        onRetry: () => ref.invalidate(soilRecordByIdProvider(recordId)),
+      ),
       data: (record) {
         if (record == null) return const _RecordNotFoundView();
         return _DetailsContent(record: record, recordId: recordId);
       },
+    );
+  }
+}
+
+// --- Load Error (retryable) ---
+
+class _DetailsErrorView extends StatelessWidget {
+  const _DetailsErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detalhes')),
+      body: ErrorState(
+        message: 'Não foi possível carregar o registro.',
+        onRetry: onRetry,
+      ),
     );
   }
 }

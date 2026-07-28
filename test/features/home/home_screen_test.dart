@@ -51,17 +51,18 @@ void main() {
   });
 
   testWidgets('home retry re-subscribes and renders the data', (tester) async {
-    var call = 0;
-    await tester.pumpWidget(_homeUnderTest(() {
-      call++;
-      return call == 1
-          ? Stream.error(Exception('boom'))
-          : Stream.value([_record()]);
-    }));
+    // A flag flipped before the retry tap, not a call counter: the provider's
+    // creator can run more than once during the initial settle, so the failure
+    // must depend on state we control, not on the invocation count.
+    var fail = true;
+    await tester.pumpWidget(_homeUnderTest(
+      () => fail ? Stream.error(Exception('boom')) : Stream.value([_record()]),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.text('Tentar novamente'), findsOneWidget);
 
+    fail = false;
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
 

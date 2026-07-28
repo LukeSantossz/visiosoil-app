@@ -296,12 +296,14 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    var call = 0;
+    // A flag flipped before the retry tap, not a call counter: the provider's
+    // creator can run more than once during the initial settle, so the failure
+    // must depend on state we control, not on the invocation count.
+    var fail = true;
     await tester.pumpWidget(ProviderScope(
       overrides: [
         soilRecordByIdProvider.overrideWith((ref, id) async {
-          call++;
-          if (call == 1) throw Exception('boom');
+          if (fail) throw Exception('boom');
           return _locatedRecord();
         }),
         managementTipsRepositoryProvider
@@ -321,6 +323,7 @@ void main() {
 
     expect(find.text('Tentar novamente'), findsOneWidget);
 
+    fail = false;
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
 
