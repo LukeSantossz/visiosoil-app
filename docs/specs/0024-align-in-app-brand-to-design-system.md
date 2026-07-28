@@ -1,11 +1,13 @@
 # SPEC: feat(brand): align the in-app mark and copy to the design system
 
 ## Problem
+
 The app renders `Icons.layers` as its logo (splash and home hero) instead of the
 official VisioSoil brand mark, and three UI strings use Title Case where the
 design system mandates sentence case.
 
 ## Design Decision
+
 Add a dependency-free `VisioSoilLogo` widget that paints the official mark with a
 `CustomPainter` translated one-to-one from the design system's canonical
 `assets/logo-mark.svg` (a 48×48 geometry: a lens ring, three decreasing grain
@@ -16,6 +18,7 @@ the design system's June-2026 slimming dropped and that the app already leaves
 unused (`success`, `surfaceDim`).
 
 ## Alternatives Considered
+
 - **Render the mark via `flutter_svg` from a bundled asset:** rejected — the mark
   is five primitives (one stroked circle, three filled circles, one line), so a
   `CustomPainter` matches it exactly without a new runtime dependency or an
@@ -30,6 +33,7 @@ unused (`success`, `surfaceDim`).
   pending the design system's own home mockup.
 
 ## Scope
+
 - Includes:
   - `VisioSoilLogo` widget (`CustomPainter`) rendering the official mark, with a
     `color` and `size` parameter and a "VisioSoil" semantics label.
@@ -48,12 +52,14 @@ unused (`success`, `surfaceDim`).
   - Versioning the design-system export (kept local, reference only).
 
 ## Acceptance Criteria
+
 - logo_widget_renders_with_semantics: pumping `VisioSoilLogo` builds without
   error and exposes the "VisioSoil" semantics label.
 - hero_uses_the_brand_mark: `HeroSection` renders a `VisioSoilLogo` and no
   `Icon(Icons.layers)`.
-- corrected_copy_present_and_titlecase_absent: every occurrence uses the
-  sentence-case string and no file retains the Title-Case form.
+- corrected_copy_present_and_titlecase_absent: under `lib/`, every occurrence
+  uses the sentence-case string and no source retains the Title-Case form (the
+  replacement examples quoted in this spec and its tests are excluded).
 - removed_tokens_absent: `AppColors` no longer declares `success` or `surfaceDim`.
 - analyze_clean: `flutter analyze` reports no new issues.
 - tests_green: `flutter test` passes.
@@ -65,6 +71,7 @@ issues #133/#137). `AppColors.success`/`surfaceDim` removal is a pure deletion o
 unused constants, verified by a clean `flutter analyze` and the passing suite.
 
 ## Reproducibility
+
 - Toolchain: Flutter 3.44.1 / Dart 3.12.1 (pinned per `ci.yml`).
 - Mark geometry source: the design system's `assets/logo-mark.svg`
   (viewBox 0 0 48 48): ring `cx20 cy20 r13 stroke 3.2`; grains
@@ -73,6 +80,7 @@ unused constants, verified by a clean `flutter analyze` and the passing suite.
 - Run: `flutter analyze && flutter test`.
 
 ## Risks and Assumptions
+
 - Assumption: `AppColors.success` and `AppColors.surfaceDim` are unused across
   `lib/` and `test/`; verified by search before removal. Invalidated only if a
   later reference is added before this lands.
