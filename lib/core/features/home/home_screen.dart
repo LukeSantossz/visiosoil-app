@@ -17,10 +17,11 @@ class HomeScreen extends ConsumerWidget {
     final statsAsync = ref.watch(homeStatsProvider);
 
     // The stats and last-analysis sections both derive from the one records
-    // stream, so a single inline error card replaces that region (while the
-    // hero and the capture action stay available). The base stream is the
-    // authoritative error signal: its `hasError` is set as soon as the stream
-    // fails, whereas the derived providers can lag in a combined loading state.
+    // stream, so a single inline error card replaces that region while the hero
+    // and the capture action stay available. Read the base stream's hasError
+    // directly: the derived providers wrap it with `.whenData`, which does not
+    // re-expose hasError in the combined loading+error state a failed reload
+    // produces, so the base stream is the reliable error signal.
     final hasError = ref.watch(soilRecordsStreamProvider).hasError;
 
     return Scaffold(
