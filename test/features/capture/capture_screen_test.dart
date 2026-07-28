@@ -290,7 +290,7 @@ void main() {
     ));
 
     await capture(tester);
-    await tester.tap(find.text('Salvar Registro'));
+    await tester.tap(find.text('Salvar registro'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
@@ -301,10 +301,10 @@ void main() {
       find.text('Não foi possível salvar o registro. Tente novamente.'),
       findsOneWidget,
     );
-    expect(find.text('Salvar Registro'), findsOneWidget);
+    expect(find.text('Salvar registro'), findsOneWidget);
 
     // The Save button is re-enabled: a second tap retries the write.
-    await tester.tap(find.text('Salvar Registro'));
+    await tester.tap(find.text('Salvar registro'));
     await tester.pump();
     expect(repository.createCalls.length, 2);
   });
@@ -322,7 +322,7 @@ void main() {
     await tester.tap(find.text('open capture'));
     await tester.pumpAndSettle();
     await capture(tester);
-    await tester.tap(find.text('Salvar Registro'));
+    await tester.tap(find.text('Salvar registro'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }

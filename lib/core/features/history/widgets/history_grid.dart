@@ -92,7 +92,7 @@ class _EmptyHistoryState extends StatelessWidget {
       title: 'Nenhum registro',
       description: 'Capture sua primeira amostra de solo para começar.',
       action: VisioButton(
-        label: 'Nova Captura',
+        label: 'Nova captura',
         icon: Icons.camera_alt,
         onPressed: () => context.push('/capture'),
       ),
