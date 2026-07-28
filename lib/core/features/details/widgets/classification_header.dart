@@ -35,9 +35,9 @@ class ClassificationHeader extends StatelessWidget {
   }
 
   String _bannerMessage(ConfidenceLevel level) => level == ConfidenceLevel.low
-      ? 'Confianca baixa. Considere refazer a captura com melhor '
-          'iluminacao e enquadramento.'
-      : 'Confianca moderada. O resultado pode nao refletir a textura real.';
+      ? 'Confiança baixa. Considere refazer a captura com melhor '
+          'iluminação e enquadramento.'
+      : 'Confiança moderada. O resultado pode não refletir a textura real.';
 }
 
 class _TextureNameRow extends StatelessWidget {

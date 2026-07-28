@@ -59,7 +59,7 @@ void main() {
     await tester.pumpWidget(
       host(const StatsGrid(statsAsync: AsyncValue<HomeStats>.loading())),
     );
-    expect(find.text('Analises'), findsOneWidget);
+    expect(find.text('Análises'), findsOneWidget);
     expect(find.text('-'), findsWidgets);
 
     await tester.pumpWidget(

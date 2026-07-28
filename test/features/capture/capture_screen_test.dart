@@ -394,7 +394,7 @@ void main() {
 
     await capture(tester);
 
-    expect(find.text('Acesso a camera necessario'), findsOneWidget);
+    expect(find.text('Acesso à câmera necessário'), findsOneWidget);
     expect(find.text('Câmera'), findsNothing);
   });
 

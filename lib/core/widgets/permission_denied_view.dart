@@ -78,7 +78,7 @@ class PermissionDeniedView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => PermissionService.openSettings(),
                 icon: const Icon(Icons.settings),
-                label: const Text('Abrir Configuracoes'),
+                label: const Text('Abrir Configurações'),
               )
             else if (onRetry != null)
               OutlinedButton.icon(
