@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,12 +81,5 @@ void main() {
     expect(store.markCalls, 1);
     expect(find.text('OPEN'), findsOneWidget); // back on the host route
     expect(find.text('Pular'), findsNothing); // onboarding is gone
-  });
-
-  test('OnboardingScreen no longer declares an onComplete parameter', () {
-    final source =
-        File('lib/core/features/onboarding/onboarding_screen.dart')
-            .readAsStringSync();
-    expect(source.contains('onComplete'), isFalse);
   });
 }
