@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// The home dashboard header: a brand bar, a time-of-day greeting, and (when a
@@ -86,7 +87,7 @@ class _HeroTopBar extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.layers, color: Colors.white, size: 19),
+          child: const VisioSoilLogo(size: 19, color: Colors.white),
         ),
         const SizedBox(width: 10),
         Expanded(

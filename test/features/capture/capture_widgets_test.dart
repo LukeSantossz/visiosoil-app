@@ -112,7 +112,7 @@ void main() {
       )));
 
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar Registro'), findsNothing);
+      expect(find.text('Salvar registro'), findsNothing);
     });
 
     testWidgets('shows save and discard once an image exists', (tester) async {
@@ -124,7 +124,7 @@ void main() {
         onDiscard: () {},
       )));
 
-      expect(find.text('Salvar Registro'), findsOneWidget);
+      expect(find.text('Salvar registro'), findsOneWidget);
       expect(find.text('Descartar'), findsOneWidget);
     });
 
@@ -141,7 +141,7 @@ void main() {
       // assert the disabled state through the widget's own onPressed.
       final saveButton = tester.widget<VisioButton>(
         find.byWidgetPredicate(
-          (w) => w is VisioButton && w.label == 'Salvar Registro',
+          (w) => w is VisioButton && w.label == 'Salvar registro',
         ),
       );
       expect(saveButton.onPressed, isNull,

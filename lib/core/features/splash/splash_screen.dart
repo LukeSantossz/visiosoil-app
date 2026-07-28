@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
 /// Initial splash screen of the app.
@@ -131,11 +132,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.layers,
-                    size: 64,
-                    color: Colors.white,
-                  ),
+                  child: const VisioSoilLogo(size: 64, color: Colors.white),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 // App name

@@ -31,15 +31,11 @@ abstract final class AppColors {
   static const Color warning = Color(0xFFC88A3D);
   static const Color warningContainer = Color(0xFFFBEBD2);
 
-  // Success (alias for primary in agricultural context)
-  static const Color success = Color(0xFF4A7C59);
-
   // Background & Surface
   static const Color background = Color(0xFFF8FAF5);
   static const Color onBackground = Color(0xFF1A1C19);
   static const Color surface = Color(0xFFFCFDF8);
   static const Color onSurface = Color(0xFF1A1C19);
-  static const Color surfaceDim = Color(0xFFF0F2EB);
   static const Color surfaceVariant = Color(0xFFE0E4DA);
   static const Color onSurfaceVariant = Color(0xFF43483E);
 

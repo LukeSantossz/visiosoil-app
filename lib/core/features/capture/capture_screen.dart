@@ -335,7 +335,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final hasImage = selectedImage.hasImage;
 
     return Scaffold(
-      appBar: const VisioAppBar(title: 'Nova Captura'),
+      appBar: const VisioAppBar(title: 'Nova captura'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),

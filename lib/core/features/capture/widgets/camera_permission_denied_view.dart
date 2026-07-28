@@ -23,7 +23,7 @@ class CameraPermissionDeniedView extends StatelessWidget {
     final isPermanentlyDenied = status == AppPermissionStatus.permanentlyDenied;
 
     return Scaffold(
-      appBar: const VisioAppBar(title: 'Nova Captura'),
+      appBar: const VisioAppBar(title: 'Nova captura'),
       body: PermissionDeniedView(
         icon: Icons.camera_alt,
         title: isRestricted ? 'Câmera restrita' : 'Acesso à câmera necessário',

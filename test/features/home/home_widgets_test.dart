@@ -8,6 +8,7 @@ import 'package:visiosoil_app/core/features/home/widgets/hero_section.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/home/widgets/primary_action.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
+import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -30,6 +31,9 @@ void main() {
 
     expect(find.text('VisioSoil'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    // The brand bar shows the official mark, not the placeholder layers icon.
+    expect(find.byType(VisioSoilLogo), findsOneWidget);
+    expect(find.byIcon(Icons.layers), findsNothing);
   });
 
   testWidgets('HeroSection shows the last-analysis line for a classified record',

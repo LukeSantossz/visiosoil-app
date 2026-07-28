@@ -36,7 +36,7 @@ class CaptureActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         VisioButton(
-          label: 'Salvar Registro',
+          label: 'Salvar registro',
           icon: Icons.check,
           onPressed: isBusy ? null : onSave,
           isLoading: isBusy,
