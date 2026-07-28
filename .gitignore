@@ -88,3 +88,5 @@ assets/models/spec.json
 **/flutter/generated_plugin_registrant.h
 **/flutter/generated_plugins.cmake
 **/Flutter/GeneratedPluginRegistrant.swift
+# Local design-system reference export (not versioned)
+/VisioSoil Design System/
