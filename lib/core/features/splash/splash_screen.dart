@@ -8,8 +8,9 @@ import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
 /// Initial splash screen of the app.
 ///
-/// Displays the VisioSoil logo, requests the required permissions (camera and
-/// location), and navigates to home when finished.
+/// Displays the VisioSoil logo and requests the required permissions (camera
+/// and location). On first launch it then routes to the onboarding; on later
+/// launches it goes straight to home.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
