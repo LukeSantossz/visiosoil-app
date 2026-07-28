@@ -262,4 +262,72 @@ void main() {
     expect(repository.deleteByIdCalls, isEmpty);
     expect(find.text('HOME_STUB'), findsNothing);
   });
+
+  testWidgets('a load error shows a retry action, not the not-found view',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider
+            .overrideWith((ref, id) async => throw Exception('boom')),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(find.text('Registro não encontrado'), findsNothing);
+  });
+
+  testWidgets('a null record shows the not-found view with no retry',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => null),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsNothing);
+  });
+
+  testWidgets('retry re-fetches and renders the record', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    // A flag flipped before the retry tap, not a call counter: the provider's
+    // creator can run more than once during the initial settle, so the failure
+    // must depend on state we control, not on the invocation count.
+    var fail = true;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async {
+          if (fail) throw Exception('boom');
+          return _locatedRecord();
+        }),
+        managementTipsRepositoryProvider
+            .overrideWithValue(FakeManagementTipsRepository()),
+        researchServiceProvider.overrideWithValue(
+          FakeResearchService(
+            (_) async =>
+                const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+          ),
+        ),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsOneWidget);
+
+    fail = false;
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tentar novamente'), findsNothing);
+    expect(find.text('Compartilhar'), findsOneWidget);
+  });
 }
