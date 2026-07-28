@@ -88,13 +88,23 @@ void main() {
       '_EmptySearchState',
       '_GradientOverlay',
     ]) {
-      test('$widget is constructed with const', () {
+      test('$widget declares and is constructed with const', () {
+        final usage = RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)');
         expect(
-          source,
-          contains('const $widget()'),
+          RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;')
+              .hasMatch(source),
+          isTrue,
+          reason: '$widget must declare a const constructor',
+        );
+        // At least two occurrences: the declaration plus one const call site.
+        // Guards against a call site regressing to non-const while the const
+        // constructor stays declared (which `contains` alone would miss).
+        expect(
+          usage.allMatches(source).length,
+          greaterThanOrEqualTo(2),
           reason:
-              '$widget must have a const constructor used at its call site to '
-              'avoid needless rebuilds',
+              '$widget must have a const constructor and at least one const '
+              'call site to avoid needless rebuilds',
         );
       });
     }
