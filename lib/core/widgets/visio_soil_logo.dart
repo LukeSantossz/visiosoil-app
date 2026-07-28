@@ -15,12 +15,16 @@ class VisioSoilLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Center so a fixed-size (tight-constraint) parent — like the splash and
+    // hero containers — cannot stretch the mark past its declared [size].
     return Semantics(
       label: 'VisioSoil',
       image: true,
-      child: SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _VisioSoilLogoPainter(color)),
+      child: Center(
+        child: SizedBox.square(
+          dimension: size,
+          child: CustomPaint(painter: _VisioSoilLogoPainter(color)),
+        ),
       ),
     );
   }
