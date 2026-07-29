@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// The prominent new-analysis call-to-action card on the home screen.
 class PrimaryAction extends StatelessWidget {
@@ -10,15 +12,20 @@ class PrimaryAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Material(
         color: AppColors.onSurface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               boxShadow: const [
                 BoxShadow(
@@ -27,7 +34,7 @@ class PrimaryAction extends StatelessWidget {
                   offset: Offset(0, 10),
                 ),
               ],
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: const _ActionRow(),
           ),
@@ -51,11 +58,11 @@ class _ActionRow extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: AppColors.primary,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
@@ -124,10 +125,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       end: Alignment.bottomRight,
                       colors: [AppColors.primary, AppColors.tertiary],
                     ),
-                    borderRadius: BorderRadius.circular(32),
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
+                        color: AppColors.shadowBrand,
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),

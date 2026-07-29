@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -23,7 +24,12 @@ class LastAnalysisSection extends StatelessWidget {
     if (record == null) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -35,7 +41,7 @@ class LastAnalysisSection extends StatelessWidget {
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           _AnalysisCard(record: record),
         ],
       ),
@@ -72,9 +78,9 @@ class _AnalysisCard extends StatelessWidget {
         child: Row(
           children: [
             _AnalysisThumbnail(record: record),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(child: _AnalysisInfo(record: record)),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
           ],
         ),
       ),
@@ -119,7 +125,7 @@ class _AnalysisInfo extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -130,10 +136,12 @@ class _AnalysisInfo extends StatelessWidget {
                 style: theme.textTheme.titleSmall?.copyWith(letterSpacing: -0.2),
               ),
               if (record.confidenceScore != null) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryContainer,
                     borderRadius: AppRadius.borderRadiusPill,
@@ -157,7 +165,7 @@ class _AnalysisInfo extends StatelessWidget {
               color: AppColors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
               Text(
@@ -167,7 +175,7 @@ class _AnalysisInfo extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               const Icon(Icons.arrow_forward, size: 11, color: AppColors.primary),
             ],
           ),

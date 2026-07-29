@@ -119,9 +119,12 @@ class _ConfidenceBadge extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(level.icon, size: 14, color: level.foregroundColor),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
           decoration: BoxDecoration(
             color: level.backgroundColor,
             borderRadius: AppRadius.borderRadiusPill,

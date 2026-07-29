@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -20,7 +21,7 @@ class HeroSection extends StatelessWidget {
     final latest = latestAsync.value;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment(-0.5, -1),
@@ -36,7 +37,7 @@ class HeroSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _HeroTopBar(onOpenSettings: () => context.push('/settings')),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.md),
           Text(
             _greeting(),
             style: theme.textTheme.headlineSmall?.copyWith(
@@ -45,7 +46,7 @@ class HeroSection extends StatelessWidget {
             ),
           ),
           if (latest != null && latest.hasClassification) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             _LastAnalysisLine(latest: latest),
           ],
         ],
@@ -89,7 +90,7 @@ class _HeroTopBar extends StatelessWidget {
           ),
           child: const VisioSoilLogo(size: 19, color: Colors.white),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             'VisioSoil',
