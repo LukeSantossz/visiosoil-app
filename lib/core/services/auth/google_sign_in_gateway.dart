@@ -35,12 +35,10 @@ abstract class GoogleSignInGateway {
 class GoogleSignInGatewayImpl implements GoogleSignInGateway {
   GoogleSignInGatewayImpl({
     GoogleSignIn? googleSignIn,
-    Duration tokenValidity = const Duration(minutes: 50),
-    DateTime Function() clock = DateTime.now,
-  })  : _googleSignIn = googleSignIn ??
-            GoogleSignIn(scopes: const [_driveScope]),
-        _tokenValidity = tokenValidity,
-        _clock = clock;
+    this._tokenValidity = const Duration(minutes: 50),
+    this._clock = DateTime.now,
+  }) : _googleSignIn =
+            googleSignIn ?? GoogleSignIn(scopes: const [_driveScope]);
 
   /// Narrowest Drive scope that lets #55 store its own app data.
   static const _driveScope = 'https://www.googleapis.com/auth/drive.file';
