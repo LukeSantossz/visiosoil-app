@@ -20,18 +20,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 String _read(String path) => File(path).readAsStringSync();
 
-/// The source with all whitespace removed, so multi-line and single-line forms
-/// of the same expression collapse to one comparable string.
-String _packed(String path) => _read(path).replaceAll(RegExp(r'\s+'), '');
+/// The source with all whitespace and trailing commas removed, so multi-line
+/// (with a dangling comma before the close paren) and single-line forms of the
+/// same expression collapse to one comparable string.
+String _packed(String path) =>
+    _read(path).replaceAll(RegExp(r'\s+'), '').replaceAll(RegExp(r',(?=\))'), '');
 
 void main() {
   group('home widgets snap off-scale spacing/radius to tokens', () {
     test('hero_section has no off-scale padding/gap literals', () {
       final src = _packed('lib/core/features/home/widgets/hero_section.dart');
-      expect(src, contains('AppSpacing.'));
       expect(src, isNot(contains('fromLTRB(20,')));
       expect(src, isNot(contains('SizedBox(height:14)')));
       expect(src, isNot(contains('SizedBox(width:10)')));
+      expect(src, contains('EdgeInsets.all(AppSpacing.lg)'));
+      expect(src, contains('SizedBox(height:AppSpacing.md)'));
     });
 
     test('primary_action snaps card radius and paddings', () {
@@ -43,6 +46,11 @@ void main() {
       expect(src, isNot(contains('SizedBox(width:14)')));
       expect(src, contains('circular(AppRadius.lg)'));
       expect(src, contains('circular(AppRadius.md)'));
+      expect(
+        src,
+        contains('fromLTRB(AppSpacing.lg,AppSpacing.lg,AppSpacing.lg,'
+            'AppSpacing.sm)'),
+      );
     });
 
     test('stats_grid snaps its outer and card paddings', () {
@@ -50,17 +58,25 @@ void main() {
       expect(src, isNot(contains('fromLTRB(20,')));
       expect(src, isNot(contains('EdgeInsets.all(10)')));
       expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
+      expect(
+        src,
+        contains('fromLTRB(AppSpacing.lg,AppSpacing.md,AppSpacing.lg,0)'),
+      );
     });
 
     test('last_analysis_section snaps its paddings and gaps', () {
       final src =
           _packed('lib/core/features/home/widgets/last_analysis_section.dart');
-      expect(src, contains('AppSpacing.'));
       expect(src, isNot(contains('fromLTRB(20,')));
       expect(src, isNot(contains('SizedBox(height:10)')));
       expect(src, isNot(contains('SizedBox(width:6)')));
       expect(src, isNot(contains('horizontal:7')));
       expect(src, isNot(contains('symmetric(vertical:10)')));
+      expect(
+        src,
+        contains('fromLTRB(AppSpacing.lg,AppSpacing.md,AppSpacing.lg,0)'),
+      );
+      expect(src, contains('symmetric(vertical:AppSpacing.sm)'));
     });
   });
 
@@ -68,6 +84,11 @@ void main() {
     test('details_screen snaps its content padding', () {
       final src = _packed('lib/core/features/details/details_screen.dart');
       expect(src, isNot(contains('fromLTRB(20,')));
+      expect(
+        src,
+        contains('fromLTRB(AppSpacing.lg,AppSpacing.lg,AppSpacing.lg,'
+            'AppSpacing.xxl)'),
+      );
     });
 
     test('classification_header snaps its badge padding to sm/xs', () {

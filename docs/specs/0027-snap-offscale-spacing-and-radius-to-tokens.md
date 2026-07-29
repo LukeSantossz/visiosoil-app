@@ -6,7 +6,7 @@ A design-system re-audit found the home dashboard widgets and a few details/prev
 
 ## Design Decision
 
-Snap each off-scale value to its nearest scale step, anchored to the app's established convention (`AppSpacing.lg`/`AppRadius.lg` = 16 is the canonical card/screen padding), and reference the named `AppSpacing`/`AppRadius` constants instead of literals. Sub-token hairline spacers (`2 px`) are left as-is — they are below the scale by intent, not off it. This is a purely visual-hygiene refactor: no behavior, copy, or layout structure changes, only spacing/radius magnitudes move to the nearest token.
+Snap each off-scale value to its nearest scale step, anchored to the app's established convention (`AppSpacing.lg`/`AppRadius.lg` = 16 is the canonical card/screen padding), and reference the named `AppSpacing`/`AppRadius` constants instead of literals. Where a value is equidistant between two steps — notably `20 px`, halfway between 16 and 24 — the snap table below is authoritative and the target is chosen per component role, not by a single global tie-breaking rule: card paddings and CTA card radii snap down to 16, while the bottom-sheet and splash-logo radii snap up to 24. Sub-token hairline spacers (`2 px`) are left as-is — they are below the scale by intent, not off it. This is a purely visual-hygiene refactor: no behavior, copy, or layout structure changes, only spacing/radius magnitudes move to the nearest token.
 
 Snap table:
 
@@ -57,5 +57,5 @@ Snap table:
 
 ## Risks and Assumptions
 
-- Assumption: snapping to the nearest scale step is visually neutral-to-improving (subtle tightening on the home). Each snap is small (≤4 px); validated screen-by-screen on the emulator before merge, and reversible per site if any reads worse.
+- Assumption: snapping to the nearest scale step is visually neutral-to-improving (subtle tightening on the home). Spacing changes are at most 4 px, while the largest radius change is 8 px (the splash logo container, 32 → 24); validated screen-by-screen on the emulator before merge, and reversible per site if any reads worse.
 - Assumption: no test asserts an exact off-scale pixel value; if one does, it is updated to the snapped value as part of the same change (no behavior change, only the magnitude the test pins).
