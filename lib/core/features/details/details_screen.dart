@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -179,13 +180,11 @@ class _ActionButtons extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         // Delete
-        TextButton.icon(
+        VisioButton(
+          label: 'Excluir registro',
           onPressed: () => _confirmAndDelete(context, ref),
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('Excluir registro'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.error,
-          ),
+          icon: Icons.delete_outline,
+          variant: VisioButtonVariant.destructive,
         ),
       ],
     );

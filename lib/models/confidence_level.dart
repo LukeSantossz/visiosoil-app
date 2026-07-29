@@ -41,7 +41,7 @@ enum ConfidenceLevel {
   /// Badge text/icon color.
   Color get foregroundColor => switch (this) {
         ConfidenceLevel.high => AppColors.onPrimaryContainer,
-        ConfidenceLevel.moderate => const Color(0xFF6D4C1D),
+        ConfidenceLevel.moderate => AppColors.onWarningContainer,
         ConfidenceLevel.low => AppColors.onErrorContainer,
       };
 
