@@ -30,6 +30,7 @@ abstract final class AppColors {
   // Warning - Earthy amber
   static const Color warning = Color(0xFFC88A3D);
   static const Color warningContainer = Color(0xFFFBEBD2);
+  static const Color onWarningContainer = Color(0xFF6D4C1D);
 
   // Background & Surface
   static const Color background = Color(0xFFF8FAF5);
