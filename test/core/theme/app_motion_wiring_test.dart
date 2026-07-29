@@ -12,9 +12,9 @@ void main() {
   test('splash intro is wired to AppMotion (duration + both curves)', () {
     final src =
         File('lib/core/features/splash/splash_screen.dart').readAsStringSync();
-    expect(src, contains('AppMotion.reveal'));
-    expect(src, contains('AppMotion.standard'));
-    expect(src, contains('AppMotion.emphasized'));
+    expect(src, contains('duration: AppMotion.reveal'));
+    expect(src, contains('curve: AppMotion.standard'));
+    expect(src, contains('curve: AppMotion.emphasized'));
     expect(src, isNot(contains('Curves.easeIn')));
     expect(src, isNot(contains('Curves.easeOutBack')));
   });
@@ -22,13 +22,13 @@ void main() {
   test('onboarding page transition is wired to AppMotion', () {
     final src = File('lib/core/features/onboarding/onboarding_screen.dart')
         .readAsStringSync();
-    expect(src, contains('AppMotion.slow'));
-    expect(src, contains('AppMotion.standard'));
+    expect(src, contains('duration: AppMotion.slow'));
+    expect(src, contains('curve: AppMotion.standard'));
   });
 
   test('history thumbnail switch duration is wired to AppMotion', () {
     final src = File('lib/core/features/history/widgets/history_grid.dart')
         .readAsStringSync();
-    expect(src, contains('AppMotion.base'));
+    expect(src, contains('duration: AppMotion.base'));
   });
 }
