@@ -3,7 +3,8 @@
 // Flutter's own engine, so no external tool (ImageMagick) is needed. It is
 // skipped in CI; run it explicitly to (re)produce the committed sources:
 //
-//   GENERATE_ICONS=1 flutter test test/tools/generate_app_icon_test.dart
+//   PowerShell:  $env:GENERATE_ICONS=1; flutter test test/tools/generate_app_icon_test.dart
+//   bash:        GENERATE_ICONS=1 flutter test test/tools/generate_app_icon_test.dart
 //
 // Then regenerate the platform icons with: dart run flutter_launcher_icons
 import 'dart:io';
@@ -48,11 +49,14 @@ void main() {
       background: const Color(0xFF4A7C59),
       markFraction: 0.60,
     );
-    // Android adaptive foreground: transparent, mark pulled in to the safe zone.
+    // Android adaptive foreground: transparent and near-full-bleed. The safe
+    // zone comes from flutter_launcher_icons' own 16% inset in the generated
+    // mipmap-anydpi-v26 XML, so the source must NOT be pre-shrunk (that would
+    // double the padding and leave the mark undersized on API 26+).
     await _writeTile(
       path: 'assets/branding/app_icon_foreground.png',
       background: null,
-      markFraction: 0.50,
+      markFraction: 0.90,
     );
   },
       skip: Platform.environment['GENERATE_ICONS'] != '1'
