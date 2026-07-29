@@ -30,36 +30,42 @@ class VisioSoilLogo extends StatelessWidget {
   }
 }
 
+/// Paints the official VisioSoil mark in [color], scaled to fill [size], onto
+/// [canvas]. Shared single source of truth for the geometry: the [VisioSoilLogo]
+/// widget and the app-launcher-icon generator both draw through this routine so
+/// the in-app mark and the icon can never drift.
+void paintVisioSoilMark(Canvas canvas, Size size, Color color) {
+  // Stroke widths and coordinates scale from the 48-unit viewBox.
+  final s = size.width / 48.0;
+  final stroke = Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  final fill = Paint()
+    ..color = color
+    ..style = PaintingStyle.fill;
+
+  // Lens ring.
+  stroke.strokeWidth = 3.2 * s;
+  canvas.drawCircle(Offset(20 * s, 20 * s), 13 * s, stroke);
+
+  // Three decreasing soil grains inside the lens.
+  canvas.drawCircle(Offset(16.5 * s, 18 * s), 3 * s, fill);
+  canvas.drawCircle(Offset(23.5 * s, 19.5 * s), 2.1 * s, fill);
+  canvas.drawCircle(Offset(19.5 * s, 24.5 * s), 1.4 * s, fill);
+
+  // Handle.
+  stroke.strokeWidth = 3.4 * s;
+  canvas.drawLine(Offset(29.5 * s, 29.5 * s), Offset(39 * s, 39 * s), stroke);
+}
+
 class _VisioSoilLogoPainter extends CustomPainter {
   const _VisioSoilLogoPainter(this.color);
 
   final Color color;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    // Stroke widths and coordinates scale from the 48-unit viewBox.
-    final s = size.width / 48.0;
-    final stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final fill = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Lens ring.
-    stroke.strokeWidth = 3.2 * s;
-    canvas.drawCircle(Offset(20 * s, 20 * s), 13 * s, stroke);
-
-    // Three decreasing soil grains inside the lens.
-    canvas.drawCircle(Offset(16.5 * s, 18 * s), 3 * s, fill);
-    canvas.drawCircle(Offset(23.5 * s, 19.5 * s), 2.1 * s, fill);
-    canvas.drawCircle(Offset(19.5 * s, 24.5 * s), 1.4 * s, fill);
-
-    // Handle.
-    stroke.strokeWidth = 3.4 * s;
-    canvas.drawLine(Offset(29.5 * s, 29.5 * s), Offset(39 * s, 39 * s), stroke);
-  }
+  void paint(Canvas canvas, Size size) => paintVisioSoilMark(canvas, size, color);
 
   @override
   bool shouldRepaint(_VisioSoilLogoPainter oldDelegate) =>

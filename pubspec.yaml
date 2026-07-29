@@ -80,6 +80,7 @@ dev_dependencies:
   sqlite3: ^2.4.0
   # Fake SharePlatform in ShareService tests (share_plus federated seam)
   share_plus_platform_interface: ^6.1.0
+  flutter_launcher_icons: 0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -110,3 +111,14 @@ flutter:
           weight: 500
         - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
+
+# Launcher icon (spec 0025). Sources are generated from the brand mark by
+# test/tools/generate_app_icon_test.dart; regenerate platform icons with
+# `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/branding/app_icon.png"
+  adaptive_icon_background: "#4A7C59"
+  adaptive_icon_foreground: "assets/branding/app_icon_foreground.png"
+  remove_alpha_ios: true
