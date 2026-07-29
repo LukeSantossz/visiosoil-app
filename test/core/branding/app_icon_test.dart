@@ -41,4 +41,38 @@ void main() {
     expect(whiteFound, isTrue,
         reason: 'the white brand mark must be present in the tile centre');
   });
+
+  test('app_icon_foreground.png is a transparent tile carrying a white mark',
+      () {
+    final file = File('assets/branding/app_icon_foreground.png');
+    expect(
+      file.existsSync(),
+      isTrue,
+      reason: 'regenerate with: '
+          'GENERATE_ICONS=1 flutter test test/tools/generate_app_icon_test.dart',
+    );
+
+    final image = img.decodePng(file.readAsBytesSync());
+    expect(image, isNotNull);
+    expect(image!.width, 1024);
+    expect(image.height, 1024);
+
+    // The adaptive foreground has no tile: a corner must be fully transparent so
+    // the green background layer shows through.
+    expect(image.getPixel(4, 4).a, 0);
+
+    // The white mark occupies the centre; find at least one opaque white pixel.
+    var whiteFound = false;
+    for (var y = 300; y < 724 && !whiteFound; y += 4) {
+      for (var x = 300; x < 724; x += 4) {
+        final p = image.getPixel(x, y);
+        if (p.a > 200 && p.r > 230 && p.g > 230 && p.b > 230) {
+          whiteFound = true;
+          break;
+        }
+      }
+    }
+    expect(whiteFound, isTrue,
+        reason: 'the white brand mark must be present in the foreground centre');
+  });
 }
