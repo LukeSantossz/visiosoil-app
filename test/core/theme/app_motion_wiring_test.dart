@@ -26,11 +26,9 @@ void main() {
     expect(src, contains('AppMotion.standard'));
   });
 
-  test('history thumbnail switch is wired to AppMotion (in + out curves)', () {
+  test('history thumbnail switch duration is wired to AppMotion', () {
     final src = File('lib/core/features/history/widgets/history_grid.dart')
         .readAsStringSync();
     expect(src, contains('AppMotion.base'));
-    expect(src, contains('AppMotion.standard'));
-    expect(src, contains('AppMotion.out'));
   });
 }

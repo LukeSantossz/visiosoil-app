@@ -44,8 +44,13 @@ class VisioButton extends StatelessWidget {
         ElevatedButton(onPressed: onPressedOrNull, child: child),
       VisioButtonVariant.secondary =>
         OutlinedButton(onPressed: onPressedOrNull, child: child),
-      VisioButtonVariant.destructive =>
-        _destructiveButton(context, child, onPressedOrNull),
+      VisioButtonVariant.destructive => TextButton(
+          onPressed: onPressedOrNull,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: child,
+        ),
     };
 
     if (expanded) {
@@ -56,33 +61,6 @@ class VisioButton extends StatelessWidget {
     }
 
     return button;
-  }
-
-  /// Destructive uses a [TextButton]. The text-button theme sets no padding, so
-  /// the icon case uses the `.icon` constructor to keep Material's icon-button
-  /// padding (identical to the delete control this replaces); the loading and
-  /// no-icon cases fall back to the shared [child].
-  Widget _destructiveButton(
-    BuildContext context,
-    Widget child,
-    VoidCallback? onPressed,
-  ) {
-    // The text-button theme sets no geometry, so match the design-system
-    // 48px / 24px button contract the elevated/outlined variants get from the
-    // theme, keeping the delete the same height as its sibling actions.
-    final style = TextButton.styleFrom(
-      foregroundColor: Theme.of(context).colorScheme.error,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-    );
-    if (icon != null && !isLoading) {
-      return TextButton.icon(
-        onPressed: onPressed,
-        style: style,
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-      );
-    }
-    return TextButton(onPressed: onPressed, style: style, child: child);
   }
 
   Widget _buildChild(BuildContext context) {
