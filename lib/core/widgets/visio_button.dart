@@ -67,8 +67,12 @@ class VisioButton extends StatelessWidget {
     Widget child,
     VoidCallback? onPressed,
   ) {
+    // The text-button theme sets no geometry, so match the design-system
+    // 48px / 24px button contract the elevated/outlined variants get from the
+    // theme, keeping the delete the same height as its sibling actions.
     final style = TextButton.styleFrom(
       foregroundColor: Theme.of(context).colorScheme.error,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
     );
     if (icon != null && !isLoading) {
       return TextButton.icon(

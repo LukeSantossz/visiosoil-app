@@ -44,6 +44,16 @@ void main() {
     final button = tester.widget<TextButton>(find.byType(TextButton));
     final foreground = button.style?.foregroundColor?.resolve(<WidgetState>{});
     expect(foreground, AppTheme.light.colorScheme.error);
+
+    // Matches the design-system 24px horizontal / 48px-height button contract,
+    // like the sibling elevated/outlined actions (the text-button theme sets no
+    // geometry of its own).
+    expect(
+      button.style?.padding?.resolve(<WidgetState>{}),
+      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+    );
+    expect(tester.getSize(find.byType(TextButton)).height,
+        greaterThanOrEqualTo(48));
   });
 
   testWidgets('a busy button is disabled', (tester) async {
