@@ -170,6 +170,8 @@ class _ThumbnailImage extends StatelessWidget {
 
         return AnimatedSwitcher(
           duration: AppMotion.base,
+          switchInCurve: AppMotion.standard,
+          switchOutCurve: AppMotion.standard,
           child: frame != null
               ? child
               : Container(
