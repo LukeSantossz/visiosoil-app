@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// VisioButton variants.
-enum VisioButtonVariant { primary, secondary }
+enum VisioButtonVariant { primary, secondary, destructive }
 
 /// Standardized VisioSoil button.
 class VisioButton extends StatelessWidget {
@@ -27,7 +27,8 @@ class VisioButton extends StatelessWidget {
   /// If true, shows a loading indicator instead of the content.
   final bool isLoading;
 
-  /// Visual variant: primary (filled) or secondary (outlined).
+  /// Visual variant: primary (filled), secondary (outlined), or destructive
+  /// (text button with the error color, for irreversible actions).
   final VisioButtonVariant variant;
 
   /// If true, expands to fill all available width.
@@ -37,18 +38,15 @@ class VisioButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final child = _buildChild(context);
 
-    Widget button;
-    if (variant == VisioButtonVariant.primary) {
-      button = ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        child: child,
-      );
-    } else {
-      button = OutlinedButton(
-        onPressed: isLoading ? null : onPressed,
-        child: child,
-      );
-    }
+    final onPressedOrNull = isLoading ? null : onPressed;
+    final button = switch (variant) {
+      VisioButtonVariant.primary =>
+        ElevatedButton(onPressed: onPressedOrNull, child: child),
+      VisioButtonVariant.secondary =>
+        OutlinedButton(onPressed: onPressedOrNull, child: child),
+      VisioButtonVariant.destructive =>
+        _destructiveButton(context, child, onPressedOrNull),
+    };
 
     if (expanded) {
       return SizedBox(
@@ -60,6 +58,29 @@ class VisioButton extends StatelessWidget {
     return button;
   }
 
+  /// Destructive uses a [TextButton]. The text-button theme sets no padding, so
+  /// the icon case uses the `.icon` constructor to keep Material's icon-button
+  /// padding (identical to the delete control this replaces); the loading and
+  /// no-icon cases fall back to the shared [child].
+  Widget _destructiveButton(
+    BuildContext context,
+    Widget child,
+    VoidCallback? onPressed,
+  ) {
+    final style = TextButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.error,
+    );
+    if (icon != null && !isLoading) {
+      return TextButton.icon(
+        onPressed: onPressed,
+        style: style,
+        icon: Icon(icon, size: 20),
+        label: Text(label),
+      );
+    }
+    return TextButton(onPressed: onPressed, style: style, child: child);
+  }
+
   Widget _buildChild(BuildContext context) {
     if (isLoading) {
       return SizedBox(
@@ -68,9 +89,14 @@ class VisioButton extends StatelessWidget {
         child: CircularProgressIndicator(
           strokeWidth: 2,
           valueColor: AlwaysStoppedAnimation<Color>(
-            variant == VisioButtonVariant.primary
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.primary,
+            switch (variant) {
+              VisioButtonVariant.primary =>
+                Theme.of(context).colorScheme.onPrimary,
+              VisioButtonVariant.secondary =>
+                Theme.of(context).colorScheme.primary,
+              VisioButtonVariant.destructive =>
+                Theme.of(context).colorScheme.error,
+            },
           ),
         ),
       );
