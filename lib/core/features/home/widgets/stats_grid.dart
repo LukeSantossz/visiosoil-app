@@ -17,7 +17,12 @@ class StatsGrid extends StatelessWidget {
     final stats = statsAsync.value;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        0,
+      ),
       child: Row(
         children: [
           _StatCard(
@@ -65,7 +70,7 @@ class _StatCard extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: AppRadius.borderRadiusLg,

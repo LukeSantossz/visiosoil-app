@@ -64,7 +64,7 @@ class CaptureImagePreview extends StatelessWidget {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -178,7 +178,7 @@ class _InfoChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
