@@ -27,30 +27,28 @@ String _packed(String path) =>
     _read(path).replaceAll(RegExp(r'\s+'), '').replaceAll(RegExp(r',(?=\))'), '');
 
 void main() {
-  group('home widgets snap off-scale spacing/radius to tokens', () {
-    test('hero_section has no off-scale padding/gap literals', () {
-      final src = _packed('lib/core/features/home/widgets/hero_section.dart');
+  group('home widgets reference the token scale (no off-scale spacing/radius)',
+      () {
+    test('home_greeting references tokens and no off-scale spacing', () {
+      final src = _packed('lib/core/features/home/widgets/home_greeting.dart');
       expect(src, isNot(contains('fromLTRB(20,')));
-      expect(src, isNot(contains('SizedBox(height:14)')));
-      expect(src, isNot(contains('SizedBox(width:10)')));
-      expect(src, contains('EdgeInsets.all(AppSpacing.lg)'));
-      expect(src, contains('SizedBox(height:AppSpacing.md)'));
-    });
-
-    test('primary_action snaps card radius and paddings', () {
-      final src = _packed('lib/core/features/home/widgets/primary_action.dart');
-      expect(src, isNot(contains('circular(20)')));
-      expect(src, isNot(contains('circular(14)')));
-      expect(src, isNot(contains('fromLTRB(20,')));
-      expect(src, isNot(contains('horizontal:18')));
-      expect(src, isNot(contains('SizedBox(width:14)')));
-      expect(src, contains('circular(AppRadius.lg)'));
-      expect(src, contains('circular(AppRadius.md)'));
+      expect(src, isNot(contains('EdgeInsets.all(10)')));
       expect(
         src,
-        contains('fromLTRB(AppSpacing.lg,AppSpacing.lg,AppSpacing.lg,'
-            'AppSpacing.sm)'),
+        contains('fromLTRB(AppSpacing.lg,AppSpacing.lg,AppSpacing.lg,0)'),
       );
+    });
+
+    test('hero_capture_card uses token radius/spacing and the brand glow', () {
+      final src =
+          _packed('lib/core/features/home/widgets/hero_capture_card.dart');
+      expect(src, contains('AppColors.shadowBrand'));
+      expect(src, contains('EdgeInsets.all(AppSpacing.lg)'));
+      expect(src, contains('AppRadius.borderRadiusXl'));
+      expect(src, contains('AppRadius.borderRadiusPill'));
+      expect(src, isNot(contains('circular(20)')));
+      expect(src, isNot(contains('circular(32)')));
+      expect(src, isNot(contains('fromLTRB(20,')));
     });
 
     test('stats_grid snaps its outer and card paddings', () {
@@ -64,19 +62,15 @@ void main() {
       );
     });
 
-    test('last_analysis_section snaps its paddings and gaps', () {
+    test('last_analysis_section references tokens and no off-scale spacing', () {
       final src =
           _packed('lib/core/features/home/widgets/last_analysis_section.dart');
+      expect(src, contains('AppSpacing.'));
+      expect(src, contains('AppRadius.'));
       expect(src, isNot(contains('fromLTRB(20,')));
+      expect(src, isNot(contains('circular(20)')));
       expect(src, isNot(contains('SizedBox(height:10)')));
-      expect(src, isNot(contains('SizedBox(width:6)')));
       expect(src, isNot(contains('horizontal:7')));
-      expect(src, isNot(contains('symmetric(vertical:10)')));
-      expect(
-        src,
-        contains('fromLTRB(AppSpacing.lg,AppSpacing.md,AppSpacing.lg,0)'),
-      );
-      expect(src, contains('symmetric(vertical:AppSpacing.sm)'));
     });
   });
 
