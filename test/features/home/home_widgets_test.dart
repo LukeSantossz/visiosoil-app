@@ -1,12 +1,12 @@
-// Widget tests for the home screen's extracted sections (#120). Home had no
-// test file before the decomposition; these cover each public section's render
-// contract so the split is protected.
+// Widget tests for the home screen's sections after the design-system
+// alignment (#0029): greeting + avatar, green hero capture card, and the
+// last-analysis section with a "Ver tudo" link and a record row.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/core/features/home/widgets/hero_section.dart';
+import 'package:visiosoil_app/core/features/home/widgets/hero_capture_card.dart';
+import 'package:visiosoil_app/core/features/home/widgets/home_greeting.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
-import 'package:visiosoil_app/core/features/home/widgets/primary_action.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
@@ -16,6 +16,7 @@ SoilRecord classifiedRecord() => SoilRecord(
       id: 1,
       imagePath: 'x.png',
       timestamp: '2026-06-26T12:00:00Z',
+      address: 'Fazenda Boa Vista',
       textureClass: 'Argilosa',
       confidenceScore: 0.9,
     );
@@ -23,35 +24,28 @@ SoilRecord classifiedRecord() => SoilRecord(
 Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
-  testWidgets('HeroSection renders the brand bar and settings entry',
-      (tester) async {
-    await tester.pumpWidget(
-      host(const HeroSection(latestAsync: AsyncValue<SoilRecord?>.data(null))),
-    );
+  testWidgets('HomeGreeting shows the audience label and a settings avatar, '
+      'not the wordmark', (tester) async {
+    await tester.pumpWidget(host(const HomeGreeting()));
 
-    expect(find.text('VisioSoil'), findsOneWidget);
-    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
-    // The brand bar shows the official mark, not the placeholder layers icon.
-    expect(find.byType(VisioSoilLogo), findsOneWidget);
-    expect(find.byIcon(Icons.layers), findsNothing);
+    expect(find.text('Agrônomo'), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    // The DS greeting carries no wordmark and no gear; the mark lives on splash.
+    expect(find.text('VisioSoil'), findsNothing);
+    expect(find.byType(VisioSoilLogo), findsNothing);
+    expect(find.byIcon(Icons.settings_outlined), findsNothing);
   });
 
-  testWidgets('HeroSection shows the last-analysis line for a classified record',
-      (tester) async {
-    await tester.pumpWidget(
-      host(HeroSection(latestAsync: AsyncValue.data(classifiedRecord()))),
-    );
+  testWidgets('HeroCaptureCard renders the eyebrow, headline and CTA, and '
+      'fires onCapture', (tester) async {
+    var taps = 0;
+    await tester.pumpWidget(host(HeroCaptureCard(onCapture: () => taps++)));
 
+    expect(find.text('ANÁLISE INSTANTÂNEA'), findsOneWidget);
     expect(
-      find.textContaining('Última análise', findRichText: true),
+      find.text('Aponte para o solo e descubra a textura em segundos'),
       findsOneWidget,
     );
-  });
-
-  testWidgets('PrimaryAction renders its label and fires onTap', (tester) async {
-    var taps = 0;
-    await tester.pumpWidget(host(PrimaryAction(onTap: () => taps++)));
-
     expect(find.text('Nova análise'), findsOneWidget);
 
     await tester.tap(find.text('Nova análise'));
@@ -85,16 +79,60 @@ void main() {
   testWidgets('LastAnalysisSection is empty until a record exists',
       (tester) async {
     await tester.pumpWidget(
-      host(const LastAnalysisSection(
-        latestAsync: AsyncValue<SoilRecord?>.data(null),
+      host(LastAnalysisSection(
+        latestAsync: const AsyncValue<SoilRecord?>.data(null),
+        onSeeAll: () {},
       )),
     );
-    expect(find.text('ÚLTIMA ANÁLISE'), findsNothing);
+    expect(find.text('Última análise'), findsNothing);
 
     await tester.pumpWidget(
-      host(LastAnalysisSection(latestAsync: AsyncValue.data(classifiedRecord()))),
+      host(LastAnalysisSection(
+        latestAsync: AsyncValue.data(classifiedRecord()),
+        onSeeAll: () {},
+      )),
     );
-    expect(find.text('ÚLTIMA ANÁLISE'), findsOneWidget);
-    expect(find.text('Ver detalhes'), findsOneWidget);
+    expect(find.text('Última análise'), findsOneWidget);
+    expect(find.text('Ver tudo'), findsOneWidget);
+    expect(find.text('Argilosa'), findsOneWidget);
+    expect(find.textContaining('Fazenda Boa Vista'), findsOneWidget);
+  });
+
+  testWidgets('LastAnalysisSection "Ver tudo" fires onSeeAll', (tester) async {
+    var seeAll = 0;
+    await tester.pumpWidget(
+      host(LastAnalysisSection(
+        latestAsync: AsyncValue.data(classifiedRecord()),
+        onSeeAll: () => seeAll++,
+      )),
+    );
+
+    await tester.tap(find.text('Ver tudo'));
+    expect(seeAll, 1);
+  });
+
+  testWidgets('LastAnalysisSection tolerates a non-finite confidence score',
+      (tester) async {
+    final record = SoilRecord(
+      id: 1,
+      imagePath: 'x.png',
+      timestamp: '2026-06-26T12:00:00Z',
+      address: 'Fazenda',
+      textureClass: 'Argilosa',
+      confidenceScore: double.nan,
+    );
+
+    await tester.pumpWidget(
+      host(LastAnalysisSection(
+        latestAsync: AsyncValue.data(record),
+        onSeeAll: () {},
+      )),
+    );
+
+    // The row builds (no `.round()` crash) and the confidence indicator falls
+    // back to the level label with no percentage.
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Baixa'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
   });
 }
