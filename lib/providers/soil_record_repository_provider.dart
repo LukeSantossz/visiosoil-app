@@ -29,6 +29,22 @@ final latestSoilRecordProvider = Provider<AsyncValue<SoilRecord?>>((ref) {
   return records.whenData((list) => list.isEmpty ? null : list.first);
 });
 
+/// Latest record that carries a classification (or `null` if none).
+///
+/// The home's "Última análise" section shows only completed analyses, so an
+/// unclassified capture must not appear there; the stream is most-recent-first,
+/// so the first classified record is the latest one.
+final latestClassifiedSoilRecordProvider =
+    Provider<AsyncValue<SoilRecord?>>((ref) {
+  final records = ref.watch(soilRecordsStreamProvider);
+  return records.whenData((list) {
+    for (final record in list) {
+      if (record.hasClassification) return record;
+    }
+    return null;
+  });
+});
+
 /// Loads a record by id. `family` allows obtaining the specific provider
 /// for the desired id — Riverpod takes care of the cache.
 final soilRecordByIdProvider =

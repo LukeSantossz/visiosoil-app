@@ -1,45 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
+import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
 
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
+  static const List<Widget> _screens = [
     HomeScreen(),
     HistoryScreen(),
   ];
 
-  void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentIndex = ref.watch(mainTabIndexProvider);
+
     return PopScope(
-      canPop: _currentIndex == 0,
+      canPop: currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _currentIndex != 0) {
-          setState(() => _currentIndex = 0);
+        if (!didPop && currentIndex != 0) {
+          ref.read(mainTabIndexProvider.notifier).select(0);
         }
       },
       child: Scaffold(
         body: IndexedStack(
-          index: _currentIndex,
+          index: currentIndex,
           children: _screens,
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: _onTabTapped,
+          selectedIndex: currentIndex,
+          onDestinationSelected: (index) =>
+              ref.read(mainTabIndexProvider.notifier).select(index),
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
