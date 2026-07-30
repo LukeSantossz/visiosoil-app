@@ -22,9 +22,8 @@ class SyncReport {
 class SyncEngine {
   SyncEngine({
     required SyncLocalStore localStore,
-    required RemoteSyncBackend backend,
-  })  : _local = localStore,
-        _backend = backend;
+    required this._backend,
+  }) : _local = localStore;
 
   final SyncLocalStore _local;
   final RemoteSyncBackend _backend;

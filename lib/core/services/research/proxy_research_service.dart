@@ -20,16 +20,12 @@ class ProxyResearchService implements ResearchService {
     this._transport, {
     required String baseUrl,
     TokenProvider? tokenProvider,
-    String appVersion = _defaultAppVersion,
-    Duration timeout = _defaultTimeout,
-    Duration retryDelay = _defaultRetryDelay,
-    int maxAttempts = _defaultMaxAttempts,
+    this._appVersion = _defaultAppVersion,
+    this._timeout = _defaultTimeout,
+    this._retryDelay = _defaultRetryDelay,
+    this._maxAttempts = _defaultMaxAttempts,
   })  : _endpoint = _resolveEndpoint(baseUrl),
-        _tokenProvider = tokenProvider ?? _noToken,
-        _appVersion = appVersion,
-        _timeout = timeout,
-        _retryDelay = retryDelay,
-        _maxAttempts = maxAttempts;
+        _tokenProvider = tokenProvider ?? _noToken;
 
   static const String _path = '/v1/management-tips';
   static const String _defaultAppVersion =

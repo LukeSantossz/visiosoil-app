@@ -11,11 +11,9 @@ import 'package:visiosoil_app/models/soil_record.dart';
 class ManagementTipsController {
   ManagementTipsController({
     required ResearchService researchService,
-    required ManagementTipsRepository repository,
-    required ConnectivityService connectivity,
-  })  : _research = researchService,
-        _repository = repository,
-        _connectivity = connectivity;
+    required this._repository,
+    required this._connectivity,
+  }) : _research = researchService;
 
   final ResearchService _research;
   final ManagementTipsRepository _repository;
