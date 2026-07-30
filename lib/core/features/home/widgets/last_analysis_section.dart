@@ -195,7 +195,11 @@ class _ConfidenceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = ConfidenceLevel.fromScore(score);
-    final pct = (score * 100).round();
+    // A corrupt/non-finite persisted score must not crash the home: `.round()`
+    // throws on NaN/infinity, so drop the percentage and show only the level.
+    final label = score.isFinite
+        ? '${(score * 100).round()}% · ${level.label}'
+        : level.label;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -212,7 +216,7 @@ class _ConfidenceChip extends StatelessWidget {
           Icon(level.icon, size: 12, color: level.foregroundColor),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            '$pct% · ${level.label}',
+            label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: level.foregroundColor,

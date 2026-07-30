@@ -110,4 +110,29 @@ void main() {
     await tester.tap(find.text('Ver tudo'));
     expect(seeAll, 1);
   });
+
+  testWidgets('LastAnalysisSection tolerates a non-finite confidence score',
+      (tester) async {
+    final record = SoilRecord(
+      id: 1,
+      imagePath: 'x.png',
+      timestamp: '2026-06-26T12:00:00Z',
+      address: 'Fazenda',
+      textureClass: 'Argilosa',
+      confidenceScore: double.nan,
+    );
+
+    await tester.pumpWidget(
+      host(LastAnalysisSection(
+        latestAsync: AsyncValue.data(record),
+        onSeeAll: () {},
+      )),
+    );
+
+    // The row builds (no `.round()` crash) and the confidence indicator falls
+    // back to the level label with no percentage.
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Baixa'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
+  });
 }
