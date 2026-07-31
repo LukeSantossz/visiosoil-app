@@ -67,7 +67,7 @@ on a decision, and taking them late is more expensive than taking them now.
 
 | Decision | Blocks | Recorded in |
 | --- | --- | --- |
-| **The capture guide drops the coin and the 70 % fill** that the dataset is collected under. Adopting the design system's four-step guide would delete two protocol rules from the only place the user reads them, reopening the gap ADR 0009 exists to close | Spec 5 | `06-capture-experience.md` §2.1 |
+| **Whether the capture guide states all five rules of the collection protocol.** The design system's four-step guide drops the coin and the 70 % fill; adopting it as-is would delete two rules from the only place the user reads them while collection still applies them, reopening the gap ADR 0009 exists to close. Content is being redefined by the product owner | Spec 5 | `14-capture-guide.md` §2 |
 | **Applying the ROI crop in both `ml/src/preprocess.py` and `inference_service.dart`.** SPEC 0030 defines the crop and deliberately does not apply it; until a follow-up applies it in both places together, both still squash the aspect ratio, and the framing guide in spec 14 would describe a region that is not what gets classified | Spec 14, and any preprocessing change | SPEC 0030, Scope |
 | **Where quality flags live on `SoilRecord`.** SPEC 0030 excludes persisting them; ADR 0009 requires the record to store which criteria failed. The column is this terminal's to add | Spec 6 | `06-capture-experience.md` §2.3 |
 | **Recommendation section structure** — extend `ManagementTip` with a closed `category` enum, or retire the design system's `RecommendationScreen` | Spec 13 | `05-design-system.md` §5 |

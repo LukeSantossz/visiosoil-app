@@ -38,6 +38,7 @@ hypothesis**.
 | [`11-libraries.md`](11-libraries.md) | Dependency evaluations, including the rejections |
 | [`12-accessibility.md`](12-accessibility.md) | Criteria, current violations, per-component obligations |
 | [`13-roadmap.md`](13-roadmap.md) | Spec sequence, per-screen acceptance criteria |
+| [`14-capture-guide.md`](14-capture-guide.md) | Capture guide — **open decision**: the protocol question and the content-independent constraints |
 
 ## Decisions taken before drafting
 

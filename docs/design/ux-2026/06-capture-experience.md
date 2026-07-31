@@ -24,68 +24,28 @@ everything achievable without a viewfinder. Phase 2 introduces one.
 
 ### 2.1 Before: the capture guide
 
-Content, taken from the design system's `CaptureGuideScreen`:
+**Open — the content is being redefined by the product owner. Tracked in
+[`14-capture-guide.md`](14-capture-guide.md).**
 
-| # | Step | Body |
-| --- | --- | --- |
-| 1 | Limpe a superfície | Remova folhas, pedras e restos vegetais antes de fotografar |
-| 2 | Mantenha ~20 cm | Câmera paralela ao solo, sem inclinar o aparelho |
-| 3 | Luz natural difusa | Evite sombras fortes e não use flash direto sobre a amostra |
-| 4 | Preencha a guia | Enquadre o solo dentro das bordas marcadas no visor |
+What is settled and does not depend on the content:
 
-Plus an "Evite" pair: solo encharcado, sombra do corpo.
+- **Timing.** The capture technique moves out of first-launch onboarding, where
+  the user has no intent to photograph anything, to the first capture, plus
+  on-demand access from the analysis screen and Settings. The current
+  three-step onboarding (framing, lighting, angle) is superseded; onboarding
+  retains value framing and permission priming only.
+- **The framing instruction must describe the centred square** from SPEC 0030,
+  not "a guia" — phase 1 draws none — and not the full frame, which is not what
+  gets analysed.
+- **The sticky primary action, the scroll behaviour and the semantics
+  obligations** in `14-capture-guide.md` §3.
 
-**Timing is the substantive change.** Today this content lives in onboarding,
-shown once on first launch — the moment the user has the least intent to
-photograph anything — and afterwards only from Settings. It moves to the first
-capture, and afterwards is reachable on demand from a "Como capturar" link on
-the analysis screen.
-
-The current three-step onboarding (framing, lighting, angle) is superseded by
-these four. Onboarding retains only value framing and permission priming.
-
-**Note on step 4.** "Preencha a guia" refers to a guide that phase 1 does not
-draw. The phase-1 copy must be adjusted to describe framing without promising an
-on-screen guide, and restored to the design-system wording when phase 2 lands.
-This is recorded as an acceptance criterion in `13-roadmap.md`.
-
-#### Unresolved: the guide drops two rules the dataset is collected under
-
-**Raised by the reconciliation with SPEC 0030. It needs a joint decision.**
-
-The current onboarding declares a capture protocol with five rules
-(`onboarding_screen.dart:24-49`): a coin for scale, soil filling at least 70 %
-of the frame, diffuse natural light, no flash, top-down at roughly 20 cm. SPEC
-0030's problem statement is built on that protocol — the dataset is collected
-under it, and ADR 0009's whole strategy is to *enforce* it rather than
-compensate for its absence.
-
-The design system's `CaptureGuideScreen`, which §2.1 above adopts, has four
-steps and **contains neither the coin nor the 70 % fill**.
-
-So replacing the onboarding content with the design-system guide would quietly
-delete two rules of the protocol from the only place the user ever reads it,
-while the dataset continues to be collected under them. That reopens the
-subpopulation gap ADR 0009 exists to close — through the interface, and
-invisibly.
-
-Three ways out:
-
-1. **Add both rules to the guide** as steps 5 and 6, or fold them into existing
-   steps. Faithful to the protocol; makes the guide longer than the design
-   system's.
-2. **Drop them from the protocol and from collection.** Only defensible if
-   neither rule is actually load-bearing — the coin is not measured by anything
-   today, and ADR 0009 explicitly declines to measure the 70 % fill because it
-   would need foreground separation. That is an argument that they are already
-   inert.
-3. **Keep the coin, drop the fill.** The fill is unmeasurable by decision; the
-   coin is the one that unlocks a real scale if detection ever lands, which
-   ADR 0009 names as the strongest argument for a detector.
-
-**This terminal's recommendation is 3**, and it is not this terminal's to settle
-alone: rule 2 would change what the ML terminal collects. Recorded here and in
-`13-roadmap.md` as a cross-terminal decision blocking spec 5.
+What is open: whether the guide states all five rules of the collection protocol
+or only the three the design system's `CaptureGuideScreen` carries. Adopting the
+design-system guide as-is would drop the coin and the 70 % fill from the only
+place the user reads them while collection continues to apply them, which
+reopens the gap ADR 0009 exists to close. Options and their ownership are in
+`14-capture-guide.md` §2.
 
 ### 2.2 After: the quality gate
 
