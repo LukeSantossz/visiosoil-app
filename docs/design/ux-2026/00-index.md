@@ -64,7 +64,8 @@ They are recorded here because every document downstream depends on them.
 | Class list and output order | ML terminal | Exists (`ml/config.yaml`) | Five classes, order `Arenosa, Media, Siltosa, Muito Argilosa, Argilosa` |
 | Model artifact `soil_classifier.tflite` | ML terminal | **Absent** — `assets/models/` holds only `.gitkeep` | Until it lands, every classification resolves to *not analysed* |
 | Per-class validation metrics | ML terminal | Not published | Needed to calibrate the verdict thresholds in `08-results-and-uncertainty.md`, which ship as hypotheses |
-| Image quality signals (blur, exposure, target found, target count) | Vision terminal | **Does not exist** | Phase 1 derives blur and exposure in-app; *target found* and *multiple targets* are specified as hypothetical contracts and are deliberately **not simulated** |
+| Image quality signals (blur, exposure, contrast, colour cast, specular, ROI size) | Vision terminal | **Exists** — ADR 0009 and SPEC 0030 | `ImageQualityAnalyzer` returns seven metrics and one of four verdicts over a fixed centred-square ROI. This terminal consumes it and owns the wiring, the retake flow, the override and the persistence of flags |
+| Target detection (target found, target count) | Vision terminal | **Deferred by ADR 0009** — no segmentation, no detector, no background subtraction in phase 1 | `TargetSignal` stays a hypothesis with no producer, which ADR 0009 states is the correct state. Deliberately **not simulated** |
 | `ManagementTipsResult` shape | Research agent terminal | Exists (`lib/models/management_tips_result.dart`) | Flat `tips` + `citations` + `sources` |
 | Structured recommendation sections | Research agent terminal | **Divergent** — the design system's `RecommendationScreen` assumes water/crops/preparation sections that the contract does not carry | Coordination item, see `05-design-system.md` |
 | Proxy availability | Research agent terminal | `researchServiceProvider` returns `UnavailableResearchService` | Management tips always report unavailable today |
@@ -77,9 +78,22 @@ would misrepresent what the system can do:
 - **Target detection.** The classifier is single-label over the whole frame.
   There is no signal for "no target found" or "multiple targets". Their UI
   contracts are specified as hypotheses; no colour or histogram heuristic in
-  the app may stand in for them.
+  the app may stand in for them. ADR 0009 reached the same conclusion
+  independently and endorses this constraint by name, so it is now joint.
 - **Live frame quality.** Until phase 2, there is no frame to analyse before
   the shutter. All quality feedback is post-hoc.
 - **Threshold calibration.** Every numeric threshold in this dossier is a
   starting hypothesis. None was derived from validation data, because none is
-  published yet.
+  published yet. SPEC 0030 ships its own thresholds under the same caveat and
+  makes them injectable so recalibration does not touch the analyzer.
+
+## Revision note
+
+Sections of `06-capture-experience.md`, `13-roadmap.md` and the tables above
+were written before ADR 0009 and SPEC 0030 existed, and were reconciled with
+them afterwards. The reconciliation was convergent, not corrective: the vision
+terminal's spec adopts this dossier's verdict model, its threshold stance and
+its false-block asymmetry by name, and this dossier now consumes its analyzer,
+its region of interest and its four-verdict report. Two conflicts surfaced and
+are recorded rather than resolved — the capture guide dropping two protocol
+rules, and where quality flags are persisted. Both are in `13-roadmap.md` §3.1.

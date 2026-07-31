@@ -18,7 +18,7 @@ One new dependency is recommended, for phase 2 only: `camera`.
 
 | Need | Solution | Already present |
 | --- | --- | --- |
-| Image quality analysis | `image` 4.3 — decode, greyscale, resize, pixel access | Yes, used by `InferenceService` preprocessing |
+| Image quality analysis | Delivered by SPEC 0030 on `image` 4.3 — decode, greyscale, resize, pixel access | Yes, used by `InferenceService` preprocessing |
 | Haptics | `flutter/services` `HapticFeedback` | SDK |
 | Componentisation | Plain widgets under `lib/core/widgets/` | Yes |
 | Gestures | `InkWell`, `GestureDetector`, `InteractiveViewer` | SDK |
@@ -72,10 +72,13 @@ One new dependency is recommended, for phase 2 only: `camera`.
 
 - **Problem they would solve** — target detection, to enable the "no target" and
   "multiple targets" states.
-- **Rejected for now** because that decision belongs to the vision terminal, not
-  this one. Adding a second on-device inference stack alongside
-  `tflite_flutter` for a signal no one has specified would prejudge their
-  design. See `06-capture-experience.md` §3.
+- **Rejected — and the decision has since been taken elsewhere.** ADR 0009
+  rejects segmentation, detection and background subtraction for phase one, on
+  the grounds that both a mask campaign and a bounding-box campaign require a
+  dataset that does not yet exist, and each adds a second artifact to version
+  and verify. It defers rather than discards them, to be reconsidered only if
+  telemetry shows framing is the dominant failure mode. See
+  `06-capture-experience.md` §3.
 - **Alternative** — leave the states dormant behind a hypothetical contract.
 
 ### `flutter_localizations` / `intl`

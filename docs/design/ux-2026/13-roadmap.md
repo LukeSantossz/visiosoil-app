@@ -7,8 +7,9 @@ then access, then friction on the primary flow, then system debt. Two
 departures from strict impact order, both deliberate and both stated below.
 
 Each row becomes one spec under `docs/specs/NNNN-<slug>.md` and passes its own
-Spec Gate. Numbers here are sequence positions, not spec numbers — the next
-available spec number at the time of writing is 0030.
+Spec Gate. Numbers here are sequence positions, not spec numbers. **0030 is
+taken** — the vision terminal's soil image acceptance criteria — so the next
+available number is 0031.
 
 ## 2. The sequence
 
@@ -18,8 +19,8 @@ available spec number at the time of writing is 0030.
 | 2 | Result presentation and the texture scale | P0-1 | 1 |
 | 3 | Accessibility baseline | P0-4, P2-8 | — |
 | 4 | Permission priming and onboarding relocation | P0-3 | — |
-| 5 | Capture flow without the dead screen | P1-1 | 4 |
-| 6 | Image quality gate | P1-2 | 5 |
+| 5 | Capture flow without the dead screen | P1-1 | 4; the §3 decision below |
+| 6 | Wire the quality gate into the capture flow | P1-2 | 5; **SPEC 0030** |
 | 7 | Named processing phases, Save ungated from location | P1-4 | 1, 6 |
 | 8 | Connectivity and sync made visible | P1-3 | — |
 | 9 | State consolidation and missing design-system components | P2-1, P2-2, P2-4, P2-6 | 2 |
@@ -49,7 +50,8 @@ silently.
 | --- | --- | --- |
 | No `.tflite` artifact | Real validation of specs 1, 2, 6, 7 | ML terminal |
 | No published validation metrics | Threshold calibration in specs 1 and 6 | ML terminal |
-| No `TargetSignal` producer | The dormant states in spec 6 | Vision terminal |
+| No real images to calibrate against | The provisional thresholds in SPEC 0030, consumed by spec 6 | ML terminal |
+| No `TargetSignal` producer | The dormant states in spec 6 | Vision terminal — **deferred by ADR 0009**, not merely absent |
 | Recommendation contract divergence | Any structured recommendation UI | Research agent terminal, jointly |
 | `researchServiceProvider` returns `UnavailableResearchService` | End-to-end validation of spec 13 | Research agent terminal, issue #95 |
 
@@ -57,6 +59,18 @@ None of these blocks the specs from being written or the interfaces from being
 built against the contracts as they stand. They block *validation*, and each
 spec must state which of its acceptance criteria can only be verified once the
 blocker lifts.
+
+### 3.1 Cross-terminal decisions that must be taken first
+
+Unlike the blockers above, these are not waiting on artifacts. They are waiting
+on a decision, and taking them late is more expensive than taking them now.
+
+| Decision | Blocks | Recorded in |
+| --- | --- | --- |
+| **The capture guide drops the coin and the 70 % fill** that the dataset is collected under. Adopting the design system's four-step guide would delete two protocol rules from the only place the user reads them, reopening the gap ADR 0009 exists to close | Spec 5 | `06-capture-experience.md` §2.1 |
+| **Applying the ROI crop in both `ml/src/preprocess.py` and `inference_service.dart`.** SPEC 0030 defines the crop and deliberately does not apply it; until a follow-up applies it in both places together, both still squash the aspect ratio, and the framing guide in spec 14 would describe a region that is not what gets classified | Spec 14, and any preprocessing change | SPEC 0030, Scope |
+| **Where quality flags live on `SoilRecord`.** SPEC 0030 excludes persisting them; ADR 0009 requires the record to store which criteria failed. The column is this terminal's to add | Spec 6 | `06-capture-experience.md` §2.3 |
+| **Recommendation section structure** — extend `ManagementTip` with a closed `category` enum, or retire the design system's `RecommendationScreen` | Spec 13 | `05-design-system.md` §5 |
 
 ## 4. Acceptance criteria by screen
 
@@ -97,6 +111,11 @@ criteria section, not a substitute for it.
   screen opens it.
 - `guide_copy_matches_capability` — step 4 does not promise an on-screen framing
   guide until phase 2 ships it.
+- `guide_matches_roi` — any framing guidance describes the largest centred
+  square, matching SPEC 0030's region of interest.
+- `protocol_rules_are_not_silently_dropped` — the guide states every rule the
+  dataset is collected under, or the collection protocol was changed by a
+  recorded joint decision.
 
 ### Analysis (`/capture`)
 
@@ -105,10 +124,12 @@ criteria section, not a substitute for it.
 - `phases_are_named` — a named phase is shown and changes when the phase does.
 - `quality_gates_classification` — a blocking quality verdict prevents
   classification from starting.
-- `quality_blocks_name_the_defect` — a block states which check failed and
-  offers both retake and record-anyway.
-- `quality_failure_is_not_a_block` — if the quality analysis throws,
-  classification still runs, with an unvalidated advisory.
+- `quality_blocks_name_every_defect` — a block lists every failing criterion from
+  the report, not the first, and offers both retake and record-anyway.
+- `quality_failure_is_not_a_block` — an `unvalidated` verdict lets classification
+  run, with the advisory that the check did not run.
+- `quality_flags_persist` — a record saved through the override stores which
+  criteria failed, and reopening it shows them.
 - `save_not_gated_by_location` — with classification settled and location
   pending, Save is enabled and the record persists with null coordinates.
 - `timeout_distinguished_from_failure` — a timeout and an error produce
