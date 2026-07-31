@@ -10,9 +10,19 @@ and presents all three as the same asserted class.
 ## Design Decision
 
 Add the full distribution to `InferenceResult` and introduce a
-`ClassificationVerdict` value type derived from it on **two axes** — the top-1
-probability and the margin between the first and second candidates — with four
-members: `conclusive`, `ambiguous`, `insufficient`, `notAnalysed`.
+`ClassificationVerdict` value type with four members — `conclusive`,
+`ambiguous`, `insufficient`, `notAnalysed` — derived from the margin between the
+first two candidates together with either the top-1 share (`conclusive`) or the
+share the top two hold between them (`ambiguous`):
+
+- `conclusive` when `margin >= 0.15` and `top1 >= 0.50`
+- `ambiguous` when `margin < 0.15` and `top1 + top2 >= 0.65`
+- `insufficient` otherwise
+- `notAnalysed` when there is no result at all
+
+The pair share, rather than the top-1 alone, is what separates a near-tie worth
+showing (`0.44 / 0.39`, pair 0.83, the rest noise) from a distribution that
+settled nothing (`0.25 / 0.24`, pair 0.49, three classes still in contention).
 
 Keep this spec **non-visual**. `ConfidenceLevel` and every widget that reads it
 stay exactly as they are; the verdict type ships unused by the interface. The
@@ -20,7 +30,10 @@ spec for roadmap item 2 migrates the UI and retires `ConfidenceLevel`. This spec
 also makes the class label order single-source, because `SoilTextureColors`
 currently contradicts `InferenceService` while documenting itself as matching it.
 
-Design rationale is in `docs/design/ux-2026/08-results-and-uncertainty.md` §2-§3.
+The verdict model is recorded as
+[ADR 0011](../adr/0011-classification-verdict-from-margin-and-mass.md); the
+design rationale and the presentation rules that follow from it are in
+`docs/design/ux-2026/08-results-and-uncertainty.md` §2-§3.
 
 ## Alternatives Considered
 
@@ -28,6 +41,17 @@ Design rationale is in `docs/design/ux-2026/08-results-and-uncertainty.md` §2-�
   is 0.20. A top-1 of 0.55 with a second at 0.50 and a top-1 of 0.55 with a
   second at 0.12 are different situations with different remedies, and no
   single-axis rule separates them. The margin is the quantity that does.
+- **`conclusive: top1 >= 0.70 and margin >= 0.15`; `ambiguous: top1 >= 0.45 and
+  margin < 0.15`; `insufficient: top1 < 0.45`** — the rule this spec carried when
+  it was first drafted, withdrawn while converting its criteria into tests.
+  Rejected for two independent defects. The margin conjunct on `conclusive` is
+  dead: if the probabilities sum to 1 and `top1 >= 0.70`, then `top2 <= 0.30`
+  and the margin is necessarily at least 0.40, so the conjunct never rejects
+  anything — the axis does no work where it was placed. And the 0.45 floor put
+  `0.44 / 0.39` into `insufficient`, which is the exact near-tie the design
+  exists to surface. Recorded here rather than silently replaced because the
+  rule reads as correct and its failure is only visible once the arithmetic of a
+  normalised five-class distribution is applied to it.
 - **Replace `ConfidenceLevel` and migrate the UI in this spec** — rejected. It
   couples a contract change to a visual redesign, putting two unrelated risks
   behind one gate, and it would hold the contract hostage to copy review. The
@@ -85,13 +109,17 @@ Design rationale is in `docs/design/ux-2026/08-results-and-uncertainty.md` §2-�
 - incompatible_model_still_rejected: an output tensor whose class count differs
   from the label list returns null, as it does today, and produces no
   distribution.
-- verdict_conclusive_requires_both_axes: top-1 0.94 with second 0.03 is
-  `conclusive`; top-1 0.94 with second 0.90 is not.
-- verdict_ambiguous_on_narrow_margin: top-1 0.44 with second 0.39 is `ambiguous`.
-- verdict_ambiguous_when_top1_high_but_margin_narrow: top-1 0.80 with second
-  0.72 is `ambiguous`, not `conclusive`.
-- verdict_insufficient_below_floor: top-1 0.25 with second 0.24 is
-  `insufficient`.
+- verdict_conclusive_on_clear_leader: `0.94 · 0.03 · 0.01 · 0.01 · 0.01` is
+  `conclusive`, and so is `0.60 · 0.20 · 0.10 · 0.06 · 0.04`.
+- verdict_ambiguous_on_narrow_margin: `0.44 · 0.39 · 0.09 · 0.05 · 0.03` is
+  `ambiguous` — margin 0.05, pair 0.83.
+- verdict_ambiguous_when_pair_holds_the_mass: `0.48 · 0.44 · 0.04 · 0.02 · 0.02`
+  is `ambiguous`, not `insufficient`, despite a top-1 below 0.50.
+- verdict_insufficient_when_nothing_leads: `0.25 · 0.24 · 0.22 · 0.15 · 0.14` is
+  `insufficient` — margin 0.01, pair 0.49.
+- verdict_insufficient_when_leader_lacks_majority: `0.48 · 0.20 · 0.14 · 0.10 ·
+  0.08` is `insufficient` — a wide margin does not rescue a leader holding less
+  than half with no rival.
 - verdict_not_analysed_for_absent_result: a null result yields `notAnalysed`.
 - not_analysed_is_distinct_from_insufficient: `notAnalysed` and `insufficient`
   are different members, and no input produces one where the other is meant.

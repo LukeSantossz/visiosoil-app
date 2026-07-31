@@ -57,24 +57,51 @@ order and must be corrected in the same spec (P2-5).
 ## 3. Verdict bands
 
 One threshold cannot distinguish row two from row three above, because both have
-a similar top-1. The distinguishing quantity is the **margin** between the first
-and second candidates. Two axes are required.
+a similar top-1. Two axes are required — but not the two this document first
+proposed, and the correction is worth stating because the original rule looked
+right and was not.
+
+**The withdrawn rule.** It read `conclusive: top1 >= 0.70 and margin >= 0.15`,
+`ambiguous: top1 >= 0.45 and margin < 0.15`, `insufficient: top1 < 0.45`. Two
+defects. First, the margin conjunct on `conclusive` is dead: if probabilities sum
+to 1 and `top1 >= 0.70`, then `top2 <= 0.30` and the margin is at least 0.40, so
+the test never rejects anything. Second, the 0.45 floor contradicted this
+document's own worked example — `0.44 / 0.39` is the near-tie the whole design
+exists to handle, and it fell below the floor into *insufficient*.
+
+**What actually separates ambiguous from insufficient** is not the top-1 alone
+but whether the first two classes hold the mass. At `0.44 / 0.39` the pair holds
+0.83 and the rest is noise: the model narrowed the answer to two textures, which
+is useful. At `0.25 / 0.24` the pair holds 0.49 with three other classes still in
+contention: the model narrowed nothing.
 
 | Verdict | Rule | Meaning |
 | --- | --- | --- |
-| **Conclusivo** | `top1 ≥ 0.70` **and** `top1 − top2 ≥ 0.15` | One class, clearly separated |
-| **Ambíguo** | `top1 ≥ 0.45` **and** `top1 − top2 < 0.15` | Two adjacent candidates; the sample is between them |
-| **Evidência insuficiente** | `top1 < 0.45` | Nothing can be asserted |
+| **Conclusivo** | `margin >= 0.15` **and** `top1 >= 0.50` | One class, clearly ahead and holding at least half the mass |
+| **Ambíguo** | `margin < 0.15` **and** `top1 + top2 >= 0.65` | Two candidates holding the mass between them |
+| **Evidência insuficiente** | everything else | Nothing stands out, or something leads without a rival and still holds less than half |
 | **Não analisado** | no score present | Distinct state — no attempt was made or none was possible |
 
-A case with `top1 ≥ 0.70` and a small margin falls to **ambíguo**, which is
-correct: high absolute confidence with a near-tie is still a near-tie.
+Worked cases, all arithmetically valid over five classes:
+
+| Distribution | Margin | Pair | Verdict |
+| --- | --- | --- | --- |
+| 0.94 · 0.03 · 0.01 · 0.01 · 0.01 | 0.91 | — | conclusivo |
+| 0.60 · 0.20 · 0.10 · 0.06 · 0.04 | 0.40 | — | conclusivo |
+| 0.44 · 0.39 · 0.09 · 0.05 · 0.03 | 0.05 | 0.83 | ambíguo |
+| 0.48 · 0.44 · 0.04 · 0.02 · 0.02 | 0.04 | 0.92 | ambíguo |
+| 0.25 · 0.24 · 0.22 · 0.15 · 0.14 | 0.01 | 0.49 | insuficiente |
+| 0.48 · 0.20 · 0.14 · 0.10 · 0.08 | 0.28 | — | insuficiente |
+
+The last row is the one that changes character under the correction: nearly half
+the mass on the winner, no rival, and the remainder spread thin. Calling it
+insufficient is deliberate — a plurality is not a reading.
 
 **Every number above is a hypothesis.** None was derived from validation data,
 because none is published. The implementing spec must calibrate them against the
 ML terminal's per-class validation metrics and record the procedure. The
 *structure* — two axes, four states — is the design decision; the constants are
-placeholders.
+placeholders. The decision itself is recorded in ADR 0011.
 
 ### 3.1 Replacing `ConfidenceLevel`
 
