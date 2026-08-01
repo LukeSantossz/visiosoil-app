@@ -5,9 +5,14 @@ Last updated: 2026-08-01. Full reasoning lives in
 `docs/architecture/soil-classification.md`; the ordered backlog with acceptance
 criteria lives in `docs/architecture/ml-implementation-map.md`.
 
-This terminal owns: computer vision, real and synthetic data, training, image
-processing, mobile inference, calibration, model monitoring. It does not own
-UI/UX rework or the research agent.
+**Ownership, settled 2026-08-01.** This workstream owns all of `ml/`, the
+`spec.json` runtime contract, local diagnostics, and the calibration of every
+threshold and band constant either side ships. The UI/UX terminal owns the
+classification contract and verdict bands (their roadmap item 1, SPEC 0031),
+wiring the quality gate into capture (item 6, which consumes SPEC 0030), and the
+v4 → v5 migration (item 15). Neither owns UI/UX rework beyond that, or the
+research agent. Full reasoning and what each side owes the other:
+`ml-implementation-map.md` §2 and §8.
 
 ## Decisions taken
 

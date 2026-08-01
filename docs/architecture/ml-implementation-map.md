@@ -46,12 +46,37 @@ contract, a migration, or a shared surface.
 
 Three lanes run in parallel:
 
-- **Lane A** — application and shared libraries. Needs no dataset. Can start now.
+- **Lane A** — application-side work this workstream owns. Needs no dataset.
 - **Lane B** — training pipeline. Needs no dataset. Can start now.
 - **Lane C** — everything that requires images to exist. Gated by E0.
 
 The distinction matters because the dataset does not exist and collecting it is
 human work measured in weeks. Lanes A and B are what makes that time productive.
+
+### Ownership, settled 2026-08-01
+
+The first version of this map claimed the classification contract, the capture
+gate, and the schema v5 migration for this workstream. It was written before
+`docs/design/ux-2026/13-roadmap.md` was in version control, and that roadmap
+already owns all three. Duplicating them would have put two specs on the same
+files. The split, decided by the project owner:
+
+| Owner | Work |
+|---|---|
+| UI/UX terminal | Their roadmap item 1 — the classification contract, `ClassScore`, the distribution, and the verdict bands (their SPEC 0031). Item 6 — wiring the quality gate into capture. Item 15 — the v4 → v5 migration that persists the distribution |
+| This workstream | All of `ml/`. The `spec.json` runtime contract beyond the label list. Local diagnostics. Calibration of every threshold and band constant either side ships |
+
+Two consequences worth recording, because neither is obvious from the split:
+
+- **Their SPEC 0031 does not resolve the `null` conflation.** It keeps
+  `classify()` returning `null` and derives `notAnalysed` from it, so the six
+  distinct causes — model absent, empty asset, decode failure, timeout,
+  interpreter error, isolate death — remain indistinguishable to the caller.
+  That is still a live defect after item 1 lands. It sits inside
+  `inference_service.dart`, which this workstream owns, and is folded into A4.
+- **`ClassificationStatus` is already taken.** `capture_ui_state.dart:10`
+  declares it as a UI state machine, `{idle, running, done, failed}`. Any domain
+  status type needs a different name.
 
 ---
 
@@ -78,85 +103,50 @@ capture-flow change.
   validation set.
 - The ROI is defined once and reused by B2 and A3 rather than reimplemented.
 
-### A2 — Classification result contract and schema v5
+### A2 and A3 — reassigned to the UI/UX terminal
 
-**Record:** SPEC, full tier. **Shared surface — coordinate with the UI/UX
-terminal before editing.**
-**Depends on:** nothing.
-**Blocks:** A3, A4, A5.
+The identifiers are kept so earlier references still resolve.
 
-Replace `InferenceResult?` with the contract in `ml-handoff.md` §"Contract other
-terminals consume", and migrate `soil_records` to v5 to store status, quality
-flags, model version, and dataset version.
+- **A2, the classification contract and schema v5** — their roadmap items 1 and
+  15. Their SPEC 0031 is already gate-approved.
+- **A3, the capture quality gate** — their roadmap item 6, which depends on
+  SPEC 0030 from this workstream.
 
-**This item is first in priority order after A1, and it needs no model.** Today
-`classify()` returns `null` for at least six distinct conditions — model absent,
-asset empty, decode failure, timeout, interpreter error, isolate death — and
-every one of them is presented to the user identically. Fixing that is real
-value delivered while the dataset is still being collected, and it is what
-unblocks the UI/UX terminal's SPEC 0031.
-
-**Acceptance criteria**
-
-- `ClassificationStatus` is `{ ok, rejectedOod, failed }`. No `inconclusive`:
-  conclusive, ambiguous, and insufficient-evidence are bands the UI derives.
-- `distribution` carries every class, descending, and is empty unless status is
-  `ok`.
-- The six `null` conditions are separated internally and mapped to `failed` with
-  a distinguishable cause, so A5 can count them apart.
-- Migration v4→v5 follows the cumulative pattern in `AppDatabase.migration`,
-  backfills existing rows with a null model version rather than a fabricated
-  one, and has a test that opens a v4 database and reads it at v5.
-- Existing records classified before v5 remain readable and are not silently
-  relabelled.
-
-### A3 — Capture quality gate
-
-**Record:** SPEC, full tier. **Shared surface — `lib/core/features/capture/` is
-being redesigned by the UI/UX terminal. Interface agreed before either side
-edits.**
-**Depends on:** A1, A2.
-
-Wire the criteria into the capture flow: ROI overlay, verdict surfaced before
-analysis, named reason for a retake, and an override path.
-
-**Acceptance criteria**
-
-- A `blocking` verdict offers a retake and names which criterion failed, in
-  pt-BR product copy.
-- The override path exists and is one tap. A false block costs more than a
-  flagged bad analysis; a gate with no escape hatch will be worked around by
-  photographing a screen, which is worse than analysing a blurry photo.
-- An overridden capture is recorded with its quality flags, so the override is
-  visible later rather than lost.
-- `advisory` never interrupts the flow.
-- The analyzer runs off the UI thread and does not delay the shutter.
+What this workstream still owes both: the calibrated band constants, published
+in `spec.json` (C2), and the recalibrated quality thresholds. Both sides ship
+provisional numbers today and both say so in their source.
 
 ### A4 — `spec.json` as the runtime contract
 
-**Record:** SPEC, full tier. Closes #79 and #116.
-**Depends on:** A2, ADR 0012.
+**Record:** SPEC, full tier. Closes #79; #116 lands with the UI/UX terminal's
+item 1, which makes the label list single-source first.
+**Depends on:** ADR 0012, and their item 1 for the label source.
 **Paired with:** B3, which must emit exactly what this reads. **The schema is
 defined in this spec and consumed by B3, not defined twice.**
 
 `InferenceService` stops hardcoding labels, input size, and normalization, and
-reads them from the tracked `assets/models/spec.json`. The label list gets one
-source of truth, consumed by `SoilTextureColors` too.
+reads them from the tracked `assets/models/spec.json`. This file is owned by
+this workstream, so the remaining failure-cause work lands here rather than in
+their item 1.
 
 **Acceptance criteria**
 
 - The `spec.json` schema is written down in the spec: labels in model output
   order, input size, normalization mode, preprocessing, model version, dataset
   version, and the per-class band constants.
-- A missing, malformed, or version-incompatible `spec.json` produces `failed`
-  with a distinguishable cause — never a silent fallback to hardcoded defaults.
+- A missing, malformed, or version-incompatible `spec.json` produces a
+  distinguishable failure cause — never a silent fallback to hardcoded defaults.
   A silent fallback is how a train/serve skew survives review.
+- **The six `null` conditions are separated.** Model absent, empty asset, decode
+  failure, timeout, interpreter error, and isolate death each carry their own
+  cause, so A5 can count them apart and the UI can eventually say which one
+  happened. Their SPEC 0031 keeps returning `null` and derives `notAnalysed`
+  from it, so this defect survives item 1 and is this workstream's to close.
+  The domain type cannot be called `ClassificationStatus`:
+  `capture_ui_state.dart:10` already uses that name for a UI state machine.
 - Zero string literals naming a texture class remain in `lib/`, enforced by a
   test that greps the tree. The label list currently exists in six independent
   copies with nothing asserting they agree.
-- `SoilTextureColors.all` returns the `spec.json` order. It currently documents
-  itself as "model output order" while ordering Siltosa before Media,
-  contradicting `InferenceService`.
 - Dart-side preprocessing matches `ml/src/preprocess.py` exactly: centred square
   ROI, then resize, then the normalization named in `spec.json`. The current
   `img.copyResize(width: 224, height: 224)` squashes the aspect ratio and is a
@@ -165,7 +155,7 @@ source of truth, consumed by `SoilTextureColors` too.
 ### A5 — Local diagnostics
 
 **Record:** SPEC, spec-lite. Implements ADR 0013.
-**Depends on:** A2.
+**Depends on:** A4 for the failure causes worth counting apart.
 
 On-device Tier 1 aggregates, visible in settings, resettable, and shareable only
 by explicit action.
@@ -324,20 +314,22 @@ Not scheduled.
 ## 6. Order of execution
 
 ```
-now ─┬─ A1 (0030, awaiting gate) ─┬─ A3 ── (with UI/UX terminal)
-     │                            └─ B2 ── dataset collection (human, weeks)
-     ├─ A2 ─┬─ A3                                    │
-     │      ├─ A4 ── B3                              │
-     │      └─ A5                                    │
-     └─ B1 ─┴─ B2                                    │
+A1 (0030) ── done ──┬─ their item 6, the capture gate
+                    └─ B2 ── dataset collection (human, weeks)
+                                                     │
+B1 (0032) ──────────── B2 ───────────────────────────┤
+                                                     │
+their item 1 ── A4 ─┬─ B3                            │
+                    └─ A5                            │
                                                      ▼
                                           C0 ── GATE ── C1 ── C2 ── C3 ── release
 ```
 
-Recommended immediate order: **A1 gate → A2 → B1 → B2 → A4/A3 → A5**, with
-collection starting the moment B2 lands. A2 before B1 because it unblocks
-another terminal; B2 early because it starts a human process that no amount of
-code shortens.
+Recommended immediate order for this workstream: **B1 → B2 → A4 → B3 → A5**,
+with collection starting the moment B2 lands. B1 first because it is the only
+item with no external dependency at all and E0 cannot be interpreted without it.
+B2 next because it starts a human process that no amount of code shortens. A4
+waits on the UI/UX terminal's item 1, which makes the label list single-source.
 
 ## 7. Decisions required from you
 
@@ -362,16 +354,27 @@ cannot be scheduled without them.
 
 Resolved:
 
-- **Criteria count** — SPEC 0030 keeps seven metrics; only the three the UX gate
-  names can block. The other four are advisory until calibrated, so nothing the
-  UX design expected to pass can be rejected by them.
-- **`SoilTextureColors` label order** — the UI/UX terminal owns the immediate
-  fix in its own spec. A4 later moves the source of truth to `spec.json`, which
-  supersedes the fix rather than conflicting with it.
-- **Band constants** — this terminal calibrates and publishes them in
-  `spec.json` (C2). The UI reads them; it does not hardcode them.
+- **Ownership** — settled in §2 above. They own the contract, the verdict, the
+  capture gate, and the migration; this workstream owns `ml/`, `spec.json` at
+  runtime, diagnostics, and all calibration.
+- **Criteria count** — SPEC 0030 keeps seven metrics; four can block (blur,
+  exposure, clipping, resolution) and three are advisory until calibrated, so
+  nothing the UX design expected to pass can be rejected by an uncalibrated
+  criterion.
+- **`SoilTextureColors` label order** — theirs, in item 1. A4 later moves the
+  source of truth to `spec.json`, which supersedes that fix rather than
+  conflicting with it.
+- **Band constants** — this workstream calibrates and publishes them in
+  `spec.json` (C2). The UI reads them; it does not hardcode them. The 0.15 /
+  0.50 / 0.65 thresholds in their SPEC 0031 are provisional on both sides and
+  must be recalibrated after temperature scaling, not before.
 
-Still requiring agreement before either side edits:
+What each side still owes the other:
 
-- `lib/core/features/capture/` (A3) and the schema v5 migration (A2). Both are
-  shared surfaces. The contract is in `ml-handoff.md`; the sequencing is here.
+- **To them, from here:** the calibrated band constants and quality thresholds,
+  and a `spec.json` whose label order is authoritative once A4 lands.
+- **To here, from them:** item 1, which makes the label list single-source and
+  is A4's precondition, and item 15's persisted fields, which are what A5 counts.
+- **Neither side has claimed** the `null` conflation in `inference_service.dart`
+  until now. It is A4's, stated explicitly there because item 1 reads as though
+  it covers the result type and does not.
