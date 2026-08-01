@@ -1,8 +1,9 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-07-30. Full reasoning lives in
-`docs/architecture/soil-classification.md`.
+Last updated: 2026-08-01. Full reasoning lives in
+`docs/architecture/soil-classification.md`; the ordered backlog with acceptance
+criteria lives in `docs/architecture/ml-implementation-map.md`.
 
 This terminal owns: computer vision, real and synthetic data, training, image
 processing, mobile inference, calibration, model monitoring. It does not own
@@ -16,6 +17,8 @@ UI/UX rework or the research agent.
 | Target isolation is a fixed centred-square ROI plus model-free quality checks; no segmentation, no detector; background subtraction rejected on mechanism | ADR 0009 |
 | One acceptance-criteria set governs both the dataset and the capture gate | ADR 0009 |
 | Generative synthetic data (GAN, VAE, diffusion) deferred behind five named conditions and a downstream ablation | ADR 0010 |
+| The released `.tflite` and its `spec.json` are tracked in git; experiment outputs stay ignored; a model update ships as an app release | ADR 0012 |
+| Monitoring is local-first: aggregates on the device, nothing transmitted, no image or coordinate in telemetry under any setting | ADR 0013 |
 | Task stays five-way classification of the Embrapa textural groups; no granulometry regression, no ordinal loss | Study §12.2 |
 
 ## Hypotheses, not yet verified
@@ -100,16 +103,24 @@ it carries no claim about what is inside it.
 
 ## Planned work
 
-| Phase | Content |
-|---|---|
-| 0 | Global seed (#80); inventory of whatever partial dataset exists; feasibility probe E0 |
-| 1 | Acceptance criteria library in Dart and Python (SPEC 0030), then the capture gate wiring |
-| 2 | Remaining pipeline corrections: #26, #25, #81, #29, #30, #28 |
-| 3 | Baseline and architecture sweep |
-| 4 | Calibration and rejection |
-| 5 | Quantization and the `spec.json` contract (#79, #116) |
-| 6 | Telemetry |
-| C | Conditional synthetic-data branch, only if ADR 0010's conditions hold |
+Scoped item by item, with acceptance criteria and dependencies, in
+`docs/architecture/ml-implementation-map.md`. Summary:
+
+| Lane | Content | Needs the dataset |
+|---|---|---|
+| A | Acceptance criteria library (SPEC 0030); the `ClassificationResult` contract and schema v5; the capture gate; `spec.json` at runtime (#79, #116); local diagnostics | No |
+| B | Deterministic and fail-loud training (#80, #25, #81, #29, #28); the dataset protocol, manifest and split generator; export hardening (#29, #30) | No |
+| C | Inventory and the E0 feasibility gate, then baseline and sweep, calibration and rejection, quantization | Yes |
+| C4 | Conditional synthetic-data branch, only if ADR 0010's conditions hold | Yes |
+
+Two things worth knowing from outside this workstream. First, most of Lanes A
+and B need no images, so they proceed in parallel with collection. Second, **E0
+is a real gate**: if the model cannot separate from a label-shuffled control,
+Lane C stops and the product premise needs revisiting.
+
+Spec and ADR numbers are assigned when a record is authored, never reserved in
+advance — both terminals draw from one sequence and a reserved hole fails the
+contiguity check on `main`.
 
 ## Files this terminal expects to touch
 
@@ -143,21 +154,22 @@ this terminal adopted theirs.
 A high top-1 with a near-tie is still a near-tie, and one threshold cannot see
 that. `inconclusive` was consequently dropped from the status enum above.
 
-**Divergences to resolve before either side implements:**
+**Divergences, now resolved:**
 
-1. **Criteria count.** SPEC 0030 defines seven metrics; the UX gate names three.
-   The extra four (contrast, colour cast, specular, ROI side) are `advisory`
-   only until calibrated, so they cannot block anything the UX design expected
-   to pass. Colour cast matters more here than it looks: soil colour is part of
-   the signal, so an uncorrected white balance is a real threat, not a cosmetic
-   one.
-2. **`SoilTextureColors` label order.** `08-results-and-uncertainty.md` §2
-   claims the fix in its spec P2-5; this terminal listed it under #116. One
-   owner, not two — proposing the UI/UX terminal takes it, since #79 will later
-   move the source of truth to `spec.json` on this side anyway.
-3. **Band constants.** They are hypotheses on both sides today. They must be
-   calibrated once, on this terminal's validation set, after temperature
-   scaling, and published in `spec.json`.
+1. **Criteria count.** SPEC 0030 keeps seven metrics; the UX gate names three.
+   Only those three can produce a `blocking` verdict. The extra four (contrast,
+   colour cast, specular, ROI side) stay `advisory` until calibrated, so they
+   cannot reject anything the UX design expected to pass. Colour cast matters
+   more here than it looks: soil colour is part of the signal, so an uncorrected
+   white balance is a real threat, not a cosmetic one.
+2. **`SoilTextureColors` label order.** The UI/UX terminal owns the immediate
+   fix (its spec P2-5). Item A4 in the map later moves the source of truth to
+   `spec.json` under #79, which supersedes that fix rather than conflicting with
+   it. One owner at a time.
+3. **Band constants.** Calibrated once on this terminal's validation set, after
+   temperature scaling, and published in `spec.json` (map item C2). The UI reads
+   them; it does not hardcode them. The current 0.70 / 0.45 / 0.15 are
+   hypotheses about raw softmax and will move.
 
 ## Potential integration conflicts
 
@@ -171,20 +183,23 @@ that. `inconclusive` was consequently dropped from the status enum above.
   Its 0.80 / 0.60 thresholds are arbitrary today. Do not build new UI semantics
   on the present values.
 - **A database migration** for the new record fields collides with any other
-  schema work. Schema is at v4; coordinate before writing v5.
-- **`assets/models/` and `.gitignore`** — whether the artifact and `spec.json`
-  are tracked in git or produced by CI is undecided and blocks #79 and #116.
+  schema work. Schema is at v4; coordinate before writing v5 (map item A2).
+- **`.gitignore`** — ADR 0012 removes the `assets/models/*.tflite` and
+  `assets/models/spec.json` entries. Both files become tracked. This unblocks
+  #79 and #116.
 
 ## Dependencies
 
-- Blocking everything: the dataset. Absent or partial today.
+- Blocking Lane C: the dataset. Verified absent — `ml/data/` holds only
+  `splits/.gitkeep`, and `ml/models/v1` and `v2` hold only `.gitkeep`.
 - Blocking every experiment: reproducible training (#80).
-- Blocking the runtime contract: the artifact-tracking decision above.
 - Compute available: local machine plus free Kaggle/Colab tiers. This is what
   rules out training any generator from scratch.
 
 ## Open questions
 
-Listed in `docs/architecture/soil-classification.md` §24. The two that block
-other terminals: how the model artifact is delivered, and when the schema
-migration for the new result fields lands.
+Listed in `docs/architecture/soil-classification.md` §24; question 6 (artifact
+delivery) is now answered by ADR 0012. The ones needing input from outside this
+workstream are in `ml-implementation-map.md` §7. The one that still blocks
+another terminal is when the schema v5 migration lands, since it collides with
+any other schema work.

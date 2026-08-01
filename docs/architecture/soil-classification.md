@@ -795,6 +795,11 @@ Non-negotiable gates:
 Phases 0 and 1 are prerequisites for everything. Phase 2 is a prerequisite for
 Phase 3 because unreproducible experiments cannot be compared.
 
+This table is the strategy. `docs/architecture/ml-implementation-map.md` is the
+executable form of it: the same work broken into scoped items with acceptance
+criteria, dependencies, and the lane split that separates what needs the dataset
+from what does not.
+
 ---
 
 ## 22. Dependencies and Files Likely Affected
@@ -919,8 +924,9 @@ distinct conditions.
    dataset contain? Image counts alone do not size a split.
 5. Should the negative class live in the model or be handled entirely by the
    quality gate plus a threshold? E12 informs this.
-6. Is `assets/models/*.tflite` tracked in git, or built by CI from a released
-   artifact? Blocks #79 and #116.
+6. ~~Is `assets/models/*.tflite` tracked in git, or built by CI from a released
+   artifact? Blocks #79 and #116.~~ **Answered by ADR 0012**: tracked in git,
+   along with `spec.json`; experiment outputs stay ignored.
 7. What is the field cost of a laboratory analysis? It sets whether active
    learning is economical.
 8. Does ImageNet pretraining transfer at all to a texture-statistics task with
