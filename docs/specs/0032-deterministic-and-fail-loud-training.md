@@ -34,6 +34,18 @@ live**: nothing is wrong in the realized distribution today. It becomes wrong th
 moment anyone configures an asymmetric range, which is exactly what tuning
 augmentation means (#81).
 
+**A leakage test has been failing, unseen.** `ml/tests/` has never run: CI does
+not invoke it (#28) and TensorFlow was absent from the development machine until
+2026-08-01. Installing it revealed `test_no_sample_leakage_between_splits`
+failing. The failure is real but the test is what is wrong. `create_splits`
+groups by `f"{class_name}::{sid}"` (`ml/src/dataset.py:117`), while the test
+compares bare `_extract_sample_id` stems, and its fixture names files
+`sample_0 … sample_7` inside *every* class folder. Two files with the same stem
+in different class folders are different physical samples — one soil sample has
+one laboratory texture class, so it cannot appear in two folders — and the test
+reports their appearance in different splits as a leak. Fifty-six other tests
+pass.
+
 Together these make experiment E0 unrunnable. E0 compares a real model against a
 label-shuffled control and asks whether the difference exceeds run-to-run
 variance. Without a seed there is no denominator: every difference is
@@ -107,6 +119,27 @@ plausible-looking but meaningless run:
 The TFLite export threshold, also part of #29, is **not** in scope: it belongs
 with the export parity gate, which needs real held-out images to be meaningful.
 
+### The leakage test asserts the grouping key it is testing
+
+`test_no_sample_leakage_between_splits` is corrected to compare the key
+`create_splits` actually groups by, not a bare filename stem. It still fails on
+a real leak; it stops failing on a fixture whose naming repeats across classes.
+
+The alternative — dropping the class prefix from the group id so bare stems
+become globally comparable — is **not** taken here. It presumes sample
+identifiers are unique across the whole dataset, which is a collection
+convention nobody has decided yet: an identifier could be a laboratory report
+reference (globally unique) or a per-class counter (not). That decision belongs
+to the dataset protocol spec, which is where the naming convention is fixed.
+Deciding it here, inside a determinism fix, would settle a data-collection
+question as a side effect of a test repair.
+
+Whether the class prefix should survive that decision is therefore left open,
+and #25's framing of it as a defect is recorded as questionable rather than
+accepted: it describes "the same physical sample ID across class folders", a
+situation the one-sample-one-class rule makes impossible except as a labelling
+error.
+
 ### CI runs the Python tests
 
 From #28, this spec takes only item 1: a workflow job that installs
@@ -150,14 +183,16 @@ SPEC 0015.
   - `ml/src/dataset.py` — a pre-training verification pass in `scan_dataset`.
   - `ml/src/config.py` — the five validations listed above.
   - `ml/src/model.py` — `freeze_backbone` reads its declared default.
-  - `ml/tests/` — tests for each criterion below.
+  - `ml/tests/` — tests for each criterion below, and the corrected assertion in
+    `test_no_sample_leakage_between_splits`.
   - `.github/workflows/ci.yml` — an `ml-tests` job.
 - Does NOT include:
   - `enable_op_determinism()`.
   - The TFLite export parity threshold (#29 item 2) and anything in
     `ml/src/export.py`.
   - `scan_dataset` directory recursion, `_extract_sample_id`, and group-id
-    composition (#25) — the dataset protocol spec owns these.
+    composition (#25) — the dataset protocol spec owns these, including whether
+    the class prefix survives.
   - Coverage tracking, release signing, ProGuard rules (#28 items 2-5).
   - Any change under `lib/`, any Dart file, any database or UI surface.
   - Training a model, or any change to the architecture, loss, or metrics.
@@ -201,8 +236,13 @@ SPEC 0015.
   `bake_into_model: true` raises from `load_config`.
 - freeze_backbone_default_is_declared: the default lives in `config.py` and
   `model.py` reads it from the validated config rather than supplying its own.
-- existing_ml_tests_pass: the five existing files under `ml/tests/` pass
-  unchanged.
+- leakage_test_compares_the_grouping_key:
+  `test_no_sample_leakage_between_splits` compares the key `create_splits`
+  groups by, and passes against the existing fixture.
+- leakage_test_still_catches_a_real_leak: a fixture where one group's photos are
+  forced into two splits makes that test fail, proving the correction did not
+  weaken it into always passing.
+- existing_ml_tests_pass: the other 56 tests under `ml/tests/` pass unchanged.
 - ci_runs_ml_tests: the workflow has a job that installs
   `ml/requirements.txt` and runs `pytest ml/tests/`, and it is required for the
   build job in the same way `analyze` and `test` are.
@@ -214,11 +254,16 @@ SPEC 0015.
 - Toolchain: Flutter 3.44.1 / Dart 3.12.1 for the unchanged Dart suite; Python
   with the pins in `ml/requirements.txt`, notably `tensorflow==2.21.0` and
   `keras==3.14.0`.
-- **Implementing this spec requires TensorFlow installed locally.** It is absent
-  on the current development machine, where `ml/.venv` holds only NumPy, Pillow,
-  and pytest — enough for SPEC 0030 and not enough for this. The five existing
-  `ml/tests/` files cannot even be collected until it is installed. This is a
-  prerequisite, not a risk.
+- TensorFlow 2.21.0 and Keras 3.14.0 are installed in `ml/.venv` as of
+  2026-08-01. Before that the environment held only NumPy, Pillow and pytest,
+  and the existing `ml/tests/` files could not even be collected — which is how
+  a failing leakage test went unseen.
+- oneDNN is enabled by default in this TensorFlow build and warns that operation
+  ordering can change floating-point results. It is a warning about numerical
+  reproducibility across builds, not within one; the determinism criteria below
+  compare two runs in one process, where it does not apply. If a criterion ever
+  fails intermittently, `TF_ENABLE_ONEDNN_OPTS=0` is the first thing to try
+  before reaching for `enable_op_determinism()`.
 - Every criterion is verified against synthetic tensors and temporary
   directories. No dataset and no trained model is required.
 - Verify: `cd ml && python -m pytest tests/ -v`.
