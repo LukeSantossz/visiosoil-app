@@ -55,14 +55,41 @@ All seven are model-free arithmetic over the ROI. Luma is ITU-R BT.601,
 `double`, in both languages, with no rounding before the metric.
 
 **Adoption 1 — the blur metric is computed on a downscaled copy**, following
-`06-capture-experience.md` §2.2, at a fixed 512 px on the ROI side using
-bilinear interpolation. The UX document's stated reason is cost; there is a
-second and stronger one. Laplacian variance is resolution-dependent, so the same
-scene photographed at 12 MP and at 5 MP yields different scores, and a threshold
-calibrated on one device would be wrong on another. Downscaling to a fixed size
-makes the score comparable across devices, which is what makes it thresholdable
-at all. A source ROI already below 512 px is used as-is and the report records
-that no downscale occurred.
+`06-capture-experience.md` §2.2, at a fixed 512 px on the ROI side. The UX
+document's stated reason is cost; there is a second and stronger one. Laplacian
+variance is resolution-dependent, so the same scene photographed at 12 MP and at
+5 MP yields different scores, and a threshold calibrated on one device would be
+wrong on another. Downscaling to a fixed size makes the score comparable across
+devices, which is what makes it thresholdable at all. A source ROI already below
+512 px is used as-is and the report records that no downscale occurred.
+
+**Correction, found while implementing this spec.** This section first said
+"bilinear interpolation" and delegated the resize to each language's image
+library. Both halves of that were wrong.
+
+- **It is not reproducible across languages.** `image`'s `Interpolation.linear`
+  point-samples four neighbours; Pillow's `BILINEAR` scales its filter support
+  with the downscale factor, so it averages over a wider window. They are
+  different algorithms, and no tolerance near `1e-9` would ever hold between
+  them. The conformance golden would have failed on a decision made in prose.
+- **It would break the resolution-independence criterion below.** Point-sampled
+  bilinear ignores most source pixels when shrinking by more than 2×, so a
+  high-frequency pattern aliases differently at 2048 px and at 1024 px, and the
+  two `blurScore` values would not land within 5% of each other. An area filter
+  is not a refinement here; it is what makes the metric mean anything.
+
+The downscale is therefore defined arithmetically and implemented by hand in
+both languages, using no library resize:
+
+> Let `S` be the ROI side in pixels, `T = 512`, and `f = S / T`. Output pixel
+> `(i, j)` covers the source region `x ∈ [j·f, (j+1)·f)`, `y ∈ [i·f, (i+1)·f)`.
+> Its value is the sum, over every source pixel overlapping that region, of the
+> pixel value times its overlapping area, divided by `f²`. Source pixels are
+> visited row-major, ascending index. When `S <= T` no downscale is applied.
+
+The downscale runs on the **luma plane**, not on the three channels. Luma and an
+area average are both linear, so the two orders are equivalent, and fixing one of
+them removes a needless source of divergence.
 
 | Metric | Plain description | Definition |
 |---|---|---|
@@ -81,12 +108,21 @@ with "registrar assim mesmo" as the secondary action. A two-state
 accepted/rejected model cannot express the marginal image that should be
 analysed *and* flagged, which is the common case in a field.
 
-Only three criteria may produce `blocking` in phase one — blur, exposure
-(mean luminance and clipped fraction), and effective resolution — matching the
-three signals the UX design blocks on. The other four (contrast, colour cast,
-specular, and the ROI-side report) are `advisory` only until they are calibrated
-against real images. Blocking on an uncalibrated criterion is how a gate starts
-refusing legitimate work.
+**Four of the seven criteria may produce `blocking` in phase one** — blur,
+exposure, clipping, and effective resolution — matching the three signals the UX
+design blocks on, where its "exposure" covers this spec's separate exposure and
+clipping criteria. The remaining three — contrast, colour cast, and specular —
+are `advisory` only until they are calibrated against real images. Blocking on
+an uncalibrated criterion is how a gate starts refusing legitimate work.
+
+**Corrected while implementing.** This paragraph first read "only three
+criteria... and the other four (contrast, colour cast, specular, and the
+ROI-side report)", which placed `roiSidePx` on both sides at once: blocking as
+"effective resolution" and advisory as "the ROI-side report". The acceptance
+criterion `roi_side_is_reported` below requires it to reject, and the seven
+criteria map one-to-one onto the seven metrics, so the split is four blocking
+and three advisory. The miscount came from collapsing exposure and clipping into
+one criterion in the prose while the metric table lists them separately.
 
 The report always lists **every** failing criterion with its measured value and
 its margin, rather than short-circuiting on the first, because the UI must be
@@ -220,8 +256,27 @@ No new dependency in either language: Dart uses `image ^4.3.0`
   fixture passes that criterion.
 - clipping_is_detected: a fixture with 20% of pixels at value 255 reports
   `clippedFraction` of 0.20 and is blocking.
-- low_contrast_is_advisory: a uniform fill reports `contrastScore` of 0.0 and
-  yields the advisory verdict, not blocking.
+- low_contrast_is_advisory: a low-contrast but sharp fixture — a checkerboard
+  about mid-grey whose amplitude is small enough to fail `minContrastScore` and
+  whose edges are still sharp enough to clear `minBlurScore` — reports a
+  `contrastScore` below the threshold and yields the advisory verdict, not
+  blocking. The amplitude is chosen by the fixture generator against the
+  measured metrics rather than pinned here, because the blur response after the
+  512 px downscale depends on the cell size as well as the amplitude.
+  **Corrected while implementing.** This criterion first named a uniform fill,
+  which cannot satisfy it: zero contrast means a zero Laplacian everywhere, so a
+  uniform fill necessarily fails blur as well and is blocking. The criterion was
+  unsatisfiable as written. A uniform fill is still committed as a fixture,
+  because it is the flat-fill decode check the Risks section relies on, and it
+  is expected to be blocking on blur.
+- bright_clipping_and_specular_overlap_by_construction: `clippedFraction`
+  counts luma `>= 253.0`, and `specularFraction` counts luma `>= 250.0` with
+  saturation `<= 0.10`. Luma `>= 253` forces every channel high enough that
+  saturation cannot exceed `0.0686`, so **a bright-clipped pixel is always also
+  specular**. A fixture isolating clipping therefore clips at the dark bound
+  (luma `<= 2.0`), which no specular pixel can satisfy. Recorded because it
+  constrains `golden_covers_every_criterion` below, not because either
+  definition is wrong.
 - colour_cast_is_advisory: a fixture whose red channel mean exceeds the others
   by 60 reports `colorCastScore` of `60/255` and yields advisory.
 - specular_is_advisory: a fixture with a bright low-saturation patch covering
