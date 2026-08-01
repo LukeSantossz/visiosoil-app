@@ -24,15 +24,25 @@ and `scan_dataset` never opens the files it lists, so an undecodable file is
 discovered only when the training loop reaches it — after the model is built and
 some epochs may already have run (#25).
 
-**Augmentation ranges silently drop their lower bound.** `build_augmentation_layer`
-derives the Keras factor from the upper bound alone —
-`factor = brightness[1] - 1.0` (`preprocess.py:102`) and
+**Augmentation ranges silently drop their lower bound, and contrast is worse
+than #81 reports.** `build_augmentation_layer` derives the Keras factor from the
+upper bound alone — `factor = brightness[1] - 1.0` (`preprocess.py:102`) and
 `factor = contrast[1] - 1.0` (`preprocess.py:109`) — while `RandomZoom` in the
-same function correctly maps both. With the current `config.yaml` the ranges
-happen to be symmetric (`[0.85, 1.15]`, `[0.9, 1.1]`), so **this is latent, not
-live**: nothing is wrong in the realized distribution today. It becomes wrong the
-moment anyone configures an asymmetric range, which is exactly what tuning
-augmentation means (#81).
+same function correctly maps both.
+
+Measuring the realized distributions against Keras 3.14.0 shows the two layers
+expand a float factor differently, which #81 does not mention and the code
+plainly assumes away:
+
+- `RandomBrightness(factor=0.15)` stores `(-0.15, 0.15)`. Brightness is
+  symmetric today, so for the current `[0.85, 1.15]` **nothing is wrong in the
+  realized distribution**. It breaks the moment anyone configures an asymmetric
+  range, which is exactly what tuning augmentation means. Latent.
+- `RandomContrast(factor=0.1)` stores `(0, 0.1)`, and the layer realizes
+  `[1 - min(factor), 1 + max(factor)]`. The configured `[0.9, 1.1]` is therefore
+  realized as `[1.0, 1.1]`: **contrast augmentation has only ever increased
+  contrast and never reduced it.** Half the configured range has never been
+  sampled. Live, and fixing it changes training behaviour.
 
 **A leakage test has been failing, unseen.** `ml/tests/` has never run: CI does
 not invoke it (#28) and TensorFlow was absent from the development machine until
@@ -111,8 +121,25 @@ plausible-looking but meaningless run:
 - Augmentation ranges must be two floats in ascending order. Today a single
   value or an inverted pair fails deep inside Keras with an `IndexError` that
   names nothing.
-- `normalization` and `preprocessing.bake_into_model` must not both apply the
-  same transformation. Today the combination is undefined and silent.
+- `bake_into_model` must be `true` when `normalization` is `mobilenet_v2`.
+  #29 frames this as detecting a conflict between two settings; the code is
+  worse than that. `build_model` adds `Rescaling(2.0, -1.0)` unconditionally
+  (`model.py:43`) and never reads `bake_into_model`, while `export.py:135-138`
+  does read it and only declares the preprocessing contract as baked when both
+  values line up. So `bake_into_model: false` yields a model that rescales
+  anyway and a `spec.json` claiming it does not — a train/serve skew produced by
+  configuration alone, on the one normalization the project actually uses. That
+  combination is rejected.
+
+  **`normalization: imagenet` is a second, larger defect and is deliberately
+  left alone.** With the unconditional `Rescaling`, imagenet normalization feeds
+  roughly `[-2, 2]` into a layer expecting `[0, 1]`, so the value is accepted by
+  validation and silently wrong at training time. Closing it means either making
+  the `Rescaling` conditional — a model change, adding a code path nothing
+  exercises end to end — or removing a config value two existing tests assert is
+  valid (`test_config.py:133` and `:142`). Both exceed a determinism fix. It is
+  reported as a separate issue rather than absorbed here, and the config path
+  stays exactly as unsafe as it is today, which is the honest state.
 - `freeze_backbone` gets a declared default in `config.py` rather than an
   undeclared `.get("freeze_backbone", True)` at `model.py:51`.
 
