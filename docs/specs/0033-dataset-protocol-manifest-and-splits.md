@@ -36,11 +36,58 @@ regex matching `"name (N)"` (`ml/src/dataset.py`). Four consequences follow.
 
 ## Design Decisions
 
-### The sample identifier is the laboratory report reference
+### What collection actually is, and what that costs
 
-One physical soil sample has one granulometry report and one Embrapa textural
-class. Its identifier is that report's reference, recorded by the collector, and
-it is **globally unique across the dataset**.
+Answered by the project owner on 2026-08-01. Every row constrains the rest of
+this spec:
+
+| Question | Answer | Consequence |
+|---|---|---|
+| Laboratory records | Granulometry spreadsheets exist per sample, but are not in a usable state | The identifier is collector-assigned; granulometry becomes optional |
+| Moisture at capture | Cannot be recorded | Would be an unmeasurable confound — except for the next row |
+| Where photographs are taken | **On a bench, after standard preparation** (air-dried, sieved) | Moisture becomes near-constant by construction, and **the domain gap replaces it as the dominant risk** |
+| Paired in-situ photograph | Cost not yet evaluated | Optional column now; **a blocking decision before the first collection**, since it is irreversible per sample |
+| Capture devices | One | The device axis does not exist in the dataset and does vary in deployment |
+| Sample count | 150 or more, imbalanced | E0 is runnable; its floor is the smallest class, not the total |
+
+Two of these change the programme rather than this spec.
+
+**Bench preparation removes the moisture confound and creates a larger one.**
+Air-dried, sieved soil on a bench is not what the app photographs. Sieving
+removes the coarse fraction that distinguishes Arenosa; air-drying changes
+colour substantially. ADR 0009 decided to close the collection-versus-deployment
+gap by enforcing one capture protocol on both sides, which works when both sides
+photograph the same subject with differing care. They do not. That claim is
+narrowed in ADR 0009; the ROI and the criteria themselves are unaffected and
+still worth having, because they still stop bad photographs entering either side.
+
+**One device makes camera signature a learnable constant.** Any regularity in a
+single camera's colour rendering and noise is present in every training image
+and absent from the deployment population. Nothing in this spec can measure
+that, because measuring it needs a second device. It is recorded as a known
+limitation and belongs in any statement of what a resulting model has been shown
+to do.
+
+### The sample identifier is assigned by the collector and is globally unique
+
+One physical soil sample has one Embrapa textural class. Its identifier is a
+code the collector assigns, and it is **globally unique across the dataset**.
+
+The laboratory report reference would have been the better identifier, because
+it makes every label traceable to the granulometry that produced it. Those
+spreadsheets are not in a usable state, so this spec does not depend on them.
+It keeps the door open instead: sand, silt and clay percentages are **optional
+manifest columns**, filled when at hand and empty otherwise.
+
+They are worth the empty columns for two reasons that need no spreadsheet
+cleanup first. A label suspected of being wrong can only be checked against the
+measurement that produced it — the Embrapa class *is* a reading of those
+percentages on the textural triangle, not an independent judgement. And a sample
+sitting near a boundary between two classes is genuinely ambiguous; those
+samples will dominate the error, and separating "confused two adjacent classes
+at a boundary" from "confused Arenosa with Muito Argilosa" is what makes a
+cost-weighted evaluation possible. Neither is blocking. Neither is available
+later if the columns do not exist.
 
 This settles what SPEC 0032 deferred. Two consequences:
 
@@ -68,20 +115,29 @@ produce a message naming the problem rather than a parse error naming a column.
 
 Required columns:
 
-| Column | Meaning |
-|---|---|
-| `sample_id` | The laboratory report reference. Globally unique |
-| `texture_class` | One of the five Embrapa groups, exactly as `config.yaml` spells it |
-| `image` | Path relative to the dataset version root |
-| `site` | Collection site identifier |
-| `device` | Capture device, make and model |
-| `captured_at` | ISO 8601 date |
-| `moisture` | One of `dry`, `moist`, `wet`, recorded at capture |
-| `lab_report` | Reference to the granulometry result backing the class |
+| Column | Required | Meaning |
+|---|---|---|
+| `sample_id` | yes | Collector-assigned code. Globally unique across the dataset |
+| `texture_class` | yes | One of the five Embrapa groups, exactly as `config.yaml` spells it |
+| `image` | yes | Path relative to the dataset version root |
+| `setting` | yes | `bench` or `in_situ`. The axis the domain gap lives on |
+| `site` | yes | Where the sample was taken, whatever the photograph's setting |
+| `device` | yes | Capture device, make and model |
+| `captured_at` | yes | ISO 8601 date |
+| `sand_pct`, `silt_pct`, `clay_pct` | no | Granulometry backing the class, when available |
+| `lab_report` | no | Reference into the laboratory spreadsheet, when one exists |
+| `quality_flags`, and the seven metrics | written by admission | Recorded so recalibration can be recomputed without re-reading files |
 
-`moisture` is a three-value judgement rather than a measurement because a field
-collector cannot measure water content, and a coarse honest value beats a
-precise invented one. What matters is that the axis exists at all.
+**There is no `moisture` column**, and its absence is a decision rather than an
+omission. It cannot be recorded, and bench preparation makes it near-constant
+anyway, so a column would collect either nothing or a guess. If in-situ
+photographs are later adopted, moisture returns as a live confound for those
+rows specifically and the column comes back with them.
+
+`setting` is required even though every row says `bench` today. It costs one
+constant column now and it is the axis every later question about the domain gap
+is asked along; adding it retroactively would mean editing history rather than
+recording it.
 
 ### A dataset version is an immutable directory
 
@@ -126,14 +182,24 @@ kept; enforcing a policy over an unknown count would be guessing.
 the 70% fill rule "requires the ML terminal's agreement, since it changes what
 they collect", and offers no recommendation. This is that agreement.
 
-**Keep the coin, and place it outside the analysed square.** Its value is not
-that it helps today — nothing measures it — but that collection is irreversible.
-A coin present in every image leaves the door open to a future detector deriving
-real millimetres per pixel, which is the only way to remove the distance
-confound: the same soil at 15 cm and at 25 cm shows different apparent grain
-size, and apparent grain size is the signal. A dataset collected without a coin
-closes that door permanently for every image in it. The cost of keeping it is a
-coin in the frame.
+**Keep the coin, and place it outside the analysed square.** The reason has
+shifted now that bench capture is confirmed, and the shift is worth stating
+because it changes who the rule is for.
+
+A bench setup holds the camera at a fixed distance, so millimetres per pixel is
+already near-constant across the dataset and a scale reference buys little
+there. It buys a great deal everywhere else. In the app, distance varies with
+whoever is holding the phone, and the same soil at 15 cm and at 25 cm shows
+different apparent grain size — which is the signal. A detected coin is the only
+known route to normalising that. And if the paired in-situ photograph is
+adopted, those images are field images with field distance variation, where the
+coin matters exactly as much as it does in the app.
+
+So the coin's value is now mostly on the deployment side and on the in-situ
+rows, and only marginally on the bench rows. It stays in the protocol anyway,
+because the cost is a coin in the frame and collection is irreversible: a bench
+image taken without one can never be used to calibrate against a field image
+taken with one.
 
 Placing it **outside** the centred square is a correction this spec makes rather
 than an inherited rule, and it matters for a reason neither document names: a
@@ -172,6 +238,23 @@ groups of that class.
 
 Both are counts of *samples*, not photographs. Several photographs of one sample
 are one group and add robustness, not statistical power.
+
+**The available set is 150 or more but imbalanced, so the total is not the
+binding number — the smallest class is.** A run with 100 Argilosa and 8 Siltosa
+clears 150 and cannot support a five-way verdict, because the class most likely
+to be confused is the one with almost no evidence. The inventory step therefore
+reports the per-class count first, and E0's scope follows from it:
+
+- every class at or above 30 — run E0 as specified, five ways;
+- some classes below 30 — run E0 on the classes that clear the floor and report
+  which were excluded and why. A verdict on three classes is a real verdict;
+  a five-class verdict resting on eight Siltosa samples is not;
+- fewer than two classes clear it — E0 cannot answer its question, and the
+  finding is that collection has to precede feasibility rather than the reverse.
+
+This is stated here rather than left to judgement at the time, because the
+temptation when a class is thin is to run all five anyway and read the result as
+if it meant something.
 
 ## Alternatives Considered
 
@@ -284,15 +367,27 @@ are one group and add robustness, not statistical power.
 
 ## Risks and Assumptions
 
-- Assumption: laboratory report references exist and are available to the
-  collector. This is question 2 in `ml-implementation-map.md` §7 and is
-  unanswered. If they are not available, `sample_id` falls back to a collector-
-  assigned identifier and the uniqueness rule still holds, but the link back to
-  the granulometry that produced the label is lost, which weakens every later
-  claim about label quality.
-- Assumption: moisture can be recorded at collection time. If it cannot, the
-  confound stays and no later work can remove it. Recorded here because the cost
-  of skipping it is paid much later, by someone who cannot fix it.
+- **Blocking, and irreversible per sample: the paired in-situ photograph.** Its
+  cost is being evaluated. Until it is decided, every sample collected is a
+  sample whose field appearance is permanently unrecorded. This spec can be
+  implemented without the answer — the column is optional and the validator does
+  not care — but **collection must not begin before it is answered**, because
+  that is the only moment the option exists.
+- Known limitation, not a risk to mitigate: **labels are not traceable to their
+  granulometry** while the spreadsheets stay unusable. A wrong label is
+  undetectable, so label noise cannot be bounded and cannot be ruled out as a
+  ceiling on measured accuracy.
+- Known limitation: **one capture device**. Any camera-specific regularity is a
+  constant in training and a variable in deployment. Unmeasurable within this
+  dataset by construction.
+- Known limitation: **the domain gap between bench and field is unmeasured**,
+  and unmeasurable without the paired in-situ photograph. Every accuracy figure
+  this dataset produces describes prepared samples on a bench. Reporting one as
+  field accuracy would be wrong, and the wording of any such report is part of
+  the deliverable rather than an afterthought.
+- Resolved by bench preparation: moisture. It cannot be recorded, but air-dried
+  samples make it near-constant, so it stops being a confound for the bench rows.
+  It returns in full for any in-situ row.
 - Risk: the 30-per-class E0 floor may be too small for the probe to separate
   signal from noise, in which case E0 returns "inconclusive" rather than a
   verdict and the floor rises. That is a real possible outcome and it is cheaper
