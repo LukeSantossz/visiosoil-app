@@ -8,11 +8,45 @@ enters the dataset and what the app accepts at capture time.
 
 ## Status
 
-Accepted. Recorded during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §16). SPEC 0030 implements the
-acceptance criteria in both languages with a conformance test; wiring the gate
-into the capture flow is a follow-up spec, deliberately separated because
-`capture_screen.dart` is shared with the UI/UX terminal.
+Accepted, with one claim narrowed on 2026-08-01. Recorded during the 2026-07-30
+ML architecture study (`docs/architecture/soil-classification.md`, §16).
+SPEC 0030 implements the acceptance criteria in both languages with a
+conformance test; wiring the gate into the capture flow is a follow-up spec,
+deliberately separated because `capture_screen.dart` is shared with the UI/UX
+terminal.
+
+### Narrowed: the criteria do not close the subpopulation gap
+
+This ADR decided to **close the collection-versus-deployment gap by enforcing
+one capture protocol on both sides**. That reasoning assumed the dataset and the
+app photograph the same subject under the same protocol, differing only in how
+well the photograph is taken — a difference acceptance criteria can police.
+
+The assumption is false. The dataset is photographed **on a bench, after
+standard preparation**: air-dried and sieved (confirmed by the project owner,
+2026-08-01, recorded in SPEC 0033). The app photographs soil in place. Sieving
+removes the coarse fraction that distinguishes Arenosa, and air-drying changes
+colour substantially, so the two are different populations rather than one
+population photographed with differing care. No threshold on blur, exposure, or
+resolution reaches that difference.
+
+What survives unchanged:
+
+- the fixed centred-square ROI, and the rejection of segmentation and detection;
+- the rejection of background subtraction on mechanism;
+- one criteria set with two implementations, held together by a golden file.
+  These remain worth having: they stop *bad photographs* entering either side.
+
+What no longer holds:
+
+- the claim that applying one criteria set to both sides closes the
+  subpopulation gap. It closes the photographic-quality gap only.
+
+The domain gap is now an open programme risk rather than a solved one. Whether
+it is measurable at all depends on collecting a paired in-situ photograph of the
+same sample before it is removed from the field, which is irreversible per
+sample and is an open decision in SPEC 0033. Until that decision is made and the
+gap is measured, no claim about field accuracy is supportable from this dataset.
 
 ### Decided
 
