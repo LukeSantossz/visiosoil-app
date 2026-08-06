@@ -318,8 +318,13 @@ if it meant something.
   one sample share an identifier and form one group.
 - manifest_rejects_an_unknown_class: a `texture_class` not in `config.yaml` is
   rejected, naming the value and the accepted set.
-- manifest_rejects_an_unknown_moisture_value: anything outside
-  `dry`, `moist`, `wet` is rejected.
+- manifest_rejects_an_unknown_setting_value: anything outside `bench` and
+  `in_situ` is rejected. `setting` replaces the moisture criterion an earlier
+  draft of this specification carried: with collection on a bench after
+  standard preparation, moisture cannot be recorded and there is no `moisture`
+  column to validate, so a criterion rejecting `dry`, `moist` and `wet` tested a
+  column the schema does not define. `setting` is the axis that actually carries
+  the risk moisture used to stand for.
 - manifest_reports_every_problem_at_once: a manifest with four distinct problems
   produces one failure naming all four.
 - semicolon_delimited_manifest_is_diagnosed: a semicolon-separated file fails
