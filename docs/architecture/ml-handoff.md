@@ -57,7 +57,9 @@ Reconciled with `docs/design/ux-2026/08-results-and-uncertainty.md`. **This
 terminal produces evidence; the UI terminal decides presentation.**
 
 ```dart
-enum ClassificationStatus { ok, rejectedOod, failed }
+// NOT `ClassificationStatus`: capture_ui_state.dart:10 already declares that
+// name for the capture screen's UI state machine, {idle, running, done, failed}.
+enum ClassificationOutcome { ok, rejectedOod, failed }
 
 class ClassScore {
   final String textureClass;
@@ -65,7 +67,7 @@ class ClassScore {
 }
 
 class ClassificationResult {
-  final ClassificationStatus status;
+  final ClassificationOutcome status;
   final List<ClassScore> distribution;  // all classes, descending; empty unless ok
   final String modelVersion;
   final String datasetVersion;

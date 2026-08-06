@@ -217,9 +217,12 @@ must produce before any training decision is taken.
 | Siltosa | 30 | 2.1% | 1.0 |
 
 `training.class_weights: "balanced"` computes `n / (k · n_i)`
-(`dataset.py:306-329`), giving Siltosa roughly 9.5× the weight of Argilosa.
-Weighting redistributes gradient; it does not create the variation that 30
-images do not contain.
+(`dataset.py:306-329`). With `n = 1418` and `k = 5` that gives Siltosa a weight
+of `1418 / (5 · 30) ≈ 9.45` and Argilosa `1418 / (5 · 566) ≈ 0.50`, so Siltosa
+carries roughly **18.9×** the weight of Argilosa — the same figure the table's
+last column already reports, because the weight ratio between two classes is
+exactly the inverse ratio of their counts. Weighting redistributes gradient; it
+does not create the variation that 30 images do not contain.
 
 ### 4.3 What the inventory must produce
 
@@ -856,7 +859,9 @@ its numbers mean what they say, and the threshold constants — calibrated on th
 validation set and shipped in `spec.json` so both sides read one source.
 
 ```dart
-enum ClassificationStatus { ok, rejectedOod, failed }
+// NOT `ClassificationStatus`: capture_ui_state.dart:10 already declares that
+// name for the capture screen's UI state machine, {idle, running, done, failed}.
+enum ClassificationOutcome { ok, rejectedOod, failed }
 
 class ClassScore {
   final String textureClass;
@@ -864,7 +869,7 @@ class ClassScore {
 }
 
 class ClassificationResult {
-  final ClassificationStatus status;
+  final ClassificationOutcome status;
   final List<ClassScore> distribution;  // all classes, descending; empty unless ok
   final String modelVersion;
   final String datasetVersion;

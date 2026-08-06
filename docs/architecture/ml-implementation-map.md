@@ -74,9 +74,14 @@ Two consequences worth recording, because neither is obvious from the split:
   interpreter error, isolate death — remain indistinguishable to the caller.
   That is still a live defect after item 1 lands. It sits inside
   `inference_service.dart`, which this workstream owns, and is folded into A4.
-- **`ClassificationStatus` is already taken.** `capture_ui_state.dart:10`
-  declares it as a UI state machine, `{idle, running, done, failed}`. Any domain
-  status type needs a different name.
+- **`ClassificationStatus` is already taken, and the replacement is decided.**
+  `capture_ui_state.dart:10` declares it as a UI state machine,
+  `{idle, running, done, failed}`. The domain type is therefore
+  **`ClassificationOutcome`**, `{ok, rejectedOod, failed}`, and the study and the
+  handoff both declare it under that name. The two are not variants of one idea:
+  the UI type tracks where a screen is in an operation, the domain type reports
+  what an operation concluded. Giving them one name would force a prefixed import
+  in the one file where both meet, the capture screen.
 
 ---
 
@@ -146,8 +151,9 @@ their item 1.
   cause, so A5 can count them apart and the UI can eventually say which one
   happened. Their SPEC 0031 keeps returning `null` and derives `notAnalysed`
   from it, so this defect survives item 1 and is this workstream's to close.
-  The domain type cannot be called `ClassificationStatus`:
-  `capture_ui_state.dart:10` already uses that name for a UI state machine.
+  The domain type is called `ClassificationOutcome`, not
+  `ClassificationStatus`: `capture_ui_state.dart:10` already uses the latter for
+  a UI state machine.
 - Zero string literals naming a texture class remain in `lib/`, enforced by a
   test that greps the tree. The label list currently exists in six independent
   copies with nothing asserting they agree.
@@ -220,10 +226,16 @@ it without this terminal present.
 - Directory layout and the filename → `sample_id` convention are stated and
   parsed by one function, not a regex duplicated per script.
 - Required metadata per sample: sample id, laboratory report reference, textural
-  class, collection site, capture device, capture date, and **moisture state**.
-  Moisture is recorded because it confounds colour, and a model that learns
-  moisture instead of texture will look correct on a curated set and fail in the
-  field. It is not recoverable retroactively.
+  class, collection site, capture device, capture date, and **`setting`**
+  (`bench` or `in_situ`). An earlier version of this criterion required a
+  **moisture state** instead, on the reasoning that moisture confounds colour
+  and is not recoverable retroactively. The project owner has since confirmed
+  that photographs are taken on a bench after standard preparation, air-dried
+  and sieved, and that moisture **cannot** be recorded. Bench preparation makes
+  it near-constant, so the column would collect either nothing or a guess.
+  `setting` replaces it: it is constant today too, but it is the axis every
+  later question about the bench-to-field gap is asked along, and that gap is
+  now the dominant unmeasured risk. SPEC 0033 carries the full decision.
 - Admission is by A1's criteria: an image that would be `blocking` in the app
   does not enter the dataset. A divergence here reopens the exact gap ADR 0009
   closes.
@@ -270,7 +282,7 @@ it without this terminal present.
 **Acceptance criteria**
 
 - An inventory of whatever exists: counts by class, group, site, device, and
-  moisture state. Image counts alone do not size a split.
+  `setting`. Image counts alone do not size a split.
 - E0 runs three arms across several seeds: the real model, a
   colour-histogram-only baseline, and a label-shuffled control.
 - The verdict is written down and committed with its numbers, whichever way it
@@ -346,8 +358,14 @@ cannot be scheduled without them.
    exact Embrapa grouping thresholds that produced the labels? Needed to build
    the cost-weighted confusion matrix — confusing Arenosa with Muito Argilosa is
    not the same error as confusing Média with Argilosa.
-3. **Can moisture state be recorded at collection time?** If not, it is
-   unrecoverable and the confound stays.
+3. ~~**Can moisture state be recorded at collection time?**~~ **Answered
+   2026-08-01: no, and it no longer matters.** Collection is on a bench after
+   air-drying and sieving, which makes moisture near-constant by construction
+   rather than merely unrecorded. The confound is removed, not deferred. What
+   the same answer created is the bench-to-field domain gap, which is now the
+   dominant unmeasured risk and is why no field-accuracy claim is supportable
+   from this dataset. Kept here struck through rather than deleted, so the
+   answer stays attached to the question it settles.
 4. **What does one laboratory analysis cost, in money and turnaround?** It sets
    the realistic target N per class and decides whether active learning is worth
    building.
