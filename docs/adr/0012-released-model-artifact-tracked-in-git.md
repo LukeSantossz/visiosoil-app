@@ -2,10 +2,19 @@
 
 VisioSoil commits the released TensorFlow Lite artifact and its contract file to
 the repository at `assets/models/soil_classifier.tflite` and
-`assets/models/spec.json`. Both paths are removed from `.gitignore`. Everything
-under `ml/models/` — checkpoints, per-experiment exports, evaluation dumps —
-stays ignored. No release-download step, no Git LFS, and no artifact registry is
-introduced.
+`assets/models/spec.json`. Both paths are to be removed from `.gitignore`.
+Everything under `ml/models/` — checkpoints, per-experiment exports, evaluation
+dumps — stays ignored. No release-download step, no Git LFS, and no artifact
+registry is introduced.
+
+**Not yet implemented, deliberately.** `.gitignore:83-84` still excludes both
+paths as this is written. The removal is not done here because there is nothing
+to un-ignore: no `.tflite` and no `spec.json` exist anywhere in the tree, so the
+change would be a diff with no observable effect, landing far from the work that
+gives it meaning. It lands with the specification that first produces one of the
+two files — the `spec.json` runtime contract, item A4 — so the rule and the file
+it admits arrive in the same change and the same review. Until then this
+document records a decision taken, not a state reached.
 
 ## Status
 
