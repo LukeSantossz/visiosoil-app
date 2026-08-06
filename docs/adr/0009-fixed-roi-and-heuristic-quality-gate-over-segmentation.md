@@ -102,8 +102,27 @@ gap is measured, no claim about field accuracy is supportable from this dataset.
 
 ## Consequences
 
-- The dataset is collected under the rule the app enforces, so the controlled
-  dataset stops being a subpopulation distinct from the one seen in production.
+- The dataset is collected under the rule the app enforces, so **the two
+  populations stop differing in photographic quality**. Framing, focus,
+  exposure, and effective resolution are admitted by one criteria set on both
+  sides, and an image the app would refuse cannot enter the dataset.
+
+  **This does not close the population gap, and an earlier version of this
+  consequence claimed that it did.** The project owner confirmed on 2026-08-01
+  that collection photographs are taken on a bench after standard preparation —
+  air-dried and sieved — while deployment is in situ. Sieving removes the coarse
+  fraction that most distinguishes Arenosa, and air-drying changes colour. The
+  subject itself is therefore different, not merely photographed with differing
+  care, and no acceptance criterion over pixels can detect or correct that. The
+  original claim assumed both sides photograph the same soil; that assumption is
+  false.
+
+  What survives is the decision, not the sweeping claim: enforcing the protocol
+  is still right, because it removes the one component of the gap that is
+  removable. The residue is a genuine domain gap, it is now the dominant
+  unmeasured risk in the programme, and **no field-accuracy claim is supportable
+  from a bench-collected dataset**. Closing it needs paired in-situ photographs,
+  which SPEC 0033 costs out and which blocks the start of collection.
 - The ROI crop must be applied identically in both places. If the dataset is
   cropped and the app is not, or the two crops differ, this ADR's central claim
   fails silently.
