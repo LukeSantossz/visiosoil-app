@@ -21,10 +21,10 @@ Concretely, the end state is:
 
 | Stage | End state |
 |---|---|
-| Capture | The declared protocol is enforced, not merely described. One criteria set (SPEC 0030) governs both what enters the dataset and what the app accepts, so the collection population and the deployment population cannot drift apart by construction |
+| Capture | The declared protocol is enforced, not merely described. One criteria set (SPEC 0030) governs both what enters the dataset and what the app accepts, so the two populations cannot drift apart **in photographic quality**. They still differ in subject: collection is bench-prepared, air-dried and sieved, deployment is in situ. Shared admission criteria cannot close that, and ADR 0009 records why |
 | Region of interest | The largest centred square after baking EXIF orientation, applied identically in Python and Dart. No aspect-ratio squashing, no segmentation, no detector (ADR 0009) |
 | Inference | TFLite in an isolate (ADR 0008), reading labels, input size, normalization, and band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart |
-| Result | A calibrated distribution over all classes plus a status, not a single label. `rejectedOod` when the negative signal wins, `failed` when the analysis could not run, and the UI derives its verdict bands from top-1 and the top1−top2 margin |
+| Result | A calibrated distribution over all classes plus a status, not a single label. `failed` when the analysis could not run, and the UI derives its verdict bands from top-1 and the top1−top2 margin. `rejectedOod` is a **reserved** status for the "not soil" signal — whether it is produced by a trained negative class or by the quality gate plus a threshold is open, informed by E12 |
 | Persistence | Status, quality flags, model version, and dataset version stored beside the record (schema v5) |
 | Monitoring | Local-first aggregates, nothing transmitted (ADR 0013) |
 | Training | Deterministic, fail-loud, group-aware splits, versioned datasets, recorded experiments, and a post-conversion parity gate measured on real held-out images |
@@ -107,9 +107,14 @@ capture-flow change.
   seven metrics for every golden fixture within `1e-9` relative tolerance.
 - Three verdicts — `ok`, `advisory`, `blocking` — plus `unvalidated` when the
   analyzer itself fails. An analyzer failure never blocks.
-- Only the three calibrated criteria (blur, exposure, ROI side) can produce
-  `blocking`. The remaining four are `advisory` until calibrated against a real
-  validation set.
+- Only the four calibrated criteria — blur, exposure, clipping, and effective
+  resolution — can produce `blocking`. The remaining three (contrast, colour
+  cast, specular) are `advisory` until calibrated against a real validation set.
+  This read "three ... the remaining four" until implementing SPEC 0030 showed
+  the count was wrong: it put `roiSidePx` on both sides at once, blocking as
+  "effective resolution" and advisory as "the ROI-side report". The seven
+  criteria map one-to-one onto the seven metrics, so the split is four and
+  three. SPEC 0030 carries the correction and its reasoning.
 - The ROI is defined once and reused by B2 and A3 rather than reimplemented.
 
 ### A2 and A3 — reassigned to the UI/UX terminal
@@ -241,9 +246,21 @@ it without this terminal present.
   closes.
 - A dataset version is an immutable directory. Adding images creates `vN+1`; it
   never mutates `vN`. Every experiment record names the version it used.
-- Splits are group-aware on sample id, and additionally stratified by site and
-  device so that a split cannot leak a location or a camera. `splits.json` is
-  committed; the generator is deterministic given the seed.
+- Splits are group-aware on sample id and stratified by class. Site and device
+  are **recorded and reported per split, not held out**, and the validator
+  states each split's composition along both axes.
+
+  This criterion previously said stratification meant "a split cannot leak a
+  location or a camera". That does not follow. Stratification balances how a
+  factor is *distributed* across splits; only grouping prevents the same value
+  appearing on both sides. Stratifying by site puts every site in train and in
+  test, which is the opposite of holding one out, so the claim asserted a
+  guarantee the algorithm does not provide. SPEC 0033 declines to force a
+  site-held-out split for a stated arithmetic reason — holding a site out costs
+  all of its samples from training and nobody yet knows how many sites exist,
+  question 1 in §7 — so the axis is recorded now and the policy is decided when
+  the count is known. `splits.json` is committed; the generator is deterministic
+  given the seed.
 - The manifest validates: every row's image exists, every image has a row, every
   class has enough groups to split, and no `sample_id` appears in two splits.
 - A dry-run on a synthetic fixture manifest proves the validator catches each of

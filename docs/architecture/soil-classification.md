@@ -546,14 +546,19 @@ flowchart TD
         M --> O
         N --> O
         O --> P[SoilRecord + quality flags + model/dataset version]
-        P --> Q[Anonymous telemetry, opt-in image submission]
+        P --> Q[Local diagnostics counters, shared only by explicit user action]
     end
 ```
 
 Backbone: MobileNetV2 held as the incumbent until E4 measures an alternative.
 Head unchanged. Loss: categorical cross-entropy with balanced class weights,
 compared against focal loss in E5. Calibration by temperature scaling.
-Rejection by per-class thresholds plus an explicit negative class.
+Rejection by per-class thresholds. Whether an **explicit negative class** joins
+them is **provisional and open** — §24 question 5, which E12 informs. The two
+candidate shapes are a sixth trained class over non-soil photographs, or the
+quality gate plus a threshold doing the whole job with no extra class. They
+differ in what has to be collected: the first needs a non-soil dataset that does
+not exist and is not costed anywhere.
 
 ---
 
@@ -566,7 +571,7 @@ flowchart LR
     C --> D[Manifest: image + class +<br/>percentages + site + device + moisture]
     D --> E[Acceptance-criteria audit]
     E -->|reject| F[Quarantine, reported]
-    E -->|accept| G[Group-aware stratified split<br/>by sample, site, device]
+    E -->|accept| G[Split: grouped by sample, stratified by class<br/>site and device recorded, not held out]
     G --> H[splits.json, committed]
     H --> I[Train: two-phase transfer learning]
     I --> J[Evaluate on real test set]
@@ -630,8 +635,15 @@ signature verification and a trust model that does not exist today.
 The core thesis, and the reason sub-projects A and B are one piece of work:
 **there is one set of image acceptance criteria.** Applied at collection time it
 defines what enters the dataset; applied in the app it defines what production
-is allowed to produce. Two sets means the domain gap returns through the back
-door. The criteria are specified in SPEC 0030, with a Python reference
+is allowed to produce. Two sets would let the two sides drift apart in
+photographic quality on top of every other difference.
+
+Read this as scoped to photographic quality and nothing wider. The criteria
+govern framing, focus, exposure, and effective resolution — properties of the
+photograph. They say nothing about the soil in it, and since collection is
+bench-prepared while deployment is in situ, the subject differs regardless of
+how well either is photographed. One criteria set removes the removable part of
+the gap; ADR 0009's Consequences state what is left. The criteria are specified in SPEC 0030, with a Python reference
 implementation for auditing and a Dart implementation for the gate, plus a
 conformance test requiring both to return the same verdict on the same images.
 
@@ -657,9 +669,12 @@ can be analysed and flagged instead of only passed or refused; the blur metric
 computed on a fixed 512 px downscale, without which Laplacian variance is
 resolution-dependent and no threshold is portable across devices; and an
 analyzer failure yielding `unvalidated` rather than a block, because a crashed
-checker must never refuse a valid sample. Only blur, exposure and effective
-resolution may block in phase one; the remaining four criteria are advisory
-until they are calibrated against real images.
+checker must never refuse a valid sample. Only blur, exposure, clipping and
+effective resolution may block in phase one; the remaining three — contrast,
+colour cast and specular — are advisory until they are calibrated against real
+images. (This paragraph named three blocking criteria until SPEC 0030 was
+implemented and the count was found to be wrong; the four listed here are
+authoritative.)
 
 *Origin note: the specific estimators above are standard engineering practice
 in image quality assessment, not results from the llm-wiki, which has no page
@@ -711,17 +726,28 @@ inference.
 
 ## 18. Monitoring Strategy
 
-Images never leave the device by default. The distinction the brief asks for:
+Nothing leaves the device automatically, of any category. **ADR 0013 is
+authoritative for transmission and this section defers to it.** The table below
+first read "Yes, aggregated" for telemetry and "Yes" for technical metadata,
+which is the shape this section explored before the decision was taken; the
+decision went the other way, and the table is corrected rather than left to
+contradict the ADR that supersedes it.
 
-| Category | Examples | Transmitted |
+| Category | Examples | Leaves the device |
 |---|---|---|
-| Anonymous telemetry | model version, dataset version, predicted class, confidence bucket, per-criterion gate verdict, inference latency, quantization variant | Yes, aggregated |
-| Technical metadata | device model, OS version, available memory class | Yes |
-| Sensitive data | the photograph, GPS coordinates, address, laboratory identifiers | **No**, except by explicit per-record opt-in |
+| Anonymous telemetry | model version, dataset version, predicted class, confidence bucket, per-criterion gate verdict, inference latency, quantization variant | **No.** Computed and stored locally as counters; leaves only inside a diagnostics summary the user explicitly shares |
+| Technical metadata | device model, OS version, available memory class | **No.** Same treatment: local, and only in an explicitly shared summary |
+| Sensitive data | the photograph, GPS coordinates, address, laboratory identifiers | **Never**, under any setting, including the shared summary |
+
+There is no automatic reporting path and no backend to receive one. The
+distinction that matters is therefore not transmitted-versus-not but what a
+diagnostics summary may contain when a user chooses to share it: aggregates
+only, never a record or an image.
 
 The precedent already exists in the codebase: ADR 0007 made location sharing a
-per-share opt-in defaulting to omission. Image submission should follow the same
-shape.
+per-share opt-in defaulting to omission. A later decision to introduce automatic
+reporting would supersede ADR 0013 and needs its own ADR; it is not implied by
+anything here.
 
 Drift is inferred indirectly, since ground truth is unavailable in the field:
 shifts in the confidence distribution, the rate of ambiguous and
@@ -770,9 +796,10 @@ Non-negotiable gates:
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | Textural class is not visually determinable; irreducible aleatoric uncertainty | E0 runs before any investment, with a label-shuffled control. A negative result stops the programme rather than being absorbed into it |
-| R2 | Moisture confounds colour and the model learns moisture | Record moisture state in the manifest; stratify; test across states |
+| R2 | ~~Moisture confounds colour and the model learns moisture~~ **Retired 2026-08-01.** Collection is on a bench after air-drying and sieving, so moisture is near-constant by construction rather than merely unrecorded. It cannot be recorded and no longer needs to be | Superseded by R7 |
+| R7 | **Bench-to-field domain gap.** Sieving removes the coarse fraction that most distinguishes Arenosa and air-drying changes colour, so the training subject differs from the deployment subject. This replaced R2 as the dominant unmeasured risk | No mitigation available from this dataset. `setting` is recorded on every row so the gap is measurable once paired in-situ photographs exist; SPEC 0033 costs them out. Until then, **no field-accuracy claim is supportable** and that limit is stated wherever accuracy is reported |
 | R3 | Siltosa is too scarce for a meaningful test split | Targeted collection before training. If unreachable, report Siltosa metrics as provisional and consider merging or deferring the class rather than reporting a number that four test images cannot support |
-| R4 | Domain gap between controlled dataset and free field use | The capture gate narrows production to the collection protocol; telemetry measures whether it worked |
+| R4 | Photographic-quality gap between controlled dataset and free field use | The capture gate narrows production to the collection protocol; local per-criterion block-rate counters measure whether it worked, read in settings rather than transmitted (ADR 0013). This covers photographic quality only — the subject-level gap is R7 |
 | R5 | EXIF orientation skew | Apply orientation at decode in training; assert the two paths agree on a fixture |
 | R6 | Overconfident wrong answers reach the user as fact | Calibration, two-axis per-class rejection constants published in `spec.json`, a negative class, and the ambiguous/insufficient bands surfaced in the UI |
 | R7 | Quantization silently degrades calibration while preserving accuracy | Post-conversion parity measures ECE, not only accuracy |
@@ -879,10 +906,18 @@ class ClassificationResult {
 ```
 
 - **Possible classes:** the five Embrapa textural groups, ordered as declared in
-  `spec.json`, plus the negative class, which never appears in `distribution` —
+  `spec.json`. A sixth, negative class would never appear in `distribution` —
   when it wins, the status is `rejectedOod`. This is the signal
   `06-capture-experience.md` §3 correctly reports as absent today, and it is
   this terminal's job to supply it.
+- **`rejectedOod` is reserved, not yet required.** Whether the "not soil" signal
+  comes from a trained negative class or from the quality gate plus a threshold
+  is open (§24 question 5, informed by E12). The enum member is declared now so
+  that consumers written against this contract do not need a breaking change
+  either way, and because a status a producer never emits costs a consumer
+  nothing. **An implementation may ship without producing `rejectedOod`**; it
+  may not ship without handling it. Read the member as a reserved slot, not as a
+  commitment to train a sixth class.
 - **Calibration changes what the numbers mean.** After temperature scaling a
   probability is calibrated, so the verdict-band constants in
   `08-results-and-uncertainty.md` §3 (0.70, 0.45, 0.15) must be calibrated

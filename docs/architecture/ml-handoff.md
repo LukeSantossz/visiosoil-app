@@ -77,9 +77,14 @@ class ClassificationResult {
 ```
 
 - Classes: the five Embrapa textural groups in the order declared by
-  `spec.json`, plus a negative class that never appears in `distribution` —
-  when it wins, the status is `rejectedOod`. That is the "not soil" signal
-  `06-capture-experience.md` §3 correctly reports as absent today.
+  `spec.json`. A negative class, if one is trained, never appears in
+  `distribution` — when it wins, the status is `rejectedOod`. That is the
+  "not soil" signal `06-capture-experience.md` §3 correctly reports as absent
+  today.
+- **`rejectedOod` is a reserved status, not a required one.** Whether that
+  signal comes from a trained negative class or from the quality gate plus a
+  threshold is still open, informed by E12. Handle the member; do not assume a
+  producer emits it. The study's §24 question 5 carries the decision.
 - **No `inconclusive` status.** Conclusive, ambiguous, and insufficient-evidence
   are bands the UI derives from top-1 and the top1−top2 margin. This terminal
   supplies the distribution, the calibration that makes the numbers mean what
@@ -115,10 +120,24 @@ Scoped item by item, with acceptance criteria and dependencies, in
 
 | Lane | Content | Needs the dataset |
 |---|---|---|
-| A | Acceptance criteria library (SPEC 0030); the `ClassificationResult` contract and schema v5; the capture gate; `spec.json` at runtime (#79, #116); local diagnostics | No |
+| A | Acceptance criteria library (SPEC 0030); `spec.json` at runtime (#79, #116); local diagnostics | No |
 | B | Deterministic and fail-loud training (#80, #25, #81, #29, #28); the dataset protocol, manifest and split generator; export hardening (#29, #30) | No |
 | C | Inventory and the E0 feasibility gate, then baseline and sweep, calibration and rejection, quantization | Yes |
 | C4 | Conditional synthetic-data branch, only if ADR 0010's conditions hold | Yes |
+
+**Three items are not in that table, because they are not this workstream's.**
+Lane A originally claimed the `ClassificationResult` contract and the schema v5
+migration (A2) and the capture quality gate (A3). The UI/UX terminal's
+`docs/design/ux-2026/13-roadmap.md` already owned all three — it was simply not
+in version control when this map was first drafted — and the project owner
+settled the split on 2026-08-01 in favour of that roadmap. They are their
+roadmap items 1, 15 and 6. The A2 and A3 identifiers are kept in the map so
+earlier references still resolve, and the map's ownership section is
+authoritative if this summary and it ever disagree again.
+
+What this workstream still owes both sides across that boundary: the calibrated
+band constants published in `spec.json`, and the recalibrated quality
+thresholds. Both sides ship provisional numbers today and both say so in source.
 
 Two things worth knowing from outside this workstream. First, most of Lanes A
 and B need no images, so they proceed in parallel with collection. Second, **E0
@@ -163,12 +182,19 @@ that. `inconclusive` was consequently dropped from the status enum above.
 
 **Divergences, now resolved:**
 
-1. **Criteria count.** SPEC 0030 keeps seven metrics; the UX gate names three.
-   Only those three can produce a `blocking` verdict. The extra four (contrast,
-   colour cast, specular, ROI side) stay `advisory` until calibrated, so they
-   cannot reject anything the UX design expected to pass. Colour cast matters
-   more here than it looks: soil colour is part of the signal, so an uncorrected
-   white balance is a real threat, not a cosmetic one.
+1. **Criteria count.** SPEC 0030 keeps seven metrics; the UX gate names three
+   signals. Four criteria can produce a `blocking` verdict — blur, exposure,
+   clipping, and effective resolution — which matches those three signals,
+   because the UX design's single "exposure" covers this specification's
+   separate exposure and clipping criteria. The extra three (contrast, colour
+   cast, specular) stay `advisory` until calibrated, so they cannot reject
+   anything the UX design expected to pass. Colour cast matters more here than
+   it looks: soil colour is part of the signal, so an uncorrected white balance
+   is a real threat, not a cosmetic one.
+
+   This listed four advisory criteria including ROI side, and three blocking,
+   until implementing SPEC 0030 showed `roiSidePx` had been counted on both
+   sides at once. The specification carries the correction.
 2. **`SoilTextureColors` label order.** The UI/UX terminal owns the immediate
    fix (its spec P2-5). Item A4 in the map later moves the source of truth to
    `spec.json` under #79, which supersedes that fix rather than conflicting with
