@@ -10,11 +10,19 @@ free, which is the subpopulation mismatch described in
 `docs/architecture/soil-classification.md` §3: a curated sample models its own
 subpopulation well and fails on the population it is deployed against.
 
-ADR 0009 decides to close that gap by enforcing the protocol rather than
+ADR 0009 decides to narrow that gap by enforcing the protocol rather than
 compensating for it, and states the mechanism: **one set of image acceptance
 criteria, applied both at collection time (defining what enters the dataset) and
 at capture time (defining what production is allowed to produce)**. Two
-divergent sets would reopen the gap. Today neither set exists.
+divergent sets would widen it. Today neither set exists.
+
+**The scope of what this closes, stated so the specification does not overclaim.**
+These criteria are shared *admission* criteria over photographic quality. They
+make the two sides agree on framing, focus, exposure, and effective resolution.
+They do not establish field accuracy and they do not make the collection and
+deployment populations one population: collection is bench-prepared, air-dried
+and sieved, deployment is in situ, and no measurement over pixels can undo that.
+ADR 0009's Consequences carry the full narrowing.
 
 ## Design Decisions
 
@@ -166,6 +174,27 @@ job to invoke the other language would couple them.
 - Metric agreement tolerance is `1e-9` relative. Fixtures are chosen so no
   metric lands within `1e-6` of a threshold, so the verdict comparison is not
   sensitive to floating-point noise.
+- **This is metric-level conformance, not decoder conformance, and the
+  difference is worth naming.** Both sides are compared on the numbers they
+  derive, so the golden proves the two implementations compute the same metrics
+  and reach the same verdict on the same files. It does not prove `image` in
+  Dart and Pillow in Python produce identical pixel buffers. Every metric here
+  reduces an image to a scalar — a variance, a mean, a fraction — and reductions
+  absorb small per-pixel differences, so a decoder divergence could in principle
+  hide under a metric that agrees.
+
+  PNG fixtures make this unlikely rather than impossible: PNG decoding is
+  lossless and specified, so the two decoders should agree exactly, which is
+  precisely why the format was chosen over JPEG above.
+
+  The scope is stated rather than widened. Adding a pixel-level comparison for
+  one fixture would make the assumption directly checkable, and it is the right
+  escalation **if a metric ever disagrees in a way the arithmetic cannot
+  explain** — that is the symptom a decoder divergence would produce. It is not
+  adopted as a criterion now, because doing so would put a requirement in this
+  specification that the implementation does not meet, which is the same defect
+  in the opposite direction. What this specification claims is what its golden
+  proves: identical metrics and identical verdicts over the committed fixtures.
 
 ### File layout
 

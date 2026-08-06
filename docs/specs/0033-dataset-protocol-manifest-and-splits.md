@@ -256,6 +256,19 @@ This is stated here rather than left to judgement at the time, because the
 temptation when a class is thin is to run all five anyway and read the result as
 if it meant something.
 
+**A reduced-class E0 is exploratory and does not clear the product gate.** The
+product contract is five-way, so a probe that excluded a class has said nothing
+about that class and nothing about the five-way model — a three-class separation
+can be driven entirely by the classes that were easy. Concretely: a reduced run
+may authorise more collection, and it may kill the programme if even the
+well-populated classes fail to separate from the shuffled control. It may not
+authorise Lane C. Lane C stays blocked until every one of the five classes
+clears the floor and E0 has run five ways.
+
+The asymmetry is deliberate. A negative result on a subset is informative,
+because failure on the easy classes bounds the whole; a positive result on a
+subset is not, because success on the easy classes bounds nothing.
+
 ## Alternatives Considered
 
 - **Keep the directory walk as the source of truth and add a sidecar metadata
