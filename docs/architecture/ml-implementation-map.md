@@ -84,7 +84,11 @@ Two consequences worth recording, because neither is obvious from the split:
 
 ### A1 — Image acceptance criteria library
 
-**Record:** SPEC 0030 (written, **awaiting the Spec Gate**).
+**Record:** SPEC 0030 (**gate-approved 2026-08-01**, and implemented on
+`feat/image-quality-acceptance-criteria`, which is not merged yet). Implementing
+it surfaced three defects in the specification itself, each corrected in the
+specification with its reason recorded, so the merged text differs from the one
+approved at the Gate.
 **Depends on:** nothing.
 **Blocks:** A3, B2.
 
