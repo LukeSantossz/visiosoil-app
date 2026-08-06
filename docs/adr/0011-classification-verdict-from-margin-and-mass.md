@@ -89,6 +89,21 @@ that follow from it are in
 - **`insufficient` is not styled as an error.** Nothing failed; the model does
   not know. Reserving `error` for genuine failures is a direct consequence of
   treating abstention as a valid outcome rather than a fault.
+- **`notAnalysed` is not yet an honest signal, and the decision is to ship it
+  anyway with the limit written down.** It is derived from
+  `InferenceService.classify` returning `null`, and `null` today means six
+  different things: a missing model asset, an isolate spawn failure, a timeout,
+  a decode failure, a class-count mismatch, and an inference error. Only the
+  first is genuinely "not analysed"; the rest are failures, and a failure
+  presented as an absence hides the retry the user should be offered.
+
+  This decision does not fix that, because fixing it changes the return type of
+  `classify` and belongs with the vision workstream's `spec.json` runtime
+  contract (item A4), which has to touch that signature regardless. The
+  consequence accepted here is narrow and explicit: **no result surface may
+  offer retry on `notAnalysed` until A4 lands**, since it cannot know whether
+  anything is retryable. Offering it would produce a button that silently does
+  nothing when the model was never in the build.
 - The verdict is derived, not stored. Until the distribution is persisted
   (roadmap item 15), a record reopened from history renders from its top-1 alone
   and an ambiguous reading reappears as a plain low-confidence one. This is a
