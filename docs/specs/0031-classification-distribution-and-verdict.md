@@ -79,6 +79,14 @@ design rationale and the presentation rules that follow from it are in
   - `InferenceResult.distribution` — every class, ordered descending. The
     existing `textureClass` and `confidenceScore` keep their names, types and
     meaning.
+  - **A total order.** Probability alone does not order the distribution: two
+    classes can hold the same value, and a float tensor makes that less exotic
+    than it sounds. Sorting on probability alone would then leave the order
+    unspecified, and the order is user-visible — it decides which class is
+    named as top-1 and which pair `ambiguous` puts on screen. The tie-breaker
+    is the canonical label order, the same single source `SoilTextureColors`
+    derives from, applied ascending. A sort is therefore deterministic across
+    runs and platforms.
   - `_runInference` populates the distribution from the output tensor it already
     reads, passing values through without renormalisation.
   - `ClassificationVerdict` — four members, derived on two axes, with the
@@ -94,6 +102,26 @@ design rationale and the presentation rules that follow from it are in
   - Threshold calibration against validation data.
   - Any change to `ml/`, to model export, or to preprocessing.
   - The image quality gate and its wiring (SPEC 0030 and roadmap item 6).
+  - **Splitting the causes that `InferenceService.classify` collapses into
+    `null`.** This is a real defect and it is stated here rather than left for
+    a reader to discover, because this spec derives `notAnalysed` from that
+    same `null` and therefore inherits it.
+
+    `classify` returns `null` for a missing model asset, an isolate spawn
+    failure, a timeout, a decode failure, a class-count mismatch, and an
+    inference error alike. A missing asset means the feature was never
+    available and there is nothing to retry; a timeout means a run failed and
+    retrying is exactly right. Collapsed into one value, the interface cannot
+    tell those apart, so `notAnalysed` currently absorbs genuine failures and
+    suppresses the retry they deserve.
+
+    Fixing it means changing the return type of `classify`, which is the
+    vision workstream's item A4 in `docs/architecture/ml-implementation-map.md`
+    — it lands with the `spec.json` runtime contract that already has to touch
+    that signature. Doing it here would put a service-contract change and a
+    domain-type addition behind one gate for no gain. Until A4 lands, a result
+    surface built on this spec must not offer retry on `notAnalysed`, because
+    it cannot know whether there is anything to retry.
 
 ## Acceptance Criteria
 
@@ -102,6 +130,9 @@ design rationale and the presentation rules that follow from it are in
 - distribution_ordered_descending: entries are sorted by probability, highest
   first, and the first entry's label and probability equal `textureClass` and
   `confidenceScore`.
+- distribution_ties_break_on_label_order: given a tensor where two classes hold
+  the same probability, the two entries appear in canonical label order, and
+  sorting the same tensor twice returns the same order.
 - distribution_is_not_renormalised: given an output tensor whose values sum to
   0.5, the returned probabilities are those values unchanged.
 - top1_fields_unchanged: for an output whose argmax is index 3, `textureClass`
@@ -121,6 +152,10 @@ design rationale and the presentation rules that follow from it are in
   0.08` is `insufficient` — a wide margin does not rescue a leader holding less
   than half with no rival.
 - verdict_not_analysed_for_absent_result: a null result yields `notAnalysed`.
+  The criterion is stated over `null` and not over "the model is absent"
+  deliberately, because `classify` cannot currently report which of the six
+  causes produced the `null`. It is satisfied by construction and it does not
+  claim the verdict distinguishes absence from failure — see the Scope note.
 - not_analysed_is_distinct_from_insufficient: `notAnalysed` and `insufficient`
   are different members, and no input produces one where the other is meant.
 - verdict_is_pure: the same distribution always yields the same verdict, with no
