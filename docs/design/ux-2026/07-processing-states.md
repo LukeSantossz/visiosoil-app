@@ -78,8 +78,18 @@ isBusy: _state.isLocating || _state.isClassifying || _state.isSaving
 ```
 
 becomes: Save is enabled once the classification track has **settled** — done,
-failed, or unavailable — regardless of the location track. `isSaving` remains a
-re-entry guard.
+failed, unavailable, or **never started because the quality gate blocked it** —
+regardless of the location track. `isSaving` remains a re-entry guard.
+
+That fourth case is not a detail. `06-capture-experience.md` requires a blocking
+quality verdict to offer "registrar assim mesmo" and to persist the record with
+its quality flags and no classification. On that path classification is
+deliberately never started, so a rule phrased only as done-failed-unavailable
+leaves the track idle forever and the override disabled — the interface would
+offer a button that can never enable. Blocked is therefore terminal for the
+purpose of save eligibility, exactly as the three settled outcomes are. The
+distinction that matters is not whether a run happened, it is whether anything
+is still in flight that saving would discard.
 
 Rationale: a record with a null latitude, null longitude and an unavailable
 address is a valid record that the schema already supports and the repository

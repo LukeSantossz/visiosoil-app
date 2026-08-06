@@ -35,11 +35,36 @@ motion system — it has one — but that almost nothing uses it.
 | Image accepted | The photograph appears already in place on the analysis screen | `base` 220 ms fade | The absence of an intermediate empty state is itself the feedback |
 | **Image rejected** | The photograph **desaturates**; the defect badge fades in | `fast` 140 ms | No shake — the design system forbids bounces, and desaturation *is* the message: this image is not being used |
 | Processing phase change | Crossfade of the phase label | `base` 220 ms | Swapping one spinner for another reads as a stall; a changing label reads as progress |
-| **Verdict arrival** | Staggered reveal of header, badge, banner, evidence, actions | `reveal` 640 ms, `emphasized` | The one moment that earns motion. The design system already specifies the exact choreography (delays 0 / 50 / 100 / 170 / 240 / 310 ms) in `DetailScreen.jsx` |
+| **Verdict arrival** | Staggered reveal of header, badge, banner, evidence, actions | `reveal` 640 ms, `emphasized` | The one moment that earns motion. The design system already specifies the exact choreography (delays 0 / 50 / 100 / 170 / 240 / 310 ms) in `DetailScreen.jsx`. The actions are **built and hit-testable from the first frame**; only their opacity and offset animate — see §3.1 |
 | Verdict arrival | `mediumImpact()` | — | The user may be looking at the sample, not the phone |
 | Expanding sources or details | `AnimatedSize` | `base` 220 ms | Preserves the reading position |
 | Chip or tab selection | Colour and border transition | `fast` 140 ms | Matches the design system's stated 120–180 ms band |
 | Error correction | The error region collapses as the corrected content enters | `base` 220 ms | Shows that the correction landed |
+
+### 3.1 The reveal animates appearance, never availability
+
+The verdict reveal is the one place in this catalogue where a choreography could
+quietly cost the user something, so the rule is stated rather than left to the
+implementer.
+
+The staggered entrance includes the actions, and the last of them starts at
+310 ms into a 640 ms sequence. If that stagger is built the obvious way — mount
+each element when its delay elapses — then for the first third of a second after
+a result arrives the retake and save buttons do not exist, and a tap during the
+animation lands on nothing. The user who is fastest to act is the one punished,
+and the failure is invisible in review because a tap that hits no widget looks
+exactly like a tap that was never made.
+
+So: **every element of the result, actions included, is built on the first frame
+of the reveal.** Only opacity and offset are animated, and an element at zero
+opacity still hit-tests. The choreography changes how the result appears; it
+never changes what is available. This is what `verdict_reveal_is_not_blocking`
+means, and it is why that criterion is phrased over interactivity rather than
+over the animation's duration.
+
+The same rule applies wherever `reveal` is used with a stagger. It is the reason
+the design system's delays can be adopted verbatim without adopting a web
+implementation's mounting behaviour along with them.
 
 ## 4. What is deliberately excluded
 

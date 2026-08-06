@@ -38,6 +38,22 @@ repository for no test benefit); a manual review checklist (already failed —
 the class-ordering contradiction in `SoilTextureColors` survived several
 alignment specs); no test (accepts the drift).
 
+**What the fixture proves, and what it does not.** A copied fixture makes the
+copy canonical, not the kit. The test would prove that the Dart tokens match
+`test/support/`, and nothing more: if the design system changes a value, the
+ignored kit and the committed fixture diverge in silence and the test stays
+green while the app is wrong. That is a smaller gap than having no test at all
+— it catches the far more common direction, a Dart token edited by hand — but
+calling it a design-system conformance test would overstate it.
+
+Closing it needs one of two things, and the spec that implements this must pick
+one rather than leave it implied. Either the four CSS files become canonical and
+the kit is regenerated from them, which inverts today's direction of authority;
+or the fixture carries a recorded provenance — the kit version or a content hash
+it was taken from — and a check fails when the kit on disk no longer matches it,
+which keeps the kit canonical at the cost of the check being runnable only where
+the kit is present, so it guards the developer's machine rather than CI.
+
 ## 3. Token gaps
 
 | Gap | Why it is needed | Proposal |
@@ -55,7 +71,7 @@ alignment specs); no test (accepts the drift).
 | Component | Needed by | Note |
 | --- | --- | --- |
 | `TextureScale` | Ambiguous results, details evidence | Five-step ramp with one or two highlighted positions. Published by the design system, absent from the app |
-| `VisioIconButton` | Preview, history, capture | Replaces the bespoke `_CircleIconButton`. **Its semantic label parameter is required**, which is how accessibility stops being optional and starts being a compile error |
+| `VisioIconButton` | Preview, history, capture | Replaces the bespoke `_CircleIconButton`. **Its semantic label parameter is required**, so omitting it is a compile error rather than a review finding. Requiredness alone does not make the label meaningful — see the rule in §4.3 |
 | `QualityNotice` | Quality verdict | New; no design-system counterpart yet |
 | `VerdictHeader` | Result presentation | New; supersedes the current class-name row plus badge |
 
@@ -76,6 +92,23 @@ Every interactive shared component takes a semantic label as a **required**
 parameter, or derives one from content it already receives. No optional
 accessibility parameters — an optional parameter is a parameter that will be
 omitted.
+
+Requiredness is only the first of three, and a spec that stops there ships a
+guarantee it does not have. A required `String` still accepts `''`, and an empty
+label is worse than a missing one: it silences the review that a missing
+parameter would have triggered, and a screen reader announces the control with
+no name. So each such component also carries:
+
+- an `assert(label.trim().isNotEmpty)` in the constructor, which fails in debug
+  and in every test run, where an empty label would otherwise pass unnoticed;
+- one semantics test per component asserting the rendered node exposes the
+  label, so the parameter is proven to reach `Semantics` rather than merely
+  being accepted and dropped.
+
+The compile error stops omission. The assert stops emptiness. The test stops the
+parameter being accepted and discarded. None of the three substitutes for
+another, and this rule is what the accessibility baseline spec implements — it
+is not satisfied by the signature alone.
 
 ## 5. The recommendation contract divergence
 

@@ -156,7 +156,7 @@ tips.
 
 **Conclusivo**
 
-```
+```text
 Classe textural                          ← eyebrow, uppercase, letter-spaced
 Argilosa                        [verified 94% · Alta]
 ▓▓▓▓▓░░░░░  texture scale, Argilosa highlighted
@@ -166,7 +166,7 @@ Estimativa por imagem. Não substitui análise laboratorial.
 
 **Ambíguo**
 
-```
+```text
 Resultado entre duas classes             ← states the situation, not a class
 Argilosa            44%
 Muito Argilosa      39%
@@ -181,7 +181,7 @@ step is another photograph, not a save.
 
 **Evidência insuficiente**
 
-```
+```text
 [help_outline] Evidência insuficiente
 Não é possível afirmar uma classe textural para esta imagem.
 Uma captura com melhor iluminação e enquadramento pode resolver.
@@ -193,13 +193,26 @@ interface can make about what the system knows is the absence of all three.
 
 **Não analisado**
 
-```
+```text
 [eco_outlined] Não analisado
 Este registro não passou por classificação.
 ```
 
-No retry when the model is absent from the build; retry only when a run
-genuinely failed.
+The rule this state should follow is: no retry when the model is absent from the
+build, retry only when a run genuinely failed.
+
+**It cannot follow that rule yet, and the interface must not pretend it does.**
+`InferenceService.classify` returns `null` for six different reasons — missing
+model asset, isolate spawn failure, timeout, decode failure, class-count
+mismatch, inference error — and `notAnalysed` is derived from that one `null`.
+Only the first of the six is an absence; the other five are failures.
+
+Until the vision workstream's item A4 splits those causes, this state **offers
+no retry at all**. That is the safe direction: a retry button on a build with no
+model artifact would do nothing, every time, and teach the user the app is
+broken. Once A4 lands, the retry affordance appears on the failure causes only,
+and this section is revisited with it. ADR 0011 records the same limit as a
+consequence.
 
 ## 5. Persisting the distribution
 
@@ -213,8 +226,17 @@ asymmetry is worse than either consistent option.
 
 **Decision (taken with the product owner): persist it.** One nullable text
 column holding the distribution as JSON, migration v4 → v5, following the same
-cumulative pattern as the existing three migrations. Sequenced as its own small
-spec.
+cumulative pattern as the existing three migrations.
+
+**When, precisely, so this does not read as a contradiction elsewhere.** The
+decision is to persist; it is not a decision to persist now. It is sequenced as
+**roadmap item 15** in `13-roadmap.md`, deliberately last, so the persisted
+shape is decided once after the interface work has settled. SPEC 0031 therefore
+lists persistence under what it does *not* include, and ADR 0011 records the
+resulting gap as a consequence. Those three statements agree: persist, later,
+in its own spec. Until item 15 lands, a record reopened from history renders
+from its stored top-1 alone, so a reading that was `ambiguous` at capture time
+reappears as a plain low-confidence one.
 
 Rejected alternative: recompute on open. The photograph is retained, so it is
 technically possible, but it spends fifteen seconds of inference to reproduce a

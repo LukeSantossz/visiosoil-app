@@ -5,7 +5,7 @@
 The product has one first-class entity and three attributes that users treat as
 objects in their own right.
 
-```
+```text
 Soil record
 ├── photograph          — an attribute, viewable full-screen
 ├── classification      — an attribute: class, distribution, verdict band
@@ -35,7 +35,7 @@ how "Ver tudo" reaches History. That mechanism stays.
 
 **Today**
 
-```
+```text
 home ──"Nova análise"──▶ /capture (empty placeholder + "Câmera" button)
                              │
                              └──▶ OS camera ──▶ /capture (photo + chips)
@@ -45,7 +45,7 @@ The route is entered, shows nothing useful, and waits for a second tap.
 
 **Target**
 
-```
+```text
 home ──"Nova análise"──▶ [guide, first time only] ──▶ OS camera
                                                           │
                                                           ▼
@@ -71,7 +71,7 @@ Consequences:
 
 **Today**
 
-```
+```text
 history ──tap──▶ /preview ──"info"──▶ /details
                  (photo,               (photo, timestamp,
                   timestamp,            location, classification,
@@ -83,7 +83,7 @@ entered first.
 
 **Target**
 
-```
+```text
 history ──tap──▶ /details ──tap on hero──▶ /preview
                                             (photo only, zoomable)
 ```

@@ -34,7 +34,7 @@ for adaptive composition; it is not invented to justify the technique.
 | Quality verdict | ok, advisory, blocking, unvalidated |
 | Connectivity | online, offline |
 | Cached tips | present, absent |
-| Tips status | grounded, abstained, never generated |
+| Tips status | grounded, abstained, never generated, **failed** — see the note below |
 | Sources | present, absent |
 | Location | resolved, unavailable |
 | Record age | fresh (just captured), historical |
@@ -44,6 +44,29 @@ The current details screen renders a nearly fixed layout across all of these,
 with a handful of `if` statements scattered through four widget files. The
 composition is already conditional; it is simply implicit, untested and
 inconsistent between screens.
+
+**The tips signal is four values, not the two the type declares.**
+`ManagementTipsStatus` (`lib/models/management_tips_result.dart:10`) has exactly
+`grounded` and `abstained`. Neither describes what the app does today: the wired
+binding is `UnavailableResearchService`, which returns
+`ResearchFailure(ResearchFailureKind.upstreamUnavailable)` rather than any
+status at all. A failure is a third shape alongside the two statuses, and
+"never generated" — no cached tips and none requested — is a fourth.
+
+Composition needs all four as inputs, because they call for different surfaces:
+grounded renders tips with the disclaimer, abstained renders an informational
+state and **not** an error, failed renders a recoverable error with retry, and
+never generated renders nothing at all. Collapsing failed into abstained would
+present a transport fault as the agent declining to answer, which is the same
+class of dishonesty this dossier objects to in the classification surface.
+
+The composition layer therefore reads the full
+`ManagementTipsResult`-or-`ResearchFailure` outcome, not `ManagementTipsStatus`
+alone. Whether the type is widened with an `unavailable` member or the failure
+stays a separate branch is left to the spec that implements this — it is
+`ManagementTip`'s owner's call, and it is entangled with the recommendation
+contract divergence in `05-design-system.md` §5, which is still open. What is
+not open is that four inputs exist and the registry must cover them.
 
 ## 3. Component registry
 
