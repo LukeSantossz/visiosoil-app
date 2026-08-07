@@ -73,13 +73,45 @@ NumPy, and TensorFlow in one call. Every augmentation layer additionally receive
 generator and a global seed alone does not make its draws reproducible across
 runs of the same process.
 
-`tf.config.experimental.enable_op_determinism()` is **not** enabled. It is the
-obvious next step and it is deliberately declined: it forces deterministic GPU
-kernels at a real throughput cost, and the free Kaggle and Colab tiers this
-project trains on are exactly where that cost hurts. The seed plus per-layer
-seeding gives run-to-run reproducibility on one machine, which is what E0 needs.
-If a future comparison proves non-reproducible despite the seed, enabling op
-determinism is a one-line change and this decision is where to revisit it.
+`tf.config.experimental.enable_op_determinism()` **is enabled by default**,
+reversing the decision this specification first recorded. The withdrawn text and
+the reason it was wrong are kept below rather than deleted.
+
+**Withdrawn:** "it is deliberately declined: it forces deterministic GPU kernels
+at a real throughput cost, and the free Kaggle and Colab tiers this project
+trains on are exactly where that cost hurts. The seed plus per-layer seeding
+gives run-to-run reproducibility on one machine, which is what E0 needs."
+
+**Why it was wrong.** It rested on "one machine". The project owner confirmed on
+2026-08-06 that training must run on whatever hardware is available, CPU or GPU.
+`set_random_seed` seeds the generators but does not make TensorFlow's kernels
+deterministic, and several reduce across threads in completion order, so float
+addition happens in a different order each run. On CPU this does not arise; on
+GPU it does. Under the withdrawn decision, reproducibility became a property of
+where a run happened to land, and E0's denominator — run-to-run variance —
+would silently inflate on GPU with nothing reporting it. That is the failure E0
+exists to avoid, reintroduced by the setting meant to make E0 possible.
+
+**The rule now.** `seed_everything(seed, deterministic_ops=True)` calls
+`enable_op_determinism` after seeding. `training.deterministic_ops: false`
+trades reproducibility for throughput in an exploratory run, and `load_config`
+defaults the key to `true` so the reproducible mode is what a config that says
+nothing gets.
+
+**Recorded, because opting out must not be invisible.** `metrics.json` carries a
+`runtime` object with the effective `deterministic_ops`, the device, and the GPU
+count. Two runs are comparable only if both ran under operator determinism, and
+without recording it a comparison cannot tell a real effect from hardware
+nondeterminism. The check that *refuses* an invalid comparison is not in this
+specification: nothing compares runs yet, so it lands with whatever implements
+E0's comparison. What lands here is the data that check will need.
+
+**Two costs are real and unmeasured, and saying so is part of the decision.**
+The throughput loss is workload-dependent and no number is quoted here because
+none was measured — measuring it needs a dataset that does not exist. And a
+kernel with no deterministic implementation raises rather than falling back, so
+enabling this can turn a slow run into a failed one. The opt-out is the escape
+hatch for both, and the first real training run is where both get measured.
 
 ### Validate the dataset before training, not during it
 
@@ -177,9 +209,18 @@ SPEC 0015.
 
 ## Alternatives Considered
 
-- **Enable `tf.config.experimental.enable_op_determinism()`** — declined for now,
-  with the reasoning and the revisit condition stated above. Recorded rather than
-  omitted because its absence is the first thing a reviewer will ask about.
+- **Leave `tf.config.experimental.enable_op_determinism()` disabled** — this was
+  the original decision and it was **reversed on 2026-08-06**; see the Design
+  Decisions section for the withdrawn text and why it failed. Its premise was
+  that training happens on one machine.
+- **Enable it unconditionally, with no opt-out** — rejected. It is the simplest
+  contract and impossible to get wrong by accident, but a kernel with no
+  deterministic implementation would then make training impossible rather than
+  slow, with nothing to fall back to. The opt-out costs one boolean and one
+  validation.
+- **Record the mode without forcing it** — rejected. It makes an invalid
+  comparison detectable rather than impossible, which is strictly weaker for no
+  saving: recording is needed either way.
 - **Skip corrupt images with a warning, as #25 suggests** — rejected. It makes
   the effective dataset differ between runs of one configuration, which
   contradicts the purpose of this spec, and a warning in a training log is not a
@@ -214,7 +255,9 @@ SPEC 0015.
     `test_no_sample_leakage_between_splits`.
   - `.github/workflows/ci.yml` — an `ml-tests` job.
 - Does NOT include:
-  - `enable_op_determinism()`.
+  - The check that refuses to compare two runs recorded under different runtime
+    modes. `metrics.json` carries what such a check needs; nothing compares runs
+    yet, so the check lands with E0's comparison.
   - The TFLite export parity threshold (#29 item 2) and anything in
     `ml/src/export.py`.
   - `scan_dataset` directory recursion, `_extract_sample_id`, and group-id
@@ -289,8 +332,8 @@ SPEC 0015.
   ordering can change floating-point results. It is a warning about numerical
   reproducibility across builds, not within one; the determinism criteria below
   compare two runs in one process, where it does not apply. If a criterion ever
-  fails intermittently, `TF_ENABLE_ONEDNN_OPTS=0` is the first thing to try
-  before reaching for `enable_op_determinism()`.
+  fails intermittently with operator determinism already on,
+  `TF_ENABLE_ONEDNN_OPTS=0` is the next thing to try.
 - Every criterion is verified against synthetic tensors and temporary
   directories. No dataset and no trained model is required.
 - Verify: `cd ml && python -m pytest tests/ -v`.
@@ -299,11 +342,17 @@ SPEC 0015.
 
 ## Risks and Assumptions
 
-- Assumption: `tf.keras.utils.set_random_seed` plus per-layer seeds is sufficient
-  for run-to-run reproducibility on one machine with the pinned versions. What
-  would invalidate it: a determinism criterion failing intermittently, which
-  would mean a nondeterministic kernel is involved and `enable_op_determinism()`
-  is needed after all. The criteria are written to fail loudly in that case
+- Assumption: `set_random_seed` plus per-layer seeds plus `enable_op_determinism`
+  gives run-to-run reproducibility on both CPU and GPU with the pinned versions.
+  What would invalidate it: a determinism criterion failing intermittently even
+  with operator determinism on, which would mean a source of nondeterminism
+  outside TensorFlow's control. The criteria are written to fail loudly in that
+  case
+- Risk, unmeasured: `enable_op_determinism` raises on a kernel with no
+  deterministic implementation. Whether any kernel in this model is affected
+  cannot be known without running training, which needs a dataset that does not
+  exist. If it fires, `training.deterministic_ops: false` is the escape hatch and
+  the run is recorded as non-reproducible rather than silently accepted
   rather than to be retried.
 - Assumption: the Keras 3.14.0 preprocessing layers accept an asymmetric range
   for brightness and contrast. Not verified against a running TensorFlow, which
