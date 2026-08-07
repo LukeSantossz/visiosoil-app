@@ -153,6 +153,18 @@ def _validate(cfg: dict) -> None:
                 f"[lower, upper], got {value!r}"
             )
 
+    # `preprocess` builds RandomBrightness with factor=(lower - 1, upper - 1),
+    # and the layer requires each bound within [-1.0, 1.0]. A config range
+    # outside [0.0, 2.0] therefore passes the ascending-numbers check above and
+    # then fails at layer construction, once training has already started.
+    brightness = aug.get("brightness_range")
+    if brightness is not None and not (0.0 <= brightness[0] < brightness[1] <= 2.0):
+        raise ValueError(
+            f"augmentation.brightness_range must lie within [0.0, 2.0] "
+            f"(RandomBrightness takes factor={{lower - 1, upper - 1}} and "
+            f"requires each bound within [-1.0, 1.0]), got {brightness!r}"
+        )
+
     # Keras RandomContrast realizes [1 - min(factor), 1 + max(factor)]: it sorts
     # the pair, so the two sides cannot be set independently. An asymmetric
     # range would be silently approximated, which is the defect #81 reports.

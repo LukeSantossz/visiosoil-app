@@ -78,8 +78,16 @@ def verify_images(class_images: dict[str, list[str]]) -> None:
     for class_name in sorted(class_images):
         for path in class_images[class_name]:
             try:
-                with Image.open(path) as image:
-                    image.load()
+                # Decode through the SAME path `_parse_image` uses at training
+                # time. Verifying with a different decoder is worse than not
+                # verifying at all: it reports success for files that will fail
+                # mid-epoch. Pillow was used here first and reads `.webp`, which
+                # `scan_dataset` admits and `tf.io.decode_image` cannot read, so
+                # every `.webp` in a dataset passed verification and then broke
+                # training.
+                raw = tf.io.read_file(path)
+                image = tf.io.decode_image(raw, channels=3, expand_animations=False)
+                image.shape.assert_has_rank(3)
             except Exception as error:
                 failures.append(f"  {path}: {type(error).__name__}: {error}")
 

@@ -69,7 +69,6 @@ def train(version: str, config_path: str | None = None) -> None:
     else:
         print("Scanning dataset and creating splits...")
         class_images = scan_dataset(cfg["data"]["raw_dir"], cfg["classes"])
-        verify_images(class_images)
         splits = create_splits(
             class_images,
             val_split=cfg["data"]["val_split"],
@@ -77,6 +76,18 @@ def train(version: str, config_path: str | None = None) -> None:
             seed=cfg["data"]["seed"],
             splits_dir=splits_dir,
         )
+
+    # Verify what will actually be read, on BOTH paths. Verifying only the
+    # freshly scanned set left the far more common path unchecked: a manifest
+    # written by an earlier run, whose files may since have been deleted,
+    # truncated, or replaced. That is exactly when a dataset rots, and the
+    # failure then surfaced partway through an epoch rather than before the
+    # model was built.
+    referenced: dict[str, list[str]] = {}
+    for split in splits.values():
+        for entry in split:
+            referenced.setdefault(entry["class"], []).append(entry["path"])
+    verify_images(referenced)
 
     print(f"Train: {len(splits['train'])}, Val: {len(splits['val'])}, Test: {len(splits['test'])}")
 
