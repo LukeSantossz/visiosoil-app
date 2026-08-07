@@ -74,13 +74,18 @@ def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
             "test_split": 0.15,
             "seed": SEED,
         },
+        # `load_config` guarantees this key, defaulting it to True, so a stub
+        # standing in for it has to supply it too.
+        "training": {"deterministic_ops": True},
         "export": {"output_dir": str(tmp_path / "models")},
     }
 
     monkeypatch.setattr(train_module, "load_config", lambda path=None: cfg)
     monkeypatch.setattr(train_module, "resolve_paths", lambda c: c)
     monkeypatch.setattr(
-        train_module, "seed_everything", lambda seed: calls.append(("seed", seed))
+        train_module,
+        "seed_everything",
+        lambda seed, deterministic_ops=True: calls.append(("seed", seed)),
     )
 
     def _scan(*args, **kwargs):
