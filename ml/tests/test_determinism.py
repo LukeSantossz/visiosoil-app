@@ -174,3 +174,43 @@ def test_seed_everything_seeds_numpy_and_tensorflow():
     seed_everything(SEED)
     np.testing.assert_array_equal(numpy_first, np.random.rand(4))
     np.testing.assert_array_equal(tf_first, tf.random.uniform((4,)).numpy())
+
+
+# --- Operator determinism (decided by the project owner, 2026-08-06) ---
+#
+# Training runs on whatever hardware is available, CPU or GPU. Seeding the RNGs
+# is enough on CPU but not on GPU, where several kernels reduce across threads
+# in completion order, so two runs of one configuration still diverge. Since E0
+# measures an effect against run-to-run variance, a GPU run under seeding alone
+# would let that variance swallow the signal with nothing reporting it.
+#
+# These monkeypatch the TensorFlow call rather than invoking it: op determinism
+# cannot be switched off once enabled, so really enabling it here would leak
+# into every test that runs afterwards in the same process.
+
+
+def test_seeding_enables_operator_determinism_by_default(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        tf.config.experimental,
+        "enable_op_determinism",
+        lambda: calls.append("enabled"),
+    )
+
+    seed_everything(SEED)
+
+    assert calls == ["enabled"]
+
+
+def test_seeding_can_opt_out_of_operator_determinism(monkeypatch):
+    """Exploratory runs may trade reproducibility for throughput, explicitly."""
+    calls = []
+    monkeypatch.setattr(
+        tf.config.experimental,
+        "enable_op_determinism",
+        lambda: calls.append("enabled"),
+    )
+
+    seed_everything(SEED, deterministic_ops=False)
+
+    assert calls == []

@@ -277,6 +277,29 @@ def test_symmetric_contrast_range_is_accepted(valid_config):
     assert load_config(path)["augmentation"]["contrast_range"] == [0.85, 1.15]
 
 
+def test_deterministic_ops_defaults_to_enabled(valid_config):
+    """Training runs on whatever hardware is present, so the safe default is the
+    reproducible one. An exploratory run opts out explicitly and the choice is
+    recorded in metrics.json, rather than depending on where it happened to run.
+    """
+    valid_config["training"].pop("deterministic_ops", None)
+    path = _write_config(valid_config)
+    assert load_config(path)["training"]["deterministic_ops"] is True
+
+
+def test_deterministic_ops_must_be_a_boolean(valid_config):
+    valid_config["training"]["deterministic_ops"] = "yes"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="deterministic_ops"):
+        load_config(path)
+
+
+def test_deterministic_ops_can_be_disabled(valid_config):
+    valid_config["training"]["deterministic_ops"] = False
+    path = _write_config(valid_config)
+    assert load_config(path)["training"]["deterministic_ops"] is False
+
+
 def test_brightness_range_beyond_the_layer_bounds_is_rejected(valid_config):
     """`preprocess` builds `factor=(lower - 1, upper - 1)`, and
     `RandomBrightness` requires each bound within [-1.0, 1.0]. So the config
