@@ -15,7 +15,7 @@ from .dataset import (
 from .model import build_model, unfreeze_model
 
 
-def seed_everything(seed: int, deterministic_ops: bool = True) -> None:
+def seed_everything(seed: int, deterministic_ops: bool = True) -> dict:
     """Seed Python, NumPy and TensorFlow, and pin operator determinism.
 
     Without seeding, weight initialization, dropout masks and augmentation draws
@@ -35,8 +35,11 @@ def seed_everything(seed: int, deterministic_ops: bool = True) -> None:
     `enable_op_determinism` is therefore on by default, reversing an earlier
     decision in this project to skip it for throughput on free Kaggle and Colab
     tiers. Set `training.deterministic_ops: false` to trade reproducibility for
-    speed in an exploratory run; the effective value is recorded in
-    `metrics.json` so a comparison can tell whether two runs are comparable.
+    speed in an exploratory run.
+
+    Returns the runtime record this run acted under, which `train` persists as
+    `runtime.json` beside the artifact so a comparison can tell whether two runs
+    are comparable.
 
     Two costs are real and unmeasured here, because measuring them needs a
     dataset that does not exist yet: the throughput loss is workload-dependent,
@@ -46,22 +49,46 @@ def seed_everything(seed: int, deterministic_ops: bool = True) -> None:
     tf.keras.utils.set_random_seed(seed)
     if deterministic_ops:
         tf.config.experimental.enable_op_determinism()
+    return runtime_mode(deterministic_ops)
 
 
-def runtime_mode(cfg: dict) -> dict:
+RUNTIME_FILENAME = "runtime.json"
+
+
+def runtime_mode(deterministic_ops: bool) -> dict:
     """What a later comparison needs in order to know if two runs are comparable.
 
     Two runs are only comparable when both were produced under operator
     determinism. Recording the flag and the device makes an invalid comparison
     detectable instead of silent; nothing compares runs yet, so the check that
     refuses one lands with whatever implements E0's comparison.
+
+    Takes the effective flag rather than the config, and is called from
+    `seed_everything` at the moment the decision is acted on. Deriving it from a
+    config later would describe whichever host did the deriving: `evaluate` runs
+    on a different machine from training often enough that a field claiming to
+    describe the training run would have quietly described the evaluation one.
     """
     gpus = tf.config.list_physical_devices("GPU")
     return {
-        "deterministic_ops": bool(cfg["training"].get("deterministic_ops", True)),
+        "deterministic_ops": bool(deterministic_ops),
         "device": "GPU" if gpus else "CPU",
         "gpu_count": len(gpus),
     }
+
+
+def load_runtime(output_dir: Path) -> dict | None:
+    """The recorded runtime of the training run that produced `output_dir`.
+
+    `None` when the directory predates this record, which is honest: absent is
+    not the same as deterministic, and a comparison must be able to tell them
+    apart rather than assuming the safe value.
+    """
+    path = Path(output_dir) / RUNTIME_FILENAME
+    if not path.exists():
+        return None
+    with open(path) as handle:
+        return json.load(handle)
 
 
 def train(version: str, config_path: str | None = None) -> None:
@@ -83,7 +110,7 @@ def train(version: str, config_path: str | None = None) -> None:
     # Indexed, not `.get`: `load_config` always sets this, so a missing key is a
     # broken invariant and should say so rather than quietly training in the
     # non-reproducible mode.
-    seed_everything(
+    runtime = seed_everything(
         cfg["data"]["seed"],
         deterministic_ops=cfg["training"]["deterministic_ops"],
     )
@@ -94,6 +121,13 @@ def train(version: str, config_path: str | None = None) -> None:
     # Save config snapshot
     with open(output_dir / "config.json", "w") as f:
         json.dump(cfg, f, indent=2)
+
+    # Persist the runtime this run actually used, next to the artifact it
+    # produced. Written here rather than recomputed later because evaluation
+    # frequently runs on another machine: a value derived at evaluation time
+    # would describe that host and silently claim to describe this one.
+    with open(output_dir / RUNTIME_FILENAME, "w") as f:
+        json.dump(runtime, f, indent=2)
 
     # Dataset splits
     splits_dir = cfg["data"]["splits_dir"]
