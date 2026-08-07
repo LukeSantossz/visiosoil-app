@@ -237,3 +237,22 @@ def test_verify_names_every_unreadable_file(tmp_path):
 def test_verify_reports_a_missing_file(tmp_path):
     with pytest.raises(ValueError, match="absent.jpg"):
         verify_images({"Arenosa": [str(tmp_path / "absent.jpg")]})
+
+
+def test_verify_rejects_a_format_the_training_decoder_cannot_read(tmp_path):
+    """Verification must use the decoder training uses, not a more tolerant one.
+
+    `scan_dataset` admits `.webp`, and Pillow reads it, but the training path
+    decodes with `tf.io.decode_image`, which does not. Verifying with Pillow
+    therefore passes a file that fails mid-epoch — the exact failure the
+    fail-loud requirement exists to prevent.
+    """
+    webp = tmp_path / "sample.webp"
+    Image.new("RGB", (16, 16), (120, 90, 60)).save(webp, format="WEBP")
+
+    # Pillow reads it, so a Pillow-based check would report no problem.
+    with Image.open(webp) as probe:
+        probe.load()
+
+    with pytest.raises(ValueError, match="sample.webp"):
+        verify_images({"Arenosa": [str(webp)]})

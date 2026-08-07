@@ -275,3 +275,22 @@ def test_symmetric_contrast_range_is_accepted(valid_config):
     valid_config["augmentation"]["contrast_range"] = [0.85, 1.15]
     path = _write_config(valid_config)
     assert load_config(path)["augmentation"]["contrast_range"] == [0.85, 1.15]
+
+
+def test_brightness_range_beyond_the_layer_bounds_is_rejected(valid_config):
+    """`preprocess` builds `factor=(lower - 1, upper - 1)`, and
+    `RandomBrightness` requires each bound within [-1.0, 1.0]. So the config
+    range must lie within [0.0, 2.0]; [0.0, 3.0] passes the ascending-numbers
+    check but produces `factor=(-1.0, 2.0)`, which the layer rejects at
+    construction — a failure that would surface only once training starts.
+    """
+    valid_config["augmentation"]["brightness_range"] = [0.0, 3.0]
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="brightness_range"):
+        load_config(path)
+
+
+def test_brightness_range_at_the_layer_bounds_is_accepted(valid_config):
+    valid_config["augmentation"]["brightness_range"] = [0.0, 2.0]
+    path = _write_config(valid_config)
+    assert load_config(path)["augmentation"]["brightness_range"] == [0.0, 2.0]
