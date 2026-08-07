@@ -242,17 +242,23 @@ def test_verify_reports_a_missing_file(tmp_path):
 def test_verify_rejects_a_format_the_training_decoder_cannot_read(tmp_path):
     """Verification must use the decoder training uses, not a more tolerant one.
 
-    `scan_dataset` admits `.webp`, and Pillow reads it, but the training path
-    decodes with `tf.io.decode_image`, which does not. Verifying with Pillow
-    therefore passes a file that fails mid-epoch — the exact failure the
-    fail-loud requirement exists to prevent.
-    """
-    webp = tmp_path / "sample.webp"
-    Image.new("RGB", (16, 16), (120, 90, 60)).save(webp, format="WEBP")
+    Pillow identifies a file by sniffing its content, so it happily reads TIFF
+    bytes stored under a `.png` name. `scan_dataset` admits the file on its
+    extension, and `tf.io.decode_image` — the decoder `_parse_image` actually
+    uses — rejects it: "Unknown image file format. One of JPEG, JPEG XL, PNG,
+    GIF, BMP, WebP required."
 
-    # Pillow reads it, so a Pillow-based check would report no problem.
-    with Image.open(webp) as probe:
+    So a Pillow-based check reports a clean dataset and training dies partway
+    through an epoch, which is precisely the failure the fail-loud requirement
+    exists to prevent. Mislabelled files are not exotic; they are what a
+    conversion or a rename produces.
+    """
+    mislabelled = tmp_path / "sample.png"
+    Image.new("RGB", (16, 16), (120, 90, 60)).save(mislabelled, format="TIFF")
+
+    # Pillow reads it, so a Pillow-based check would report no problem at all.
+    with Image.open(mislabelled) as probe:
         probe.load()
 
-    with pytest.raises(ValueError, match="sample.webp"):
-        verify_images({"Arenosa": [str(webp)]})
+    with pytest.raises(ValueError, match="sample.png"):
+        verify_images({"Arenosa": [str(mislabelled)]})
