@@ -46,6 +46,11 @@ training:
   reduce_lr_patience: 5
   reduce_lr_factor: 0.5
   class_weights: "balanced"
+  # Forces deterministic TensorFlow kernels so a run is reproducible on GPU as
+  # well as CPU. Seeding alone is not enough on GPU, and E0 measures an effect
+  # against run-to-run variance. Set to false only for an exploratory run that
+  # needs the throughput; the effective value is recorded in metrics.json.
+  deterministic_ops: true
 
 export:
   quantization: "none"

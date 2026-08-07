@@ -85,43 +85,64 @@ def build_augmentation_layer(cfg: dict) -> tf.keras.Sequential:
         Sequential model with augmentation layers.
     """
     aug_cfg = cfg.get("augmentation", {})
+    if not aug_cfg:
+        return tf.keras.Sequential([], name="augmentation")
+
+    # Every layer holds its own generator, so a global seed does not reach it.
+    seed = cfg["data"]["seed"]
     layers = []
 
     if aug_cfg.get("horizontal_flip", False):
-        layers.append(tf.keras.layers.RandomFlip("horizontal"))
+        layers.append(tf.keras.layers.RandomFlip("horizontal", seed=seed))
 
     if aug_cfg.get("vertical_flip", False):
-        layers.append(tf.keras.layers.RandomFlip("vertical"))
+        layers.append(tf.keras.layers.RandomFlip("vertical", seed=seed))
 
     rotation = aug_cfg.get("rotation_range", 0)
     if rotation > 0:
-        layers.append(tf.keras.layers.RandomRotation(rotation / 360.0))
+        layers.append(tf.keras.layers.RandomRotation(rotation / 360.0, seed=seed))
 
     brightness = aug_cfg.get("brightness_range")
     if brightness:
-        factor = brightness[1] - 1.0
+        # RandomBrightness adds a delta, so a multiplicative range [lo, hi]
+        # maps to the offsets it spans. Both bounds are carried: taking only
+        # hi - 1.0 would silently symmetrize an asymmetric range.
         layers.append(tf.keras.layers.RandomBrightness(
-            factor=factor, value_range=(0.0, 1.0),
+            factor=(brightness[0] - 1.0, brightness[1] - 1.0),
+            value_range=(0.0, 1.0),
+            seed=seed,
         ))
 
     contrast = aug_cfg.get("contrast_range")
     if contrast:
-        factor = contrast[1] - 1.0
+        # RandomContrast realizes [1 - min(factor), 1 + max(factor)] and, unlike
+        # RandomBrightness, expands a float `f` to `(0, f)` rather than
+        # `(-f, f)`. Passing the radius as a float therefore never reduces
+        # contrast: the configured lower bound was silently discarded. The pair
+        # must be given explicitly. It also means the two sides cannot be set
+        # independently, since the tuple is sorted, so `load_config` rejects an
+        # asymmetric range rather than let one be approximated.
+        radius = contrast[1] - 1.0
         layers.append(tf.keras.layers.RandomContrast(
-            factor=factor, value_range=(0.0, 1.0),
+            factor=(radius, radius),
+            value_range=(0.0, 1.0),
+            seed=seed,
         ))
 
     zoom = aug_cfg.get("zoom_range")
     if zoom:
         zoom_lower = zoom[0] - 1.0  # e.g. 0.95 - 1.0 = -0.05 (zoom out)
         zoom_upper = zoom[1] - 1.0  # e.g. 1.05 - 1.0 = 0.05 (zoom in)
-        layers.append(tf.keras.layers.RandomZoom(height_factor=(zoom_lower, zoom_upper)))
+        layers.append(tf.keras.layers.RandomZoom(
+            height_factor=(zoom_lower, zoom_upper), seed=seed,
+        ))
 
     translation = aug_cfg.get("translation_range")
     if translation:
         layers.append(tf.keras.layers.RandomTranslation(
             height_factor=translation,
             width_factor=translation,
+            seed=seed,
         ))
 
     return tf.keras.Sequential(layers, name="augmentation")

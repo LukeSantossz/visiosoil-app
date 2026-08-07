@@ -15,6 +15,7 @@ from sklearn.metrics import (
 
 from .config import load_config, resolve_paths
 from .dataset import load_splits, build_dataset, validate_splits_against_config
+from .train import load_runtime
 
 
 def evaluate(version: str, config_path: str | None = None) -> dict:
@@ -88,6 +89,13 @@ def evaluate(version: str, config_path: str | None = None) -> dict:
         },
         "confusion_matrix": cm,
         "test_size": len(test_entries),
+        # Two runs are only comparable when both ran under operator determinism.
+        # Read from what TRAINING recorded, never recomputed here: evaluation
+        # often runs on another machine, so a value derived now would describe
+        # this host while claiming to describe the run that produced the model.
+        # `null` when the artifact predates the record — absent is not the same
+        # as deterministic, and a comparison must be able to tell them apart.
+        "runtime": load_runtime(output_dir),
     }
 
     # Save metrics
