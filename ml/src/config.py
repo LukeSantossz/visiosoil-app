@@ -223,6 +223,19 @@ def _validate(cfg: dict) -> None:
         if training["class_weights"] not in {"balanced", "none"}:
             raise ValueError("training.class_weights must be 'balanced' or 'none'")
 
+    # Operator determinism defaults ON, because training runs on whatever
+    # hardware is available and seeding alone is not reproducible on a GPU.
+    # Defaulted here rather than at the call site so the effective value is in
+    # the config that gets snapshotted next to the run.
+    if "deterministic_ops" in training:
+        if not isinstance(training["deterministic_ops"], bool):
+            raise ValueError(
+                "training.deterministic_ops must be true or false, got "
+                f"{training['deterministic_ops']!r}"
+            )
+    else:
+        training["deterministic_ops"] = True
+
     # export
     export = cfg["export"]
     quantization = export.get("quantization", "dynamic_range")
