@@ -57,6 +57,13 @@ jobs:
 
   ml-tests:
     runs-on: ubuntu-latest
+    # Least privilege for the job that runs third-party Python code: this one
+    # installs and executes the whole ML dependency tree, so a compromised
+    # package must not inherit a token that can write to the repository.
+    # `persist-credentials: false` below stops the token being written to disk;
+    # it does not reduce the token's scopes, which is what this does.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
