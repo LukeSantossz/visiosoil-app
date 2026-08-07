@@ -9,6 +9,8 @@ TensorFlow and Keras. Equality across machines or across versions is not
 claimed.
 """
 
+import json
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -16,7 +18,12 @@ import tensorflow as tf
 from src import train as train_module
 from src.model import build_model
 from src.preprocess import build_augmentation_layer
-from src.train import seed_everything
+from src.train import (
+    RUNTIME_FILENAME,
+    load_runtime,
+    runtime_mode,
+    seed_everything,
+)
 
 SEED = 1234
 HEAD_LAYERS = ("bn", "dense_head", "predictions")
@@ -82,11 +89,14 @@ def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
 
     monkeypatch.setattr(train_module, "load_config", lambda path=None: cfg)
     monkeypatch.setattr(train_module, "resolve_paths", lambda c: c)
-    monkeypatch.setattr(
-        train_module,
-        "seed_everything",
-        lambda seed, deterministic_ops=True: calls.append(("seed", seed)),
-    )
+    # The stub defaults to None, not True: with a True default the test would
+    # pass even if `train` stopped forwarding the flag entirely, which is the
+    # regression most worth catching here.
+    def _seed(seed, deterministic_ops=None):
+        calls.append(("seed", seed, deterministic_ops))
+        return {"deterministic_ops": deterministic_ops, "device": "CPU", "gpu_count": 0}
+
+    monkeypatch.setattr(train_module, "seed_everything", _seed)
 
     def _scan(*args, **kwargs):
         calls.append(("scan", None))
@@ -98,8 +108,54 @@ def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
         train_module.train("vtest")
 
     assert calls, "train() ran without seeding or scanning"
-    assert calls[0] == ("seed", SEED), f"first call was {calls[0]}"
+    assert calls[0] == ("seed", SEED, True), f"first call was {calls[0]}"
     assert ("scan", None) in calls
+
+
+def test_train_persists_the_runtime_beside_the_artifact(tmp_path, monkeypatch):
+    """Recorded at training time, so evaluation on another host cannot overwrite
+    it with a description of that host.
+    """
+    cfg = {
+        "classes": ["A", "B"],
+        "data": {
+            "raw_dir": str(tmp_path / "raw"),
+            "splits_dir": str(tmp_path / "splits"),
+            "image_size": 224,
+            "val_split": 0.15,
+            "test_split": 0.15,
+            "seed": SEED,
+        },
+        "training": {"deterministic_ops": False},
+        "export": {"output_dir": str(tmp_path / "models")},
+    }
+
+    monkeypatch.setattr(train_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(train_module, "resolve_paths", lambda c: c)
+    monkeypatch.setattr(
+        train_module,
+        "seed_everything",
+        lambda seed, deterministic_ops=None: {
+            "deterministic_ops": deterministic_ops,
+            "device": "CPU",
+            "gpu_count": 0,
+        },
+    )
+
+    def _scan(*args, **kwargs):
+        raise _StopHere
+
+    monkeypatch.setattr(train_module, "scan_dataset", _scan)
+
+    with pytest.raises(_StopHere):
+        train_module.train("vtest")
+
+    recorded = load_runtime(tmp_path / "models" / "vtest")
+    assert recorded == {
+        "deterministic_ops": False,
+        "device": "CPU",
+        "gpu_count": 0,
+    }
 
 
 # --- what the seed has to make reproducible --------------------------------
@@ -194,28 +250,63 @@ def test_seed_everything_seeds_numpy_and_tensorflow():
 # into every test that runs afterwards in the same process.
 
 
-def test_seeding_enables_operator_determinism_by_default(monkeypatch):
+def _record_seeding(monkeypatch) -> list:
+    """Record both seeding calls in the order they happen.
+
+    Order matters: `enable_op_determinism` must follow the seed, not replace it.
+    Asserting only that determinism was switched on would pass for an
+    implementation that forgot to seed at all.
+    """
     calls = []
+    monkeypatch.setattr(
+        tf.keras.utils,
+        "set_random_seed",
+        lambda seed: calls.append(("seed", seed)),
+    )
     monkeypatch.setattr(
         tf.config.experimental,
         "enable_op_determinism",
-        lambda: calls.append("enabled"),
+        lambda: calls.append(("determinism", True)),
     )
+    return calls
 
-    seed_everything(SEED)
 
-    assert calls == ["enabled"]
+def test_seeding_enables_operator_determinism_by_default(monkeypatch):
+    calls = _record_seeding(monkeypatch)
+
+    runtime = seed_everything(SEED)
+
+    assert calls == [("seed", SEED), ("determinism", True)]
+    assert runtime["deterministic_ops"] is True
 
 
 def test_seeding_can_opt_out_of_operator_determinism(monkeypatch):
     """Exploratory runs may trade reproducibility for throughput, explicitly."""
-    calls = []
-    monkeypatch.setattr(
-        tf.config.experimental,
-        "enable_op_determinism",
-        lambda: calls.append("enabled"),
-    )
+    calls = _record_seeding(monkeypatch)
 
-    seed_everything(SEED, deterministic_ops=False)
+    runtime = seed_everything(SEED, deterministic_ops=False)
 
-    assert calls == []
+    assert calls == [("seed", SEED)]
+    assert runtime["deterministic_ops"] is False
+
+
+def test_runtime_records_the_device_it_ran_on():
+    """A comparison needs the device as well as the flag: two deterministic runs
+    on different hardware are still not guaranteed bit-identical to each other.
+    """
+    runtime = runtime_mode(True)
+
+    assert runtime["device"] in {"CPU", "GPU"}
+    assert isinstance(runtime["gpu_count"], int)
+
+
+def test_load_runtime_returns_none_when_the_record_is_absent(tmp_path):
+    """Absent is not the same as deterministic, and must not read as it."""
+    assert load_runtime(tmp_path) is None
+
+
+def test_load_runtime_reads_back_what_training_wrote(tmp_path):
+    written = {"deterministic_ops": False, "device": "CPU", "gpu_count": 0}
+    (tmp_path / RUNTIME_FILENAME).write_text(json.dumps(written))
+
+    assert load_runtime(tmp_path) == written
