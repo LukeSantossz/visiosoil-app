@@ -98,13 +98,27 @@ trades reproducibility for throughput in an exploratory run, and `load_config`
 defaults the key to `true` so the reproducible mode is what a config that says
 nothing gets.
 
-**Recorded, because opting out must not be invisible.** `metrics.json` carries a
-`runtime` object with the effective `deterministic_ops`, the device, and the GPU
-count. Two runs are comparable only if both ran under operator determinism, and
-without recording it a comparison cannot tell a real effect from hardware
-nondeterminism. The check that *refuses* an invalid comparison is not in this
-specification: nothing compares runs yet, so it lands with whatever implements
-E0's comparison. What lands here is the data that check will need.
+**Recorded, because opting out must not be invisible — and recorded where the
+run happens.** `seed_everything` returns the runtime it acted under (effective
+`deterministic_ops`, device, GPU count) and `train` writes it as `runtime.json`
+beside the artifact. `evaluate` *reads* that file into `metrics.json`; it never
+recomputes it.
+
+That distinction is the whole point and it was got wrong first. Deriving the
+field at evaluation time reads the evaluating host's config and its visible
+GPUs, so `metrics.json` would describe the machine that scored the model while
+claiming to describe the run that produced it — and evaluation on a different
+machine from training is the normal case, not the exception. A field that
+silently describes the wrong thing is worse than no field.
+
+`runtime` is `null` when an artifact predates this record. Absent is not the
+same as deterministic, and a comparison has to tell them apart rather than
+assume the safe value.
+
+Two runs are comparable only if both ran under operator determinism. The check
+that *refuses* an invalid comparison is not in this specification: nothing
+compares runs yet, so it lands with whatever implements E0's comparison. What
+lands here is the data that check will need.
 
 **Two costs are real and unmeasured, and saying so is part of the decision.**
 The throughput loss is workload-dependent and no number is quoted here because
@@ -347,18 +361,22 @@ SPEC 0015.
   What would invalidate it: a determinism criterion failing intermittently even
   with operator determinism on, which would mean a source of nondeterminism
   outside TensorFlow's control. The criteria are written to fail loudly in that
-  case
+  case rather than to be retried.
 - Risk, unmeasured: `enable_op_determinism` raises on a kernel with no
   deterministic implementation. Whether any kernel in this model is affected
   cannot be known without running training, which needs a dataset that does not
-  exist. If it fires, `training.deterministic_ops: false` is the escape hatch and
-  the run is recorded as non-reproducible rather than silently accepted
-  rather than to be retried.
-- Assumption: the Keras 3.14.0 preprocessing layers accept an asymmetric range
-  for brightness and contrast. Not verified against a running TensorFlow, which
-  is why the criteria assert sampled behaviour rather than a call signature. If
-  the API only accepts a symmetric factor, the fix becomes an explicit shift plus
-  a symmetric draw, and the behavioural criteria still hold unchanged.
+  exist. If it fires, `training.deterministic_ops: false` is the escape hatch,
+  and the run is then recorded as non-reproducible rather than silently
+  accepted as if it were not.
+- ~~Assumption: the Keras 3.14.0 preprocessing layers accept an asymmetric range
+  for brightness and contrast.~~ **Resolved by measurement against the installed
+  TensorFlow 2.21.0 / Keras 3.14.0, and it resolved against the assumption.**
+  `RandomBrightness` does accept an asymmetric tuple. `RandomContrast` does not:
+  it sorts its factor pair, so an asymmetric multiplicative range is
+  inexpressible. `load_config` therefore rejects one rather than approximating
+  it, which is what the Problem section describes. The criteria still assert
+  sampled behaviour rather than a call signature, which is why measuring changed
+  the validation and not the criteria.
 - Risk: the CI job adds a TensorFlow install to every push, which is a multi-
   minute download. Mitigated by pip caching keyed on `ml/requirements.txt`. If it
   proves too slow, running the job only on changes under `ml/` is the fallback,
