@@ -10,9 +10,26 @@ import tensorflow as tf
 from .config import load_config, resolve_paths
 from .dataset import (
     scan_dataset, create_splits, load_splits, build_dataset,
-    compute_class_weights, validate_splits_against_config,
+    compute_class_weights, validate_splits_against_config, verify_images,
 )
 from .model import build_model, unfreeze_model
+
+
+def seed_everything(seed: int) -> None:
+    """Seed Python, NumPy and TensorFlow from one call.
+
+    Without this, weight initialization, dropout masks and augmentation draws
+    are unseeded, so two runs of one config produce different metrics and no
+    experiment can be compared against another. Experiment E0 in particular
+    measures a difference against run-to-run variance, which has no meaning
+    until that variance is controlled.
+
+    `tf.config.experimental.enable_op_determinism()` is deliberately not
+    enabled: it forces deterministic GPU kernels at a throughput cost, and this
+    project trains on free Kaggle and Colab tiers. Enable it here if a
+    determinism test ever fails intermittently.
+    """
+    tf.keras.utils.set_random_seed(seed)
 
 
 def train(version: str, config_path: str | None = None) -> None:
@@ -29,6 +46,9 @@ def train(version: str, config_path: str | None = None) -> None:
     """
     cfg = load_config(config_path)
     cfg = resolve_paths(cfg)
+
+    # Before any dataset or model is built, or nothing below is reproducible.
+    seed_everything(cfg["data"]["seed"])
 
     output_dir = Path(cfg["export"]["output_dir"]) / version
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -49,6 +69,7 @@ def train(version: str, config_path: str | None = None) -> None:
     else:
         print("Scanning dataset and creating splits...")
         class_images = scan_dataset(cfg["data"]["raw_dir"], cfg["classes"])
+        verify_images(class_images)
         splits = create_splits(
             class_images,
             val_split=cfg["data"]["val_split"],

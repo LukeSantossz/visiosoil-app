@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
+from PIL import Image
 from sklearn.model_selection import train_test_split
 
 from .preprocess import preprocess, build_augmentation_layer
@@ -51,6 +52,51 @@ def scan_dataset(raw_dir: str, classes: list[str]) -> dict[str, list[str]]:
         result[class_name] = images
 
     return result
+
+
+def verify_images(class_images: dict[str, list[str]]) -> None:
+    """Open every listed image and raise if any cannot be decoded.
+
+    Called before training builds anything, so an unreadable file is a refusal
+    to start rather than a crash partway through an epoch. Every bad file is
+    named in one message: the operator fixes the dataset in one pass instead of
+    discovering the next broken file on the next attempt.
+
+    Skipping bad files with a warning was considered and rejected. It would make
+    the effective dataset differ between runs of one configuration without
+    changing `splits.json`, which is exactly the reproducibility this pipeline
+    is supposed to have.
+
+    Args:
+        class_images: Mapping of class name to image file paths.
+
+    Raises:
+        ValueError: If any file is missing or cannot be decoded.
+    """
+    failures: list[str] = []
+
+    for class_name in sorted(class_images):
+        for path in class_images[class_name]:
+            try:
+                with Image.open(path) as image:
+                    image.load()
+            except Exception as error:
+                failures.append(f"  {path}: {type(error).__name__}: {error}")
+
+    if failures:
+        raise ValueError(
+            f"{len(failures)} image(s) could not be read:\n" + "\n".join(failures)
+        )
+
+
+def _group_id(class_name: str, sample_id: str) -> str:
+    """The key splits are grouped by.
+
+    Scoped to the class because one soil sample carries one laboratory texture
+    class and therefore lives in exactly one class folder. Two files sharing a
+    stem across folders are different physical samples whose names collided.
+    """
+    return f"{class_name}::{sample_id}"
 
 
 def _extract_sample_id(filepath: str) -> str:
@@ -114,7 +160,7 @@ def create_splits(
             sample_groups.setdefault(sid, []).append(p)
 
         for sid, files in sample_groups.items():
-            group_ids.append(f"{class_name}::{sid}")
+            group_ids.append(_group_id(class_name, sid))
             group_labels.append(label)
             group_files.append(files)
 

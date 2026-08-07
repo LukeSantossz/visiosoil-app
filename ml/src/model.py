@@ -7,6 +7,8 @@ Rescaling layer baked into the model converts [0,1] input to [-1,1].
 import tensorflow as tf
 from tensorflow import keras
 
+from .config import OPTIONAL_MODEL_DEFAULTS
+
 
 def build_model(cfg: dict) -> keras.Model:
     """Build the MobileNetV2-based classification model.
@@ -48,7 +50,8 @@ def build_model(cfg: dict) -> keras.Model:
         include_top=False,
         weights="imagenet",
     )
-    freeze = cfg["model"].get("freeze_backbone", True)
+    # The default is declared in config.py, not invented here.
+    freeze = cfg["model"].get("freeze_backbone", OPTIONAL_MODEL_DEFAULTS["freeze_backbone"])
     backbone.trainable = not freeze
     x = backbone(x)
 
