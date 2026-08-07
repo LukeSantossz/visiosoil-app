@@ -188,3 +188,90 @@ def test_class_weights_validation(valid_config):
     path = _write_config(valid_config)
     with pytest.raises(ValueError, match="class_weights"):
         load_config(path)
+
+
+# --- SPEC 0032: validations that stop a silently degraded run --------------
+
+
+def test_image_size_must_match_the_architecture(valid_config):
+    """MobileNetV2 pretrained weights expect 224; other sizes degrade silently."""
+    valid_config["data"]["image_size"] = 128
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="image_size"):
+        load_config(path)
+
+
+def test_seed_must_be_a_non_negative_int(valid_config):
+    for bad in (-1, 1.5, "42", True):
+        valid_config["data"]["seed"] = bad
+        path = _write_config(valid_config)
+        with pytest.raises(ValueError, match="seed"):
+            load_config(path)
+
+
+def test_valid_seed_is_accepted(valid_config):
+    valid_config["data"]["seed"] = 0
+    path = _write_config(valid_config)
+    assert load_config(path)["data"]["seed"] == 0
+
+
+def test_augmentation_range_must_be_two_ascending_values(valid_config):
+    for bad in ([0.9], [1.2, 0.8], [0.9, 1.0, 1.1], "0.9", [0.9, 0.9]):
+        valid_config["augmentation"]["brightness_range"] = bad
+        path = _write_config(valid_config)
+        with pytest.raises(ValueError, match="brightness_range"):
+            load_config(path)
+
+
+def test_every_ranged_augmentation_key_is_validated(valid_config):
+    for key in ("brightness_range", "contrast_range", "zoom_range"):
+        valid_config["augmentation"] = {key: [1.3, 0.7]}
+        path = _write_config(valid_config)
+        with pytest.raises(ValueError, match=key):
+            load_config(path)
+
+
+def test_valid_augmentation_ranges_are_accepted(valid_config):
+    valid_config["augmentation"] = {
+        "brightness_range": [0.7, 1.15],
+        "contrast_range": [0.9, 1.1],
+        "zoom_range": [0.95, 1.05],
+    }
+    path = _write_config(valid_config)
+    assert load_config(path)["augmentation"]["brightness_range"] == [0.7, 1.15]
+
+
+def test_baked_rescaling_must_match_the_declared_contract(valid_config):
+    """build_model rescales unconditionally; export.py reads this flag."""
+    valid_config["preprocessing"]["bake_into_model"] = False
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="bake_into_model"):
+        load_config(path)
+
+
+def test_freeze_backbone_default_is_declared(valid_config):
+    """The default belongs to config, not to a .get() inside model.py."""
+    del valid_config["model"]["freeze_backbone"]
+    path = _write_config(valid_config)
+    assert load_config(path)["model"]["freeze_backbone"] is True
+
+
+def test_freeze_backbone_must_be_a_boolean(valid_config):
+    valid_config["model"]["freeze_backbone"] = "yes"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="freeze_backbone"):
+        load_config(path)
+
+
+def test_asymmetric_contrast_range_is_rejected(valid_config):
+    """RandomContrast sorts its factor pair, so it cannot express one."""
+    valid_config["augmentation"]["contrast_range"] = [0.7, 1.15]
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="symmetric"):
+        load_config(path)
+
+
+def test_symmetric_contrast_range_is_accepted(valid_config):
+    valid_config["augmentation"]["contrast_range"] = [0.85, 1.15]
+    path = _write_config(valid_config)
+    assert load_config(path)["augmentation"]["contrast_range"] == [0.85, 1.15]

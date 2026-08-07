@@ -173,3 +173,99 @@ def test_augmentation_output_range_normalized_input(sample_config_mobilenet):
     values = output.numpy()
     assert values.max() <= 1.01, f"Augmented max {values.max():.4f} exceeds [0,1] range"
     assert values.min() >= -0.01, f"Augmented min {values.min():.4f} below [0,1] range"
+
+
+# --- SPEC 0032: both bounds are honoured, and every layer is seeded --------
+
+
+def _brightness_deltas(cfg: dict, draws: int = 400) -> tuple[float, float]:
+    """Observed additive delta range over a flat mid-grey image."""
+    layer = build_augmentation_layer(cfg).layers[0]
+    flat = tf.fill((1, 8, 8, 3), 0.5)
+    deltas = [
+        float(tf.reduce_mean(layer(flat, training=True)).numpy() - 0.5)
+        for _ in range(draws)
+    ]
+    return min(deltas), max(deltas)
+
+
+def _contrast_factors(cfg: dict, draws: int = 400) -> tuple[float, float]:
+    """Observed contrast factor, recovered from how the value span scales."""
+    layer = build_augmentation_layer(cfg).layers[0]
+    half = tf.fill((1, 8, 4, 3), 0.25)
+    other = tf.fill((1, 8, 4, 3), 0.75)
+    image = tf.concat([half, other], axis=2)
+    factors = []
+    for _ in range(draws):
+        out = layer(image, training=True).numpy()
+        factors.append(float(out.max() - out.min()) / 0.5)
+    return min(factors), max(factors)
+
+
+def _only(key: str, value, seed: int = 42) -> dict:
+    """A config whose augmentation section holds exactly one ranged key."""
+    return {
+        "data": {"image_size": 224, "seed": seed},
+        "preprocessing": {"normalization": "mobilenet_v2", "bake_into_model": True},
+        "augmentation": {key: value},
+        "classes": ["A", "B", "C"],
+        "training": {"batch_size": 4},
+    }
+
+
+def test_brightness_honours_both_bounds():
+    low, high = _brightness_deltas(_only("brightness_range", [0.7, 1.15]))
+    assert low == pytest.approx(-0.30, abs=0.02)
+    assert high == pytest.approx(0.15, abs=0.02)
+
+
+def test_contrast_spans_the_whole_configured_range():
+    """A symmetric range is realized end to end, not only its upper half.
+
+    Contrast cannot take an asymmetric range: RandomContrast realizes
+    `[1 - min(factor), 1 + max(factor)]`, sorting the pair, so the two sides are
+    not independently settable. `load_config` rejects an asymmetric range rather
+    than approximate it; see `test_asymmetric_contrast_range_is_rejected`.
+    """
+    low, high = _contrast_factors(_only("contrast_range", [0.75, 1.25]))
+    assert low == pytest.approx(0.75, abs=0.02)
+    assert high == pytest.approx(1.25, abs=0.02)
+
+
+def test_symmetric_brightness_range_is_unchanged():
+    """Proves the fix is latent: today's config keeps today's distribution."""
+    low, high = _brightness_deltas(_only("brightness_range", [0.85, 1.15]))
+    assert low == pytest.approx(-0.15, abs=0.02)
+    assert high == pytest.approx(0.15, abs=0.02)
+
+
+def test_contrast_lower_bound_is_no_longer_discarded():
+    """Unlike brightness, this one is a real behaviour change.
+
+    `RandomContrast` expands a float `f` to `(0, f)`, so passing the radius as a
+    float realized `[1.0, 1.1]` for a configured `[0.9, 1.1]`: contrast was only
+    ever increased. The pair has to be passed explicitly.
+    """
+    low, high = _contrast_factors(_only("contrast_range", [0.9, 1.1]))
+    assert low == pytest.approx(0.90, abs=0.02)
+    assert high == pytest.approx(1.10, abs=0.02)
+
+
+def test_float_contrast_factor_would_be_one_sided():
+    """Pins the Keras behaviour this fix exists for, so a regression is loud."""
+    layer = tf.keras.layers.RandomContrast(
+        factor=0.1, value_range=(0.0, 1.0), seed=42
+    )
+    assert tuple(layer.factor) == (0, pytest.approx(0.1))
+
+
+def test_every_augmentation_layer_is_seeded(sample_config_mobilenet):
+    """A global seed does not reach a layer's own generator."""
+    aug = build_augmentation_layer(sample_config_mobilenet)
+    expected = sample_config_mobilenet["data"]["seed"]
+
+    assert aug.layers, "no augmentation layers were built"
+    for layer in aug.layers:
+        assert getattr(layer, "seed", None) == expected, (
+            f"{type(layer).__name__} was built without the configured seed"
+        )

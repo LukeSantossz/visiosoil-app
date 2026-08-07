@@ -5,8 +5,15 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
-from src.dataset import scan_dataset, create_splits, _extract_sample_id
+from src.dataset import (
+    scan_dataset,
+    create_splits,
+    verify_images,
+    _extract_sample_id,
+    _group_id,
+)
 
 
 @pytest.fixture
@@ -138,17 +145,95 @@ def test_no_sample_leakage_between_splits(grouped_dataset):
     with open(Path(splits_dir) / "splits.json") as f:
         manifest = json.load(f)
 
-    # Collect sample IDs per split
-    split_sample_ids = {}
-    for split_name in ("train", "val", "test"):
-        ids = set()
-        for entry in manifest["splits"][split_name]:
-            ids.add(_extract_sample_id(entry["path"]))
-        split_sample_ids[split_name] = ids
+    leaks = _leaked_groups(manifest)
+    assert not leaks, f"Sample groups leaked between splits: {leaks}"
 
-    # No overlap between any pair of splits
-    for a, b in [("train", "val"), ("train", "test"), ("val", "test")]:
-        overlap = split_sample_ids[a] & split_sample_ids[b]
-        assert not overlap, (
-            f"Sample IDs leaked between {a} and {b}: {overlap}"
-        )
+
+def _leaked_groups(manifest: dict) -> dict:
+    """Groups appearing in more than one split, keyed by the split pair.
+
+    Compares the key `create_splits` actually groups by. Comparing the bare
+    `_extract_sample_id` stem instead would report a leak for any two classes
+    that happen to number their samples the same way, which is a naming
+    coincidence and not a shared physical sample: one soil sample carries one
+    laboratory texture class, so it lives in exactly one class folder.
+    """
+    per_split = {
+        name: {
+            _group_id(entry["class"], _extract_sample_id(entry["path"]))
+            for entry in manifest["splits"][name]
+        }
+        for name in ("train", "val", "test")
+    }
+
+    leaks = {}
+    for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
+        overlap = per_split[a] & per_split[b]
+        if overlap:
+            leaks[f"{a}/{b}"] = overlap
+    return leaks
+
+
+def test_leakage_check_still_catches_a_real_leak():
+    """A group forced into two splits must be reported.
+
+    Without this, correcting the assertion above could have turned it into a
+    check that passes unconditionally.
+    """
+    shared = {"path": "/raw/Arenosa/lab_77 (1).jpg", "class": "Arenosa", "label": 0}
+    manifest = {
+        "splits": {
+            "train": [shared, {"path": "/raw/Media/lab_12.jpg", "class": "Media", "label": 1}],
+            "val": [{"path": "/raw/Arenosa/lab_77 (2).jpg", "class": "Arenosa", "label": 0}],
+            "test": [],
+        }
+    }
+
+    leaks = _leaked_groups(manifest)
+    assert "train/val" in leaks
+    assert leaks["train/val"] == {_group_id("Arenosa", "lab_77")}
+
+
+# --- SPEC 0032: the dataset is verified before training, not during it -----
+
+
+def _write_image(path: Path, size=(16, 16)) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", size, (120, 90, 60)).save(path, format="JPEG")
+
+
+def test_verify_accepts_readable_images(tmp_path):
+    paths = [tmp_path / f"soil_{i}.jpg" for i in range(3)]
+    for path in paths:
+        _write_image(path)
+
+    verify_images({"Arenosa": [str(p) for p in paths]})
+
+
+def test_verify_names_the_unreadable_file(tmp_path):
+    good = tmp_path / "good.jpg"
+    _write_image(good)
+    bad = tmp_path / "truncated.jpg"
+    bad.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
+
+    with pytest.raises(ValueError, match="truncated.jpg"):
+        verify_images({"Arenosa": [str(good), str(bad)]})
+
+
+def test_verify_names_every_unreadable_file(tmp_path):
+    """One run must tell the operator everything to fix."""
+    bad_names = ["a.jpg", "b.jpg", "c.jpg"]
+    for name in bad_names:
+        (tmp_path / name).write_bytes(b"not an image")
+
+    with pytest.raises(ValueError) as raised:
+        verify_images({"Arenosa": [str(tmp_path / n) for n in bad_names]})
+
+    message = str(raised.value)
+    for name in bad_names:
+        assert name in message
+
+
+def test_verify_reports_a_missing_file(tmp_path):
+    with pytest.raises(ValueError, match="absent.jpg"):
+        verify_images({"Arenosa": [str(tmp_path / "absent.jpg")]})
