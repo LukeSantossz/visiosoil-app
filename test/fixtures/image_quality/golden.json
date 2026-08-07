@@ -1,0 +1,380 @@
+{
+  "criteria": {
+    "max_clipped_fraction": 0.05,
+    "max_color_cast_score": 0.15,
+    "max_mean_luminance": 215.0,
+    "max_specular_fraction": 0.1,
+    "min_blur_score": 100.0,
+    "min_contrast_score": 20.0,
+    "min_mean_luminance": 40.0,
+    "min_roi_side_px": 512
+  },
+  "fixtures": [
+    {
+      "failures": [],
+      "file": "ok_checkerboard.png",
+      "metrics": {
+        "blur_score": 17104.643444828915,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 70.0,
+        "downscale_applied": true,
+        "mean_luminance": 130.0,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 17004.643444828915,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 50.0,
+        "mean_luminance": 85.0,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "ok"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "blur",
+          "margin": 99.64690196078432,
+          "measured": 0.35309803921568383,
+          "severity": "blocking",
+          "threshold": 100.0
+        }
+      ],
+      "file": "blur_only.png",
+      "metrics": {
+        "blur_score": 0.35309803921568383,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 51.961373875216196,
+        "downscale_applied": true,
+        "mean_luminance": 129.375,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 99.64690196078432,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 31.961373875216196,
+        "mean_luminance": 85.625,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "exposure",
+          "margin": 5.0,
+          "measured": 35.0,
+          "severity": "blocking",
+          "threshold": 40.0
+        }
+      ],
+      "file": "exposure_dark_only.png",
+      "metrics": {
+        "blur_score": 3141.669204152248,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 30.0,
+        "downscale_applied": true,
+        "mean_luminance": 35.0,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 3041.669204152248,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 10.0,
+        "mean_luminance": 5.0,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "exposure",
+          "margin": 4.0,
+          "measured": 219.0,
+          "severity": "blocking",
+          "threshold": 215.0
+        }
+      ],
+      "file": "exposure_bright_only.png",
+      "metrics": {
+        "blur_score": 2935.7153341022718,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 29.000000000000007,
+        "downscale_applied": true,
+        "mean_luminance": 219.0,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 2835.7153341022718,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 9.000000000000007,
+        "mean_luminance": 4.0,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "clipping",
+          "margin": 0.15000000000000002,
+          "measured": 0.2,
+          "severity": "blocking",
+          "threshold": 0.05
+        }
+      ],
+      "file": "clipping_only.png",
+      "metrics": {
+        "blur_score": 28929.752975009596,
+        "clipped_fraction": 0.2,
+        "color_cast_score": 0.0,
+        "contrast_score": 70.31358332498779,
+        "downscale_applied": true,
+        "mean_luminance": 136.0,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 28829.752975009596,
+        "clipped_fraction": 0.15000000000000002,
+        "color_cast_score": 0.15,
+        "contrast_score": 50.31358332498779,
+        "mean_luminance": 79.0,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "contrast",
+          "margin": 5.000000000000005,
+          "measured": 14.999999999999995,
+          "severity": "advisory",
+          "threshold": 20.0
+        }
+      ],
+      "file": "contrast_only.png",
+      "metrics": {
+        "blur_score": 785.4173010380612,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 14.999999999999995,
+        "downscale_applied": true,
+        "mean_luminance": 127.99999999999999,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 685.4173010380612,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 5.000000000000005,
+        "mean_luminance": 87.00000000000001,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "advisory"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "colorCast",
+          "margin": 0.08529411764705883,
+          "measured": 0.23529411764705882,
+          "severity": "advisory",
+          "threshold": 0.15
+        }
+      ],
+      "file": "color_cast_only.png",
+      "metrics": {
+        "blur_score": 12566.676816608991,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.23529411764705882,
+        "contrast_score": 60.0,
+        "downscale_applied": true,
+        "mean_luminance": 137.93999999999986,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 12466.676816608991,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.08529411764705883,
+        "contrast_score": 40.0,
+        "mean_luminance": 77.06000000000014,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "advisory"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "specular",
+          "margin": 0.04999999999999999,
+          "measured": 0.15,
+          "severity": "advisory",
+          "threshold": 0.1
+        }
+      ],
+      "file": "specular_only.png",
+      "metrics": {
+        "blur_score": 2712.2085444059962,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 51.300365495774,
+        "downscale_applied": true,
+        "mean_luminance": 148.15,
+        "roi_side_px": 640,
+        "specular_fraction": 0.15
+      },
+      "threshold_distance": {
+        "blur_score": 2612.2085444059962,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 31.300365495774003,
+        "mean_luminance": 66.85,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.04999999999999999
+      },
+      "verdict": "advisory"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "resolution",
+          "margin": 256.0,
+          "measured": 256.0,
+          "severity": "blocking",
+          "threshold": 512.0
+        }
+      ],
+      "file": "resolution_only.png",
+      "metrics": {
+        "blur_score": 29091.946183892367,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 70.0,
+        "downscale_applied": false,
+        "mean_luminance": 130.0,
+        "roi_side_px": 256,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 28991.946183892367,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 50.0,
+        "mean_luminance": 85.0,
+        "roi_side_px": 256.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "blur",
+          "margin": 100.0,
+          "measured": 1.0108572640939696e-28,
+          "severity": "blocking",
+          "threshold": 100.0
+        },
+        {
+          "criterion": "contrast",
+          "margin": 20.0,
+          "measured": 0.0,
+          "severity": "advisory",
+          "threshold": 20.0
+        }
+      ],
+      "file": "flat_fill.png",
+      "metrics": {
+        "blur_score": 1.0108572640939696e-28,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 0.0,
+        "downscale_applied": true,
+        "mean_luminance": 127.99999999999999,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 100.0,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 20.0,
+        "mean_luminance": 87.00000000000001,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    },
+    {
+      "failures": [
+        {
+          "criterion": "blur",
+          "margin": 100.0,
+          "measured": 1.1823642174193126e-29,
+          "severity": "blocking",
+          "threshold": 100.0
+        },
+        {
+          "criterion": "exposure",
+          "margin": 28.0,
+          "measured": 12.0,
+          "severity": "blocking",
+          "threshold": 40.0
+        },
+        {
+          "criterion": "contrast",
+          "margin": 20.0,
+          "measured": 0.0,
+          "severity": "advisory",
+          "threshold": 20.0
+        }
+      ],
+      "file": "multi_failure.png",
+      "metrics": {
+        "blur_score": 1.1823642174193126e-29,
+        "clipped_fraction": 0.0,
+        "color_cast_score": 0.0,
+        "contrast_score": 0.0,
+        "downscale_applied": true,
+        "mean_luminance": 12.0,
+        "roi_side_px": 640,
+        "specular_fraction": 0.0
+      },
+      "threshold_distance": {
+        "blur_score": 100.0,
+        "clipped_fraction": 0.05,
+        "color_cast_score": 0.15,
+        "contrast_score": 20.0,
+        "mean_luminance": 28.0,
+        "roi_side_px": 128.0,
+        "specular_fraction": 0.1
+      },
+      "verdict": "blocking"
+    }
+  ],
+  "spec": "0030"
+}
