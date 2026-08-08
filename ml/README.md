@@ -121,7 +121,7 @@ bash scripts/train_and_export.sh v1
 All hyperparameters, class names, preprocessing settings, and augmentation options are defined in `config.yaml` — the single source of truth for the pipeline.
 
 Key configuration sections:
-- `preprocessing.normalization`: `"mobilenet_v2"` — model handles [-1,1] conversion internally.
+- `preprocessing.normalization`: `"mobilenet_v2"` — the only accepted value, and the only preprocessing contract the pipeline implements. The model bakes the [0,1] to [-1,1] conversion into its graph, `spec.json` declares `divide_255` to match, and `preprocessing.bake_into_model` must be `true` (SPEC 0034).
 - `model.unfreeze_at_epoch`: Epoch at which fine-tuning begins (backbone unfreezing).
 - `model.unfreeze_layers`: Number of top backbone layers to unfreeze.
 - `training.class_weights`: `"balanced"` for automatic class weight computation.

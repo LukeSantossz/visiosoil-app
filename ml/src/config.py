@@ -12,7 +12,14 @@ _REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
 _VALID_ARCHITECTURES = {"mobilenetv2"}
-_VALID_NORMALIZATIONS = {"imagenet", "mobilenet_v2"}
+# One entry, because the pipeline implements one preprocessing contract:
+# `build_model` bakes Rescaling(2.0, -1.0) into the graph unconditionally, and
+# `_build_spec` declares `divide_255` to match it. `imagenet` was accepted here
+# and served by `normalize_imagenet`, but no code path ever removed the baked
+# rescaling, so that configuration trained the backbone on 2v - 1 over the
+# imagenet range and raised nothing. SPEC 0034 removes the value rather than the
+# layer; adding a second contract means adding the model code path with it.
+_VALID_NORMALIZATIONS = {"mobilenet_v2"}
 _VALID_QUANTIZATIONS = {"dynamic_range", "float16", "none"}
 
 # Input size the pretrained weights of each architecture were trained at. Any
@@ -107,14 +114,6 @@ def _validate(cfg: dict) -> None:
         raise ValueError(f"Missing preprocessing keys: {missing_pre}")
     if pre["normalization"] not in _VALID_NORMALIZATIONS:
         raise ValueError(f"normalization must be one of {_VALID_NORMALIZATIONS}")
-
-    # For imagenet normalization, mean and std are required
-    if pre["normalization"] == "imagenet":
-        for key in ("mean", "std"):
-            if key not in pre:
-                raise ValueError(f"preprocessing.{key} required for imagenet normalization")
-            if not isinstance(pre[key], list) or len(pre[key]) != 3:
-                raise ValueError(f"preprocessing.{key} must be a list of 3 floats")
 
     # bake_into_model is optional, defaults to False
     if "bake_into_model" in pre:

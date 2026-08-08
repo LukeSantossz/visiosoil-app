@@ -134,21 +134,25 @@ def _build_spec(cfg: dict, version: str) -> dict:
     normalization = cfg["preprocessing"]["normalization"]
     bake_into_model = cfg["preprocessing"].get("bake_into_model", False)
 
-    # Determine normalization method for the app
-    if normalization == "mobilenet_v2" and bake_into_model:
-        norm_spec = {
-            "method": "divide_255",
-        }
-    elif normalization == "imagenet":
-        norm_spec = {
-            "method": "imagenet",
-            "mean": cfg["preprocessing"]["mean"],
-            "std": cfg["preprocessing"]["std"],
-        }
-    else:
-        norm_spec = {
-            "method": normalization,
-        }
+    # Determine normalization method for the app. There is one accepted
+    # contract, so anything else is refused rather than written out: emitting
+    # `{"method": normalization}` for an unhandled combination declared a method
+    # the app does not implement, which is a train/serve skew shipped in a file
+    # nobody reads until the classifications are already wrong.
+    if normalization != "mobilenet_v2":
+        raise ValueError(
+            f"Unsupported preprocessing.normalization for export: {normalization!r}. "
+            "The exported graph implements mobilenet_v2 only"
+        )
+    if not bake_into_model:
+        raise ValueError(
+            "preprocessing.bake_into_model must be true: build_model always "
+            "applies the Rescaling layer, so spec.json must declare divide_255"
+        )
+
+    norm_spec = {
+        "method": "divide_255",
+    }
 
     return {
         "version": version,
