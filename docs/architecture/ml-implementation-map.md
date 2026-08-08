@@ -369,8 +369,50 @@ waits on the UI/UX terminal's item 1, which makes the label list single-source.
 These are not work items. They are inputs that only you can supply, and Lane C
 cannot be scheduled without them.
 
+0. **Which capture modes does the product support, and does the dataset have to
+   cover every one of them?** Opened 2026-08-06, **undecided**, and listed first
+   because more of this map depends on it than on anything else here.
+
+   The study, ADR 0009 and SPEC 0033 were all written assuming two fixed worlds:
+   a bench-prepared collection and an in-situ deployment, with an unmeasured gap
+   between them. The project owner has since stated that the product supports
+   **both, switchable per case**, and that field use has more than one form —
+   one candidate being a sample taken from 10 cm depth and spread over a sheet
+   of paper. (That 10 cm is extraction depth. The protocol's ~20 cm is camera
+   distance. Both can hold at once.)
+
+   What it would change, so the cost of leaving it open is visible:
+
+   - **`setting` is probably too small at two values.** Soil spread on white
+     paper is a third visual condition, nearer the bench than raw ground.
+   - **Risk R11 becomes measurable. It does not become mitigated.** A declared
+     mode records the condition each photograph was taken under, so evaluation
+     can report per mode instead of averaging incomparable rows together.
+     Recording a condition is not evidence about it: the mitigation is still
+     either covering every offered mode in the dataset, or refusing in the app
+     the modes there is no data for. Knowing which rows are field rows tells you
+     nothing about field accuracy until field rows exist.
+   - **ADR 0009's rejection of segmentation was argued from an unknown
+     background.** A paper backing makes the background known and controlled,
+     so that rejection deserves re-examination for that mode rather than
+     inheritance.
+   - **A paper sheet is also a white reference, and a standard size is a scale
+     reference.** White balance matters here more than it looks, because soil
+     colour is signal rather than decoration, and a known sheet size would do
+     what the coin currently does.
+   - **Either the dataset covers every mode the app offers, or the app refuses
+     the modes it has no data for.** Training on one mode while allowing
+     several reopens the gap — declared this time rather than invisible, which
+     is better but not solved.
+
+   Sub-questions, none answered: the closed list of modes; whether the user
+   declares the mode or the app infers it; whether one mode is canonical for
+   training; and whether the sheet is a standard size.
+
 1. **Who collects the dataset, at which sites, with which devices?** The split
-   axes in B2 are only meaningful if there is more than one of each.
+   axes in B2 are only meaningful if there is more than one of each. Partly
+   answered 2026-08-01 — **one** capture device — which makes the device axis
+   constant in the dataset while it varies in deployment. Sites remain open.
 2. **Is there access to the laboratory granulometry reports**, and what are the
    exact Embrapa grouping thresholds that produced the labels? Needed to build
    the cost-weighted confusion matrix — confusing Arenosa with Muito Argilosa is

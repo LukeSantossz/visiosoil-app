@@ -134,6 +134,24 @@ anyway, so a column would collect either nothing or a guess. If in-situ
 photographs are later adopted, moisture returns as a live confound for those
 rows specifically and the column comes back with them.
 
+> **OPEN, 2026-08-06 — `setting`'s value set is not settled, and neither is the
+> premise behind it.** This specification was written assuming two fixed worlds:
+> a bench-prepared collection and an in-situ deployment. The project owner has
+> since stated that the product is meant to support **both, switchable per case**,
+> and that field use itself has more than one form — one candidate being a sample
+> taken from 10 cm depth, spread over a sheet of paper.
+>
+> That is a third visual condition, not a variant of the other two: soil spread
+> on white paper sits closer to the bench than to raw ground. So a two-value
+> `bench | in_situ` enum is very likely too small. **No decision has been taken**
+> and none is taken here. What is recorded is that the enum below, the capture
+> protocol in this specification, and risk R11 in
+> `docs/architecture/soil-classification.md` are all **contingent** on a capture-
+> mode design that does not exist yet. The question is registered as an input in
+> `docs/architecture/ml-implementation-map.md` §7 with what it would change.
+>
+> Reading the two values below as final is the error this note exists to prevent.
+
 `setting` is required even though every row says `bench` today. It costs one
 constant column now and it is the axis every later question about the domain gap
 is asked along; adding it retroactively would mean editing history rather than
