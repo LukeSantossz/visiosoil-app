@@ -149,6 +149,9 @@ def test_spec_declares_divide_255_for_every_accepted_normalization():
     today; enumerating it here means adding a second one without revisiting the
     export fails at this test rather than in a trained model.
     """
+    # An empty accepted set would make the loop below pass without asserting.
+    assert _VALID_NORMALIZATIONS, "no accepted normalization left to check"
+
     for normalization in _VALID_NORMALIZATIONS:
         cfg = {
             "classes": ["A", "B"],

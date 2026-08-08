@@ -6,8 +6,9 @@ import tensorflow as tf
 def normalize_mobilenet_v2(image: tf.Tensor) -> tf.Tensor:
     """Normalize for MobileNetV2 with baked-in Rescaling layer.
 
-    When bake_into_model is True, the model contains a Rescaling(2.0, -1.0) layer
-    that converts [0,1] to [-1,1]. The preprocessing only needs to divide by 255.
+    The model always contains a Rescaling(2.0, -1.0) layer that converts [0,1]
+    to [-1,1], so the preprocessing only divides by 255. There is no other case:
+    `bake_into_model: false` is rejected by `load_config`.
 
     Args:
         image: Tensor of shape (H, W, 3), dtype uint8 or float32.

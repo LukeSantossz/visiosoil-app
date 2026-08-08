@@ -135,11 +135,11 @@ def test_imagenet_normalization_is_rejected(valid_config):
 
     These two tests replace `test_imagenet_normalization_requires_mean_std` and
     `test_imagenet_normalization_with_mean_std`, which asserted that a complete
-    imagenet configuration loads. It does load today, and the model it produces
-    is wrong: `build_model` applies Rescaling(2.0, -1.0) unconditionally, so the
-    backbone receives the imagenet range mapped by 2v - 1. SPEC 0034 removes the
-    value rather than the layer, because the pipeline implements exactly one
-    preprocessing contract.
+    imagenet configuration loads. It did load before this change, and the model
+    it produced was wrong: `build_model` applies Rescaling(2.0, -1.0)
+    unconditionally, so the backbone received the imagenet range mapped by
+    2v - 1. SPEC 0034 removes the value rather than the layer, because the
+    pipeline implements exactly one preprocessing contract.
     """
     valid_config["preprocessing"] = {
         "normalization": "imagenet",
@@ -147,7 +147,7 @@ def test_imagenet_normalization_is_rejected(valid_config):
         "std": [0.229, 0.224, 0.225],
     }
     path = _write_config(valid_config)
-    with pytest.raises(ValueError, match="normalization"):
+    with pytest.raises(ValueError, match="mobilenet_v2"):
         load_config(path)
 
 
@@ -174,11 +174,17 @@ def test_normalization_rejection_does_not_offer_imagenet(valid_config):
     assert "imagenet" not in str(excinfo.value)
 
 
-def test_mobilenet_v2_normalization(valid_config):
-    """mobilenet_v2 normalization does not require mean/std."""
+def test_mobilenet_v2_with_bake_into_model_loads(valid_config):
+    """The one accepted preprocessing combination still loads.
+
+    Renamed from `test_mobilenet_v2_normalization`, whose docstring described a
+    contrast with imagenet that no longer exists. This is the only coverage of
+    the accepted path, so it is a regression guard, not leftover.
+    """
     path = _write_config(valid_config)
     cfg = load_config(path)
     assert cfg["preprocessing"]["normalization"] == "mobilenet_v2"
+    assert cfg["preprocessing"]["bake_into_model"] is True
 
 
 def test_unfreeze_at_epoch_validation(valid_config):

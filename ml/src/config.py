@@ -113,7 +113,15 @@ def _validate(cfg: dict) -> None:
     if missing_pre:
         raise ValueError(f"Missing preprocessing keys: {missing_pre}")
     if pre["normalization"] not in _VALID_NORMALIZATIONS:
-        raise ValueError(f"normalization must be one of {_VALID_NORMALIZATIONS}")
+        # sorted(), not the set repr: the message is what an operator migrating a
+        # stale config.yaml reads, and it has to say why the value went away, not
+        # only which one to use.
+        raise ValueError(
+            f"normalization must be one of {sorted(_VALID_NORMALIZATIONS)}, "
+            f"got {pre['normalization']!r}: build_model bakes "
+            "Rescaling(2.0, -1.0) into the graph unconditionally, so that is "
+            "the only preprocessing contract the pipeline implements"
+        )
 
     # bake_into_model is optional, defaults to False
     if "bake_into_model" in pre:

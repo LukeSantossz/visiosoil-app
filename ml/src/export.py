@@ -118,9 +118,11 @@ def _verify_tflite(keras_model: tf.keras.Model, tflite_path: Path, cfg: dict) ->
 def _build_spec(cfg: dict, version: str) -> dict:
     """Build the spec.json integration contract.
 
-    The spec tells the Flutter app how to prepare input for the model.
-    With mobilenet_v2 normalization + bake_into_model, the app only
-    needs to divide by 255 (the model handles [-1,1] internally).
+    The spec tells the Flutter app how to prepare input for the model. The one
+    accepted combination is mobilenet_v2 normalization with bake_into_model, so
+    the app always divides by 255 and the model handles [-1,1] internally.
+    Anything else raises rather than declaring a contract the graph does not
+    implement.
 
     Args:
         cfg: Configuration dictionary.
