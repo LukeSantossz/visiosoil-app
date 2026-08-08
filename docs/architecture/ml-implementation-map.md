@@ -385,9 +385,13 @@ cannot be scheduled without them.
 
    - **`setting` is probably too small at two values.** Soil spread on white
      paper is a third visual condition, nearer the bench than raw ground.
-   - **Risk R7 stops being unmitigable.** A declared mode turns the domain gap
-     from an unmeasured risk into a recorded axis the evaluation can report
-     along.
+   - **Risk R11 becomes measurable. It does not become mitigated.** A declared
+     mode records the condition each photograph was taken under, so evaluation
+     can report per mode instead of averaging incomparable rows together.
+     Recording a condition is not evidence about it: the mitigation is still
+     either covering every offered mode in the dataset, or refusing in the app
+     the modes there is no data for. Knowing which rows are field rows tells you
+     nothing about field accuracy until field rows exist.
    - **ADR 0009's rejection of segmentation was argued from an unknown
      background.** A paper backing makes the background known and controlled,
      so that rejection deserves re-examination for that mode rather than

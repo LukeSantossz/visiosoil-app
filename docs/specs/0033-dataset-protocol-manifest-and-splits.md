@@ -145,7 +145,7 @@ rows specifically and the column comes back with them.
 > on white paper sits closer to the bench than to raw ground. So a two-value
 > `bench | in_situ` enum is very likely too small. **No decision has been taken**
 > and none is taken here. What is recorded is that the enum below, the capture
-> protocol in this specification, and risk R7 in
+> protocol in this specification, and risk R11 in
 > `docs/architecture/soil-classification.md` are all **contingent** on a capture-
 > mode design that does not exist yet. The question is registered as an input in
 > `docs/architecture/ml-implementation-map.md` §7 with what it would change.
