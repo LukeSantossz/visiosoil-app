@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
+from src.config import _VALID_NORMALIZATIONS
 from src.model import build_model
 from src.export import _build_spec
 
@@ -140,20 +141,46 @@ def test_spec_json_structure_mobilenet(model_and_tflite):
     assert spec["classes"] == ["A", "B", "C"]
 
 
-def test_spec_json_structure_imagenet():
-    """spec.json for imagenet normalization includes mean/std."""
+def test_spec_declares_divide_255_for_every_accepted_normalization():
+    """Every normalization load_config accepts exports the same contract.
+
+    This replaces `test_spec_json_structure_imagenet`, which asserted the export
+    of a value the pipeline never implemented. The accepted set has one member
+    today; enumerating it here means adding a second one without revisiting the
+    export fails at this test rather than in a trained model.
+    """
+    for normalization in _VALID_NORMALIZATIONS:
+        cfg = {
+            "classes": ["A", "B"],
+            "data": {"image_size": 224},
+            "preprocessing": {
+                "normalization": normalization,
+                "bake_into_model": True,
+            },
+            "export": {"quantization": "none", "output_dir": "models"},
+        }
+        spec = _build_spec(cfg, "v1")
+
+        assert spec["input"]["normalization"]["method"] == "divide_255", normalization
+        assert "mean" not in spec["input"]["normalization"]
+        assert "std" not in spec["input"]["normalization"]
+
+
+def test_build_spec_raises_on_a_contract_the_graph_does_not_implement():
+    """_build_spec refuses to declare a preprocessing the graph contradicts.
+
+    `build_model` always applies Rescaling(2.0, -1.0). A config asking for it to
+    be absent is already rejected by load_config; the export refuses too, so a
+    hand-built config cannot produce a spec.json that disagrees with the graph.
+    """
     cfg = {
         "classes": ["A", "B"],
         "data": {"image_size": 224},
         "preprocessing": {
-            "normalization": "imagenet",
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
+            "normalization": "mobilenet_v2",
+            "bake_into_model": False,
         },
         "export": {"quantization": "none", "output_dir": "models"},
     }
-    spec = _build_spec(cfg, "v1")
-
-    assert spec["input"]["normalization"]["method"] == "imagenet"
-    assert len(spec["input"]["normalization"]["mean"]) == 3
-    assert len(spec["input"]["normalization"]["std"]) == 3
+    with pytest.raises(ValueError, match="bake_into_model"):
+        _build_spec(cfg, "v1")
