@@ -54,6 +54,22 @@ void main() {
       );
     });
 
+    test('is ambiguous when the leader has a close rival despite holding half',
+        () {
+      // The only case that exercises the margin conjunct of `conclusive`:
+      // top-1 0.50 clears its share bar, and margin 0.05 is what rejects it.
+      // Without this vector, deleting `margin >= conclusiveMarginThreshold`
+      // from the conclusive branch passes the whole suite — which is the exact
+      // defect that withdrew this rule's predecessor, recorded in the spec's
+      // Alternatives Considered.
+      expect(
+        ClassificationVerdict.fromDistribution(
+          distributionOf([0.50, 0.45, 0.02, 0.02, 0.01]),
+        ),
+        ClassificationVerdict.ambiguous,
+      );
+    });
+
     test('is insufficient when nothing leads', () {
       // margin 0.01, pair 0.49.
       expect(
@@ -66,12 +82,37 @@ void main() {
 
     test('is insufficient when the leader lacks a majority', () {
       // A wide margin does not rescue a leader holding less than half with no
-      // rival: margin 0.28 clears the ambiguity bar, top-1 0.48 misses 0.50.
+      // rival: top-1 0.48 misses the 0.50 share bar, and margin 0.28 is too
+      // wide to qualify as ambiguous, so neither band accepts it.
       expect(
         ClassificationVerdict.fromDistribution(
           distributionOf([0.48, 0.20, 0.14, 0.10, 0.08]),
         ),
         ClassificationVerdict.insufficient,
+      );
+    });
+
+    test('does not depend on the caller having sorted the distribution', () {
+      // Same five probabilities, shuffled. `InferenceService` sorts, but this
+      // factory is public over any list and roadmap item 15 persists the
+      // distribution, where row order is whatever the database returns.
+      const unsorted = [
+        ClassScore(label: 'Siltosa', probability: 0.09),
+        ClassScore(label: 'Argilosa', probability: 0.44),
+        ClassScore(label: 'Arenosa', probability: 0.03),
+        ClassScore(label: 'Media', probability: 0.39),
+        ClassScore(label: 'Muito Argilosa', probability: 0.05),
+      ];
+
+      expect(
+        ClassificationVerdict.fromDistribution(unsorted),
+        ClassificationVerdict.ambiguous,
+      );
+      expect(
+        ClassificationVerdict.fromDistribution(unsorted),
+        ClassificationVerdict.fromDistribution(
+          distributionOf([0.03, 0.39, 0.09, 0.05, 0.44]),
+        ),
       );
     });
 
@@ -114,24 +155,78 @@ void main() {
       }
     });
 
-    test('sits exactly on the conclusive boundary', () {
-      // margin 0.15 and top-1 0.50 are both inclusive lower bounds.
+    test('treats the conclusive top-share bound as inclusive', () {
+      // Taken from the constant, not from a literal, so recalibrating the
+      // threshold moves the case with it.
+      final topShare = ClassificationVerdict.conclusiveTopShareThreshold;
+
       expect(
-        ClassificationVerdict.fromDistribution(
-          distributionOf([0.50, 0.35, 0.07, 0.05, 0.03]),
-        ),
+        ClassificationVerdict.fromDistribution([
+          ClassScore(label: 'Argilosa', probability: topShare),
+          ClassScore(label: 'Media', probability: 0.20),
+          ClassScore(label: 'Siltosa', probability: 0.15),
+          ClassScore(label: 'Muito Argilosa', probability: 0.10),
+          ClassScore(label: 'Arenosa', probability: 0.05),
+        ]),
         ClassificationVerdict.conclusive,
       );
     });
 
-    test('sits exactly on the ambiguous pair boundary', () {
+    // The margin bound's inclusiveness has no test, and cannot have one at the
+    // conclusive branch. `>=` and `>` differ only at exact equality, and no
+    // distribution with a top share at or above 0.50 can produce a margin
+    // exactly equal to 0.15's double: doubles in [0.5, 1) are multiples of
+    // 2^-53 and doubles in [0.25, 0.5) are multiples of 2^-54, so a difference
+    // between them is a multiple of 2^-54, while 0.15's double is an odd
+    // multiple of 2^-55. Four million randomly drawn pairs produced none. The
+    // two operators are therefore interchangeable here, and a test claiming to
+    // pin the bound would only be asserting that 0.50 - 0.35 rounds upward.
+    // The bound that is both reachable and pinned is the pair share, below.
+
+    test('treats the ambiguous pair bound as inclusive', () {
       // margin 0.01 is below 0.15; pair 0.65 is the inclusive lower bound.
+      // `0.33 + 0.32` is bit-for-bit equal to the 0.65 literal, so this case
+      // discriminates `>=` from `>` by arithmetic rather than by rounding
+      // luck. That exactness is a property of these two operands and does not
+      // transfer: `0.35 + 0.30` is 0.6499999999999999.
+      expect(0.33 + 0.32, ClassificationVerdict.ambiguousPairShareThreshold);
       expect(
         ClassificationVerdict.fromDistribution(
           distributionOf([0.33, 0.32, 0.13, 0.12, 0.10]),
         ),
         ClassificationVerdict.ambiguous,
       );
+    });
+
+    test('assigns every point around the thresholds to its intended band', () {
+      // A grid either side of each bound, so recalibrating the three constants
+      // is a change with coverage behind it rather than a silent reshaping of
+      // the bands.
+      const cases = <(double, double, ClassificationVerdict)>[
+        (0.94, 0.03, ClassificationVerdict.conclusive),
+        (0.60, 0.20, ClassificationVerdict.conclusive),
+        (0.51, 0.30, ClassificationVerdict.conclusive),
+        (0.50, 0.45, ClassificationVerdict.ambiguous),
+        (0.49, 0.45, ClassificationVerdict.ambiguous),
+        (0.48, 0.44, ClassificationVerdict.ambiguous),
+        (0.44, 0.39, ClassificationVerdict.ambiguous),
+        (0.34, 0.32, ClassificationVerdict.ambiguous),
+        (0.49, 0.19, ClassificationVerdict.insufficient),
+        (0.48, 0.20, ClassificationVerdict.insufficient),
+        (0.33, 0.31, ClassificationVerdict.insufficient),
+        (0.25, 0.24, ClassificationVerdict.insufficient),
+      ];
+
+      for (final (topShare, runnerUpShare, expected) in cases) {
+        expect(
+          ClassificationVerdict.fromDistribution([
+            ClassScore(label: 'Argilosa', probability: topShare),
+            ClassScore(label: 'Media', probability: runnerUpShare),
+          ]),
+          expected,
+          reason: 'top1 $topShare, top2 $runnerUpShare',
+        );
+      }
     });
 
     test('a single-class distribution is judged on its own share', () {

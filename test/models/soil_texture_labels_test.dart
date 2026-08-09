@@ -12,7 +12,11 @@ void main() {
       );
     });
 
-    test('the inference label list is the single source, not a copy', () {
+    // `same` rather than `equals` records the intent, but it is no stronger:
+    // Dart canonicalises const lists, so an identical hand-rolled copy would
+    // satisfy it too. The assertion that actually fails against a duplicate is
+    // the ordering one below, which caught the real divergence.
+    test('the inference label list resolves to the single source', () {
       expect(InferenceService.textureLabels, same(SoilTextureLabels.ordered));
     });
 

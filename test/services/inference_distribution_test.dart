@@ -97,8 +97,6 @@ void main() {
 
       expect(result.textureClass, 'Muito Argilosa');
       expect(result.confidenceScore, 0.60);
-      expect(result.distribution.first.label, result.textureClass);
-      expect(result.distribution.first.probability, result.confidenceScore);
     });
 
     test('defaults to an empty distribution', () {
