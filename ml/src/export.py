@@ -118,9 +118,11 @@ def _verify_tflite(keras_model: tf.keras.Model, tflite_path: Path, cfg: dict) ->
 def _build_spec(cfg: dict, version: str) -> dict:
     """Build the spec.json integration contract.
 
-    The spec tells the Flutter app how to prepare input for the model.
-    With mobilenet_v2 normalization + bake_into_model, the app only
-    needs to divide by 255 (the model handles [-1,1] internally).
+    The spec tells the Flutter app how to prepare input for the model. The one
+    accepted combination is mobilenet_v2 normalization with bake_into_model, so
+    the app always divides by 255 and the model handles [-1,1] internally.
+    Anything else raises rather than declaring a contract the graph does not
+    implement.
 
     Args:
         cfg: Configuration dictionary.
@@ -134,21 +136,25 @@ def _build_spec(cfg: dict, version: str) -> dict:
     normalization = cfg["preprocessing"]["normalization"]
     bake_into_model = cfg["preprocessing"].get("bake_into_model", False)
 
-    # Determine normalization method for the app
-    if normalization == "mobilenet_v2" and bake_into_model:
-        norm_spec = {
-            "method": "divide_255",
-        }
-    elif normalization == "imagenet":
-        norm_spec = {
-            "method": "imagenet",
-            "mean": cfg["preprocessing"]["mean"],
-            "std": cfg["preprocessing"]["std"],
-        }
-    else:
-        norm_spec = {
-            "method": normalization,
-        }
+    # Determine normalization method for the app. There is one accepted
+    # contract, so anything else is refused rather than written out: emitting
+    # `{"method": normalization}` for an unhandled combination declared a method
+    # the app does not implement, which is a train/serve skew shipped in a file
+    # nobody reads until the classifications are already wrong.
+    if normalization != "mobilenet_v2":
+        raise ValueError(
+            f"Unsupported preprocessing.normalization for export: {normalization!r}. "
+            "The exported graph implements mobilenet_v2 only"
+        )
+    if not bake_into_model:
+        raise ValueError(
+            "preprocessing.bake_into_model must be true: build_model always "
+            "applies the Rescaling layer, so spec.json must declare divide_255"
+        )
+
+    norm_spec = {
+        "method": "divide_255",
+    }
 
     return {
         "version": version,

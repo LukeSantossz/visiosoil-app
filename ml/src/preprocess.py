@@ -3,28 +3,12 @@
 import tensorflow as tf
 
 
-def normalize_imagenet(image: tf.Tensor, mean: list[float], std: list[float]) -> tf.Tensor:
-    """Apply ImageNet normalization: (pixel/255 - mean) / std.
-
-    Args:
-        image: Tensor of shape (H, W, 3), dtype uint8 or float32.
-        mean: Per-channel mean [R, G, B].
-        std: Per-channel std [R, G, B].
-
-    Returns:
-        Normalized float32 tensor.
-    """
-    image = tf.cast(image, tf.float32) / 255.0
-    mean_t = tf.constant(mean, dtype=tf.float32)
-    std_t = tf.constant(std, dtype=tf.float32)
-    return (image - mean_t) / std_t
-
-
 def normalize_mobilenet_v2(image: tf.Tensor) -> tf.Tensor:
     """Normalize for MobileNetV2 with baked-in Rescaling layer.
 
-    When bake_into_model is True, the model contains a Rescaling(2.0, -1.0) layer
-    that converts [0,1] to [-1,1]. The preprocessing only needs to divide by 255.
+    The model always contains a Rescaling(2.0, -1.0) layer that converts [0,1]
+    to [-1,1], so the preprocessing only divides by 255. There is no other case:
+    `bake_into_model: false` is rejected by `load_config`.
 
     Args:
         image: Tensor of shape (H, W, 3), dtype uint8 or float32.
@@ -65,10 +49,6 @@ def preprocess(image: tf.Tensor, cfg: dict) -> tf.Tensor:
 
     if normalization == "mobilenet_v2":
         image = normalize_mobilenet_v2(image)
-    elif normalization == "imagenet":
-        mean = cfg["preprocessing"]["mean"]
-        std = cfg["preprocessing"]["std"]
-        image = normalize_imagenet(image, mean, std)
     else:
         raise ValueError(f"Unknown normalization: {normalization}")
 

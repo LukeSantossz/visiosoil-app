@@ -130,32 +130,61 @@ def test_mobilenetv2_is_valid(valid_config):
     assert cfg["model"]["architecture"] == "mobilenetv2"
 
 
-def test_imagenet_normalization_requires_mean_std(valid_config):
-    """imagenet normalization requires mean and std fields."""
-    valid_config["preprocessing"]["normalization"] = "imagenet"
-    # No mean/std provided
-    path = _write_config(valid_config)
-    with pytest.raises(ValueError, match="mean"):
-        load_config(path)
+def test_imagenet_normalization_is_rejected(valid_config):
+    """imagenet normalization is rejected even when mean and std are supplied.
 
-
-def test_imagenet_normalization_with_mean_std(valid_config):
-    """imagenet normalization works with mean and std."""
+    These two tests replace `test_imagenet_normalization_requires_mean_std` and
+    `test_imagenet_normalization_with_mean_std`, which asserted that a complete
+    imagenet configuration loads. It did load before this change, and the model
+    it produced was wrong: `build_model` applies Rescaling(2.0, -1.0)
+    unconditionally, so the backbone received the imagenet range mapped by
+    2v - 1. SPEC 0034 removes the value rather than the layer, because the
+    pipeline implements exactly one preprocessing contract.
+    """
     valid_config["preprocessing"] = {
         "normalization": "imagenet",
         "mean": [0.485, 0.456, 0.406],
         "std": [0.229, 0.224, 0.225],
     }
     path = _write_config(valid_config)
-    cfg = load_config(path)
-    assert cfg["preprocessing"]["normalization"] == "imagenet"
+    with pytest.raises(ValueError, match="mobilenet_v2"):
+        load_config(path)
 
 
-def test_mobilenet_v2_normalization(valid_config):
-    """mobilenet_v2 normalization does not require mean/std."""
+def test_imagenet_normalization_is_rejected_without_mean_std(valid_config):
+    """imagenet is rejected as a value, not for its missing mean and std.
+
+    Matching on the accepted value rather than on "mean" is what distinguishes
+    the two rejections: the old code refused this config for the wrong reason,
+    and a test matching "normalization" alone would have passed either way.
+    """
+    valid_config["preprocessing"]["normalization"] = "imagenet"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="mobilenet_v2"):
+        load_config(path)
+
+
+def test_normalization_rejection_does_not_offer_imagenet(valid_config):
+    """The rejection message names the accepted value and only that one."""
+    valid_config["preprocessing"]["normalization"] = "custom"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError) as excinfo:
+        load_config(path)
+    assert "mobilenet_v2" in str(excinfo.value)
+    assert "imagenet" not in str(excinfo.value)
+
+
+def test_mobilenet_v2_with_bake_into_model_loads(valid_config):
+    """The one accepted preprocessing combination still loads.
+
+    Renamed from `test_mobilenet_v2_normalization`, whose docstring described a
+    contrast with imagenet that no longer exists. This is the only coverage of
+    the accepted path, so it is a regression guard, not leftover.
+    """
     path = _write_config(valid_config)
     cfg = load_config(path)
     assert cfg["preprocessing"]["normalization"] == "mobilenet_v2"
+    assert cfg["preprocessing"]["bake_into_model"] is True
 
 
 def test_unfreeze_at_epoch_validation(valid_config):

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
+from src import preprocess as preprocess_module
 from src.preprocess import (
-    normalize_imagenet,
     normalize_mobilenet_v2,
     resize,
     preprocess,
@@ -42,25 +42,6 @@ def sample_config_mobilenet() -> dict:
     }
 
 
-@pytest.fixture
-def sample_config_imagenet() -> dict:
-    """Return a config for imagenet preprocessing (backward compat)."""
-    return {
-        "data": {"image_size": 224, "seed": 42},
-        "preprocessing": {
-            "normalization": "imagenet",
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
-        },
-        "augmentation": {
-            "horizontal_flip": True,
-            "rotation_range": 20,
-        },
-        "classes": ["A", "B", "C"],
-        "training": {"batch_size": 4},
-    }
-
-
 def test_resize_output_shape(sample_image):
     """Resize produces correct spatial dimensions."""
     resized = resize(sample_image, 224)
@@ -73,22 +54,28 @@ def test_resize_dtype(sample_image):
     assert resized.dtype == tf.float32
 
 
-def test_normalize_imagenet_output_dtype(sample_image):
-    """ImageNet normalization produces float32."""
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    normalized = normalize_imagenet(sample_image, mean, std)
-    assert normalized.dtype == tf.float32
+def test_normalize_imagenet_is_gone():
+    """The imagenet helper is not importable.
+
+    A tested, exported helper reads as a supported contract. SPEC 0034 leaves
+    one contract, so the helper that served the other is removed rather than
+    kept as documented dead code.
+    """
+    assert not hasattr(preprocess_module, "normalize_imagenet")
 
 
-def test_normalize_imagenet_output_range(sample_image):
-    """ImageNet normalized values fall within expected range."""
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    normalized = normalize_imagenet(sample_image, mean, std)
-    values = normalized.numpy()
-    assert values.min() >= -3.0, f"Min value {values.min()} too low"
-    assert values.max() <= 3.0, f"Max value {values.max()} too high"
+def test_preprocess_rejects_imagenet_normalization(sample_image):
+    """preprocess fails loudly on imagenet rather than silently normalizing."""
+    cfg = {
+        "data": {"image_size": 224},
+        "preprocessing": {
+            "normalization": "imagenet",
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+        },
+    }
+    with pytest.raises(ValueError, match="imagenet"):
+        preprocess(sample_image, cfg)
 
 
 def test_normalize_mobilenet_v2_output_dtype(sample_image):
@@ -113,13 +100,6 @@ def test_preprocess_mobilenet_v2(sample_image, sample_config_mobilenet):
     values = result.numpy()
     assert values.min() >= 0.0
     assert values.max() <= 1.0
-
-
-def test_preprocess_imagenet(sample_image, sample_config_imagenet):
-    """Full preprocess pipeline with imagenet normalization."""
-    result = preprocess(sample_image, sample_config_imagenet)
-    assert result.shape == (224, 224, 3)
-    assert result.dtype == tf.float32
 
 
 def test_augmentation_layer_builds(sample_config_mobilenet):

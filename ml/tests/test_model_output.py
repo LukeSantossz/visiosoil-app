@@ -73,6 +73,18 @@ def test_rescaling_layer_present(mobilenetv2_model):
     assert "rescaling" in layer_names
 
 
+def test_rescaling_maps_unit_range_to_signed_unit_range(mobilenetv2_model):
+    """The Rescaling layer implements the contract spec.json declares.
+
+    spec.json declares `divide_255`, which means the app hands the model input
+    in [0, 1] and the graph maps it to [-1, 1]. Asserted on the layer itself,
+    not on the configuration, because the configuration is what was wrong.
+    """
+    rescaling = mobilenetv2_model.get_layer("rescaling")
+    assert rescaling.scale == 2.0
+    assert rescaling.offset == -1.0
+
+
 def test_two_class_model():
     """Model builds with minimum 2 classes."""
     cfg = {
