@@ -72,6 +72,19 @@ void main() {
       );
     });
 
+    test('rejects a tensor carrying a non-finite probability', () {
+      // `double.compareTo` orders NaN above every number, so a NaN would sort
+      // to the front and become the top-1 class with a NaN confidence. The
+      // service rejects incompatible models rather than fabricating a
+      // plausible-looking result; a malformed output is the same situation.
+      expect(distributionOf([0.1, 0.2, double.nan, 0.3, 0.2]), isNull);
+      expect(distributionOf([0.1, 0.2, double.infinity, 0.3, 0.2]), isNull);
+      expect(
+        distributionOf([0.1, 0.2, double.negativeInfinity, 0.3, 0.2]),
+        isNull,
+      );
+    });
+
     test('returns an unmodifiable list', () {
       final distribution = distributionOf([0.1, 0.2, 0.3, 0.25, 0.15])!;
 
