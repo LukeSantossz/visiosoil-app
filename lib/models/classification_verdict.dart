@@ -51,11 +51,24 @@ enum ClassificationVerdict {
   /// contention). Provisional, as above.
   static const double ambiguousPairShareThreshold = 0.65;
 
-  /// Judges a distribution ordered highest probability first.
+  /// Judges a distribution.
   ///
-  /// Pure: no model, isolate, or asset is required to evaluate it. A null or
-  /// empty [distribution] is [notAnalysed]; a single-entry distribution is
-  /// judged against a runner-up of zero.
+  /// Pure: no model, isolate, or asset is required to evaluate it. A
+  /// single-entry distribution is judged against a runner-up of zero.
+  ///
+  /// The two largest probabilities are found by scanning rather than read from
+  /// positions 0 and 1, so the verdict does not depend on the caller having
+  /// sorted first. `InferenceService` does sort, but this is a public factory
+  /// over any list, and roadmap item 15 persists the distribution — a database
+  /// read returning rows in insertion order would otherwise yield a wrong
+  /// verdict with no signal.
+  ///
+  /// A null or empty [distribution] is [notAnalysed]. Note what empty means
+  /// here: no distribution was carried, which is not the same claim as no
+  /// result. `InferenceResult.distribution` defaults to empty, so a result with
+  /// a real `textureClass` and no distribution is judged [notAnalysed]. No
+  /// production path produces that today, and roadmap item 2 must not build one
+  /// without deciding what such a result should render as.
   factory ClassificationVerdict.fromDistribution(
     List<ClassScore>? distribution,
   ) {
@@ -63,9 +76,19 @@ enum ClassificationVerdict {
       return ClassificationVerdict.notAnalysed;
     }
 
-    final topShare = distribution.first.probability;
-    final runnerUpShare =
-        distribution.length > 1 ? distribution[1].probability : 0.0;
+    var topShare = double.negativeInfinity;
+    var runnerUpShare = double.negativeInfinity;
+    for (final score in distribution) {
+      if (score.probability > topShare) {
+        runnerUpShare = topShare;
+        topShare = score.probability;
+      } else if (score.probability > runnerUpShare) {
+        runnerUpShare = score.probability;
+      }
+    }
+    // No second candidate: a single-entry distribution is judged against zero.
+    if (runnerUpShare == double.negativeInfinity) runnerUpShare = 0.0;
+
     final margin = topShare - runnerUpShare;
 
     if (margin >= conclusiveMarginThreshold &&

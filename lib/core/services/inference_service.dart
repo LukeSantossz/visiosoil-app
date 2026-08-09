@@ -71,7 +71,10 @@ class InferenceService {
   ///
   /// Declared once in [SoilTextureLabels] and referenced here rather than
   /// copied, so a second declaration cannot drift out of step with this one.
-  static List<String> get textureLabels => SoilTextureLabels.ordered;
+  /// Public only so a test can assert that single source directly, matching
+  /// how [resolveTextureLabel] and [buildDistribution] are widened.
+  @visibleForTesting
+  static const List<String> textureLabels = SoilTextureLabels.ordered;
 
   /// Maximum attempts to load the model before giving up for the current call.
   static const int _maxInitAttempts = 3;
@@ -255,9 +258,14 @@ class InferenceService {
         final distribution = buildDistribution(probabilities, numClasses);
         if (distribution == null) return null;
 
+        // The argmax loop above feeds the compatibility guard only. Top-1 comes
+        // from the distribution, so `distribution.first` and these two fields
+        // cannot disagree: the loop compares with `>` and the sort with
+        // `compareTo`, which order NaN oppositely, and deriving both from one
+        // place makes the invariant structural instead of coincidental.
         return InferenceResult(
-          textureClass: label,
-          confidenceScore: maxProb,
+          textureClass: distribution.first.label,
+          confidenceScore: distribution.first.probability,
           distribution: distribution,
         );
       } finally {
