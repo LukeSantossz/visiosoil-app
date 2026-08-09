@@ -7,14 +7,26 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../../models/class_score.dart';
+import '../../models/soil_texture_labels.dart';
+
 /// Result of soil texture classification inference.
 class InferenceResult {
   final String textureClass;
   final double confidenceScore;
 
+  /// Every class and its probability, highest first.
+  ///
+  /// [textureClass] and [confidenceScore] are the first entry's label and
+  /// probability; they keep their names and meaning so existing call sites are
+  /// untouched. Defaults to empty because callers that predate the distribution
+  /// construct a result without one.
+  final List<ClassScore> distribution;
+
   const InferenceResult({
     required this.textureClass,
     required this.confidenceScore,
+    this.distribution = const [],
   });
 }
 
@@ -55,15 +67,11 @@ class InferenceService {
   /// Model input dimension (224x224 RGB).
   static const int _inputSize = 224;
 
-  /// Soil texture classes aligned with ml/config.yaml.
-  /// The order must match the trained model's outputs.
-  static const List<String> _textureLabels = [
-    'Arenosa',
-    'Media',
-    'Siltosa',
-    'Muito Argilosa',
-    'Argilosa',
-  ];
+  /// Soil texture classes aligned with ml/config.yaml, in model output order.
+  ///
+  /// Declared once in [SoilTextureLabels] and referenced here rather than
+  /// copied, so a second declaration cannot drift out of step with this one.
+  static List<String> get textureLabels => SoilTextureLabels.ordered;
 
   /// Maximum attempts to load the model before giving up for the current call.
   static const int _maxInitAttempts = 3;
@@ -244,9 +252,13 @@ class InferenceService {
         final label = resolveTextureLabel(maxIndex, numClasses);
         if (label == null) return null;
 
+        final distribution = buildDistribution(probabilities, numClasses);
+        if (distribution == null) return null;
+
         return InferenceResult(
           textureClass: label,
           confidenceScore: maxProb,
+          distribution: distribution,
         );
       } finally {
         interpreter.close();
@@ -288,9 +300,45 @@ class InferenceService {
   /// incompatible model never yields a fabricated, plausible-looking result.
   @visibleForTesting
   static String? resolveTextureLabel(int index, int numClasses) {
-    if (numClasses != _textureLabels.length) return null;
-    if (index < 0 || index >= _textureLabels.length) return null;
-    return _textureLabels[index];
+    if (numClasses != textureLabels.length) return null;
+    if (index < 0 || index >= textureLabels.length) return null;
+    return textureLabels[index];
+  }
+
+  /// Builds the full distribution from an output tensor, highest probability
+  /// first, or null when [numClasses] does not match the label list.
+  ///
+  /// Probabilities are passed through verbatim. Renormalising them so they sum
+  /// to 1 would hide a model that exported logits rather than probabilities,
+  /// and would make every verdict threshold meaningless while looking correct.
+  ///
+  /// Ties break on canonical label order, ascending. Probability alone does not
+  /// order the distribution — two classes can hold the same value — and the
+  /// order is user-visible, because it decides which class is named as top-1
+  /// and which pair an ambiguous verdict puts on screen.
+  @visibleForTesting
+  static List<ClassScore>? buildDistribution(
+    List<double> probabilities,
+    int numClasses,
+  ) {
+    if (numClasses != textureLabels.length) return null;
+    if (probabilities.length != textureLabels.length) return null;
+
+    final scores = <ClassScore>[
+      for (var index = 0; index < textureLabels.length; index++)
+        ClassScore(
+          label: textureLabels[index],
+          probability: probabilities[index],
+        ),
+    ];
+    scores.sort((first, second) {
+      final byProbability = second.probability.compareTo(first.probability);
+      if (byProbability != 0) return byProbability;
+      return textureLabels
+          .indexOf(first.label)
+          .compareTo(textureLabels.indexOf(second.label));
+    });
+    return List.unmodifiable(scores);
   }
 
   /// Releases the service's resources.
