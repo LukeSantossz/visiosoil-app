@@ -116,6 +116,29 @@ void main() {
       );
     });
 
+    test('is notAnalysed when any score is non-finite', () {
+      // The factory is public over any list, and roadmap item 15 will feed it
+      // from the database rather than from the isolate that already rejects
+      // these. A NaN would be skipped by the scan and an infinity would win it,
+      // either way producing an assertive verdict over a distribution that
+      // means nothing.
+      expect(
+        ClassificationVerdict.fromDistribution(const [
+          ClassScore(label: 'Argilosa', probability: 0.60),
+          ClassScore(label: 'Media', probability: double.nan),
+          ClassScore(label: 'Arenosa', probability: 0.20),
+        ]),
+        ClassificationVerdict.notAnalysed,
+      );
+      expect(
+        ClassificationVerdict.fromDistribution(const [
+          ClassScore(label: 'Argilosa', probability: double.infinity),
+          ClassScore(label: 'Media', probability: 0.20),
+        ]),
+        ClassificationVerdict.notAnalysed,
+      );
+    });
+
     test('is notAnalysed for an absent result', () {
       expect(
         ClassificationVerdict.fromDistribution(null),
