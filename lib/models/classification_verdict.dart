@@ -63,9 +63,9 @@ enum ClassificationVerdict {
   /// read returning rows in insertion order would otherwise yield a wrong
   /// verdict with no signal.
   ///
-  /// A null or empty [distribution] is [notAnalysed]. Note what empty means
-  /// here: no distribution was carried, which is not the same claim as no
-  /// result. `InferenceResult.distribution` defaults to empty, so a result with
+  /// A [distribution] that is null, empty, or carries a non-finite probability
+  /// is [notAnalysed]. Note what empty means here: no distribution was carried,
+  /// which is not the same claim as no result. `InferenceResult.distribution` defaults to empty, so a result with
   /// a real `textureClass` and no distribution is judged [notAnalysed]. No
   /// production path produces that today, and roadmap item 2 must not build one
   /// without deciding what such a result should render as.
@@ -73,6 +73,15 @@ enum ClassificationVerdict {
     List<ClassScore>? distribution,
   ) {
     if (distribution == null || distribution.isEmpty) {
+      return ClassificationVerdict.notAnalysed;
+    }
+    // A non-finite score makes the distribution unjudgeable rather than merely
+    // weak: the scan below would skip a NaN and be won by an infinity, either
+    // way returning an assertive verdict over numbers that mean nothing.
+    // `InferenceService` already refuses these, but this factory takes any
+    // list, so it validates at its own boundary rather than trusting callers
+    // it does not control.
+    if (distribution.any((score) => !score.probability.isFinite)) {
       return ClassificationVerdict.notAnalysed;
     }
 
