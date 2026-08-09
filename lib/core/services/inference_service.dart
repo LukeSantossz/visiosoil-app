@@ -260,9 +260,10 @@ class InferenceService {
 
         // The argmax loop above feeds the compatibility guard only. Top-1 comes
         // from the distribution, so `distribution.first` and these two fields
-        // cannot disagree: the loop compares with `>` and the sort with
-        // `compareTo`, which order NaN oppositely, and deriving both from one
-        // place makes the invariant structural instead of coincidental.
+        // cannot disagree; `buildDistribution` having already refused any
+        // non-finite probability is what makes that safe, since the loop
+        // compares with `>` and the sort with `compareTo`, which order NaN
+        // oppositely.
         return InferenceResult(
           textureClass: distribution.first.label,
           confidenceScore: distribution.first.probability,
@@ -331,6 +332,11 @@ class InferenceService {
   ) {
     if (numClasses != textureLabels.length) return null;
     if (probabilities.length != textureLabels.length) return null;
+    // A NaN sorts above every number under `compareTo`, so it would become the
+    // top-1 class and carry a NaN confidence into the result. Rejecting the
+    // whole tensor matches how an incompatible model is handled: refuse rather
+    // than fabricate a plausible-looking result.
+    if (probabilities.any((probability) => !probability.isFinite)) return null;
 
     final scores = <ClassScore>[
       for (var index = 0; index < textureLabels.length; index++)
