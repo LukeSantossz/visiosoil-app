@@ -139,6 +139,45 @@ void main() {
       );
     });
 
+    test('is notAnalysed when any score falls outside [0, 1]', () {
+      // A finite score outside the probability domain does not break the scan
+      // the way a NaN does, which is exactly why it is worse: 1.1 sorts to the
+      // front, clears the top-share threshold and wins a wide margin, so the
+      // factory would return `conclusive` over a number that is not a
+      // probability. Refusing to judge it is the same treatment an
+      // incompatible model already gets.
+      expect(
+        ClassificationVerdict.fromDistribution(const [
+          ClassScore(label: 'Argilosa', probability: 1.1),
+          ClassScore(label: 'Media', probability: 0.20),
+          ClassScore(label: 'Arenosa', probability: 0.10),
+        ]),
+        ClassificationVerdict.notAnalysed,
+      );
+      expect(
+        ClassificationVerdict.fromDistribution(const [
+          ClassScore(label: 'Argilosa', probability: 0.70),
+          ClassScore(label: 'Media', probability: -0.1),
+          ClassScore(label: 'Arenosa', probability: 0.40),
+        ]),
+        ClassificationVerdict.notAnalysed,
+      );
+    });
+
+    test('judges the closed bounds 0 and 1 rather than rejecting them', () {
+      // The domain is inclusive. A one-hot distribution is the output a
+      // confident model is supposed to produce, and rejecting it would turn
+      // the check above into a defect of its own.
+      expect(
+        ClassificationVerdict.fromDistribution(const [
+          ClassScore(label: 'Argilosa', probability: 1.0),
+          ClassScore(label: 'Media', probability: 0.0),
+          ClassScore(label: 'Arenosa', probability: 0.0),
+        ]),
+        ClassificationVerdict.conclusive,
+      );
+    });
+
     test('is notAnalysed for an absent result', () {
       expect(
         ClassificationVerdict.fromDistribution(null),

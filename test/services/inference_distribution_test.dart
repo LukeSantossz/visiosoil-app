@@ -85,6 +85,26 @@ void main() {
       );
     });
 
+    test('rejects a tensor carrying a probability outside [0, 1]', () {
+      // Unlike a NaN, these sort correctly, so nothing downstream signals that
+      // anything is wrong: 1.1 becomes the top-1 class and is carried out as a
+      // confidence of 1.1, which then clears every verdict threshold. A value
+      // outside the probability domain is not a probability, whatever produced
+      // it, so the tensor is refused rather than passed on.
+      expect(distributionOf([0.1, 0.2, 1.1, 0.3, 0.2]), isNull);
+      expect(distributionOf([0.1, 0.2, -0.1, 0.3, 0.2]), isNull);
+    });
+
+    test('accepts the closed bounds 0 and 1', () {
+      // The domain is inclusive, and a one-hot tensor is what a confident
+      // model is meant to emit. Rejecting it would make the guard above a
+      // defect of its own.
+      final distribution = distributionOf([0.0, 0.0, 0.0, 1.0, 0.0])!;
+
+      expect(distribution.first.label, 'Muito Argilosa');
+      expect(distribution.first.probability, 1.0);
+    });
+
     test('returns an unmodifiable list', () {
       final distribution = distributionOf([0.1, 0.2, 0.3, 0.25, 0.15])!;
 
