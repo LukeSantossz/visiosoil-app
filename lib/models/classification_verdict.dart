@@ -75,13 +75,20 @@ enum ClassificationVerdict {
     if (distribution == null || distribution.isEmpty) {
       return ClassificationVerdict.notAnalysed;
     }
-    // A non-finite score makes the distribution unjudgeable rather than merely
-    // weak: the scan below would skip a NaN and be won by an infinity, either
-    // way returning an assertive verdict over numbers that mean nothing.
+    // A score outside the probability domain makes the distribution
+    // unjudgeable rather than merely weak. A NaN would be skipped by the scan
+    // below and an infinity would win it, either way returning an assertive
+    // verdict over numbers that mean nothing. A finite 1.1 is quieter and no
+    // better: it scans and sorts like any other value, then clears the
+    // top-share threshold with a wide margin and is reported as `conclusive`.
+    //
     // `InferenceService` already refuses these, but this factory takes any
     // list, so it validates at its own boundary rather than trusting callers
-    // it does not control.
-    if (distribution.any((score) => !score.probability.isFinite)) {
+    // it does not control. Roadmap item 15 will feed it from the database,
+    // which is not that service.
+    if (distribution.any((score) => !ClassScore.isProbability(
+          score.probability,
+        ))) {
       return ClassificationVerdict.notAnalysed;
     }
 

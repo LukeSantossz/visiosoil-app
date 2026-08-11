@@ -333,10 +333,22 @@ class InferenceService {
     if (numClasses != textureLabels.length) return null;
     if (probabilities.length != textureLabels.length) return null;
     // A NaN sorts above every number under `compareTo`, so it would become the
-    // top-1 class and carry a NaN confidence into the result. Rejecting the
-    // whole tensor matches how an incompatible model is handled: refuse rather
-    // than fabricate a plausible-looking result.
-    if (probabilities.any((probability) => !probability.isFinite)) return null;
+    // top-1 class and carry a NaN confidence into the result. A finite value
+    // outside the unit interval is the quieter version of the same problem: it
+    // sorts correctly, so nothing downstream signals anything is wrong, yet a
+    // 1.1 becomes the top-1 confidence and clears every verdict threshold.
+    // Rejecting the whole tensor matches how an incompatible model is handled:
+    // refuse rather than fabricate a plausible-looking result.
+    //
+    // This is a domain check on each value, not a check that the tensor is a
+    // probability distribution. Values that are individually valid can still
+    // sum to anything, and they are passed through as they are — detecting
+    // that belongs with calibration and the `spec.json` contract, not here.
+    if (probabilities.any(
+      (probability) => !ClassScore.isProbability(probability),
+    )) {
+      return null;
+    }
 
     final scores = <ClassScore>[
       for (var index = 0; index < textureLabels.length; index++)
