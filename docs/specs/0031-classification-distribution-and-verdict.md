@@ -140,6 +140,13 @@ design rationale and the presentation rules that follow from it are in
 - incompatible_model_still_rejected: an output tensor whose class count differs
   from the label list returns null, as it does today, and produces no
   distribution.
+- non_probability_value_rejected: a tensor carrying a value that is not finite
+  or lies outside `[0, 1]` returns null and produces no distribution; a
+  distribution carrying such a score yields `notAnalysed` rather than a verdict.
+  Added during review — see the amended assumption under Risks.
+- closed_bounds_are_accepted: a one-hot tensor, all mass on one class and zero
+  elsewhere, is accepted and judged `conclusive`. The interval is inclusive, and
+  this criterion exists so the one above cannot be satisfied by overcorrecting.
 - verdict_conclusive_on_clear_leader: `0.94 · 0.03 · 0.01 · 0.01 · 0.01` is
   `conclusive`, and so is `0.60 · 0.20 · 0.10 · 0.06 · 0.04`.
 - verdict_ambiguous_on_narrow_margin: `0.44 · 0.39 · 0.09 · 0.05 · 0.03` is
@@ -187,9 +194,25 @@ design rationale and the presentation rules that follow from it are in
   with no structural consequence.
 - Assumption: the model outputs probabilities that sum to approximately 1, per
   `ml/README.md` (`Dense(5, softmax)`). If a future model exports logits, the
-  thresholds become meaningless. This spec does not detect that condition; it
-  refuses to mask it by renormalising, so the failure would be visible rather
-  than silent. Detecting it is out of scope and belongs with calibration.
+  thresholds become meaningless.
+
+  This spec originally said it did not detect that condition at all, arguing
+  that passing the values through unchanged left the failure visible rather
+  than silent. **Amended during review**, on a finding from R3, because the
+  argument does not survive the case: a finite `1.1` sorts like any other
+  value, becomes the top-1 confidence, clears the top-share threshold with a
+  wide margin, and is reported as `conclusive`. That is not a visible failure;
+  it is a confident assertion over a number that is not a probability.
+
+  The line now drawn is per value, not per set. A probability that is not
+  finite or falls outside the closed interval `[0, 1]` is rejected at both
+  public boundaries — the tensor reader and the verdict factory — exactly as an
+  incompatible class count already is. Whether a set of individually valid
+  values sums to 1 is **not** checked, and the values are still passed through
+  without renormalisation. That check is the one this spec continues to leave
+  to calibration and the `spec.json` contract, because it is a claim about a
+  distribution rather than about a number, and because renormalising to satisfy
+  it is precisely the masking the Alternatives section rejects.
 - Assumption: `SoilTextureColors.all` has no consumers today, verified by
   search, so correcting its order breaks nothing. `forClass` is keyed by name
   and is unaffected by ordering.

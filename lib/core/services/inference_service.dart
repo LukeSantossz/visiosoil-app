@@ -7,14 +7,26 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../../models/class_score.dart';
+import '../../models/soil_texture_labels.dart';
+
 /// Result of soil texture classification inference.
 class InferenceResult {
   final String textureClass;
   final double confidenceScore;
 
+  /// Every class and its probability, highest first.
+  ///
+  /// [textureClass] and [confidenceScore] are the first entry's label and
+  /// probability; they keep their names and meaning so existing call sites are
+  /// untouched. Defaults to empty because callers that predate the distribution
+  /// construct a result without one.
+  final List<ClassScore> distribution;
+
   const InferenceResult({
     required this.textureClass,
     required this.confidenceScore,
+    this.distribution = const [],
   });
 }
 
@@ -55,15 +67,14 @@ class InferenceService {
   /// Model input dimension (224x224 RGB).
   static const int _inputSize = 224;
 
-  /// Soil texture classes aligned with ml/config.yaml.
-  /// The order must match the trained model's outputs.
-  static const List<String> _textureLabels = [
-    'Arenosa',
-    'Media',
-    'Siltosa',
-    'Muito Argilosa',
-    'Argilosa',
-  ];
+  /// Soil texture classes aligned with ml/config.yaml, in model output order.
+  ///
+  /// Declared once in [SoilTextureLabels] and referenced here rather than
+  /// copied, so a second declaration cannot drift out of step with this one.
+  /// Public only so a test can assert that single source directly, matching
+  /// how [resolveTextureLabel] and [buildDistribution] are widened.
+  @visibleForTesting
+  static const List<String> textureLabels = SoilTextureLabels.ordered;
 
   /// Maximum attempts to load the model before giving up for the current call.
   static const int _maxInitAttempts = 3;
@@ -244,9 +255,19 @@ class InferenceService {
         final label = resolveTextureLabel(maxIndex, numClasses);
         if (label == null) return null;
 
+        final distribution = buildDistribution(probabilities, numClasses);
+        if (distribution == null) return null;
+
+        // The argmax loop above feeds the compatibility guard only. Top-1 comes
+        // from the distribution, so `distribution.first` and these two fields
+        // cannot disagree; `buildDistribution` having already refused any
+        // non-finite probability is what makes that safe, since the loop
+        // compares with `>` and the sort with `compareTo`, which order NaN
+        // oppositely.
         return InferenceResult(
-          textureClass: label,
-          confidenceScore: maxProb,
+          textureClass: distribution.first.label,
+          confidenceScore: distribution.first.probability,
+          distribution: distribution,
         );
       } finally {
         interpreter.close();
@@ -288,9 +309,62 @@ class InferenceService {
   /// incompatible model never yields a fabricated, plausible-looking result.
   @visibleForTesting
   static String? resolveTextureLabel(int index, int numClasses) {
-    if (numClasses != _textureLabels.length) return null;
-    if (index < 0 || index >= _textureLabels.length) return null;
-    return _textureLabels[index];
+    if (numClasses != textureLabels.length) return null;
+    if (index < 0 || index >= textureLabels.length) return null;
+    return textureLabels[index];
+  }
+
+  /// Builds the full distribution from an output tensor, highest probability
+  /// first, or null when [numClasses] does not match the label list.
+  ///
+  /// Probabilities are passed through verbatim. Renormalising them so they sum
+  /// to 1 would hide a model that exported logits rather than probabilities,
+  /// and would make every verdict threshold meaningless while looking correct.
+  ///
+  /// Ties break on canonical label order, ascending. Probability alone does not
+  /// order the distribution — two classes can hold the same value — and the
+  /// order is user-visible, because it decides which class is named as top-1
+  /// and which pair an ambiguous verdict puts on screen.
+  @visibleForTesting
+  static List<ClassScore>? buildDistribution(
+    List<double> probabilities,
+    int numClasses,
+  ) {
+    if (numClasses != textureLabels.length) return null;
+    if (probabilities.length != textureLabels.length) return null;
+    // A NaN sorts above every number under `compareTo`, so it would become the
+    // top-1 class and carry a NaN confidence into the result. A finite value
+    // outside the unit interval is the quieter version of the same problem: it
+    // sorts correctly, so nothing downstream signals anything is wrong, yet a
+    // 1.1 becomes the top-1 confidence and clears every verdict threshold.
+    // Rejecting the whole tensor matches how an incompatible model is handled:
+    // refuse rather than fabricate a plausible-looking result.
+    //
+    // This is a domain check on each value, not a check that the tensor is a
+    // probability distribution. Values that are individually valid can still
+    // sum to anything, and they are passed through as they are — detecting
+    // that belongs with calibration and the `spec.json` contract, not here.
+    if (probabilities.any(
+      (probability) => !ClassScore.isProbability(probability),
+    )) {
+      return null;
+    }
+
+    final scores = <ClassScore>[
+      for (var index = 0; index < textureLabels.length; index++)
+        ClassScore(
+          label: textureLabels[index],
+          probability: probabilities[index],
+        ),
+    ];
+    scores.sort((first, second) {
+      final byProbability = second.probability.compareTo(first.probability);
+      if (byProbability != 0) return byProbability;
+      return textureLabels
+          .indexOf(first.label)
+          .compareTo(textureLabels.indexOf(second.label));
+    });
+    return List.unmodifiable(scores);
   }
 
   /// Releases the service's resources.
