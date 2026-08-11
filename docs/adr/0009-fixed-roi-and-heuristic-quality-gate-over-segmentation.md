@@ -65,11 +65,21 @@ What no longer holds:
 - the claim that applying one criteria set to both sides closes the
   subpopulation gap. It closes the photographic-quality gap only.
 
-The domain gap is now an open programme risk rather than a solved one. Whether
-it is measurable at all depends on collecting a paired in-situ photograph of the
-same sample before it is removed from the field, which is irreversible per
-sample and is an open decision in SPEC 0033. Until that decision is made and the
-gap is measured, no claim about field accuracy is supportable from this dataset.
+The domain gap is now an open programme risk rather than a solved one, and no
+claim about field accuracy is supportable from this dataset.
+
+**Corrected 2026-08-11.** This previously said the gap's measurability depended
+on a paired in-situ photograph of the same sample taken before it left the
+field, treating that as an open, irreversible decision in SPEC 0033. That framing
+assumed a collection campaign whose samples had not yet been taken. ADR 0014
+establishes that the dataset is the laboratory's **existing archive**, already
+air-dried and sieved, so no sample in it can yield a paired field view — the
+moment passed before this project began, and no decision now recovers it. The
+paired photograph is not a pending choice; it is unavailable for these rows.
+
+Measuring the gap therefore requires a **separate in-situ collection** with its
+own samples and its own cost, which is deferred. Nothing about that blocks
+photographing the archive.
 
 ### Decided
 
@@ -144,8 +154,10 @@ gap is measured, no claim about field accuracy is supportable from this dataset.
   is still right, because it removes the one component of the gap that is
   removable. The residue is a genuine domain gap, it is now the dominant
   unmeasured risk in the programme, and **no field-accuracy claim is supportable
-  from a bench-collected dataset**. Closing it needs paired in-situ photographs,
-  which SPEC 0033 costs out and which blocks the start of collection.
+  from a bench-collected dataset**. Closing it needs a separate in-situ
+  collection with its own samples, deferred per ADR 0014. It does **not** block
+  photographing the archive, and the earlier wording here — that it "blocks the
+  start of collection" — is corrected under Status above.
 - The ROI crop must be applied identically in both places. If the dataset is
   cropped and the app is not, or the two crops differ, this ADR's central claim
   fails silently.

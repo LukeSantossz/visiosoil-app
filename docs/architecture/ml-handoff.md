@@ -1,9 +1,15 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-08-11. Full reasoning lives in
-`docs/architecture/soil-classification.md`; the ordered backlog with acceptance
-criteria lives in `docs/architecture/ml-implementation-map.md`.
+Last updated: 2026-08-11. The ordered backlog with acceptance criteria lives in
+`docs/architecture/ml-implementation-map.md`.
+
+Full reasoning lives in `docs/architecture/soil-classification.md`, **with one
+caveat worth reading before it**: that study predates the 2026-08-11 answers and
+four of its premises are false — label traceability, the grouping thresholds,
+moisture as a live confound, and field capture as the collection method. It
+carries a supersession table at its head. Where it and ADR 0014 disagree, ADR
+0014 wins.
 
 **Ownership, settled 2026-08-01.** This workstream owns all of `ml/`, the
 `spec.json` runtime contract, local diagnostics, and the calibration of every
@@ -26,7 +32,7 @@ research agent. Full reasoning and what each side owes the other:
 | Monitoring is local-first: aggregates on the device, nothing transmitted, no image or coordinate in telemetry under any setting | ADR 0013 |
 | Task stays five-way classification of the Embrapa textural groups; no granulometry regression, no ordinal loss | Study §12.2 |
 | The dataset is the laboratory's existing sample archive photographed on a fixed rig — 90 mm Petri dish, two background conditions, zero new analyses | ADR 0014 |
-| Field-fresh material is **not** covered by the dataset; the app must not treat it as analysable | ADR 0014 |
+| Field-fresh material is **not** covered by the dataset. Today this is a stated accuracy limitation, not an enforced rule — nothing in the app can detect it | ADR 0014 |
 | The target is a centred circle of known diameter, so ADR 0009's unknown-target premise is amended and the ROI shape becomes an E1 experiment | ADR 0014, ADR 0009 |
 | Per-class sample targets are asymmetric; Siltosa is rare in the material and no effort fixes it | ADR 0014, SPEC 0033 |
 

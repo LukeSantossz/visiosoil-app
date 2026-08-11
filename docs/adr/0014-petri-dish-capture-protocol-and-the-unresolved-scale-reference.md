@@ -93,10 +93,29 @@ the product was described as supporting, where an agronomist takes a sample from
 aggregates, and moisture displaces its colour. Nothing in this dataset
 represents it.
 
-**Binding consequence.** No accuracy figure from this dataset describes fresh
-material, and the application must not treat a photograph of fresh material as
-analysable. The limitation is declared in `spec.json` and carried in the
-classification contract the UI terminal consumes. In-situ capture is deferred,
+**Consequence, and what kind of consequence it is.** No accuracy figure from
+this dataset describes fresh material. That much is settled and unconditional.
+
+What follows for the application is **not** enforceable today, and saying
+otherwise would be the same error this record exists to correct elsewhere.
+`capture_screen.dart` accepts every camera image and calls
+`InferenceService.classify` on it; there is no capture-mode selector, no
+freshness signal, no `spec.json` field carrying the supported conditions, and
+nothing in an image distinguishes moist unsieved soil from dry sieved soil with
+enough reliability to gate on. SPEC 0033 explicitly touches no code under `lib/`.
+
+So the honest statement is a **declared limitation of the model, not a rule the
+app obeys**: what the model was trained on is dry sieved archive material, and a
+reading taken on anything else is outside its evidence. Turning that into
+behaviour needs three things that do not exist — the supported `setting` values
+published in `spec.json` (item A4), a capture-mode contract, and a UI affordance
+to declare or select the mode — and it belongs to the capture-wiring spec that
+follows SPEC 0030, coordinated with the UI/UX terminal because
+`lib/core/features/capture/` is shared. Until then the limitation is documented
+and unmitigated, which is a worse state than enforced and a better one than
+enforced-in-prose-only.
+
+In-situ capture is deferred,
 not cancelled: it is a separate decision with its own cost, and unlike the two
 conditions above it cannot reuse the archive, because a sample cannot be
 photographed undisturbed after it has been dried and sieved.
@@ -104,16 +123,33 @@ photographed undisturbed after it has been dried and sieved.
 ### Sample counts are asymmetric by class, and that is a property of soil
 
 The target is roughly 150 samples per class, one photograph per sample per
-condition, with the sample as the split group. Siltosa is the exception and will
-not reach it. Silty soils are genuinely uncommon across much of the Brazilian
-soil population, so the shortfall is a property of the material rather than of
-collection effort, and no amount of photography fixes it.
+condition, with the sample as the split group. **A uniform target is dropped**:
+Siltosa is expected to fall short, because silty soils are genuinely uncommon
+across much of the Brazilian soil population, so any shortfall there is a
+property of the material rather than of effort and no amount of photography
+fixes it.
 
-A uniform target is therefore dropped in favour of a declared asymmetric one,
-with class weighting and a per-class rejection threshold for Siltosa. The
-alternative — presenting a five-way model whose fifth class rests on a fraction
-of the evidence of the others — is the failure SPEC 0033's reduced-class E0 rule
-was already written to prevent, arriving through a different door.
+**What is decided here is the policy, not the number.** Population-level rarity
+establishes that Siltosa is *expected* to be thin; it does not establish what
+the archive actually holds, which nobody has counted. The per-class targets and
+the rejection-threshold policy are therefore **conditional on the C0 inventory**,
+which reports counts by class, site and region of the textural triangle before
+any of this is fixed. Three outcomes and what each means:
+
+- Siltosa reaches the target — the asymmetry was a false alarm and the uniform
+  target returns.
+- Siltosa is thin but clears SPEC 0033's 30-sample E0 floor — the declared
+  asymmetric target applies, with class weighting and a per-class rejection
+  threshold for Siltosa.
+- Siltosa is below the floor — E0 runs reduced, reports which classes were
+  excluded, and **does not authorise Lane C**, per the rule SPEC 0033 already
+  carries.
+
+Writing the policy before the count is deliberate, and so is refusing to write
+the number. The temptation when a class turns out thin is to run all five anyway
+and read the result as if it meant something; deciding the response in advance is
+what stops that. Deciding the *target* in advance would be inventing a
+measurement.
 
 ### The ROI shape becomes an experiment, and ADR 0009's premise is amended
 
@@ -154,7 +190,7 @@ variable on this task, it is a precondition for the signal to exist.
 |---|---|
 | `dish` | Constant by construction — fixed rig, 90 mm dish of known diameter |
 | `paper` | Near-constant if the disc is sized to match; **uncontrolled if arranged by eye** |
-| Application | **Unknown and variable** — handheld, no dish, no reference object |
+| Application | **Unknown and variable** — handheld, no dish, and no code that reads a scale reference even when the protocol's coin is in frame |
 
 So the dataset is excellent on exactly the axis where deployment is worst, which
 is the shape a train/serve skew takes when it is invisible: every image looks
@@ -163,12 +199,15 @@ correct on both sides.
 Three ways out, none of them cost-free, and this record deliberately does not
 choose among them:
 
-1. **A scale reference in the application frame.** SPEC 0033 kept the coin and
-   argued its value had moved to the deployment side. That argument is now
-   confirmed rather than superseded — the coin is unnecessary in the `dish` rows,
-   whose scale is already known, and it is the only identified route to
-   recovering millimetres per pixel from a single handheld photograph. The cost
-   is a physical object the user must carry and place.
+1. **Make the coin usable.** SPEC 0033 kept the coin and argued its value had
+   moved to the deployment side; that argument is confirmed rather than
+   superseded, since the coin buys nothing in the `dish` rows whose scale is
+   already known. What is missing is not the object — the protocol keeps it and
+   onboarding instructs it — but anything that **reads** it. No code detects the
+   coin, measures it, or normalises by it, so today a compliant photograph and a
+   non-compliant one are processed identically. The cost is therefore a detector,
+   which reopens what ADR 0009 deferred, plus user compliance that nothing
+   verifies.
 2. **Scale-invariant training.** Heavy scale augmentation, accepting that
    absolute particle size is deliberately destroyed. Honest, and it discards part
    of the signal the task is built on.

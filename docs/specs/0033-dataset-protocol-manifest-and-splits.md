@@ -329,14 +329,21 @@ Both are counts of *samples*, not photographs. Under the protocol each sample
 yields two photographs — one `dish`, one `paper` — and they are one group. They
 add robustness, not statistical power.
 
-**The target is ~150 samples per class on average and is explicitly asymmetric.**
-A uniform target is dropped, and the reason is not effort. Silty soils are
-genuinely uncommon across much of the Brazilian soil population, so the Siltosa
-shortfall is a property of the material: no amount of photography reaches a
-number the archive does not contain. What replaces the uniform target is a
-declared per-class target, class weighting, and a per-class rejection threshold
-for Siltosa — stating the asymmetry rather than presenting a five-way model whose
-fifth class rests on a fraction of the evidence of the others.
+**The target is ~150 samples per class on average, and the uniform target is
+dropped.** Silty soils are genuinely uncommon across much of the Brazilian soil
+population, so a Siltosa shortfall would be a property of the material rather
+than of effort: no amount of photography reaches a number the archive does not
+contain.
+
+**The numbers themselves wait on the C0 inventory.** Population-level rarity
+says Siltosa is expected to be thin; it does not say what the archive holds,
+which nobody has counted. What is fixed now is the response — a declared
+per-class target, class weighting, and a per-class rejection threshold for
+Siltosa if it is thin but clears the E0 floor — rather than the target. Deciding
+the response in advance is what stops a thin class being run five ways anyway and
+read as if it meant something. Deciding the target in advance would be inventing
+a measurement. ADR 0014 sets out the three inventory outcomes and what each
+triggers.
 
 **The total is not the binding number — the smallest class is.** A run with 100
 Argilosa and 8 Siltosa clears 150 and cannot support a five-way verdict, because
@@ -422,7 +429,11 @@ subset is not, because success on the easy classes bounds nothing.
     plus the per-split composition by class, site, and device.
   - `ml/scripts/admit_images.py` — run the SPEC 0030 criteria over candidate
     images and write their metrics and verdicts into the manifest.
-  - `ml/config.yaml` — the dataset version key.
+  - `ml/config.yaml` — the dataset version key, and the textural-grouping
+    threshold table with its boundary policy. The table is a declared input, not
+    a constant assumed by code: the laboratory's exact thresholds are still
+    unwritten (`ml-implementation-map.md` §7 question 2), and the validator must
+    fail naming the absent table rather than guess at it.
   - `docs/ml/collection-protocol.md` — the field protocol a collector executes.
   - `ml/tests/` — tests for each criterion below.
 - Does NOT include:
@@ -460,11 +471,34 @@ subset is not, because success on the easy classes bounds nothing.
   required on 2026-08-11; the columns are what make label verification and
   boundary-sample identification possible, and a row without them cannot be
   checked against the measurement that produced its label.
-- manifest_rejects_granulometry_that_contradicts_its_class: percentages that do
-  not read as the declared class on the textural triangle are reported, naming
-  the sample, the declared class and the class the numbers give. This is the
-  label-verification criterion the required columns exist for; without it they
-  are recorded and never used.
+- manifest_rejects_granulometry_that_sums_outside_tolerance: `sand_pct`,
+  `silt_pct` and `clay_pct` that do not sum to 100 within a stated tolerance are
+  rejected, naming the sample and the sum. This is the part of granulometry
+  validation that needs **no** grouping thresholds and is therefore implementable
+  today; it catches transcription errors, which is the most common way a
+  spreadsheet column goes wrong.
+- manifest_verifies_the_class_against_the_thresholds_when_they_are_declared:
+  the grouping thresholds live in `ml/config.yaml` as an explicit table with a
+  stated boundary policy (which side of each line a value on the line falls). If
+  the table is present, a declared class that its own percentages contradict is
+  reported, naming the sample, the declared class and the class the numbers give.
+  If it is absent, validation fails with a message naming the missing table
+  rather than passing silently.
+
+  **This criterion is deliberately conditional, and the reason is a real
+  conflict.** Requiring label verification unconditionally would require the
+  exact Embrapa grouping thresholds the laboratory applies, and
+  `ml-implementation-map.md` §7 question 2 records those as still unwritten.
+  Without them two implementations cannot decide the same way about the same row,
+  which is the definition of a criterion that is not reproducible. Making the
+  table a declared input rather than an assumed constant means the criterion is
+  implementable now and becomes active the moment the thresholds are recorded —
+  and it fails loudly in the interval rather than pretending to verify.
+
+  A boundary policy is named explicitly because it is exactly where the errors
+  live: a sample sitting on a line is the ambiguous case this specification cares
+  most about, and leaving "≥ or >" to each implementation would put the
+  disagreement precisely there.
 - manifest_reports_every_problem_at_once: a manifest with four distinct problems
   produces one failure naming all four.
 - semicolon_delimited_manifest_is_diagnosed: a semicolon-separated file fails

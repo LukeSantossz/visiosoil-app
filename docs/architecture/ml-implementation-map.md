@@ -231,8 +231,23 @@ it without this terminal present.
 - Directory layout and the filename → `sample_id` convention are stated and
   parsed by one function, not a regex duplicated per script.
 - Required metadata per sample: sample id, laboratory report reference, textural
-  class, collection site, capture device, capture date, and **`setting`**
-  (`bench` or `in_situ`). An earlier version of this criterion required a
+  class, collection site, capture device, capture date, **granulometry**
+  (`sand_pct`, `silt_pct`, `clay_pct` — required since 2026-08-11, when the
+  laboratory turned out to be the project's own), and **`setting`**
+  (`dish` or `paper`).
+
+  **`setting` records presentation, not deployment state**, and the distinction
+  is the correction ADR 0014 forces. This criterion previously read
+  `bench | in_situ` and described the column as the bench-to-field axis. Both
+  values now denote how air-dried sieved archive material is presented — in a
+  90 mm Petri dish on a bench surface, or arranged as a disc of that size on
+  paper — and neither denotes a field condition. `in_situ` is **rejected** by the
+  validator rather than accepted-and-unused, because a silently admitted value is
+  how an uncovered condition enters a dataset that reports itself as covering it.
+  The bench-to-field axis has no column today; it returns with the deferred
+  in-situ mode, alongside `moisture`.
+
+  An earlier version of this criterion required a
   **moisture state** instead, on the reasoning that moisture confounds colour
   and is not recoverable retroactively. The project owner has since confirmed
   that photographs are taken on a bench after standard preparation, air-dried
@@ -255,12 +270,21 @@ it without this terminal present.
   factor is *distributed* across splits; only grouping prevents the same value
   appearing on both sides. Stratifying by site puts every site in train and in
   test, which is the opposite of holding one out, so the claim asserted a
-  guarantee the algorithm does not provide. SPEC 0033 declines to force a
-  site-held-out split for a stated arithmetic reason — holding a site out costs
-  all of its samples from training and nobody yet knows how many sites exist,
-  question 1 in §7 — so the axis is recorded now and the policy is decided when
-  the count is known. `splits.json` is committed; the generator is deterministic
-  given the seed.
+  guarantee the algorithm does not provide.
+
+  **This criterion is unchanged by the 2026-08-11 site answer, and the reason is
+  that there are two splits, not one.** The *primary* split — the one B2 builds,
+  the one training consumes — stays grouped by sample and stratified by class,
+  with site and device recorded and reported, never held out. A *site-held-out
+  evaluation* is a second, separate split computed for reporting generalisation
+  to unseen origins; it does not replace the primary one and it is not built
+  here. SPEC 0033 declined to force one on an arithmetic reason — holding a site
+  out costs all of its samples from training and nobody knew how many sites
+  existed, question 1 in §7. The count is now known to be many, so that
+  evaluation moves from declined to the expected default **in C1**, where the
+  policy is set from the measured site distribution this validator reports.
+  Nothing about it changes what B2 must build. `splits.json` is committed; the
+  generator is deterministic given the seed.
 - The manifest validates: every row's image exists, every image has a row, every
   class has enough groups to split, and no `sample_id` appears in two splits.
 - A dry-run on a synthetic fixture manifest proves the validator catches each of
@@ -385,16 +409,24 @@ question 6; it is now the one that matters most.
    not a nuisance variable.
 
    The archive is photographed on a fixed rig with a 90 mm Petri dish, so every
-   `dish` row has the same millimetres per pixel. The application uses no dish, is
-   handheld, and carries no object of known size. **The dataset is therefore at
-   its strongest on exactly the axis where deployment is weakest, and both sides
-   look correct**, which is what makes this the dominant skew rather than a
-   detail.
+   `dish` row has the same millimetres per pixel. The application is handheld,
+   uses no dish, and — this is the precise gap — **nothing in it reads a scale
+   reference even when one is present**. The collection protocol does keep the
+   coin, and onboarding does instruct it, so the frame may well contain an object
+   of known size; no code detects it, measures it, or normalises anything by it,
+   and ADR 0009 defers detection. A reference nobody reads is not a reference.
+
+   **The dataset is therefore at its strongest on exactly the axis where
+   deployment is weakest, and both sides look correct**, which is what makes this
+   the dominant skew rather than a detail.
 
    Three resolutions, none free, set out in full in ADR 0014:
 
-   - a reference object in the application frame — the coin the protocol already
-     keeps, at the cost of a physical item the user must carry and place;
+   - **make the coin usable** — the object is already in the protocol and in the
+     onboarding copy, so what is missing is the detector that recovers
+     millimetres per pixel from it, plus the user compliance to place it. This is
+     the cheapest of the three in physical terms and the most expensive in what
+     it reopens: ADR 0009 deferred detection outright;
    - scale-invariant training, deliberately discarding absolute particle size,
      which is honest and throws away part of the signal;
    - enforced framing, constraining distance without measuring it, depending on
@@ -420,15 +452,21 @@ question 6; it is now the one that matters most.
    and holds aggregates. Reading the two values as two use cases is the specific
    over-reading ADR 0014 and SPEC 0033 both warn against.
 
-   The original text is kept below, struck through in spirit rather than deleted,
-   because what it predicted the answer would change is exactly what it did
-   change — and one of its five bullets turned out to be wrong in an instructive
-   way. Its claim that a paper backing "makes the background known and controlled,
-   so ADR 0009's rejection of segmentation deserves re-examination" pointed at the
-   right premise for the wrong reason: what fell was not the background being
-   unknown but the **target shape** being unknown. The target is a centred circle
-   of known diameter in both conditions, which is why ADR 0009 is amended and why
-   the ROI shape becomes an experiment rather than an inheritance.
+   One correction is worth carrying forward, because it changes what may be
+   concluded. The original analysis expected a paper backing to reopen ADR 0009's
+   rejection of segmentation by making the **background** known and controlled.
+   That pointed at the right premise for the wrong reason: what fell was the
+   **target shape** being unknown, not the background. A known background would
+   argue for segmentation; a known shape argues only for fixed geometry, which is
+   far cheaper and stays inside what ADR 0009 already permits.
+
+   > **The block below is historical and non-authoritative.** It is the analysis
+   > as written on 2026-08-06, before any answer existed, kept so the reasoning
+   > that produced the question survives alongside its answer. **Every claim in
+   > it is superseded by the answer above and by ADR 0014**, including its
+   > statements that the product supports both bench and field modes, that
+   > `setting` is too small at two values, and that the mode list is undecided.
+   > Do not cite it.
 
    The study, ADR 0009 and SPEC 0033 were all written assuming two fixed worlds:
    a bench-prepared collection and an in-situ deployment, with an unmeasured gap

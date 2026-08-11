@@ -1,9 +1,27 @@
 # Soil Texture Classification: Architecture Study
 
 Status: research and planning. No implementation decision in this document is
-binding until it is promoted to an ADR or a numbered SPEC. Three decisions have
+binding until it is promoted to an ADR or a numbered SPEC. Four decisions have
 already been promoted: ADR 0008 (inference runtime), ADR 0009 (target isolation),
-ADR 0010 (synthetic data).
+ADR 0010 (synthetic data), ADR 0014 (capture protocol).
+
+> **Superseded in part, 2026-08-11.** This study was written before the project
+> owner's answers to the §7 inputs, and four of its premises are now false.
+> Where this document and ADR 0014 disagree, **ADR 0014 is authoritative** — the
+> passages below are kept as the reasoning that produced the questions, not as a
+> description of the plan.
+>
+> | This study says | Actually |
+> |---|---|
+> | Labels are not traceable to granulometry; the spreadsheets are unusable | The laboratory is the project's own; granulometry is available per archived sample and is now a required manifest column |
+> | The Embrapa grouping thresholds are unknown and block the cost-weighted matrix | Still unwritten, but now a declared input in `ml/config.yaml` rather than an unknown — SPEC 0033 fails loudly without it |
+> | Collection is field capture, with moisture an uncontrolled confound recorded in the manifest | Collection is an existing archive of air-dried sieved samples photographed on a fixed rig; there is no `moisture` column and no field capture in this dataset |
+> | The target's shape and background are unknown, so §16 rejects segmentation on that basis | The target is a centred 90 mm circle in both conditions; ADR 0009 is amended and the ROI shape becomes an E1 experiment |
+>
+> One thing this study did **not** anticipate is now the dominant risk: the
+> dataset has a constant millimetres-per-pixel scale and the application has no
+> way to establish one, on a task whose signal is particle size. See ADR 0014
+> and `ml-implementation-map.md` §7 question 6.
 
 Scope of this study: computer vision, real and synthetic data, training,
 image processing, mobile inference, calibration, and model monitoring. It does
