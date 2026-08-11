@@ -79,6 +79,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Share omits location by default, opt-in per share ([ADR 0007](docs/adr/0007-share-location-opt-in.md)) | Coarsen coordinates to ~1 km, or omit location entirely | Preserves the legitimate use of sending a colleague the sample's location while defaulting to non-disclosure of a client's field coordinates |
 | Research agent is advisory and web-grounded ([ADR 0001](docs/adr/0001-research-agent-advisory-web-grounded.md)) | Ship canned agronomic guidance, or omit tips entirely | Soil management advice is regional and changes; grounding each tip in a citable source keeps it useful without the app appearing to prescribe |
 | Local JSON for experiment tracking | MLflow / Weights & Biases | Disproportionate overhead for the project size; each model version emits `metrics.json` + `config.json` under `ml/models/vN/` |
+| Dataset is the laboratory's sample archive photographed on a fixed rig ([ADR 0014](docs/adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)) | Run a field collection campaign | The samples already exist, labelled and analysed, so the dataset costs rig time and zero new laboratory analyses. The trade is that every row is air-dried sieved material, so no accuracy figure it produces describes fresh soil |
 
 ## Getting Started
 

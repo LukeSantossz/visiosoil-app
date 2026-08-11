@@ -476,6 +476,7 @@ selection, and hyperparameter tuning.
 | E10 | Synthetic restricted to deficient classes only | Targeted beats uniform | E9 |
 | E11 | Synthetic restricted to rare environmental conditions only | Targeted beats uniform | E9 |
 | E12 | Combined with hard-negative mining | Negatives improve rejection more than they improve accuracy | E7 |
+| E13 | **ROI shape**: centred square vs circular mask with constant fill vs the square inscribed in the circle | For a texture task, a smaller all-soil region beats a larger one that is ~21.5% background. Added 2026-08-11 by ADR 0014, which amends ADR 0009's unknown-target premise | E1 |
 
 E0 is not optional and not a formality. If E0 cannot separate the real model
 from the label-shuffled control by more than run-to-run variance, the product

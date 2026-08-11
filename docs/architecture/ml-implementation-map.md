@@ -336,11 +336,27 @@ genuine open question, not a formality. The colour-histogram baseline exists to
 answer a second one: if the real model matches it, the model learned colour, not
 texture, and no amount of architecture work will fix that.
 
-### C1 — Baseline and sweep (E1–E5)
+### C1 — Baseline and sweep (E1–E5, E13)
 
 Real-only floor, corrected augmentation, compositing, backbone sweep
 (MobileNetV2 / MobileNetV3 / EfficientNet-Lite0), loss sweep (weighted CE vs
 focal). Exit gate: a recorded baseline in `ml/models/vN` with committed metrics.
+
+Two deliverables added 2026-08-11, both consequences of ADR 0014. Without them
+a run could complete every item above and still not produce what that ADR
+promises:
+
+- **E13, the ROI shape comparison** — centred square versus circular mask versus
+  the square inscribed in the circle, against the E1 floor. ADR 0014 defers the
+  ROI decision to measurement, so if this experiment is not run the decision is
+  never made and the current square survives by default rather than by evidence.
+- **The site-held-out evaluation.** B2 builds the primary split only — grouped
+  by sample, stratified by class, with site recorded and never held out — and
+  that is deliberate and unchanged. The unseen-origin measurement is a *second*
+  split computed here for reporting, over the site distribution B2's validator
+  reports. Its acceptance criterion: the recorded metrics include per-class
+  accuracy on at least one held-out origin, or a written statement of why the
+  measured site distribution does not support one.
 
 ### C2 — Calibration and rejection (E6, E7)
 
@@ -518,12 +534,23 @@ question 6; it is now the one that matters most.
    origin has to be recoverable per sample from the laboratory record. If it is
    not, the axis exists in the material and not in the manifest, and nothing can
    split along it.
-2. ~~**Is there access to the laboratory granulometry reports**, and what are the
-   exact Embrapa grouping thresholds that produced the labels?~~ **Answered
-   2026-08-11: the laboratory is the project's own.** Reports and records are
-   accessible, and the archived physical samples carry their report linked.
-   Embrapa is the classification reference applied to those numbers, not the
-   source of the labels.
+2. **Partly answered 2026-08-11.** This was one question and is two, and
+   collapsing them is what would let B2 and C0 proceed as though the whole thing
+   were settled.
+
+   ~~*Is there access to the laboratory granulometry reports?*~~ **Answered: the
+   laboratory is the project's own.** Reports and records are accessible, and the
+   archived physical samples carry their report linked. Embrapa is the
+   classification reference applied to those numbers, not the source of the
+   labels.
+
+   ***Which exact grouping thresholds does the laboratory apply?*** **STILL
+   OPEN**, and it blocks label verification. `ml/config.yaml` has no threshold
+   table today, so SPEC 0033's class-verification criterion fails loudly rather
+   than running. What is needed is the table plus a boundary policy — which side
+   of each line a value sitting exactly on it falls — because a sample on a
+   boundary is the ambiguous case this programme cares most about, and leaving
+   "≥ or >" to each implementation puts the disagreement precisely there.
 
    This is the answer with the widest consequences in this list. Granulometry
    moves from optional to required in the manifest, which makes three things
@@ -558,11 +585,16 @@ question 6; it is now the one that matters most.
    explicitly asymmetric.** One photograph per sample per condition, so a sample
    yields two images and remains one split group.
 
-   **Siltosa will not reach it, and that is a property of the material.** Silty
-   soils are uncommon across much of the Brazilian soil population, so the
-   shortfall is not an effort problem and no amount of rig time fixes it. The
-   uniform target is dropped in favour of a declared per-class target, class
-   weighting, and a per-class rejection threshold for Siltosa.
+   **Siltosa is expected to fall short, and the expectation is not a
+   measurement.** Silty soils are uncommon across much of the Brazilian soil
+   population, so any shortfall would be a property of the material rather than
+   an effort problem. But nobody has counted the archive, so what is fixed now is
+   the *policy* — a declared per-class target, class weighting, and a per-class
+   rejection threshold for Siltosa if it is thin — **conditional on the C0
+   inventory**, which may equally show the uniform target is attainable after
+   all. ADR 0014 sets out the three inventory outcomes and what each triggers.
+   Treating the expectation as settled would risk under-targeting a class that is
+   actually available.
 
    This does not relax SPEC 0033's reduced-class E0 rule; it makes it likely to
    bind. If Siltosa clears the 30-sample floor, E0 runs five ways as specified. If

@@ -170,7 +170,14 @@ For a texture task the third is the most promising, because the signal is
 statistical and spatially homogeneous, so a smaller all-soil region plausibly
 beats a larger region that is one fifth background. **That is a mechanism, not
 evidence.** All three are preprocessing variants over one dataset, so they cost
-almost nothing to compare and the choice is made by measurement as arms of E1.
+almost nothing to compare and the choice is made by measurement.
+
+It is registered as **E13** in the experiment table in
+`docs/architecture/soil-classification.md` §22, depending on E1, and it is a
+deliverable of C1. It is not folded into E1 itself, which is defined as the
+real-only no-augmentation floor: an experiment that also swept preprocessing
+would no longer be a floor, and the comparison needs a fixed baseline to be
+measured against.
 
 What is decided here is narrower and does not wait for E1: **ADR 0009's stated
 premise of an unknown target shape no longer holds**, and any future argument

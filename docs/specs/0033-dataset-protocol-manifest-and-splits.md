@@ -455,6 +455,15 @@ subset is not, because success on the easy classes bounds nothing.
   identifier and both classes.
 - manifest_accepts_repeated_sample_id_within_one_class: several photographs of
   one sample share an identifier and form one group.
+- manifest_requires_exactly_one_photograph_per_setting_per_sample: a sample with
+  only a `dish` row, only a `paper` row, or two rows of the same `setting`, is
+  reported, naming the sample and what it holds. The protocol pairs the two
+  conditions on the same physical sample, and the pairing is the whole point —
+  it is what lets the background effect be measured within-sample rather than
+  across two populations. Without this check a manifest of `dish` rows alone
+  passes every other criterion while silently being a one-condition dataset, and
+  nothing downstream would notice until the comparison it was built for turned
+  out to be impossible.
 - manifest_rejects_an_unknown_class: a `texture_class` not in `config.yaml` is
   rejected, naming the value and the accepted set.
 - manifest_rejects_an_unknown_setting_value: anything outside `dish` and `paper`
@@ -471,12 +480,23 @@ subset is not, because success on the easy classes bounds nothing.
   required on 2026-08-11; the columns are what make label verification and
   boundary-sample identification possible, and a row without them cannot be
   checked against the measurement that produced its label.
-- manifest_rejects_granulometry_that_sums_outside_tolerance: `sand_pct`,
-  `silt_pct` and `clay_pct` that do not sum to 100 within a stated tolerance are
-  rejected, naming the sample and the sum. This is the part of granulometry
-  validation that needs **no** grouping thresholds and is therefore implementable
-  today; it catches transcription errors, which is the most common way a
-  spreadsheet column goes wrong.
+- manifest_rejects_a_percentage_outside_its_own_range: any of `sand_pct`,
+  `silt_pct` or `clay_pct` below 0 or above 100 is rejected, naming the sample and
+  the value. Stated separately from the sum below because the sum does not imply
+  it: `-10, 50, 60` sums to exactly 100 and contains an impossible measurement.
+- manifest_rejects_granulometry_that_sums_outside_tolerance: the three
+  percentages must sum to 100 ± **0.5**, the tolerance declared in
+  `ml/config.yaml` under `dataset.granulometry_sum_tolerance_pct`, rejected
+  naming the sample and the sum. The value is a fixed number and a config key
+  rather than "a stated tolerance", because two validators reading the same row
+  must reach the same verdict, and 0.5 accommodates a laboratory rounding each
+  fraction to one decimal without admitting a transcription error.
+  Boundary tests are required at exactly 100.5 and 99.5, which are accepted, and
+  at 100.6 and 99.4, which are not.
+
+  These two are the part of granulometry validation that needs **no** grouping
+  thresholds and are therefore implementable today. They catch transcription
+  errors, which is the most common way a spreadsheet column goes wrong.
 - manifest_verifies_the_class_against_the_thresholds_when_they_are_declared:
   the grouping thresholds live in `ml/config.yaml` as an explicit table with a
   stated boundary policy (which side of each line a value on the line falls). If
@@ -581,10 +601,16 @@ subset is not, because success on the easy classes bounds nothing.
   constant in training and a variable in deployment. Unmeasurable within this
   dataset by construction.
 - Known limitation: **the domain gap between bench and field is unmeasured**,
-  and unmeasurable without the paired in-situ photograph. Every accuracy figure
-  this dataset produces describes prepared samples on a bench. Reporting one as
-  field accuracy would be wrong, and the wording of any such report is part of
-  the deliverable rather than an afterthought.
+  and stays unmeasured until a separate in-situ collection exists. It is
+  **not** unmeasurable, which is what this bullet said before 2026-08-11 — that
+  wording tied measurement to a paired photograph of the same sample, which the
+  archive can never supply and which would therefore have made the deferred
+  collection incapable of ever satisfying it. A separate in-situ set measures the
+  gap between two populations rather than within a sample: weaker evidence, and
+  available. Every accuracy figure this dataset produces describes prepared
+  samples on a bench. Reporting one as field accuracy would be wrong, and the
+  wording of any such report is part of the deliverable rather than an
+  afterthought.
 - Resolved by bench preparation: moisture. It cannot be recorded, but air-dried
   samples make it near-constant, so it stops being a confound for the bench rows.
   It returns in full for any in-situ row.

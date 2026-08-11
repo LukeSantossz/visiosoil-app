@@ -52,8 +52,12 @@ research agent. Full reasoning and what each side owes the other:
    not the material.
 5. **New, and now the dominant one: the application has no way to establish
    scale.** The dataset is shot on a fixed rig with a 90 mm dish, so its
-   millimetres per pixel is constant; the app is handheld with no dish and no
-   reference object. On a task whose signal is particle size, that is a
+   millimetres per pixel is constant; the app is handheld with no dish. The
+   precise gap is not that the frame lacks an object of known size — the
+   collection protocol keeps the coin and onboarding instructs it — but that
+   **nothing in the code reads one**, and ADR 0009 defers detection. A reference
+   nobody reads is not a reference, and conflating the two would send the remedy
+   in the wrong direction. On a task whose signal is particle size, that is a
    train/serve skew where both sides look correct. Unresolved by design — the
    three candidate resolutions are in ADR 0014 and the decision is registered as
    §7 question 6 in `ml-implementation-map.md`. It does not block collection. It
