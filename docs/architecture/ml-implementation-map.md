@@ -369,9 +369,66 @@ waits on the UI/UX terminal's item 1, which makes the label list single-source.
 These are not work items. They are inputs that only you can supply, and Lane C
 cannot be scheduled without them.
 
-0. **Which capture modes does the product support, and does the dataset have to
-   cover every one of them?** Opened 2026-08-06, **undecided**, and listed first
-   because more of this map depends on it than on anything else here.
+**Answered 2026-08-11.** Questions 0, 1, 2 and 5 are settled below, question 3
+was already settled, and question 4 has stopped blocking. The protocol that
+follows is ADR 0014, which also forces an amendment to ADR 0009 and a revision of
+SPEC 0033. One **new** question was created by the answers and is listed as
+question 6; it is now the one that matters most.
+
+6. **How does the application establish scale?** Opened 2026-08-11, **undecided**,
+   and listed first because it is the only unresolved input and because it
+   governs whether any deployment accuracy claim is supportable.
+
+   Textural class is a statement about particle size, and particle size in an
+   image is meaningless without a known scale — coarse grains far away and fine
+   grains close produce the same pixels. Scale is a precondition for the signal,
+   not a nuisance variable.
+
+   The archive is photographed on a fixed rig with a 90 mm Petri dish, so every
+   `dish` row has the same millimetres per pixel. The application uses no dish, is
+   handheld, and carries no object of known size. **The dataset is therefore at
+   its strongest on exactly the axis where deployment is weakest, and both sides
+   look correct**, which is what makes this the dominant skew rather than a
+   detail.
+
+   Three resolutions, none free, set out in full in ADR 0014:
+
+   - a reference object in the application frame — the coin the protocol already
+     keeps, at the cost of a physical item the user must carry and place;
+   - scale-invariant training, deliberately discarding absolute particle size,
+     which is honest and throws away part of the signal;
+   - enforced framing, constraining distance without measuring it, depending on
+     compliance that nothing verifies.
+
+   This does **not** block collection: every resolution is compatible with the
+   archive being photographed as specified. It blocks any statement about how the
+   model performs in the user's hands.
+
+   One cheap partial fix is taken regardless: the `paper` condition arranges its
+   disc against a 90 mm template, so the dataset does not acquire unrecorded
+   scale variation of its own.
+
+0. ~~**Which capture modes does the product support, and does the dataset have to
+   cover every one of them?**~~ **Answered 2026-08-11.** Two conditions, both on
+   air-dried sieved archive material: `dish`, soil in a 90 mm Petri dish on a
+   bench rig, and `paper`, the same soil arranged as a disc of that size on a
+   paper sheet without the dish. In-situ is deferred.
+
+   **The dataset does not cover field-fresh material, and the app must not treat
+   it as analysable.** The `paper` condition varies the background, not the
+   physical state of the soil; fresh soil from 10 cm depth is moist and unsieved
+   and holds aggregates. Reading the two values as two use cases is the specific
+   over-reading ADR 0014 and SPEC 0033 both warn against.
+
+   The original text is kept below, struck through in spirit rather than deleted,
+   because what it predicted the answer would change is exactly what it did
+   change — and one of its five bullets turned out to be wrong in an instructive
+   way. Its claim that a paper backing "makes the background known and controlled,
+   so ADR 0009's rejection of segmentation deserves re-examination" pointed at the
+   right premise for the wrong reason: what fell was not the background being
+   unknown but the **target shape** being unknown. The target is a centred circle
+   of known diameter in both conditions, which is why ADR 0009 is amended and why
+   the ROI shape becomes an experiment rather than an inheritance.
 
    The study, ADR 0009 and SPEC 0033 were all written assuming two fixed worlds:
    a bench-prepared collection and an in-situ deployment, with an unmeasured gap
@@ -409,14 +466,40 @@ cannot be scheduled without them.
    declares the mode or the app infers it; whether one mode is canonical for
    training; and whether the sheet is a standard size.
 
-1. **Who collects the dataset, at which sites, with which devices?** The split
-   axes in B2 are only meaningful if there is more than one of each. Partly
-   answered 2026-08-01 — **one** capture device — which makes the device axis
-   constant in the dataset while it varies in deployment. Sites remain open.
-2. **Is there access to the laboratory granulometry reports**, and what are the
-   exact Embrapa grouping thresholds that produced the labels? Needed to build
-   the cost-weighted confusion matrix — confusing Arenosa with Muito Argilosa is
-   not the same error as confusing Média with Argilosa.
+1. ~~**Who collects the dataset, at which sites, with which devices?**~~
+   **Answered.** Devices: **one**, answered 2026-08-01, so the device axis is
+   constant in the dataset and varies in deployment — an unmeasurable limitation
+   by construction. Sites: **many**, answered 2026-08-11, because the laboratory
+   serves many clients and the archive spans their origins.
+
+   The site answer expires SPEC 0033's reason for declining a site-held-out
+   split, which was stated as "with two sites it is unaffordable; with ten it is
+   the right default". It moves to the expected default, implemented in C1.
+
+   **One condition is not guaranteed by the answer and must be checked:** the
+   origin has to be recoverable per sample from the laboratory record. If it is
+   not, the axis exists in the material and not in the manifest, and nothing can
+   split along it.
+2. ~~**Is there access to the laboratory granulometry reports**, and what are the
+   exact Embrapa grouping thresholds that produced the labels?~~ **Answered
+   2026-08-11: the laboratory is the project's own.** Reports and records are
+   accessible, and the archived physical samples carry their report linked.
+   Embrapa is the classification reference applied to those numbers, not the
+   source of the labels.
+
+   This is the answer with the widest consequences in this list. Granulometry
+   moves from optional to required in the manifest, which makes three things
+   possible that were previously written off: labels can be checked against the
+   measurement that produced them, so label noise becomes measurable rather than
+   an unbounded ceiling; boundary samples become identifiable, so an `ambiguous`
+   verdict on one can be measured as correct instead of counted as an error; and
+   dataset coverage becomes a map of the textural triangle rather than a tally
+   per class.
+
+   **The thresholds sub-question survives**, narrowed: which exact grouping
+   thresholds the laboratory applies still has to be written down, because the
+   verification criterion in SPEC 0033 checks a declared class against its own
+   percentages and cannot do that without them.
 3. ~~**Can moisture state be recorded at collection time?**~~ **Answered
    2026-08-01: no, and it no longer matters.** Collection is on a bench after
    air-drying and sieving, which makes moisture near-constant by construction
@@ -425,11 +508,29 @@ cannot be scheduled without them.
    dominant unmeasured risk and is why no field-accuracy claim is supportable
    from this dataset. Kept here struck through rather than deleted, so the
    answer stays attached to the question it settles.
-4. **What does one laboratory analysis cost, in money and turnaround?** It sets
-   the realistic target N per class and decides whether active learning is worth
-   building.
-5. **Target N per class.** Without an answer, B2's protocol states a minimum
-   derived from the split constraint alone, which is a floor, not a goal.
+4. **What does one laboratory analysis cost, in money and turnaround?**
+   **No longer blocking, 2026-08-11.** The dataset is an archive photographed and
+   consumes **zero** new analyses, so this stops gating collection. It still
+   matters, and is kept open rather than struck through, for two later decisions:
+   how much further collection costs — particularly for the in-situ mode and for
+   any attempt to fill the thin regions of the textural triangle — and whether
+   active learning pays for itself, which is a comparison against exactly this
+   number.
+5. ~~**Target N per class.**~~ **Answered 2026-08-11: ~150 per class on average,
+   explicitly asymmetric.** One photograph per sample per condition, so a sample
+   yields two images and remains one split group.
+
+   **Siltosa will not reach it, and that is a property of the material.** Silty
+   soils are uncommon across much of the Brazilian soil population, so the
+   shortfall is not an effort problem and no amount of rig time fixes it. The
+   uniform target is dropped in favour of a declared per-class target, class
+   weighting, and a per-class rejection threshold for Siltosa.
+
+   This does not relax SPEC 0033's reduced-class E0 rule; it makes it likely to
+   bind. If Siltosa clears the 30-sample floor, E0 runs five ways as specified. If
+   it does not, E0 runs on the classes that clear it, reports which were excluded,
+   and **does not authorise Lane C** — a positive result on the easy classes
+   bounds nothing.
 
 ## 8. Coordination with the UI/UX terminal
 

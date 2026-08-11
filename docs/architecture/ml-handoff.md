@@ -1,7 +1,7 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-08-01. Full reasoning lives in
+Last updated: 2026-08-11. Full reasoning lives in
 `docs/architecture/soil-classification.md`; the ordered backlog with acceptance
 criteria lives in `docs/architecture/ml-implementation-map.md`.
 
@@ -25,6 +25,10 @@ research agent. Full reasoning and what each side owes the other:
 | The released `.tflite` and its `spec.json` are tracked in git; experiment outputs stay ignored; a model update ships as an app release | ADR 0012 |
 | Monitoring is local-first: aggregates on the device, nothing transmitted, no image or coordinate in telemetry under any setting | ADR 0013 |
 | Task stays five-way classification of the Embrapa textural groups; no granulometry regression, no ordinal loss | Study §12.2 |
+| The dataset is the laboratory's existing sample archive photographed on a fixed rig — 90 mm Petri dish, two background conditions, zero new analyses | ADR 0014 |
+| Field-fresh material is **not** covered by the dataset; the app must not treat it as analysable | ADR 0014 |
+| The target is a centred circle of known diameter, so ADR 0009's unknown-target premise is amended and the ROI shape becomes an E1 experiment | ADR 0014, ADR 0009 |
+| Per-class sample targets are asymmetric; Siltosa is rare in the material and no effort fixes it | ADR 0014, SPEC 0033 |
 
 ## Hypotheses, not yet verified
 
@@ -36,7 +40,18 @@ research agent. Full reasoning and what each side owes the other:
 3. ImageNet pretraining transfers to a texture-statistics task with no object to
    localize.
 4. The declared dataset counts in `ml/README.md:29-35` are unverifiable; the
-   raw data is absent from the repository and from this machine.
+   raw data is absent from the repository and from this machine. **Updated
+   2026-08-11:** labelled physical samples with measured granulometry do exist,
+   archived at the project's own laboratory. What is absent is the photography,
+   not the material.
+5. **New, and now the dominant one: the application has no way to establish
+   scale.** The dataset is shot on a fixed rig with a 90 mm dish, so its
+   millimetres per pixel is constant; the app is handheld with no dish and no
+   reference object. On a task whose signal is particle size, that is a
+   train/serve skew where both sides look correct. Unresolved by design — the
+   three candidate resolutions are in ADR 0014 and the decision is registered as
+   §7 question 6 in `ml-implementation-map.md`. It does not block collection. It
+   blocks every claim about accuracy in a user's hands.
 
 ## Verified defects found
 
@@ -55,6 +70,20 @@ research agent. Full reasoning and what each side owes the other:
 
 Reconciled with `docs/design/ux-2026/08-results-and-uncertainty.md`. **This
 terminal produces evidence; the UI terminal decides presentation.**
+
+> **Partly shipped, 2026-08-11 (PR #173, SPEC 0031).** What exists in `lib/` is
+> narrower than the shape below, deliberately: `InferenceResult.distribution`
+> (a `List<ClassScore>`, every class, ordered descending) plus a separate
+> `ClassificationVerdict` with `conclusive`, `ambiguous`, `insufficient` and
+> `notAnalysed`. There is **no** outcome enum, no `modelVersion`, no
+> `datasetVersion`, no `qualityFlags` and no `inferenceMs` yet; those land with
+> item A4 and the schema migration. The shape below is the target, not the
+> present state.
+>
+> One constraint from that release is live and binding on the UI terminal's next
+> spec: **no result surface may offer retry on `notAnalysed`** until A4 splits
+> the six causes `classify` collapses into `null`, because it cannot know
+> whether anything is retryable.
 
 ```dart
 // NOT `ClassificationStatus`: capture_ui_state.dart:10 already declares that
@@ -223,8 +252,14 @@ that. `inconclusive` was consequently dropped from the status enum above.
 
 ## Dependencies
 
-- Blocking Lane C: the dataset. Verified absent — `ml/data/` holds only
-  `splits/.gitkeep`, and `ml/models/v1` and `v2` hold only `.gitkeep`.
+- Blocking Lane C: the dataset. Still absent from the repository — `ml/data/`
+  holds only `splits/.gitkeep`, and `ml/models/v1` and `v2` hold only
+  `.gitkeep`. **What changed on 2026-08-11 is the cost of removing that
+  blocker, not the blocker itself:** the samples exist, labelled and analysed,
+  in the laboratory archive, so producing the dataset is rig time rather than a
+  collection campaign and it consumes no new laboratory analysis. The per-class
+  inventory is still unknown, and it is the number that decides whether E0 can
+  run five ways.
 - Blocking every experiment: reproducible training (#80).
 - Compute available: local machine plus free Kaggle/Colab tiers. This is what
   rules out training any generator from scratch.

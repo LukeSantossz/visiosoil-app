@@ -8,12 +8,35 @@ enters the dataset and what the app accepts at capture time.
 
 ## Status
 
-Accepted, with one claim narrowed on 2026-08-01. Recorded during the 2026-07-30
-ML architecture study (`docs/architecture/soil-classification.md`, §16).
-SPEC 0030 implements the acceptance criteria in both languages with a
-conformance test; wiring the gate into the capture flow is a follow-up spec,
-deliberately separated because `capture_screen.dart` is shared with the UI/UX
-terminal.
+Accepted, with one claim narrowed on 2026-08-01 and one premise amended on
+2026-08-11. Recorded during the 2026-07-30 ML architecture study
+(`docs/architecture/soil-classification.md`, §16). SPEC 0030 implements the
+acceptance criteria in both languages with a conformance test; wiring the gate
+into the capture flow is a follow-up spec, deliberately separated because
+`capture_screen.dart` is shared with the UI/UX terminal.
+
+### Amended 2026-08-11: the target shape is known, so the ROI shape is now an open experiment
+
+The rejection of segmentation below is argued in part from a target of unknown
+shape against an unknown background. That premise no longer holds. Under the
+capture protocol in ADR 0014 the target is a **circle of known diameter,
+centred**, in both conditions: soil in a 90 mm Petri dish on the bench, and the
+same soil arranged as a disc of the same size on paper.
+
+A circle inscribed in a square fills π/4 ≈ 78.5 % of it, so about **21.5 % of
+every ROI this ADR specifies is guaranteed not to be soil**, and it is exactly
+the region that differs between the two conditions.
+
+**The decision below stands**, because the alternatives that follow from the new
+premise are not segmentation. A circular mask and a crop to the square inscribed
+in the circle are fixed geometric conventions, computed from the frame with no
+model, no per-scene tuning, and no run-to-run variation — the same category as
+the centred square itself. ADR 0014 turns the choice among the three into arms
+of experiment E1, so it is settled by measurement rather than by argument.
+
+What this amendment changes is narrower and immediate: **any later argument
+citing this ADR's unknown-target premise must cite this amendment too.** The
+premise was true when written and is not true now.
 
 ### Narrowed: the criteria do not close the subpopulation gap
 
