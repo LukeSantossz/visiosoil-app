@@ -4,6 +4,8 @@ Every fixture image is synthesized from a seeded generator, so a verdict here is
 a property of the criteria rather than of whatever image happened to be handy.
 """
 
+from pathlib import Path
+
 import pytest
 
 from src.admission import admit, quarantine_refused, write_refusal_report
@@ -168,6 +170,48 @@ def test_quarantine_moves_nothing_when_a_source_is_absent(tmp_path, blocking_ima
 
     assert (root / refused[0].image).is_file()
     assert not (root / QUARANTINE_DIRNAME).exists()
+
+
+def test_quarantine_rolls_back_a_move_that_failed_partway(
+    tmp_path, blocking_image, monkeypatch
+):
+    """A move that fails on the second file must undo the first.
+
+    The pre-flight covers a missing source and an occupied target, but not a
+    permission error or a cross-device rename raised by the move itself. Without
+    a rollback the first file sits in quarantine while the manifest — which the
+    caller then leaves uncommitted — still declares it, which is the orphan state
+    the whole mechanism exists to avoid.
+    """
+    root = write_image_version(
+        tmp_path,
+        {
+            "S1": [("dish", blocking_image)],
+            "S2": [("dish", flat_image())],
+            "S3": [("dish", flat_image())],
+        },
+    )
+    refused = admit(read_manifest(root, CLASSES)).refused
+    assert len(refused) == 3
+
+    real_replace = Path.replace
+    calls = {"n": 0}
+
+    def failing_replace(self, target):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise PermissionError("target locked")
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", failing_replace)
+
+    with pytest.raises(PermissionError):
+        quarantine_refused(root, refused)
+
+    monkeypatch.undo()
+    for refusal in refused:
+        assert (root / refusal.image).is_file(), f"{refusal.image} was not restored"
+    assert not any((root / QUARANTINE_DIRNAME).rglob("*.png"))
 
 
 def test_quarantine_refuses_to_overwrite_existing_evidence(tmp_path, blocking_image):

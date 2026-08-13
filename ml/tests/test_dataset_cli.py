@@ -396,11 +396,30 @@ def test_admit_keeps_the_dataset_consistent_when_quarantine_fails(
 
 
 def test_admit_rejects_a_version_name_that_escapes_the_datasets_root(
-    tmp_path, admit_images
+    tmp_path, admit_images, capsys
 ):
-    """`--version` is a directory name, not a path, and it reaches a writer."""
-    with pytest.raises(ValueError, match="dataset version"):
-        admit_images.main(["--version", "../elsewhere", "--write"])
+    """`--version` is a directory name, not a path, and it reaches a writer.
+
+    Reported through the documented exit code rather than as a traceback. An
+    earlier version of this test asserted `pytest.raises(ValueError)`, which
+    encoded the defect as the expectation: `validate_version_name` raises a plain
+    `ValueError`, the CLI caught only `ManifestError`, and the bad flag escaped
+    as a stack trace past every documented exit code.
+    """
+    code = admit_images.main(["--version", "../elsewhere", "--write"])
+
+    assert code == 2
+    assert "dataset version" in capsys.readouterr().err
+
+
+def test_validator_rejects_a_version_name_that_is_not_a_version(
+    tmp_path, validate_dataset, capsys
+):
+    """The same rule, reported the same way, on the read-only tool."""
+    code = validate_dataset.main(["--version", "latest"])
+
+    assert code == 1
+    assert "dataset version" in capsys.readouterr().err
 
 
 def test_admit_writes_when_no_split_claims_the_version(
