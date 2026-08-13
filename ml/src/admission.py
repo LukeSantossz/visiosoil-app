@@ -138,18 +138,33 @@ def quarantine_refused(
 
     The path under quarantine mirrors the path the row declared, so two
     subdirectories holding one filename cannot overwrite each other.
+
+    Every move is checked before any move happens. The caller rewrites the
+    manifest around this call, so failing halfway would drop rows whose files had
+    not moved — the orphan state quarantine exists to avoid.
+
+    Raises:
+        FileNotFoundError: If any refused image is not where the manifest said.
+        FileExistsError: If quarantine already holds that path.
     """
     root = Path(root)
-    moved: list[Path] = []
-    for refusal in refused:
-        source = root / refusal.image
+    planned = [(root / r.image, root / QUARANTINE_DIRNAME / r.image, r) for r in refused]
+
+    for source, target, refusal in planned:
         if not source.is_file():
             raise FileNotFoundError(
-                f"refused image {refusal.image} is no longer at {source}: it cannot "
-                "be quarantined, and leaving the manifest rewritten would lose the "
-                "record of why it was refused"
+                f"refused image {refusal.image} is no longer at {source}: nothing "
+                "was quarantined, and the manifest is untouched"
             )
-        target = root / QUARANTINE_DIRNAME / refusal.image
+        if target.exists():
+            raise FileExistsError(
+                f"quarantine already holds {refusal.image}: it is the record of an "
+                "earlier refusal, not scratch space. Move or remove it first; "
+                "nothing was quarantined"
+            )
+
+    moved: list[Path] = []
+    for source, target, _ in planned:
         target.parent.mkdir(parents=True, exist_ok=True)
         source.replace(target)
         moved.append(target)

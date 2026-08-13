@@ -101,9 +101,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  refused {refusal.image}: {refusal.verdict}: {refusal.reason}")
 
     if args.write:
+        # Quarantine first. It validates the whole batch before moving anything,
+        # so a refused file that has gone missing stops the run with the manifest
+        # still intact — rewriting first and failing here is what would leave rows
+        # dropped while their files stayed put.
+        quarantined = quarantine_refused(root, result.refused)
         write_manifest(root, result.admitted)
         report = write_refusal_report(root, result.refused)
-        quarantined = quarantine_refused(root, result.refused)
         print(f"manifest rewritten with the admitted rows; refusals in {report.name}")
         if quarantined:
             print(
@@ -120,12 +124,14 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _split_claiming(splits_dir: str, manifest: Manifest) -> Path | None:
-    """Return the splits.json generated from this exact manifest, if one exists.
+    """Return a splits.json claiming this dataset version, if one exists.
 
-    Admission rewrites the manifest, which moves its digest. A split that
-    recorded the old digest would then be unverifiable against anything, so the
-    provenance the digest exists to provide would be destroyed by the very tool
-    that produced the data.
+    Keyed on the **version**, not on the digest. Admission rewrites the manifest,
+    which moves its digest: a split recording the current digest is valid now and
+    would be broken by the rewrite, and a split recording an older digest of the
+    same version is already unverifiable — rewriting again makes that permanent
+    instead of telling the operator to collect into the next version. Either way
+    the version is frozen, which is what the immutability rule says.
     """
     path = Path(splits_dir) / "splits.json"
     if not path.is_file():
@@ -136,7 +142,7 @@ def _split_claiming(splits_dir: str, manifest: Manifest) -> Path | None:
         # An unreadable split cannot be shown to claim this version, and failing
         # here would block admission on an unrelated corrupt file.
         return None
-    return path if recorded.get("manifest_digest") == manifest.digest else None
+    return path if recorded.get("dataset_version") == manifest.version else None
 
 
 if __name__ == "__main__":

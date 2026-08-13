@@ -1,10 +1,11 @@
 """Configuration loader and validator for the ML pipeline."""
 
 import os
-import re
 from pathlib import Path
 
 import yaml
+
+from .manifest import validate_version_name
 
 
 _REQUIRED_TOP_KEYS = {"project", "classes", "data", "preprocessing", "model", "training", "export"}
@@ -19,12 +20,6 @@ _REQUIRED_DATA_KEYS = {
     "seed",
 }
 
-# A dataset version is an immutable directory named vN, numbered from 1. Adding
-# images creates vN+1 and never mutates vN, so every experiment can name the
-# data it used. A free-text value like "latest" would point at different data on
-# different days, which is what makes "the model got worse" and "the dataset
-# changed" indistinguishable.
-_DATASET_VERSION_PATTERN = re.compile(r"^v[1-9][0-9]*$")
 _REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
@@ -118,11 +113,12 @@ def _validate(cfg: dict) -> None:
     if data["image_size"] < 32:
         raise ValueError("image_size must be at least 32")
 
-    if not _DATASET_VERSION_PATTERN.match(str(data["dataset_version"])):
-        raise ValueError(
-            f"data.dataset_version must name an immutable version directory as "
-            f"vN, numbered from 1, got {data['dataset_version']!r}"
-        )
+    # The rule lives in src.manifest, which owns the dataset layout, so this
+    # check and the --version flag check cannot diverge.
+    try:
+        validate_version_name(str(data["dataset_version"]))
+    except ValueError as error:
+        raise ValueError(f"data.dataset_version invalid: {error}") from error
 
     # A seed that is not a plain non-negative int changes seeding behaviour
     # without erroring. bool is an int subclass, so it is excluded explicitly.

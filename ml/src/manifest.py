@@ -18,6 +18,7 @@ import csv
 import hashlib
 import io
 import os
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date
@@ -81,6 +82,15 @@ IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp"})
 #: and no row may declare a path inside it.
 QUARANTINE_DIRNAME = "rejected"
 
+#: A dataset version directory: vN, numbered from 1. `latest` would point at
+#: different data on different days, and `v0` is a typo rather than a dataset.
+_VERSION_PATTERN = re.compile(r"^v[1-9][0-9]*$")
+
+#: `captured_at` is an ISO 8601 calendar date and nothing else. `fromisoformat`
+#: alone also accepts `20260812` and `2026-W33-3`, which the protocol and the
+#: error message both rule out — and which no two readers group the same way.
+_ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 _HEADER_ROW_COUNT = 1
 
 
@@ -126,13 +136,33 @@ class Manifest:
     rows: tuple[ManifestRow, ...]
 
 
+def validate_version_name(version: str) -> str:
+    """Return ``version`` if it names an immutable version directory.
+
+    A version is a directory name, never a path. `config.yaml` validates its own
+    value, but a version also arrives from a ``--version`` flag, and joined
+    straight onto the datasets root a value like ``../elsewhere`` would let a
+    writing command operate outside ``data/datasets`` entirely. One definition,
+    used by both entry points.
+
+    Raises:
+        ValueError: If the name is not ``vN``, numbered from 1.
+    """
+    if not _VERSION_PATTERN.match(str(version)):
+        raise ValueError(
+            f"dataset version must name an immutable version directory as vN, "
+            f"numbered from 1, got {version!r}"
+        )
+    return version
+
+
 def dataset_root(datasets_dir: str | Path, version: str) -> Path:
     """Return the directory of one dataset version.
 
-    One function builds this path so a version is never assembled by string
-    concatenation at a call site.
+    One function builds this path, so a version is never assembled by string
+    concatenation at a call site and never escapes the datasets root.
     """
-    return Path(datasets_dir) / version
+    return Path(datasets_dir) / validate_version_name(version)
 
 
 def manifest_path(root: str | Path) -> Path:
@@ -658,7 +688,9 @@ def _format_metric(value: float | None) -> str:
 
 
 def _is_iso_date(value: str) -> bool:
-    """Whether ``value`` is an ISO 8601 calendar date."""
+    """Whether ``value`` is an ISO 8601 calendar date in the documented form."""
+    if not _ISO_DATE_PATTERN.match(value):
+        return False
     try:
         date.fromisoformat(value)
     except ValueError:
