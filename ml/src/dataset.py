@@ -1,16 +1,32 @@
-"""Dataset scanning, stratified splitting, tf.data pipeline, and class weights."""
+"""Dataset scanning, stratified splitting, tf.data pipeline, and class weights.
+
+TensorFlow, and the preprocessing layer built on it, are imported on first use
+rather than at module import. Validating a
+dataset — the manifest, the splits, and their provenance — has to be possible
+for a collector who has not installed the training stack, and
+``scripts/validate_dataset.py`` reaches this module for its split generation.
+The import is cached by Python after the first call, so the pipeline pays nothing
+for it. ``tests/test_manifest_splits.py`` asserts the property holds.
+"""
+
+from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
+from typing import Mapping
 
 import numpy as np
-import tensorflow as tf
-from PIL import Image
 from sklearn.model_selection import train_test_split
 
-from .preprocess import preprocess, build_augmentation_layer
+from .manifest import IMAGE_SUFFIXES, verify_split_digest
+
+
+def _tensorflow():
+    """Return the TensorFlow module, importing it on first use."""
+    import tensorflow as tf
+
+    return tf
 
 
 def scan_dataset(raw_dir: str, classes: list[str]) -> dict[str, list[str]]:
@@ -43,7 +59,7 @@ def scan_dataset(raw_dir: str, classes: list[str]) -> dict[str, list[str]]:
 
         images = sorted([
             str(f) for f in folder_path.iterdir()
-            if f.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+            if f.suffix.lower() in IMAGE_SUFFIXES
         ])
 
         if not images:
@@ -73,6 +89,7 @@ def verify_images(class_images: dict[str, list[str]]) -> None:
     Raises:
         ValueError: If any file is missing or cannot be decoded.
     """
+    tf = _tensorflow()
     failures: list[str] = []
 
     for class_name in sorted(class_images):
@@ -127,12 +144,33 @@ def _extract_sample_id(filepath: str) -> str:
     return stem
 
 
+def _sample_id_of(path: str, sample_ids: Mapping[str, str] | None) -> str:
+    """Return the sample a file belongs to.
+
+    Prefers the manifest's declared identifier: a filename pattern can silently
+    regroup a dataset when a collector renames a file, and the group is what
+    keeps one physical sample out of two splits.
+    """
+    if sample_ids is None:
+        return _extract_sample_id(path)
+    declared = sample_ids.get(path)
+    if declared is None:
+        raise ValueError(
+            f"no sample_id declared for {path!r}. Every image passed to "
+            "create_splits must appear in the manifest it was listed from"
+        )
+    return declared
+
+
 def create_splits(
     class_images: dict[str, list[str]],
     val_split: float,
     test_split: float,
     seed: int,
     splits_dir: str,
+    sample_ids: Mapping[str, str] | None = None,
+    dataset_version: str | None = None,
+    manifest_digest: str | None = None,
 ) -> dict[str, list[dict]]:
     """Create group-aware stratified train/val/test splits and save manifests.
 
@@ -140,11 +178,18 @@ def create_splits(
     stay in the same split, preventing data leakage.
 
     Args:
-        class_images: Dict from scan_dataset.
+        class_images: Dict from scan_dataset or `manifest.class_images`.
         val_split: Fraction for validation.
         test_split: Fraction for test.
         seed: Random seed.
         splits_dir: Directory to save split manifests.
+        sample_ids: Image path to sample id, from the manifest's `sample_id`
+            column. Given, the group is what the collector declared; omitted,
+            the id is inferred from the filename, which is the folder-scan path
+            that predates the manifest.
+        dataset_version: The immutable version directory the images came from.
+        manifest_digest: Digest of the manifest they were listed in, so a split
+            can be shown to belong to the data it claims.
 
     Returns:
         Dict with "train", "val", "test" keys, each a list of
@@ -164,7 +209,7 @@ def create_splits(
         # Group files by sample ID within this class
         sample_groups: dict[str, list[str]] = {}
         for p in paths:
-            sid = _extract_sample_id(p)
+            sid = _sample_id_of(p, sample_ids)
             sample_groups.setdefault(sid, []).append(p)
 
         for sid, files in sample_groups.items():
@@ -231,6 +276,10 @@ def create_splits(
         "seed": seed,
         "val_split": val_split,
         "test_split": test_split,
+        # Provenance, so "the model got worse" and "the dataset changed" stay
+        # distinguishable. Absent on the folder-scan path, which has neither.
+        "dataset_version": dataset_version,
+        "manifest_digest": manifest_digest,
         "classes": classes,
         "class_to_idx": class_to_idx,
         "counts": {
@@ -285,28 +334,40 @@ def validate_splits_against_config(manifest: dict, cfg: dict) -> None:
             )
 
 
-def load_splits(splits_dir: str) -> dict:
+def load_splits(splits_dir: str, manifest_digest: str | None = None) -> dict:
     """Load existing split manifest from disk.
 
     Args:
         splits_dir: Path to data/splits/ directory.
+        manifest_digest: Digest of the dataset manifest the caller intends to
+            use. Given, a split that does not belong to it is refused rather
+            than silently training on a different set of images.
 
     Returns:
         Full manifest dict with splits, classes, counts.
 
     Raises:
         FileNotFoundError: If splits.json does not exist.
+        ValueError: If the split does not belong to `manifest_digest`.
     """
     splits_path = Path(splits_dir) / "splits.json"
     if not splits_path.exists():
         raise FileNotFoundError(f"Split manifest not found: {splits_path}")
 
     with open(splits_path, "r") as f:
-        return json.load(f)
+        manifest = json.load(f)
+
+    if manifest_digest is not None:
+        verify_split_digest(manifest, manifest_digest)
+
+    return manifest
 
 
-def _parse_image(path: str, label: int, cfg: dict) -> tuple[tf.Tensor, tf.Tensor]:
+def _parse_image(path: str, label: int, cfg: dict) -> tuple["tf.Tensor", "tf.Tensor"]:
     """Load and preprocess a single image."""
+    from .preprocess import preprocess
+
+    tf = _tensorflow()
     raw = tf.io.read_file(path)
     image = tf.io.decode_image(raw, channels=3, expand_animations=False)
     image.set_shape([None, None, 3])
@@ -331,6 +392,9 @@ def build_dataset(
     Returns:
         Batched tf.data.Dataset yielding (images, one_hot_labels).
     """
+    from .preprocess import build_augmentation_layer
+
+    tf = _tensorflow()
     paths = [e["path"] for e in split_entries]
     labels = [e["label"] for e in split_entries]
 
