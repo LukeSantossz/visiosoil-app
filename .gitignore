@@ -76,6 +76,14 @@ ml/.venv/
 ml/data/raw/
 ml/data/processed/
 ml/data/splits/
+
+# Dataset versions: manifest.csv is the record and is versioned; the images it
+# lists are large and are not. See docs/ml/collection-protocol.md.
+ml/data/datasets/**/*.jpg
+ml/data/datasets/**/*.jpeg
+ml/data/datasets/**/*.png
+ml/data/datasets/**/*.bmp
+ml/data/datasets/**/*.webp
 ml/models/**/
 ml/notebooks/.ipynb_checkpoints/
 

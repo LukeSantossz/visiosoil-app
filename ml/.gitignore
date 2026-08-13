@@ -19,6 +19,14 @@ env/
 data/raw/
 data/processed/
 
+# Dataset versions: manifest.csv is the record and is versioned; the images it
+# lists are large and are not. See docs/ml/collection-protocol.md.
+data/datasets/**/*.jpg
+data/datasets/**/*.jpeg
+data/datasets/**/*.png
+data/datasets/**/*.bmp
+data/datasets/**/*.webp
+
 # Keras checkpoints (large, not versioned)
 models/**/model.h5
 

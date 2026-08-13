@@ -68,9 +68,22 @@ Key dependencies: `tensorflow==2.21.0`, `tf-keras==2.21.0`, `keras==3.14.0`. See
 
 ## Dataset
 
-Place images in `data/raw/<ClassName>/` following the folder structure above. Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`.
+New collection follows the manifest-backed protocol in
+[`docs/ml/collection-protocol.md`](../docs/ml/collection-protocol.md): an
+immutable `data/datasets/vN/` directory whose `manifest.csv` is the authoritative
+record, admitted by the quality criteria and checked by two tools that need no
+TensorFlow installed.
 
-The pipeline creates stratified train/val/test splits automatically and saves the manifest to `data/splits/splits.json` (versioned in git for reproducibility).
+```bash
+python scripts/admit_images.py --version v1      # report; add --write to apply
+python scripts/validate_dataset.py --version v1  # schema, disk, pairing, splits
+```
+
+The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
+formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is what `src.train` still
+reads, and stays until the training entry point is moved onto the manifest.
+
+Either way the pipeline creates stratified train/val/test splits and saves the manifest to `data/splits/splits.json` (versioned in git for reproducibility). A manifest-backed split also records its dataset version and a digest of the `manifest.csv` it came from.
 
 ## Training
 
