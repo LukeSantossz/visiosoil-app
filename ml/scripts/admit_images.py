@@ -36,9 +36,11 @@ from src.manifest import (  # noqa: E402
     REJECTED_FILENAME,
     Manifest,
     ManifestError,
+    commit_staged_manifest,
     dataset_root,
+    discard_staged_manifest,
     read_manifest,
-    write_manifest,
+    stage_manifest,
 )
 
 
@@ -87,8 +89,8 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"refusing to rewrite {manifest.version}: a dataset version is "
                 f"immutable once a split has been generated from it, and "
-                f"{claimed_by} records this manifest's digest. Collect into the "
-                f"next version instead, or regenerate that split afterwards",
+                f"{claimed_by} claims this version. Collect into the next version "
+                f"instead, or delete that split if it is no longer wanted",
                 file=sys.stderr,
             )
             return 3
@@ -101,12 +103,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  refused {refusal.image}: {refusal.verdict}: {refusal.reason}")
 
     if args.write:
-        # Quarantine first. It validates the whole batch before moving anything,
-        # so a refused file that has gone missing stops the run with the manifest
-        # still intact — rewriting first and failing here is what would leave rows
-        # dropped while their files stayed put.
-        quarantined = quarantine_refused(root, result.refused)
-        write_manifest(root, result.admitted)
+        # Stage, move, then commit. Every way of failing happens before anything
+        # is replaced: the manifest is written beside the real one, quarantine
+        # validates its whole batch before moving a single file, and the last step
+        # is one rename. A --write that fails leaves the version exactly as it was.
+        staged = stage_manifest(root, result.admitted)
+        try:
+            quarantined = quarantine_refused(root, result.refused)
+        except BaseException:
+            discard_staged_manifest(staged)
+            raise
+        commit_staged_manifest(staged, root)
         report = write_refusal_report(root, result.refused)
         print(f"manifest rewritten with the admitted rows; refusals in {report.name}")
         if quarantined:
@@ -141,6 +148,11 @@ def _split_claiming(splits_dir: str, manifest: Manifest) -> Path | None:
     except (OSError, json.JSONDecodeError):
         # An unreadable split cannot be shown to claim this version, and failing
         # here would block admission on an unrelated corrupt file.
+        return None
+    if not isinstance(recorded, dict):
+        # `[]` and `null` are valid JSON, so decoding is not enough to know the
+        # file is a split manifest. Treated as claiming nothing, which is what the
+        # unreadable case above already promises.
         return None
     return path if recorded.get("dataset_version") == manifest.version else None
 

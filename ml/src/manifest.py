@@ -190,14 +190,26 @@ WRITE_COLUMNS = (
 )
 
 
-def write_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
-    """Write ``rows`` as the manifest of the dataset version at ``root``.
+#: A manifest is staged here and then renamed over the real one, so a reader
+#: never sees a half-written record.
+STAGED_SUFFIX = ".staged"
 
-    Line endings are forced to LF rather than left to the platform, because the
-    digest is over the file bytes and a split has to be shown to belong to the
-    same manifest on any machine.
+
+def write_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
+    """Write ``rows`` as the manifest of the dataset version at ``root``."""
+    return commit_staged_manifest(stage_manifest(root, rows), root)
+
+
+def stage_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
+    """Write the manifest content beside the real file without replacing it.
+
+    Split from the commit so a caller that also has filesystem work to do can
+    have every way of failing happen before anything is replaced. Line endings
+    are forced to LF rather than left to the platform, because the digest is over
+    the file bytes and a split has to be shown to belong to the same manifest on
+    any machine.
     """
-    path = manifest_path(root)
+    path = manifest_path(root).with_name(MANIFEST_FILENAME + STAGED_SUFFIX)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(WRITE_COLUMNS)
@@ -219,6 +231,26 @@ def write_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
     return path
 
 
+def commit_staged_manifest(staged: Path, root: str | Path) -> Path:
+    """Rename a staged manifest over the real one.
+
+    A single rename on one filesystem, so there is no window in which the
+    manifest is neither the old record nor the new one.
+    """
+    path = manifest_path(root)
+    os.replace(staged, path)
+    return path
+
+
+def discard_staged_manifest(staged: Path) -> None:
+    """Remove a staged manifest that will not be committed.
+
+    Left behind, it reads as a record of something rather than as the debris of a
+    run that failed.
+    """
+    staged.unlink(missing_ok=True)
+
+
 def read_manifest(
     root: str | Path, classes: Sequence[str], *, check_files: bool = False
 ) -> Manifest:
@@ -238,6 +270,10 @@ def read_manifest(
         ManifestError: With every problem found, never only the first.
     """
     root = Path(root)
+    # The version is the directory name and is published as a split's
+    # `dataset_version`, so a `--root` pointing at a directory called `latest`
+    # would record provenance the immutability contract does not allow.
+    validate_version_name(root.name)
     path = manifest_path(root)
     if not path.exists():
         raise FileNotFoundError(
@@ -478,6 +514,16 @@ def _reject_a_semicolon_export(header_line: str) -> None:
 def _reject_a_broken_header(columns: Sequence[str]) -> None:
     """Fail on a header that makes row-level validation meaningless."""
     problems = []
+
+    # `DictReader` keeps one value of a repeated column and discards the other,
+    # so a header naming `texture_class` twice would silently pick a winner and
+    # change the authoritative label with no error anywhere.
+    repeated = sorted({c for c in columns if columns.count(c) > 1})
+    if repeated:
+        problems.append(
+            f"column(s) named more than once: {', '.join(repeated)}. A repeated "
+            "column silently discards one of its values"
+        )
 
     forbidden = [column for column in columns if column in FORBIDDEN_COLUMNS]
     if forbidden:
