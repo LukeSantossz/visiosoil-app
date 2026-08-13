@@ -75,11 +75,19 @@ def main(argv: list[str] | None = None) -> int:
     data = cfg["data"]
 
     version = args.version or data["dataset_version"]
-    root = Path(args.root) if args.root else dataset_root(data["datasets_dir"], version)
 
+    # Resolving the version is inside the guard, not before it: an invalid
+    # `--version` or a `--root` not named for a version raises a plain
+    # `ValueError`, which is not a `ManifestError` and would otherwise escape
+    # every documented exit code as a traceback.
     try:
+        root = (
+            Path(args.root)
+            if args.root
+            else dataset_root(data["datasets_dir"], version)
+        )
         manifest = read_manifest(root, cfg["classes"], check_files=True)
-    except (FileNotFoundError, ManifestError) as error:
+    except (FileNotFoundError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 2
 

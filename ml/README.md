@@ -83,10 +83,11 @@ The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
 formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is what `src.train` still
 reads, and stays until the training entry point is moved onto the manifest.
 
-Either way the pipeline creates stratified train/val/test splits and saves the
-manifest to `data/splits/splits.json`. A manifest-backed split also records its
-dataset version and a digest of the `manifest.csv` it came from, so it can be
-shown to belong to the data it claims.
+Either way the pipeline creates stratified train/val/test splits and writes them
+to `data/splits/splits.json` — the split assignment plus its provenance, not a
+copy of `manifest.csv`. A manifest-backed split records the dataset version and a
+digest of the `manifest.csv` it was generated from, so it can be shown to belong
+to the data it claims.
 
 `data/splits/` is gitignored, so `splits.json` is **not** versioned in git today
 and the seed plus the recorded digest are what make a split reproducible.

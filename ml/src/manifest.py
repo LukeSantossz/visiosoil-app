@@ -267,6 +267,10 @@ def read_manifest(
 
     Raises:
         FileNotFoundError: If the manifest itself is not there.
+        ValueError: If ``root`` is not named for a dataset version. Plain rather
+            than a `ManifestError`, because the fault is the path the caller
+            passed and not the file's contents; both entry points catch
+            `ValueError` so it reaches an exit code rather than a traceback.
         ManifestError: With every problem found, never only the first.
     """
     root = Path(root)

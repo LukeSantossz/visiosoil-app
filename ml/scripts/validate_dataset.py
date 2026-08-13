@@ -67,15 +67,26 @@ def main(argv: list[str] | None = None) -> int:
     classes = cfg["classes"]
 
     version = args.version or data["dataset_version"]
-    root = Path(args.root) if args.root else dataset_root(data["datasets_dir"], version)
+
+    # Resolving the version is inside the guard for the same reason as in
+    # admit_images.py: a name that is not a version raises a plain `ValueError`,
+    # which `ManifestError` does not cover.
+    try:
+        root = (
+            Path(args.root)
+            if args.root
+            else dataset_root(data["datasets_dir"], version)
+        )
+    except ValueError as error:
+        _report([str(error)])
+        return 1
 
     print(f"Validating dataset version at {root}")
 
+    # Most specific clause first: `ManifestError` subclasses `ValueError`, and
+    # Python takes the first match rather than trying the rest.
     try:
         manifest = read_manifest(root, classes, check_files=True)
-    except FileNotFoundError as error:
-        _report([str(error)])
-        return 1
     except ManifestError as error:
         _report(
             list(error.problems)
@@ -85,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
                 "parses"
             ]
         )
+        return 1
+    except (FileNotFoundError, ValueError) as error:
+        _report([str(error)])
         return 1
 
     problems = (

@@ -139,13 +139,17 @@ def quarantine_refused(
     The path under quarantine mirrors the path the row declared, so two
     subdirectories holding one filename cannot overwrite each other.
 
-    Every move is checked before any move happens. The caller rewrites the
-    manifest around this call, so failing halfway would drop rows whose files had
-    not moved — the orphan state quarantine exists to avoid.
+    Every move is checked before any move happens, and a move that fails anyway
+    is rolled back. The caller rewrites the manifest around this call, so a
+    partially applied batch would leave the committed manifest declaring an image
+    that is no longer there — the orphan state quarantine exists to avoid. The
+    pre-flight cannot cover a permission error or a cross-device rename, which the
+    move itself raises, so the rollback is what makes the batch all-or-nothing.
 
     Raises:
         FileNotFoundError: If any refused image is not where the manifest said.
         FileExistsError: If quarantine already holds that path.
+        OSError: If a move fails. Every earlier move in the batch is undone first.
     """
     root = Path(root)
     planned = [(root / r.image, root / QUARANTINE_DIRNAME / r.image, r) for r in refused]
@@ -163,12 +167,32 @@ def quarantine_refused(
                 "nothing was quarantined"
             )
 
-    moved: list[Path] = []
+    moved: list[tuple[Path, Path]] = []
     for source, target, _ in planned:
         target.parent.mkdir(parents=True, exist_ok=True)
-        source.replace(target)
-        moved.append(target)
-    return moved
+        try:
+            source.replace(target)
+        except BaseException:
+            _undo(moved)
+            raise
+        moved.append((source, target))
+    return [target for _, target in moved]
+
+
+def _undo(moved: Sequence[tuple[Path, Path]]) -> None:
+    """Move quarantined files back, most recent first.
+
+    A failure while undoing is swallowed deliberately and is the one place in
+    this module that does so: the caller is already handling the original error,
+    and replacing it with a rollback error would hide the cause of the failure
+    behind the failure to clean up after it. What is left behind is reported by
+    the next validation as an image on disk with no manifest row.
+    """
+    for source, target in reversed(moved):
+        try:
+            target.replace(source)
+        except OSError:
+            continue
 
 
 def _analyze_file(path: Path, criteria: ImageQualityCriteria) -> ImageQualityReport:
