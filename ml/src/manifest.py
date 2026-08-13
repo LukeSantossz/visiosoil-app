@@ -580,6 +580,11 @@ def _identity(root: Path, image: str) -> str:
     ``normcase`` is what makes this correct on both platforms: on Windows it
     folds case and separators, and on POSIX it is the identity function, so a
     case-sensitive filesystem keeps two spellings distinct.
+
+    Windows case folding of a path that does not exist is the one gap:
+    ``resolve()`` cannot canonicalise a missing file's casing, so ``x.jpg`` and
+    ``X.JPG`` stay distinct until the files are there. Both command-line tools
+    read with ``check_files=True``, where the files exist by the time this runs.
     """
     return os.path.normcase(str((root / image).resolve()))
 
