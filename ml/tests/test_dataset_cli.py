@@ -205,17 +205,20 @@ def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset
 def test_validator_reports_a_version_that_cannot_be_split(
     tmp_path, validate_dataset, capsys
 ):
-    """Too few groups per class is a dataset-size problem, named as one."""
-    root = write_image_version(
-        tmp_path, {"S1": [("dish", b"x"), ("paper", b"x")]}
-    )
+    """Too few groups per class is a dataset-size problem, named as one.
+
+    Every class is present, so the coverage check passes and the split generator
+    is what has to speak.
+    """
+    root = write_version(tmp_path, samples_per_class=2)
 
     code = validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
     )
 
+    err = capsys.readouterr().err
     assert code == 1
-    assert "Arenosa" in capsys.readouterr().err
+    assert "sample group" in err
 
 
 # --- admit_images.py ----------------------------------------------------------
@@ -288,7 +291,10 @@ def test_admit_quarantines_a_refused_image(tmp_path, admit_images, validate_data
     admit_images.main(["--root", str(root), "--write"])
 
     assert not (root / "images" / "S1_paper.png").exists()
-    assert (root / QUARANTINE_DIRNAME / "S1_paper.png").is_file()
+    # The path under quarantine mirrors the path the row declared, rather than
+    # flattening to the basename: two subdirectories may hold the same filename,
+    # and where a refused image came from is part of what makes it evidence.
+    assert (root / QUARANTINE_DIRNAME / "images" / "S1_paper.png").is_file()
     # The pairing check still reports the gap; the orphan must not be reported.
     assert "orphan" not in "".join(
         verify_directory(read_manifest(root, CLASSES))

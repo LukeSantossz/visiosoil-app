@@ -17,6 +17,7 @@ Specified by ``docs/specs/0033-dataset-protocol-manifest-and-splits.md``.
 import csv
 import hashlib
 import io
+import os
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date
@@ -75,8 +76,10 @@ FLAG_SEPARATOR = "|"
 #: manifest. Shared with :mod:`src.dataset` so the two cannot drift.
 IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp"})
 
-#: Files allowed to sit beside the images without being orphans.
-BOOKKEEPING_FILENAMES = frozenset({MANIFEST_FILENAME, REJECTED_FILENAME})
+#: Where admission moves a refused image. It stays inside the version as
+#: evidence, so the directory is excluded from the manifest-to-disk comparison
+#: and no row may declare a path inside it.
+QUARANTINE_DIRNAME = "rejected"
 
 _HEADER_ROW_COUNT = 1
 
@@ -236,13 +239,14 @@ def read_manifest(
 
 def verify_directory(manifest: Manifest) -> list[str]:
     """Report every disagreement between the manifest and the files on disk."""
+    quarantine = (manifest.root / QUARANTINE_DIRNAME).resolve()
     declared = {(manifest.root / row.image).resolve(): row.image for row in manifest.rows}
     present = {
         path.resolve()
         for path in manifest.root.rglob("*")
         if path.is_file()
         and path.suffix.lower() in IMAGE_SUFFIXES
-        and path.name not in BOOKKEEPING_FILENAMES
+        and not path.resolve().is_relative_to(quarantine)
     }
 
     problems = [
@@ -273,9 +277,9 @@ def check_setting_pairing(manifest: Manifest) -> list[str]:
     problems = []
     for sample_id in sorted(settings_by_sample):
         counts = settings_by_sample[sample_id]
-        if all(counts.get(setting) == 1 for setting in VALID_SETTINGS) and sum(
-            counts.values()
-        ) == len(VALID_SETTINGS):
+        # Every setting is validated before a Manifest exists, so a count of one
+        # for each accepted value is the whole of the requirement.
+        if all(counts.get(setting) == 1 for setting in VALID_SETTINGS):
             continue
         held = ", ".join(f"{setting}={counts[setting]}" for setting in sorted(counts))
         problems.append(
@@ -285,6 +289,24 @@ def check_setting_pairing(manifest: Manifest) -> list[str]:
     return problems
 
 
+def check_class_coverage(manifest: Manifest, classes: Sequence[str]) -> list[str]:
+    """Report every declared class the manifest holds no photograph of.
+
+    Not a thin-data warning. The class list is the model's output order, so a
+    class at zero is dropped from :func:`class_images` and every label after it
+    is reindexed: a four-class split silently disagrees with the five-class
+    contract the product ships, and both sides look internally consistent.
+    """
+    present = {row.texture_class for row in manifest.rows}
+    return [
+        f"class {texture_class!r} has no photograph in {manifest.version}. The "
+        f"class list is the model's output order, so a class at zero reindexes "
+        f"the labels rather than only thinning the data"
+        for texture_class in classes
+        if texture_class not in present
+    ]
+
+
 def class_images(
     manifest: Manifest, classes: Sequence[str]
 ) -> dict[str, list[str]]:
@@ -292,8 +314,8 @@ def class_images(
 
     Class order is the model's output order, so it comes from the config and
     never from the manifest's row order or from ``sorted()``. Only classes the
-    manifest actually holds appear; a class with no rows is a dataset-size
-    question that the split validator answers with its own message.
+    manifest actually holds appear, so callers that need the full contract check
+    :func:`check_class_coverage` first.
     """
     paths_by_class: dict[str, list[str]] = defaultdict(list)
     for row in manifest.rows:
@@ -490,15 +512,23 @@ def _parse_rows(
         image_problem = _image_path_problem(image, values["image"], root, number)
         if image_problem:
             problems.append(image_problem)
-        elif image in images_seen:
-            problems.append(
-                f"row {number}: image {image!r} is already claimed by row "
-                f"{images_seen[image]}"
-            )
         else:
-            images_seen[image] = number
-            if check_files and not (root / image).is_file():
-                problems.append(f"row {number}: image not found on disk: {image}")
+            # Keyed on the resolved, case-normalized path rather than on the
+            # spelling: `./images/x.jpg` and `images/x.jpg` are one file, and on
+            # Windows so are `x.jpg` and `X.JPG`. Comparing the raw strings let
+            # both rows through, after which one photograph was silently counted
+            # under another sample's group — or, with the two casings, the same
+            # file joined two groups and could reach train and test at once.
+            key = _identity(root, image)
+            if key in images_seen:
+                problems.append(
+                    f"row {number}: image {image!r} is already claimed by row "
+                    f"{images_seen[key]}"
+                )
+            else:
+                images_seen[key] = number
+                if check_files and not (root / image).is_file():
+                    problems.append(f"row {number}: image not found on disk: {image}")
 
         metrics, metric_problems = _parse_metrics(raw, metric_columns, number)
         problems.extend(metric_problems)
@@ -544,6 +574,16 @@ def _normalized_image(value: str) -> str:
     return value.replace("\\", "/")
 
 
+def _identity(root: Path, image: str) -> str:
+    """The key two rows share when they name one file.
+
+    ``normcase`` is what makes this correct on both platforms: on Windows it
+    folds case and separators, and on POSIX it is the identity function, so a
+    case-sensitive filesystem keeps two spellings distinct.
+    """
+    return os.path.normcase(str((root / image).resolve()))
+
+
 def _image_path_problem(
     image: str, declared: str, root: Path, number: int
 ) -> str | None:
@@ -553,10 +593,26 @@ def _image_path_problem(
             f"row {number}: image {declared!r} must be relative to the dataset "
             "version root, so the dataset stays movable"
         )
+    # `C:images/a.jpg` is neither absolute nor relative-to-root by pathlib's
+    # reckoning — it is relative to the drive's current directory. It names one
+    # file on Windows and a directory called `C:images` on POSIX, so the same
+    # manifest would describe two different datasets.
+    if PureWindowsPath(declared).drive:
+        return (
+            f"row {number}: image {declared!r} carries a drive letter, which names "
+            "a different file on Windows than on POSIX"
+        )
     if not (root / image).resolve().is_relative_to(root.resolve()):
         return (
             f"row {number}: image {declared!r} resolves outside the dataset version "
             "root"
+        )
+    if (root / image).resolve().is_relative_to(
+        (root / QUARANTINE_DIRNAME).resolve()
+    ):
+        return (
+            f"row {number}: image {declared!r} is inside {QUARANTINE_DIRNAME}/, which "
+            "holds what admission refused. A refused image cannot be declared"
         )
     return None
 

@@ -62,7 +62,9 @@ def write_manifest_rows(root, rows):
     (root / "manifest.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def write_version(tmp_path, extra_photographs=0, version="v1"):
+def write_version(
+    tmp_path, extra_photographs=0, version="v1", samples_per_class=SAMPLES_PER_CLASS
+):
     """Write a full manifest-backed dataset version and return its root.
 
     Every sample is paired across both settings, so the version satisfies the
@@ -89,7 +91,7 @@ def write_version(tmp_path, extra_photographs=0, version="v1"):
 
     for texture_class in CLASSES:
         prefix = texture_class.replace(" ", "_")
-        for index in range(SAMPLES_PER_CLASS):
+        for index in range(samples_per_class):
             sample_id = "{}-{}".format(prefix, index)
             site = "Fazenda {}".format(index % 2)
             add(sample_id, texture_class, "dish", "dish", site)

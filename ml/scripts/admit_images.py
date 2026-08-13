@@ -17,21 +17,24 @@ Run from the `ml/` directory:
     python scripts/admit_images.py --root path/to/v1 --write
 
 Exit codes: 0 every candidate was admitted, 1 something was refused, 2 the
-manifest itself is not valid.
+manifest itself is not valid, 3 the version is frozen by an existing split.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.admission import admit, write_refusal_report  # noqa: E402
+from src.admission import admit, quarantine_refused, write_refusal_report  # noqa: E402
 from src.config import load_config, resolve_paths  # noqa: E402
 from src.manifest import (  # noqa: E402
+    QUARANTINE_DIRNAME,
     REJECTED_FILENAME,
+    Manifest,
     ManifestError,
     dataset_root,
     read_manifest,
@@ -53,8 +56,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--write",
         action="store_true",
-        help="Rewrite the manifest with the admitted rows and write the refusal "
-        "report. Without it, nothing on disk changes.",
+        help="Rewrite the manifest with the admitted rows, quarantine the refused "
+        "images, and write the refusal report. Without it, nothing on disk changes.",
+    )
+    parser.add_argument(
+        "--splits-dir",
+        help="Where to look for a splits.json that already claims this version. "
+        "Defaults to data.splits_dir.",
     )
     return parser.parse_args(argv)
 
@@ -73,6 +81,18 @@ def main(argv: list[str] | None = None) -> int:
         print(str(error), file=sys.stderr)
         return 2
 
+    if args.write:
+        claimed_by = _split_claiming(args.splits_dir or data["splits_dir"], manifest)
+        if claimed_by is not None:
+            print(
+                f"refusing to rewrite {manifest.version}: a dataset version is "
+                f"immutable once a split has been generated from it, and "
+                f"{claimed_by} records this manifest's digest. Collect into the "
+                f"next version instead, or regenerate that split afterwards",
+                file=sys.stderr,
+            )
+            return 3
+
     result = admit(manifest)
 
     print(f"{len(manifest.rows)} candidate(s) in {manifest.version}")
@@ -83,14 +103,40 @@ def main(argv: list[str] | None = None) -> int:
     if args.write:
         write_manifest(root, result.admitted)
         report = write_refusal_report(root, result.refused)
+        quarantined = quarantine_refused(root, result.refused)
         print(f"manifest rewritten with the admitted rows; refusals in {report.name}")
+        if quarantined:
+            print(
+                f"{len(quarantined)} refused image(s) moved into "
+                f"{QUARANTINE_DIRNAME}/, so the version still validates"
+            )
     else:
         print(
-            "dry run: nothing written. Re-run with --write to rewrite the manifest "
-            f"and produce {REJECTED_FILENAME}"
+            "dry run: nothing written. Re-run with --write to rewrite the manifest, "
+            f"quarantine the refused images, and produce {REJECTED_FILENAME}"
         )
 
     return 1 if result.refused else 0
+
+
+def _split_claiming(splits_dir: str, manifest: Manifest) -> Path | None:
+    """Return the splits.json generated from this exact manifest, if one exists.
+
+    Admission rewrites the manifest, which moves its digest. A split that
+    recorded the old digest would then be unverifiable against anything, so the
+    provenance the digest exists to provide would be destroyed by the very tool
+    that produced the data.
+    """
+    path = Path(splits_dir) / "splits.json"
+    if not path.is_file():
+        return None
+    try:
+        recorded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        # An unreadable split cannot be shown to claim this version, and failing
+        # here would block admission on an unrelated corrupt file.
+        return None
+    return path if recorded.get("manifest_digest") == manifest.digest else None
 
 
 if __name__ == "__main__":

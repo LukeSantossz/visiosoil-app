@@ -14,10 +14,13 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+
+if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
+    import tensorflow as tf
 
 from .manifest import IMAGE_SUFFIXES, verify_split_digest
 
@@ -363,7 +366,7 @@ def load_splits(splits_dir: str, manifest_digest: str | None = None) -> dict:
     return manifest
 
 
-def _parse_image(path: str, label: int, cfg: dict) -> tuple["tf.Tensor", "tf.Tensor"]:
+def _parse_image(path: str, label: int, cfg: dict) -> tuple[tf.Tensor, tf.Tensor]:
     """Load and preprocess a single image."""
     from .preprocess import preprocess
 

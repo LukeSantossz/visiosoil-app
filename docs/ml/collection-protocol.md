@@ -31,7 +31,7 @@ must not be softened when the resulting model is described:
 | Item | Requirement |
 |---|---|
 | Camera | **One device** for the whole dataset. Record its make and model |
-| Rig | Fixed camera-to-sample distance, top-down. Around 20 cm |
+| Rig | Fixed camera-to-sample distance, top-down. Around 20 cm, the figure the existing protocol already states (`docs/design/ux-2026/14-capture-guide.md` §2). What matters is that it is fixed, not the exact number |
 | Petri dish | 90 mm diameter, for the `dish` condition |
 | Paper template | A printed 90 mm circle on a white sheet, for the `paper` condition |
 | Coin | Any coin of a known denomination, placed as §4 states |
@@ -167,9 +167,22 @@ Every admitted image carries its seven measured metrics in the manifest, so if a
 threshold is recalibrated later the decision can be recomputed without
 re-photographing or re-reading anything.
 
+**A refused image is moved, not deleted.** `--write` moves it into
+`rejected/`, mirroring the path it had, and lists it in
+`admission-rejected.csv`. It stays as the evidence for the refusal and as the
+thing a retake is judged against, and the validator ignores that directory — so
+the version admission just produced still validates. No row may declare a path
+inside `rejected/`.
+
 **A refusal can break a pair.** If one condition of a sample is refused, retake
 that photograph before the version is finalised; the validator will report the
 sample as unpaired until you do.
+
+**Admission will not rewrite a version a split already claims.** Once
+`validate_dataset.py --splits-dir …` has published a `splits.json` recording this
+manifest's digest, rewriting the manifest would leave that split unverifiable
+against anything. `--write` refuses in that case: collect into `vN+1`, which is
+what §6 asks for anyway.
 
 ## 8. How many samples
 

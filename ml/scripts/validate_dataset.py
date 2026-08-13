@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -26,6 +28,7 @@ from src.config import load_config, resolve_paths  # noqa: E402
 from src.dataset import create_splits  # noqa: E402
 from src.manifest import (  # noqa: E402
     ManifestError,
+    check_class_coverage,
     check_setting_pairing,
     class_images,
     dataset_root,
@@ -50,7 +53,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config", help="Path to config.yaml.")
     parser.add_argument(
         "--splits-dir",
-        help="Where splits.json is written. Defaults to data.splits_dir.",
+        help="Publish splits.json here. Omitted, the splits are generated in a "
+        "temporary directory and discarded: reporting a composition must not "
+        "replace the splits.json the training pipeline reuses.",
     )
     return parser.parse_args(argv)
 
@@ -63,7 +68,6 @@ def main(argv: list[str] | None = None) -> int:
 
     version = args.version or data["dataset_version"]
     root = Path(args.root) if args.root else dataset_root(data["datasets_dir"], version)
-    splits_dir = args.splits_dir or data["splits_dir"]
 
     print(f"Validating dataset version at {root}")
 
@@ -76,36 +80,59 @@ def main(argv: list[str] | None = None) -> int:
         _report(
             list(error.problems)
             + [
-                "the directory comparison and the setting-pairing check were not "
-                "run: they need a manifest that parses"
+                "the directory comparison, the class-coverage check and the "
+                "setting-pairing check were not run: they need a manifest that "
+                "parses"
             ]
         )
         return 1
 
-    problems = verify_directory(manifest) + check_setting_pairing(manifest)
+    problems = (
+        verify_directory(manifest)
+        + check_class_coverage(manifest, classes)
+        + check_setting_pairing(manifest)
+    )
     if problems:
         _report(problems)
         return 1
 
-    try:
-        splits = create_splits(
-            class_images(manifest, classes),
-            val_split=data["val_split"],
-            test_split=data["test_split"],
-            seed=data["seed"],
-            splits_dir=splits_dir,
-            sample_ids=sample_ids_by_image(manifest),
-            dataset_version=manifest.version,
-            manifest_digest=manifest.digest,
-        )
-    except ValueError as error:
-        _report([str(error)])
-        return 1
+    with _splits_destination(args.splits_dir) as splits_dir:
+        try:
+            splits = create_splits(
+                class_images(manifest, classes),
+                val_split=data["val_split"],
+                test_split=data["test_split"],
+                seed=data["seed"],
+                splits_dir=splits_dir,
+                sample_ids=sample_ids_by_image(manifest),
+                dataset_version=manifest.version,
+                manifest_digest=manifest.digest,
+            )
+        except ValueError as error:
+            _report([str(error)])
+            return 1
 
-    print(f"{len(manifest.rows)} photograph(s) in {manifest.version}")
-    print(f"manifest digest {manifest.digest}")
-    print(format_composition(split_composition(splits, manifest)))
+        print(f"{len(manifest.rows)} photograph(s) in {manifest.version}")
+        print(f"manifest digest {manifest.digest}")
+        print(format_composition(split_composition(splits, manifest)))
+        if args.splits_dir:
+            print(f"splits.json written to {splits_dir}")
     return 0
+
+
+@contextmanager
+def _splits_destination(requested: str | None):
+    """Yield where splits.json goes, discarding it unless one was requested.
+
+    `create_splits` always persists. Defaulting to the configured `splits_dir`
+    would make a command that reads like a report overwrite the artefact
+    `src.train` reuses — and it is gitignored, so unrecoverably.
+    """
+    if requested:
+        yield requested
+        return
+    with tempfile.TemporaryDirectory(prefix="visiosoil-splits-") as temporary:
+        yield temporary
 
 
 def _report(problems: list[str]) -> None:

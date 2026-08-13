@@ -31,6 +31,7 @@ from .image_quality import (
 )
 from .manifest import (
     METRIC_COLUMNS,
+    QUARANTINE_DIRNAME,
     REJECTED_FILENAME,
     Manifest,
     ManifestRow,
@@ -88,7 +89,7 @@ def admit(
                 RefusedImage(
                     image=row.image,
                     verdict=Verdict.BLOCKING.value,
-                    reason=_describe(report.failures, Verdict.BLOCKING),
+                    reason=_blocking_reason(report.failures),
                 )
             )
             continue
@@ -124,6 +125,37 @@ def write_refusal_report(
     return path
 
 
+def quarantine_refused(
+    root: str | Path, refused: Sequence[RefusedImage]
+) -> list[Path]:
+    """Move every refused image out of the dataset and into quarantine.
+
+    A refused row leaves the manifest, so leaving its file where it was would
+    make the next validation report it as an orphan and refuse the very version
+    admission had just produced — the documented workflow would contradict
+    itself. Moved rather than deleted, because the image is the evidence for the
+    refusal and a retake is judged against it.
+
+    The path under quarantine mirrors the path the row declared, so two
+    subdirectories holding one filename cannot overwrite each other.
+    """
+    root = Path(root)
+    moved: list[Path] = []
+    for refusal in refused:
+        source = root / refusal.image
+        if not source.is_file():
+            raise FileNotFoundError(
+                f"refused image {refusal.image} is no longer at {source}: it cannot "
+                "be quarantined, and leaving the manifest rewritten would lose the "
+                "record of why it was refused"
+            )
+        target = root / QUARANTINE_DIRNAME / refusal.image
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(target)
+        moved.append(target)
+    return moved
+
+
 def _analyze_file(path: Path, criteria: ImageQualityCriteria) -> ImageQualityReport:
     """Analyze one file, converting an unreadable image into a verdict.
 
@@ -145,13 +177,17 @@ def _analyze_file(path: Path, criteria: ImageQualityCriteria) -> ImageQualityRep
         )
 
 
-def _describe(failures: Sequence[CriterionFailure], severity: Verdict) -> str:
-    """Name every failure of one severity, with what it measured against."""
+def _blocking_reason(failures: Sequence[CriterionFailure]) -> str:
+    """Name every blocking failure, with what it measured against.
+
+    Advisory failures are left out: they are recorded as flags on an admitted
+    row, so repeating them in a refusal would mix the reason with the record.
+    """
     return "; ".join(
         f"{failure.criterion.value} measured {failure.measured:.4g} against "
         f"threshold {failure.threshold:.4g}"
         for failure in failures
-        if failure.severity is severity
+        if failure.severity is Verdict.BLOCKING
     )
 
 
