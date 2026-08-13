@@ -14,9 +14,11 @@ from src.manifest import (
     METRIC_COLUMNS,
     QUALITY_FLAGS_COLUMN,
     QUALITY_VERDICT_COLUMN,
+    QUARANTINE_DIRNAME,
     REQUIRED_COLUMNS,
     VALID_SETTINGS,
     ManifestError,
+    check_class_coverage,
     check_setting_pairing,
     class_images,
     dataset_root,
@@ -105,6 +107,7 @@ def test_manifest_requires_every_column(tmp_path):
         read_manifest(root, CLASSES)
 
     message = str(error.value)
+    assert "not present" in message
     assert "site" in message
     assert "device" in message
 
@@ -263,7 +266,9 @@ def test_semicolon_delimited_manifest_is_diagnosed(tmp_path):
 
     message = str(error.value)
     assert "semicolon" in message.lower()
-    assert "missing" not in message.lower()
+    # The wrong diagnosis sends a collector looking for a column that is right
+    # there, so the absent-column wording must not appear.
+    assert "not present" not in message
 
 
 def test_non_utf8_manifest_is_diagnosed(tmp_path):
@@ -508,3 +513,84 @@ def test_read_manifest_records_the_version_and_digest(tmp_path):
 
     assert manifest.version == "v7"
     assert manifest.digest == manifest_digest(root)
+
+
+def test_read_manifest_rejects_two_rows_aliasing_one_file(tmp_path):
+    """A different spelling of one path is still one file.
+
+    Comparing the raw strings lets `./images/x.jpg` and `images/x.jpg` both
+    through, after which the second row silently takes over the first row's
+    group and one photograph is counted under the wrong sample.
+    """
+    rows = paired_rows("S1", "Arenosa") + paired_rows("S2", "Media")
+    rows[2]["image"] = "./" + rows[0]["image"]
+    root = write_dataset(tmp_path, rows)
+
+    with pytest.raises(ManifestError) as error:
+        read_manifest(root, CLASSES)
+
+    assert "already claimed" in str(error.value)
+
+
+def test_read_manifest_rejects_a_drive_relative_image_path(tmp_path):
+    """`C:images/a.jpg` names different files on Windows and on POSIX."""
+    rows = paired_rows("S1", "Arenosa")
+    rows[0]["image"] = "C:images/a.jpg"
+    root = write_dataset(tmp_path, rows, create_images=False)
+
+    with pytest.raises(ManifestError) as error:
+        read_manifest(root, CLASSES, check_files=False)
+
+    assert "drive" in str(error.value).lower()
+
+
+def test_check_class_coverage_reports_a_class_with_no_rows(tmp_path):
+    """A five-way product cannot be trained from a four-class dataset.
+
+    The class list is the model's output order, so a class at zero silently
+    reindexes every label rather than merely thinning the data.
+    """
+    rows = []
+    for texture_class in CLASSES:
+        if texture_class == "Siltosa":
+            continue
+        rows.extend(paired_rows(texture_class.replace(" ", "_"), texture_class))
+    root = write_dataset(tmp_path, rows)
+
+    problems = check_class_coverage(read_manifest(root, CLASSES), CLASSES)
+
+    joined = "\n".join(problems)
+    assert "Siltosa" in joined
+    assert "Arenosa" not in joined
+
+
+def test_check_class_coverage_passes_when_every_class_has_rows(tmp_path):
+    """The complete case reports nothing."""
+    rows = []
+    for texture_class in CLASSES:
+        rows.extend(paired_rows(texture_class.replace(" ", "_"), texture_class))
+    root = write_dataset(tmp_path, rows)
+
+    assert check_class_coverage(read_manifest(root, CLASSES), CLASSES) == []
+
+
+def test_verify_directory_ignores_the_quarantine_directory(tmp_path):
+    """A refused image kept as evidence is not an orphan of the dataset."""
+    root = write_dataset(tmp_path, paired_rows("S1", "Arenosa"))
+    quarantine = root / QUARANTINE_DIRNAME
+    quarantine.mkdir()
+    (quarantine / "refused.jpg").write_bytes(PLACEHOLDER_IMAGE_BYTES)
+
+    assert verify_directory(read_manifest(root, CLASSES)) == []
+
+
+def test_read_manifest_rejects_a_row_inside_the_quarantine_directory(tmp_path):
+    """Quarantine holds what was refused, so nothing may be declared from it."""
+    rows = paired_rows("S1", "Arenosa")
+    rows[0]["image"] = f"{QUARANTINE_DIRNAME}/S1_dish.jpg"
+    root = write_dataset(tmp_path, rows)
+
+    with pytest.raises(ManifestError) as error:
+        read_manifest(root, CLASSES)
+
+    assert QUARANTINE_DIRNAME in str(error.value)

@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from src.manifest import REJECTED_FILENAME, read_manifest
+from src.manifest import (
+    QUARANTINE_DIRNAME,
+    REJECTED_FILENAME,
+    read_manifest,
+    verify_directory,
+)
 from tests.support import (
     CLASSES,
     flat_image,
@@ -134,16 +139,67 @@ def test_validator_says_when_it_stopped_before_the_disk_checks(
     """Silence about a check that never ran reads as a check that passed."""
     root = write_version(tmp_path)
     manifest = root / "manifest.csv"
+    # Replace the `setting` cell, not the first occurrence of the word: the
+    # filenames contain it too, and hitting one of those would raise a
+    # not-found-on-disk error instead of the invalid-setting error under test.
     manifest.write_text(
-        manifest.read_text(encoding="utf-8").replace("dish", "in_situ", 1),
+        manifest.read_text(encoding="utf-8").replace(",dish,", ",in_situ,", 1),
         encoding="utf-8",
     )
 
-    validate_dataset.main(
+    code = validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
     )
 
-    assert "not run" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "in_situ" in err
+    assert "not run" in err
+
+
+def test_validator_reports_a_class_with_no_photographs(
+    tmp_path, validate_dataset, capsys
+):
+    """A four-class version cannot support the five-way product contract.
+
+    Left unreported it is worse than thin data: the class list is the model's
+    output order, so a class at zero reindexes every label in `splits.json`.
+    """
+    root = write_version(tmp_path)
+    manifest = root / "manifest.csv"
+    kept = [
+        line
+        for line in manifest.read_text(encoding="utf-8").splitlines()
+        if ",Siltosa," not in line
+    ]
+    manifest.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    for orphan in (root / "images").glob("Siltosa-*"):
+        orphan.unlink()
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 1
+    assert "Siltosa" in capsys.readouterr().err
+
+
+def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset):
+    """Reporting a composition must not overwrite the pipeline's own splits.
+
+    `src.train` reuses any existing `splits.json` and the file is gitignored, so
+    a validator that wrote there by default would silently replace an artefact
+    the next training run consumes.
+    """
+    from src.config import load_config, resolve_paths
+
+    configured = Path(resolve_paths(load_config())["data"]["splits_dir"])
+    root = write_version(tmp_path)
+
+    code = validate_dataset.main(["--root", str(root)])
+
+    assert code == 0
+    assert not (configured / "splits.json").exists()
 
 
 def test_validator_reports_a_version_that_cannot_be_split(
@@ -213,6 +269,63 @@ def test_admit_exits_zero_when_every_candidate_is_admitted(
 
     assert code == 0
     assert len(read_manifest(root, CLASSES).rows) == 2
+
+
+def test_admit_quarantines_a_refused_image(tmp_path, admit_images, validate_dataset):
+    """A refused file leaves the dataset, so the version still validates.
+
+    Dropping the row while leaving the file on disk made the documented workflow
+    self-contradicting: the next validator run reported every refused image as an
+    orphan and refused the version admission had just produced.
+    """
+    root = write_image_version(
+        tmp_path,
+        {
+            "S1": [("dish", noise_image()), ("paper", flat_image())],
+        },
+    )
+
+    admit_images.main(["--root", str(root), "--write"])
+
+    assert not (root / "images" / "S1_paper.png").exists()
+    assert (root / QUARANTINE_DIRNAME / "S1_paper.png").is_file()
+    # The pairing check still reports the gap; the orphan must not be reported.
+    assert "orphan" not in "".join(
+        verify_directory(read_manifest(root, CLASSES))
+    )
+
+
+def test_admit_refuses_to_rewrite_a_version_an_existing_split_claims(
+    tmp_path, admit_images, validate_dataset, capsys
+):
+    """Rewriting a manifest a split was generated from destroys its provenance."""
+    root = write_version(tmp_path)
+    splits_dir = tmp_path / "splits"
+    validate_dataset.main(["--root", str(root), "--splits-dir", str(splits_dir)])
+    before = (root / "manifest.csv").read_bytes()
+
+    code = admit_images.main(
+        ["--root", str(root), "--write", "--splits-dir", str(splits_dir)]
+    )
+
+    assert code == 3
+    assert (root / "manifest.csv").read_bytes() == before
+    err = capsys.readouterr().err
+    assert "immutable" in err.lower()
+
+
+def test_admit_writes_when_no_split_claims_the_version(
+    tmp_path, admit_images, capsys
+):
+    """The guard is about provenance, so an unclaimed version still admits."""
+    root = write_image_version(tmp_path, {"S1": [("dish", noise_image())]})
+
+    code = admit_images.main(
+        ["--root", str(root), "--write", "--splits-dir", str(tmp_path / "empty")]
+    )
+
+    assert code == 0
+    assert read_manifest(root, CLASSES).rows[0].metrics
 
 
 def test_admit_reports_an_invalid_manifest_without_analyzing(
