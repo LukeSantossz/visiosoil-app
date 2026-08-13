@@ -5,7 +5,7 @@ import yaml
 import tempfile
 from pathlib import Path
 
-from src.config import load_config
+from src.config import load_config, resolve_paths
 
 
 @pytest.fixture
@@ -21,6 +21,8 @@ def valid_config() -> dict:
             "val_split": 0.15,
             "test_split": 0.15,
             "seed": 42,
+            "datasets_dir": "data/datasets",
+            "dataset_version": "v1",
         },
         "preprocessing": {
             "normalization": "mobilenet_v2",
@@ -346,3 +348,43 @@ def test_brightness_range_at_the_layer_bounds_is_accepted(valid_config):
     valid_config["augmentation"]["brightness_range"] = [0.0, 2.0]
     path = _write_config(valid_config)
     assert load_config(path)["augmentation"]["brightness_range"] == [0.0, 2.0]
+
+
+def test_dataset_version_is_required(valid_config):
+    """A run that cannot name its dataset version cannot be reproduced."""
+    del valid_config["data"]["dataset_version"]
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="dataset_version"):
+        load_config(path)
+
+
+def test_datasets_dir_is_required(valid_config):
+    """The version key is useless without the root it is a version of."""
+    del valid_config["data"]["datasets_dir"]
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="datasets_dir"):
+        load_config(path)
+
+
+def test_dataset_version_must_be_v_prefixed_and_numbered(valid_config):
+    """A version is an immutable directory name, so its shape is fixed."""
+    valid_config["data"]["dataset_version"] = "latest"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="dataset_version"):
+        load_config(path)
+
+
+def test_dataset_version_rejects_a_zero_version(valid_config):
+    """Versions start at v1, so v0 is a typo rather than a dataset."""
+    valid_config["data"]["dataset_version"] = "v0"
+    path = _write_config(valid_config)
+    with pytest.raises(ValueError, match="dataset_version"):
+        load_config(path)
+
+
+def test_resolve_paths_resolves_the_datasets_dir(valid_config):
+    """Every data path is resolved in one place, against the ml/ root."""
+    path = _write_config(valid_config)
+    cfg = resolve_paths(load_config(path))
+    assert Path(cfg["data"]["datasets_dir"]).is_absolute()
+    assert Path(cfg["data"]["datasets_dir"]).name == "datasets"
