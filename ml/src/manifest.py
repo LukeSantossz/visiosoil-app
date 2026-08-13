@@ -1,0 +1,555 @@
+"""The dataset manifest: its schema, its loader, and its validator.
+
+The manifest is the dataset. A CSV at the root of each dataset version, authored
+by the collector, is the authoritative record of what the dataset contains; the
+directory walk is a check that the files on disk agree with it, not the source of
+truth. An image with no row is an error and a row with no image is an error;
+neither is skipped, because a dataset that silently differs from its record
+cannot support a reproducible experiment.
+
+This module imports no TensorFlow. Validating a manifest has to be possible in
+any environment that can read a CSV, including one where the training stack is
+not installed.
+
+Specified by ``docs/specs/0033-dataset-protocol-manifest-and-splits.md``.
+"""
+
+import csv
+import hashlib
+import io
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Mapping, Sequence
+
+#: The manifest lives at the root of a dataset version directory.
+MANIFEST_FILENAME = "manifest.csv"
+
+#: Written by admission for the candidates it refused, next to the manifest.
+REJECTED_FILENAME = "admission-rejected.csv"
+
+#: Every column a collector must supply. Order is the order they are written.
+REQUIRED_COLUMNS = (
+    "sample_id",
+    "texture_class",
+    "image",
+    "setting",
+    "site",
+    "device",
+    "captured_at",
+)
+
+#: Columns that must not appear. No granulometric value and no laboratory
+#: reference enters this process, so a manifest carrying one is rejected rather
+#: than having the column ignored: an ignored column arrives quietly and is then
+#: read by something later, which is how a withdrawn decision comes back.
+FORBIDDEN_COLUMNS = frozenset({"sand_pct", "silt_pct", "clay_pct", "lab_report"})
+
+#: The two presentation conditions the protocol pairs on one physical sample.
+#: ``in_situ`` is deliberately absent: the mode is deferred, and a silently
+#: accepted value is how an uncovered condition enters a dataset that reports
+#: itself as covering it.
+VALID_SETTINGS = ("dish", "paper")
+
+#: The seven SPEC 0030 metrics, recorded per admitted image so a threshold
+#: recalibration can be recomputed without re-reading a single file.
+METRIC_COLUMNS = (
+    "blur_score",
+    "mean_luminance",
+    "clipped_fraction",
+    "contrast_score",
+    "color_cast_score",
+    "specular_fraction",
+    "roi_side_px",
+)
+
+QUALITY_VERDICT_COLUMN = "quality_verdict"
+QUALITY_FLAGS_COLUMN = "quality_flags"
+
+#: Flags are joined with a pipe rather than a comma or a semicolon: both of
+#: those are CSV delimiters here or in a pt-BR spreadsheet export.
+FLAG_SEPARATOR = "|"
+
+#: Suffixes treated as dataset images when the directory is compared with the
+#: manifest. Shared with :mod:`src.dataset` so the two cannot drift.
+IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp"})
+
+#: Files allowed to sit beside the images without being orphans.
+BOOKKEEPING_FILENAMES = frozenset({MANIFEST_FILENAME, REJECTED_FILENAME})
+
+_HEADER_ROW_COUNT = 1
+
+
+class ManifestError(ValueError):
+    """Every problem found in one manifest, reported together.
+
+    Aggregated rather than raised on the first fault because the reader is a
+    collector fixing a spreadsheet: one pass over a list of problems is the
+    difference between one correction cycle and eight.
+    """
+
+    def __init__(self, problems: Sequence[str]) -> None:
+        self.problems = tuple(problems)
+        count = len(self.problems)
+        noun = "problem" if count == 1 else "problems"
+        detail = "".join(f"\n  - {problem}" for problem in self.problems)
+        super().__init__(f"{MANIFEST_FILENAME} rejected ({count} {noun}):{detail}")
+
+
+@dataclass(frozen=True)
+class ManifestRow:
+    """One photograph of one physical sample."""
+
+    sample_id: str
+    texture_class: str
+    image: str
+    setting: str
+    site: str
+    device: str
+    captured_at: str
+    quality_verdict: str = ""
+    quality_flags: tuple[str, ...] = ()
+    metrics: Mapping[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Manifest:
+    """A parsed manifest, with the version it belongs to and its digest."""
+
+    version: str
+    root: Path
+    digest: str
+    rows: tuple[ManifestRow, ...]
+
+
+def dataset_root(datasets_dir: str | Path, version: str) -> Path:
+    """Return the directory of one dataset version.
+
+    One function builds this path so a version is never assembled by string
+    concatenation at a call site.
+    """
+    return Path(datasets_dir) / version
+
+
+def manifest_path(root: str | Path) -> Path:
+    """Return the manifest path inside a dataset version root."""
+    return Path(root) / MANIFEST_FILENAME
+
+
+def manifest_digest(root: str | Path) -> str:
+    """Return the SHA-256 of the manifest bytes.
+
+    Over the bytes rather than the parsed content, so a split can be shown to
+    belong to the exact file it was generated from. It is stable across
+    platforms provided the file is committed with consistent line endings.
+    """
+    return hashlib.sha256(manifest_path(root).read_bytes()).hexdigest()
+
+
+def read_manifest(
+    root: str | Path, classes: Sequence[str], *, check_files: bool = False
+) -> Manifest:
+    """Parse and validate the manifest at ``root``.
+
+    Args:
+        root: The dataset version directory.
+        classes: The accepted texture classes, from ``config.yaml``.
+        check_files: Also report a row whose image is not on disk. Orphan files
+            are reported by :func:`verify_directory`, which walks the directory.
+
+    Returns:
+        The parsed manifest.
+
+    Raises:
+        FileNotFoundError: If the manifest itself is not there.
+        ManifestError: With every problem found, never only the first.
+    """
+    root = Path(root)
+    path = manifest_path(root)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Dataset manifest not found: {path}. Every dataset version holds a "
+            f"{MANIFEST_FILENAME} at its root"
+        )
+
+    text = _decode(path)
+    lines = text.splitlines()
+    _reject_a_semicolon_export(lines[0] if lines else "")
+
+    reader = csv.DictReader(io.StringIO(text))
+    columns = list(reader.fieldnames or [])
+    _reject_a_broken_header(columns)
+
+    rows, problems = _parse_rows(reader, root, classes, columns, check_files=check_files)
+    problems.extend(_cross_row_problems(rows))
+
+    if problems:
+        raise ManifestError(problems)
+
+    return Manifest(
+        version=root.name,
+        root=root,
+        digest=manifest_digest(root),
+        rows=tuple(rows),
+    )
+
+
+def verify_directory(manifest: Manifest) -> list[str]:
+    """Report every disagreement between the manifest and the files on disk."""
+    declared = {(manifest.root / row.image).resolve(): row.image for row in manifest.rows}
+    present = {
+        path.resolve()
+        for path in manifest.root.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in IMAGE_SUFFIXES
+        and path.name not in BOOKKEEPING_FILENAMES
+    }
+
+    problems = [
+        f"row image not found on disk: {declared[path]}"
+        for path in sorted(declared.keys() - present)
+    ]
+    problems.extend(
+        f"image on disk has no manifest row: "
+        f"{orphan.relative_to(manifest.root.resolve()).as_posix()}"
+        for orphan in sorted(present - declared.keys())
+    )
+    return problems
+
+
+def check_setting_pairing(manifest: Manifest) -> list[str]:
+    """Report every sample not holding exactly one photograph per setting.
+
+    The pairing is the whole point of the two conditions: it is what lets the
+    background effect be measured within one physical sample rather than across
+    two populations. Without this check a manifest of ``dish`` rows alone passes
+    every other criterion while silently being a one-condition dataset.
+    """
+    settings_by_sample: dict[str, Counter] = defaultdict(Counter)
+    for row in manifest.rows:
+        settings_by_sample[row.sample_id][row.setting] += 1
+
+    expected = ", ".join(VALID_SETTINGS)
+    problems = []
+    for sample_id in sorted(settings_by_sample):
+        counts = settings_by_sample[sample_id]
+        if all(counts.get(setting) == 1 for setting in VALID_SETTINGS) and sum(
+            counts.values()
+        ) == len(VALID_SETTINGS):
+            continue
+        held = ", ".join(f"{setting}={counts[setting]}" for setting in sorted(counts))
+        problems.append(
+            f"sample '{sample_id}' must hold exactly one photograph per setting "
+            f"({expected}); it holds {held}"
+        )
+    return problems
+
+
+def class_images(
+    manifest: Manifest, classes: Sequence[str]
+) -> dict[str, list[str]]:
+    """Group resolved image paths by class, in the order ``classes`` declares.
+
+    Class order is the model's output order, so it comes from the config and
+    never from the manifest's row order or from ``sorted()``. Only classes the
+    manifest actually holds appear; a class with no rows is a dataset-size
+    question that the split validator answers with its own message.
+    """
+    paths_by_class: dict[str, list[str]] = defaultdict(list)
+    for row in manifest.rows:
+        paths_by_class[row.texture_class].append(str(manifest.root / row.image))
+
+    return {
+        texture_class: sorted(paths_by_class[texture_class])
+        for texture_class in classes
+        if texture_class in paths_by_class
+    }
+
+
+def sample_ids_by_image(manifest: Manifest) -> dict[str, str]:
+    """Map each resolved image path to the physical sample it photographs.
+
+    Splits group on this rather than on a filename pattern: the identifier is a
+    column the collector wrote, so a naming convention cannot silently regroup
+    the dataset.
+    """
+    return {str(manifest.root / row.image): row.sample_id for row in manifest.rows}
+
+
+def split_composition(
+    splits: Mapping[str, Sequence[Mapping[str, object]]], manifest: Manifest
+) -> dict[str, dict[str, Counter]]:
+    """Count each split by class, site, and device.
+
+    Site and device are recorded and reported rather than held out, so the
+    policy for either axis can be set from a count instead of a guess.
+    """
+    rows_by_path = {
+        str((manifest.root / row.image).resolve()): row for row in manifest.rows
+    }
+
+    composition: dict[str, dict[str, Counter]] = {}
+    for split_name, entries in splits.items():
+        axes: dict[str, Counter] = {
+            "class": Counter(),
+            "site": Counter(),
+            "device": Counter(),
+        }
+        for entry in entries:
+            path = str(Path(str(entry["path"])).resolve())
+            row = rows_by_path.get(path)
+            if row is None:
+                raise ValueError(
+                    f"split '{split_name}' references {entry['path']!r}, which is "
+                    f"not in manifest {manifest.version}"
+                )
+            axes["class"][row.texture_class] += 1
+            axes["site"][row.site] += 1
+            axes["device"][row.device] += 1
+        composition[split_name] = axes
+
+    return composition
+
+
+def format_composition(composition: Mapping[str, Mapping[str, Counter]]) -> str:
+    """Render :func:`split_composition` as the text the validator prints."""
+    lines = []
+    for split_name, axes in composition.items():
+        total = sum(axes["class"].values())
+        lines.append(f"{split_name}: {total} photograph(s)")
+        for axis in ("class", "site", "device"):
+            counts = ", ".join(
+                f"{value}={count}" for value, count in sorted(axes[axis].items())
+            )
+            lines.append(f"  {axis}: {counts or '(none)'}")
+    return "\n".join(lines)
+
+
+def verify_split_digest(split_manifest: Mapping[str, object], digest: str) -> None:
+    """Fail unless a split manifest belongs to the manifest it is used with.
+
+    Without this, "the model got worse" and "the dataset changed" are
+    indistinguishable, which is the whole reason a dataset version is immutable.
+    """
+    recorded = split_manifest.get("manifest_digest")
+    if not recorded:
+        raise ValueError(
+            "splits.json carries no manifest_digest, so it cannot be shown to "
+            "belong to the current dataset. Delete it and regenerate the splits"
+        )
+    if recorded != digest:
+        raise ValueError(
+            f"splits.json manifest_digest {recorded!r} does not match the current "
+            f"manifest digest {digest!r}. The dataset changed after the splits "
+            "were generated; regenerate them or check out the matching version"
+        )
+
+
+def _decode(path: Path) -> str:
+    """Decode the manifest, diagnosing the encoding a spreadsheet produces."""
+    raw = path.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ManifestError(
+            [
+                f"{MANIFEST_FILENAME} is not UTF-8 encoded (byte 0x{raw[error.start]:02x} "
+                f"at offset {error.start} is not valid UTF-8). A pt-BR spreadsheet "
+                "commonly exports Latin-1; re-export it as UTF-8"
+            ]
+        ) from error
+    # A spreadsheet export commonly leads with a byte-order mark, which would
+    # otherwise become part of the first column's name.
+    return text.lstrip("\ufeff")
+
+
+def _reject_a_semicolon_export(header_line: str) -> None:
+    """Diagnose a semicolon-delimited export before any column is examined.
+
+    Reported as a delimiter fault rather than as absent columns, because the
+    second message sends a collector looking for a column that is right there.
+    """
+    if ";" not in header_line:
+        return
+    fields = next(csv.reader([header_line]), [])
+    if len(fields) >= len(REQUIRED_COLUMNS):
+        return
+    raise ManifestError(
+        [
+            f"{MANIFEST_FILENAME} looks semicolon-delimited: its header parses as "
+            f"{len(fields)} column(s) with a comma delimiter. Re-export it with a "
+            "comma delimiter"
+        ]
+    )
+
+
+def _reject_a_broken_header(columns: Sequence[str]) -> None:
+    """Fail on a header that makes row-level validation meaningless."""
+    problems = []
+
+    forbidden = [column for column in columns if column in FORBIDDEN_COLUMNS]
+    if forbidden:
+        problems.append(
+            f"column(s) not accepted by this schema: {', '.join(sorted(forbidden))}. "
+            "No granulometric value and no laboratory reference enters this process"
+        )
+
+    absent = [column for column in REQUIRED_COLUMNS if column not in columns]
+    if absent:
+        problems.append(f"required column(s) not present: {', '.join(absent)}")
+
+    if problems:
+        raise ManifestError(problems)
+
+
+def _parse_rows(
+    reader: csv.DictReader,
+    root: Path,
+    classes: Sequence[str],
+    columns: Sequence[str],
+    *,
+    check_files: bool,
+) -> tuple[list[ManifestRow], list[str]]:
+    """Validate every row and build it, collecting problems as it goes."""
+    accepted_classes = ", ".join(classes)
+    accepted_settings = ", ".join(VALID_SETTINGS)
+    metric_columns = [column for column in METRIC_COLUMNS if column in columns]
+
+    rows: list[ManifestRow] = []
+    problems: list[str] = []
+    images_seen: dict[str, int] = {}
+
+    for index, raw in enumerate(reader):
+        number = index + 1 + _HEADER_ROW_COUNT
+        values = {
+            column: (raw.get(column) or "").strip() for column in REQUIRED_COLUMNS
+        }
+
+        blank = [column for column in REQUIRED_COLUMNS if not values[column]]
+        if blank:
+            problems.append(f"row {number}: blank required value(s): {', '.join(blank)}")
+            continue
+
+        if values["texture_class"] not in classes:
+            problems.append(
+                f"row {number}: texture_class {values['texture_class']!r} is not a "
+                f"declared class. Accepted: {accepted_classes}"
+            )
+        if values["setting"] not in VALID_SETTINGS:
+            problems.append(
+                f"row {number}: setting {values['setting']!r} is not accepted. "
+                f"Accepted: {accepted_settings}"
+            )
+        if not _is_iso_date(values["captured_at"]):
+            problems.append(
+                f"row {number}: captured_at {values['captured_at']!r} is not an "
+                "ISO 8601 date (YYYY-MM-DD)"
+            )
+
+        image = _normalized_image(values["image"])
+        image_problem = _image_path_problem(image, values["image"], root, number)
+        if image_problem:
+            problems.append(image_problem)
+        elif image in images_seen:
+            problems.append(
+                f"row {number}: image {image!r} is already claimed by row "
+                f"{images_seen[image]}"
+            )
+        else:
+            images_seen[image] = number
+            if check_files and not (root / image).is_file():
+                problems.append(f"row {number}: image not found on disk: {image}")
+
+        metrics, metric_problems = _parse_metrics(raw, metric_columns, number)
+        problems.extend(metric_problems)
+
+        rows.append(
+            ManifestRow(
+                sample_id=values["sample_id"],
+                texture_class=values["texture_class"],
+                image=image,
+                setting=values["setting"],
+                site=values["site"],
+                device=values["device"],
+                captured_at=values["captured_at"],
+                quality_verdict=(raw.get(QUALITY_VERDICT_COLUMN) or "").strip(),
+                quality_flags=_parse_flags(raw.get(QUALITY_FLAGS_COLUMN)),
+                metrics=metrics,
+            )
+        )
+
+    if not rows and not problems:
+        problems.append(f"{MANIFEST_FILENAME} declares no rows")
+
+    return rows, problems
+
+
+def _cross_row_problems(rows: Sequence[ManifestRow]) -> list[str]:
+    """Report faults only visible across rows."""
+    classes_by_sample: dict[str, set[str]] = defaultdict(set)
+    for row in rows:
+        classes_by_sample[row.sample_id].add(row.texture_class)
+
+    return [
+        f"sample_id {sample_id!r} appears under {len(found)} classes "
+        f"({', '.join(sorted(found))}). One physical sample carries one class, so "
+        "this is a labelling error rather than a naming collision"
+        for sample_id, found in sorted(classes_by_sample.items())
+        if len(found) > 1
+    ]
+
+
+def _normalized_image(value: str) -> str:
+    """Accept the separator a collector's operating system produced."""
+    return value.replace("\\", "/")
+
+
+def _image_path_problem(
+    image: str, declared: str, root: Path, number: int
+) -> str | None:
+    """Return why an image path is unusable, or ``None`` when it is fine."""
+    if PurePosixPath(declared).is_absolute() or PureWindowsPath(declared).is_absolute():
+        return (
+            f"row {number}: image {declared!r} must be relative to the dataset "
+            "version root, so the dataset stays movable"
+        )
+    if not (root / image).resolve().is_relative_to(root.resolve()):
+        return (
+            f"row {number}: image {declared!r} resolves outside the dataset version "
+            "root"
+        )
+    return None
+
+
+def _parse_metrics(
+    raw: Mapping[str, str], metric_columns: Sequence[str], number: int
+) -> tuple[dict[str, float], list[str]]:
+    """Read the recorded quality metrics, reporting a value that is not a number."""
+    metrics: dict[str, float] = {}
+    problems: list[str] = []
+    for column in metric_columns:
+        value = (raw.get(column) or "").strip()
+        if not value:
+            continue
+        try:
+            metrics[column] = float(value)
+        except ValueError:
+            problems.append(f"row {number}: {column} {value!r} is not a number")
+    return metrics, problems
+
+
+def _parse_flags(value: str | None) -> tuple[str, ...]:
+    """Split the recorded advisory flags."""
+    if not value:
+        return ()
+    return tuple(flag.strip() for flag in value.split(FLAG_SEPARATOR) if flag.strip())
+
+
+def _is_iso_date(value: str) -> bool:
+    """Whether ``value`` is an ISO 8601 calendar date."""
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
