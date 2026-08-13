@@ -1,13 +1,30 @@
 """Configuration loader and validator for the ML pipeline."""
 
 import os
+import re
 from pathlib import Path
 
 import yaml
 
 
 _REQUIRED_TOP_KEYS = {"project", "classes", "data", "preprocessing", "model", "training", "export"}
-_REQUIRED_DATA_KEYS = {"raw_dir", "splits_dir", "image_size", "val_split", "test_split", "seed"}
+_REQUIRED_DATA_KEYS = {
+    "raw_dir",
+    "splits_dir",
+    "datasets_dir",
+    "dataset_version",
+    "image_size",
+    "val_split",
+    "test_split",
+    "seed",
+}
+
+# A dataset version is an immutable directory named vN, numbered from 1. Adding
+# images creates vN+1 and never mutates vN, so every experiment can name the
+# data it used. A free-text value like "latest" would point at different data on
+# different days, which is what makes "the model got worse" and "the dataset
+# changed" indistinguishable.
+_DATASET_VERSION_PATTERN = re.compile(r"^v[1-9][0-9]*$")
 _REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
@@ -100,6 +117,12 @@ def _validate(cfg: dict) -> None:
         raise ValueError("val_split + test_split must be less than 1")
     if data["image_size"] < 32:
         raise ValueError("image_size must be at least 32")
+
+    if not _DATASET_VERSION_PATTERN.match(str(data["dataset_version"])):
+        raise ValueError(
+            f"data.dataset_version must name an immutable version directory as "
+            f"vN, numbered from 1, got {data['dataset_version']!r}"
+        )
 
     # A seed that is not a plain non-negative int changes seeding behaviour
     # without erroring. bool is an int subclass, so it is excluded explicitly.
@@ -264,6 +287,7 @@ def resolve_paths(cfg: dict) -> dict:
     cfg["data"] = cfg["data"].copy()
     cfg["data"]["raw_dir"] = str(ml_root / cfg["data"]["raw_dir"])
     cfg["data"]["splits_dir"] = str(ml_root / cfg["data"]["splits_dir"])
+    cfg["data"]["datasets_dir"] = str(ml_root / cfg["data"]["datasets_dir"])
     cfg["export"] = cfg["export"].copy()
     cfg["export"]["output_dir"] = str(ml_root / cfg["export"]["output_dir"])
     return cfg
