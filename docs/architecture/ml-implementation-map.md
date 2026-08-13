@@ -230,11 +230,14 @@ it without this terminal present.
 
 - Directory layout and the filename → `sample_id` convention are stated and
   parsed by one function, not a regex duplicated per script.
-- Required metadata per sample: sample id, laboratory report reference, textural
-  class, collection site, capture device, capture date, **granulometry**
-  (`sand_pct`, `silt_pct`, `clay_pct` — required since 2026-08-11, when the
-  laboratory turned out to be the project's own), and **`setting`**
-  (`dish` or `paper`).
+- Required metadata per sample: sample id, textural class, collection site,
+  capture device, capture date, and **`setting`** (`dish` or `paper`).
+
+  **No granulometry and no laboratory report reference**, by the project owner's
+  decision of 2026-08-11, and the validator **rejects** a manifest carrying those
+  columns rather than ignoring them. An earlier version of this criterion listed
+  the laboratory reference as required and a same-day revision added the three
+  percentages; both are withdrawn. What it costs is recorded in ADR 0014.
 
   **`setting` records presentation, not deployment state**, and the distinction
   is the correction ADR 0014 forces. This criterion previously read
@@ -534,23 +537,28 @@ question 6; it is now the one that matters most.
    origin has to be recoverable per sample from the laboratory record. If it is
    not, the axis exists in the material and not in the manifest, and nothing can
    split along it.
-2. **Partly answered 2026-08-11.** This was one question and is two, and
-   collapsing them is what would let B2 and C0 proceed as though the whole thing
-   were settled.
+2. ~~**Is there access to the laboratory granulometry reports**, and what are the
+   exact Embrapa grouping thresholds that produced the labels?~~ **Closed
+   2026-08-11, and not by an answer to what it asked.** The project owner decided
+   that **no granulometric data is linked into the classification process and the
+   reports are not supplied to it.** Both halves of the question are therefore
+   moot: the access exists and will not be used, and the thresholds are not
+   needed by anything, since nothing checks a class against percentages it does
+   not have.
 
-   ~~*Is there access to the laboratory granulometry reports?*~~ **Answered: the
-   laboratory is the project's own.** Reports and records are accessible, and the
-   archived physical samples carry their report linked. Embrapa is the
-   classification reference applied to those numbers, not the source of the
-   labels.
+   This question is left in place rather than deleted because what it was for is
+   now a permanent limitation rather than a pending input. The cost-weighted
+   confusion matrix it existed to enable **is not buildable**, so every confusion
+   weighs the same in evaluation. Three more consequences travel with that, all
+   on evaluation rather than training, and all recorded in ADR 0014 and
+   SPEC 0033: label noise is unbounded, boundary samples cannot be told apart
+   from model failures, and coverage is a per-class tally rather than a map of
+   the textural triangle.
 
-   ***Which exact grouping thresholds does the laboratory apply?*** **STILL
-   OPEN**, and it blocks label verification. `ml/config.yaml` has no threshold
-   table today, so SPEC 0033's class-verification criterion fails loudly rather
-   than running. What is needed is the table plus a boundary policy — which side
-   of each line a value sitting exactly on it falls — because a sample on a
-   boundary is the ambiguous case this programme cares most about, and leaving
-   "≥ or >" to each implementation puts the disagreement precisely there.
+   A first draft of the 2026-08-11 records inferred the opposite from "the
+   laboratory is ours" and made granulometry a required column. That inference
+   was wrong and has been reverted. Access existing and access being used are
+   different things.
 
    This is the answer with the widest consequences in this list. Granulometry
    moves from optional to required in the manifest, which makes three things

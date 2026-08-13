@@ -25,17 +25,22 @@ where the coin survives for a reason that has moved.
 Four answers, given 2026-08-11, changed premises that the study, ADR 0009 and
 SPEC 0033 were all written on top of.
 
-**The laboratory is the project's own, and it keeps the analysed samples with
-their reports linked.** The study assumed granulometry spreadsheets existed but
-were unusable, and concluded that labels were untraceable to the measurements
-that produced them. That is now false. Sand, silt and clay percentages are
-available per sample, the Embrapa grouping is a reading applied to those numbers
-rather than the origin of the labels, and the physical samples are on a shelf.
+**The laboratory is the project's own, and it keeps the analysed samples.** The
+physical samples are on a shelf, already labelled. The consequence is that the
+dataset costs **no new laboratory analysis at all**: it is bounded by photography
+time over an archive that already exists, and every schedule argument in the
+study that treated collection as the expensive step was reasoning from the
+opposite premise.
 
-The consequence is that the dataset costs **no new laboratory analysis at all**.
-It is bounded by photography time over an archive that already exists. Every
-schedule and cost argument in the study that treated collection as the expensive
-step was reasoning from the opposite premise.
+**The granulometry behind those labels is not linked into this process, and the
+reports are not supplied to it** — the project owner's decision, taken the same
+day. This is recorded as a decision with a cost rather than as an absence,
+because a first draft of this record inferred the opposite from "the laboratory
+is ours" and had to be reverted. Access existing and access being used are
+different things. What the decision costs is set out under *Decided* below; the
+short form is that the study's conclusion that labels are untraceable to their
+measurements **stands**, and label noise remains an unmeasurable ceiling on
+every accuracy figure this dataset produces.
 
 **The samples come from many origins**, because the laboratory serves many
 clients. The site axis, which SPEC 0033 recorded but declined to enforce a split
@@ -56,24 +61,40 @@ that creates the problem this record exists to name.
 
 ### The dataset is the archive, photographed; it is not a collection campaign
 
-Samples are drawn from the laboratory archive, where each carries a linked
-report with its granulometry. `sand_pct`, `silt_pct` and `clay_pct` stop being
-optional manifest columns and become required, because they are now available for
-every row and they are what makes three things possible that were previously
-written off:
+Samples are drawn from the laboratory archive. What crosses into this process is
+the sample, its textural class, and its origin — the class name is the whole
+label.
 
-- **Label verification.** The Embrapa class is a reading of those percentages on
-  the textural triangle. A declared class that contradicts its own numbers is a
-  labelling error that can now be found mechanically, so label noise stops being
-  an unbounded ceiling on measured accuracy.
-- **Boundary samples become identifiable.** A sample at 34 % clay and one at
-  36 %, either side of a 35 % line, are visually indistinguishable and their
-  class difference is a convention. Marking them means an `ambiguous` verdict on
-  such a sample is correct behaviour being measured as correct, instead of being
-  counted as an error the model was never able to avoid.
-- **Coverage is a map rather than a tally.** Per-class counts say Siltosa is
-  thin. The triangle coordinates say *which region* is empty, which is what
-  directs any future collection.
+**No granulometry and no laboratory report cross with it.** The manifest carries
+no `sand_pct`, `silt_pct`, `clay_pct` or `lab_report` column, and SPEC 0033
+**rejects** a manifest that presents one rather than ignoring it, so the decision
+is enforced rather than merely stated. Absent, not optional: optional columns get
+filled by halves, and a check that runs on some rows establishes nothing about
+the dataset.
+
+The cost is real, it lands on evaluation rather than on training, and it is
+recorded here so no later document has to rediscover it:
+
+- **Label noise cannot be bounded.** The Embrapa class is a reading of those
+  percentages on the textural triangle. Without them, a mistyped or misread label
+  cannot be checked against the measurement that produced it, so it stays in the
+  training set undetected and forms an unmeasurable ceiling on every accuracy
+  figure.
+- **Boundary samples are indistinguishable from model failures.** A sample at
+  34 % clay and one at 36 %, either side of a 35 % line, look identical and carry
+  different labels. They will concentrate the error, and nothing separates "the
+  model was right to be uncertain" from "the model was wrong" — so a correct
+  `ambiguous` verdict is counted as a failure.
+- **Every confusion weighs the same.** A cost-weighted evaluation needs to know
+  that Arenosa versus Muito Argilosa is a different mistake from Argilosa versus
+  Muito Argilosa. There is no basis for the weighting, so evaluation treats them
+  as equivalent, which is known to be false.
+- **Coverage is a tally, not a map.** Per-class counts can say Siltosa is thin.
+  Nothing can say which region of the textural triangle is empty, so future
+  collection is directed by class count alone.
+
+None of the four blocks the programme. All four belong in any statement of what
+a resulting model has been shown to do.
 
 ### Two conditions, both dry and sieved; field-fresh material is out of scope
 
@@ -133,8 +154,9 @@ fixes it.
 establishes that Siltosa is *expected* to be thin; it does not establish what
 the archive actually holds, which nobody has counted. The per-class targets and
 the rejection-threshold policy are therefore **conditional on the C0 inventory**,
-which reports counts by class, site and region of the textural triangle before
-any of this is fixed. Three outcomes and what each means:
+which reports counts by class and by site before any of this is fixed. It cannot
+report coverage of the textural triangle, because that needs the granulometry
+this process does not carry. Three outcomes and what each means:
 
 - Siltosa reaches the target — the asymmetry was a false alarm and the uniform
   target returns.
@@ -256,9 +278,12 @@ a constant or a measurement.
 
 ## Consequences
 
-- SPEC 0033 is revised, not merely amended: its laboratory row, its optional
-  granulometry columns, its `setting` enum, its untraceable-labels limitation,
-  its container-edge framing rule and its target counts are all affected.
+- SPEC 0033 is revised, not merely amended: its laboratory row, its granulometry
+  columns — now removed outright and rejected by the validator — its `setting`
+  enum, its container-edge framing rule and its target counts are all affected.
+  Its untraceable-labels limitation is the one thing that survives unchanged, and
+  it survives by a different route than it was written: not because the
+  laboratory records are unusable, but because they are deliberately not used.
 - The framing rule in SPEC 0033 — *"no background, hand, tool, or container edge
   inside the square"* — is directly contradicted by a protocol built on a Petri
   dish, whose rim is the target boundary. It is restated in that revision.

@@ -9,12 +9,15 @@ probe E0, every experiment, every calibration — waits on images that a human h
 to go and photograph.
 
 **What waits is the photography, not the samples.** Established 2026-08-11: the
-project's own laboratory archives every analysed sample with its report linked,
-so labelled material with measured granulometry already exists on a shelf. The
-dataset is that archive photographed, at the cost of zero new analyses. This
-changes what is scarce — time at the rig rather than laboratory turnaround — and
-it is why the cost question that governed earlier drafts of this spec no longer
-gates anything.
+project's own laboratory archives every analysed sample, so labelled material
+already exists on a shelf. The dataset is that archive photographed, at the cost
+of zero new analyses. This changes what is scarce — time at the rig rather than
+laboratory turnaround — and it is why the cost question that governed earlier
+drafts of this spec no longer gates anything.
+
+What comes across from the archive is the sample, its class and its origin.
+**The granulometry behind the class does not**, by the project owner's decision;
+what that costs is in the Design Decisions below and in the Risks.
 
 Nothing currently defines what a valid sample is. The pipeline infers a dataset
 from a directory walk: `scan_dataset` lists image files under one folder per
@@ -53,8 +56,8 @@ spec:
 
 | Question | Answer | Consequence |
 |---|---|---|
-| Laboratory records | **The laboratory is the project's own.** Reports and records are accessible; Embrapa is the classification reference, not the source of the labels | Granulometry becomes **required**, and labels become traceable to the measurement that produced them |
-| Physical samples | **Archived, with the report linked to each** | The dataset is an archive photographed, not a collection campaign. **Zero new laboratory analyses** |
+| Laboratory records | **The laboratory is the project's own**, and Embrapa is the classification reference rather than the source of the labels. **No granulometric data is linked into this process and the reports are not supplied to it** | The class name is the whole label. Granulometry columns are **absent**, and labels stay untraceable to the measurement behind them |
+| Physical samples | **Archived** | The dataset is an archive photographed, not a collection campaign. **Zero new laboratory analyses** |
 | Moisture at capture | Cannot be recorded | Would be an unmeasurable confound — except for the next row |
 | Where photographs are taken | **On a bench rig at fixed distance**, on archive material (air-dried, sieved) | Moisture is near-constant by construction, and **the domain gap replaces it as the dominant risk** |
 | Presentation | **90 mm Petri dish**, always the same; a second condition arranges the same soil as a disc of that size on paper, without the dish | The target is a centred circle of known diameter. See ADR 0014, and the amendment it forces on ADR 0009 |
@@ -68,8 +71,8 @@ Three of these change the programme rather than this spec.
 
 **The archive removes cost as the binding constraint.** Earlier drafts, and the
 study, treated collection as the expensive step that gated everything. With
-labelled samples already on a shelf and their granulometry already measured, the
-dataset is bounded by photography time. Question 4 in
+labelled samples already on a shelf, the dataset is bounded by photography time.
+Question 4 in
 `ml-implementation-map.md` §7 — the cost of one laboratory analysis — therefore
 stops blocking and becomes relevant only to future collection and to whether
 active learning pays for itself.
@@ -107,30 +110,35 @@ registered as an input in `ml-implementation-map.md` §7.
 One physical soil sample has one Embrapa textural class. Its identifier is a
 code the collector assigns, and it is **globally unique across the dataset**.
 
-The laboratory report reference is carried alongside it, and **granulometry is
-required rather than optional**. This reverses the earlier draft, which assumed
-the spreadsheets were unusable and kept the columns empty-but-available. The
-laboratory is the project's own and its records are accessible, so the numbers
-exist for every archived sample.
+**The manifest carries no granulometry and no laboratory reference.** Decided by
+the project owner on 2026-08-11: no granulometric data is linked into the
+classification process and the reports are not supplied to it. The class name is
+the entire label, and the columns are not merely optional — they are absent, so
+nothing collects them by halves.
 
-Requiring them buys three things, and the third only became visible once the
-columns stopped being hypothetical:
+This is recorded with its cost rather than as a neutral choice, because the cost
+is real and lands on evaluation rather than on training:
 
-- **A label can be checked against the measurement that produced it.** The
-  Embrapa class *is* a reading of those percentages on the textural triangle, not
-  an independent judgement, so a declared class contradicting its own numbers is
-  a mechanical error rather than an opinion. Label noise stops being an unbounded
-  ceiling on measured accuracy.
-- **Boundary samples become identifiable.** A sample at 34 % clay and one at
-  36 %, either side of a 35 % line, are visually indistinguishable and their
-  class difference is a convention. Those samples dominate the error, and
-  separating "confused two adjacent classes at a boundary" from "confused
-  Arenosa with Muito Argilosa" is what makes a cost-weighted evaluation possible
-  — and what makes an `ambiguous` verdict on such a sample measurable as correct
-  behaviour rather than counted as a failure.
-- **Coverage becomes a map instead of a tally.** Per-class counts say Siltosa is
-  thin. The triangle coordinates say which region of the triangle is empty, which
-  is the only form of that information that can direct collection.
+- **Label noise cannot be bounded.** The Embrapa class is a reading of the
+  percentages on the textural triangle. Without them a declared class cannot be
+  checked against the measurement that produced it, so a mistyped or misread
+  label is undetectable and stays in the training set. Whatever its rate, it is
+  an unmeasurable ceiling on every accuracy figure this dataset produces.
+- **Boundary samples are indistinguishable from model failures.** A sample at
+  34 % clay and one at 36 %, either side of a 35 % line, look identical and carry
+  different labels. Those samples will concentrate the error. Without the numbers
+  nothing separates "the model was right to be uncertain here" from "the model
+  was wrong", so a correct `ambiguous` verdict is counted as a failure.
+- **Every error weighs the same.** A cost-weighted confusion matrix needs to know
+  that Arenosa versus Muito Argilosa is a different mistake from Argilosa versus
+  Muito Argilosa. Without the granulometry there is no basis for the weighting,
+  so evaluation treats all confusions as equivalent, which is known to be false.
+- **Coverage is a tally, not a map.** Per-class counts can say Siltosa is thin.
+  Nothing can say which region of the textural triangle is empty, so any future
+  collection is directed by class count alone.
+
+None of these blocks the programme. All four belong in any statement of what a
+resulting model has been shown to do.
 
 This settles what SPEC 0032 deferred. Two consequences:
 
@@ -167,8 +175,7 @@ Required columns:
 | `site` | yes | Origin of the sample — the property or region it was extracted from, not where the photograph was taken |
 | `device` | yes | Capture device, make and model |
 | `captured_at` | yes | ISO 8601 date |
-| `sand_pct`, `silt_pct`, `clay_pct` | **yes** | Granulometry backing the class. Required since 2026-08-11: the laboratory is the project's own and the numbers exist per archived sample |
-| `lab_report` | **yes** | Reference into the laboratory record the label came from |
+| ~~`sand_pct`, `silt_pct`, `clay_pct`, `lab_report`~~ | **absent** | Removed 2026-08-11. No granulometric data is linked into the classification process and the reports are not supplied to it. The columns are absent rather than optional, so nothing collects them by halves and no code reads a value that may or may not be there |
 | `quality_flags`, and the seven metrics | written by admission | Recorded so recalibration can be recomputed without re-reading files |
 
 **There is no `moisture` column**, and its absence is a decision rather than an
@@ -406,9 +413,13 @@ subset is not, because success on the easy classes bounds nothing.
   the only known route to removing the distance confound. Reinforced 2026-08-11:
   the application will not carry a Petri dish, so it carries no object of known
   size at all.
-- **Keep granulometry optional** — rejected once the laboratory turned out to be
-  the project's own. Optional columns are filled when convenient, and a
-  verification that runs on some rows verifies nothing about the dataset.
+- **Carry granulometry as optional columns** — rejected, and the reason changed
+  twice. An earlier draft kept them optional against unusable spreadsheets, then
+  made them required when the laboratory turned out to be the project's own. Both
+  are superseded: the project owner decided on 2026-08-11 that no granulometric
+  data is linked into this process. Optional would be the worst of the three
+  anyway — it collects the data by halves, and a verification that runs on some
+  rows verifies nothing about the dataset.
 - **Photograph each sample several times per condition** — declined by the
   project owner. It would give real rather than synthetic variation in framing
   and lighting for the cost of rig time alone, with no effect on statistical
@@ -429,11 +440,7 @@ subset is not, because success on the easy classes bounds nothing.
     plus the per-split composition by class, site, and device.
   - `ml/scripts/admit_images.py` — run the SPEC 0030 criteria over candidate
     images and write their metrics and verdicts into the manifest.
-  - `ml/config.yaml` — the dataset version key, and the textural-grouping
-    threshold table with its boundary policy. The table is a declared input, not
-    a constant assumed by code: the laboratory's exact thresholds are still
-    unwritten (`ml-implementation-map.md` §7 question 2), and the validator must
-    fail naming the absent table rather than guess at it.
+  - `ml/config.yaml` — the dataset version key.
   - `docs/ml/collection-protocol.md` — the field protocol a collector executes.
   - `ml/tests/` — tests for each criterion below.
 - Does NOT include:
@@ -475,50 +482,22 @@ subset is not, because success on the easy classes bounds nothing.
   moisture cannot be recorded and there is no `moisture` column to validate, so a
   criterion rejecting `dry`, `moist` and `wet` tested a column the schema does not
   define. `setting` is the axis that actually carries the risk moisture stood for.
-- manifest_requires_granulometry_on_every_row: a row missing `sand_pct`,
-  `silt_pct`, `clay_pct` or `lab_report` is rejected. These moved from optional to
-  required on 2026-08-11; the columns are what make label verification and
-  boundary-sample identification possible, and a row without them cannot be
-  checked against the measurement that produced its label.
-- manifest_rejects_a_percentage_outside_its_own_range: any of `sand_pct`,
-  `silt_pct` or `clay_pct` below 0 or above 100 is rejected, naming the sample and
-  the value. Stated separately from the sum below because the sum does not imply
-  it: `-10, 50, 60` sums to exactly 100 and contains an impossible measurement.
-- manifest_rejects_granulometry_that_sums_outside_tolerance: the three
-  percentages must sum to 100 ± **0.5**, the tolerance declared in
-  `ml/config.yaml` under `dataset.granulometry_sum_tolerance_pct`, rejected
-  naming the sample and the sum. The value is a fixed number and a config key
-  rather than "a stated tolerance", because two validators reading the same row
-  must reach the same verdict, and 0.5 accommodates a laboratory rounding each
-  fraction to one decimal without admitting a transcription error.
-  Boundary tests are required at exactly 100.5 and 99.5, which are accepted, and
-  at 100.6 and 99.4, which are not.
+- manifest_rejects_a_granulometry_column: a manifest carrying `sand_pct`,
+  `silt_pct`, `clay_pct` or `lab_report` is rejected, naming the column. The
+  decision of 2026-08-11 is that no granulometric data enters this process, and a
+  schema that merely ignored an extra column would let it arrive quietly and then
+  be read by something later. Rejecting is what makes the decision enforceable
+  rather than aspirational.
 
-  These two are the part of granulometry validation that needs **no** grouping
-  thresholds and are therefore implementable today. They catch transcription
-  errors, which is the most common way a spreadsheet column goes wrong.
-- manifest_verifies_the_class_against_the_thresholds_when_they_are_declared:
-  the grouping thresholds live in `ml/config.yaml` as an explicit table with a
-  stated boundary policy (which side of each line a value on the line falls). If
-  the table is present, a declared class that its own percentages contradict is
-  reported, naming the sample, the declared class and the class the numbers give.
-  If it is absent, validation fails with a message naming the missing table
-  rather than passing silently.
-
-  **This criterion is deliberately conditional, and the reason is a real
-  conflict.** Requiring label verification unconditionally would require the
-  exact Embrapa grouping thresholds the laboratory applies, and
-  `ml-implementation-map.md` §7 question 2 records those as still unwritten.
-  Without them two implementations cannot decide the same way about the same row,
-  which is the definition of a criterion that is not reproducible. Making the
-  table a declared input rather than an assumed constant means the criterion is
-  implementable now and becomes active the moment the thresholds are recorded —
-  and it fails loudly in the interval rather than pretending to verify.
-
-  A boundary policy is named explicitly because it is exactly where the errors
-  live: a sample sitting on a line is the ambiguous case this specification cares
-  most about, and leaving "≥ or >" to each implementation would put the
-  disagreement precisely there.
+  An earlier draft of this specification required these columns and added three
+  criteria over them — component bounds, a sum tolerance, and verification of the
+  declared class against the grouping thresholds. All three are withdrawn. They
+  are recorded here rather than deleted because the review that produced them
+  found real defects in them, and because if the decision is ever revisited the
+  work of specifying them is not lost: the sum check must be paired with a
+  component-range check, since `-10, 50, 60` sums to exactly 100, and the class
+  check needs a declared threshold table with an explicit boundary policy, since
+  a sample sitting on a line is precisely the ambiguous case that matters.
 - manifest_reports_every_problem_at_once: a manifest with four distinct problems
   produces one failure naming all four.
 - semicolon_delimited_manifest_is_diagnosed: a semicolon-separated file fails
@@ -588,12 +567,21 @@ subset is not, because success on the easy classes bounds nothing.
   it. In-situ is deferred as a separate mode with its own samples and its own
   cost, and the consequence is stated rather than mitigated: **no accuracy figure
   from this dataset describes fresh material.**
-- **Resolved, 2026-08-11: labels are traceable.** An earlier draft recorded as a
-  known limitation that a wrong label was undetectable while the granulometry
-  spreadsheets stayed unusable, so label noise could not be bounded. The
-  laboratory is the project's own, its records are accessible, and granulometry
-  is now a required column checked against the declared class. Label noise
-  becomes measurable rather than assumed.
+- **Known limitation, and it stands: labels are not traceable to their
+  granulometry.** A wrong label is undetectable, so label noise cannot be bounded
+  and cannot be ruled out as a ceiling on measured accuracy. This moved twice in
+  one day and ended where it started: a draft resolved it when the laboratory
+  turned out to be the project's own, and the project owner then decided that no
+  granulometric data is linked into this process and the reports are not
+  supplied. Access existing and access being used are different things, and the
+  first draft conflated them.
+
+  Three consequences travel with it, all landing on evaluation rather than
+  training: boundary samples cannot be told apart from model failures, so a
+  correct `ambiguous` verdict is counted as an error; a cost-weighted confusion
+  matrix has no basis, so every confusion weighs the same, which is known to be
+  false; and dataset coverage is a per-class tally rather than a map of the
+  textural triangle.
 - Known limitation: **the `paper` condition covers a background, not a field
   mode.** Anyone reading the two `setting` values as two use cases will over-read
   what the dataset supports. Both are dry, sieved archive material.

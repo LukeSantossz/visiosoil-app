@@ -13,8 +13,8 @@ ADR 0010 (synthetic data), ADR 0014 (capture protocol).
 >
 > | This study says | Actually |
 > |---|---|
-> | Labels are not traceable to granulometry; the spreadsheets are unusable | The laboratory is the project's own; granulometry is available per archived sample and is now a required manifest column |
-> | The Embrapa grouping thresholds are unknown and block the cost-weighted matrix | Still unwritten, but now a declared input in `ml/config.yaml` rather than an unknown — SPEC 0033 fails loudly without it |
+> | Labels are not traceable to granulometry, because the spreadsheets are unusable | **Still not traceable, for a different reason.** The laboratory is the project's own and its records are usable, but the project owner decided that no granulometric data is linked into the classification process and the reports are not supplied to it. The conclusion survives; the premise behind it does not |
+> | The Embrapa grouping thresholds are unknown and block the cost-weighted matrix | The thresholds are moot — nothing checks a class against percentages it does not carry. **The cost-weighted matrix is not blocked, it is not buildable**, so every confusion weighs the same in evaluation |
 > | Collection is field capture, with moisture an uncontrolled confound recorded in the manifest | Collection is an existing archive of air-dried sieved samples photographed on a fixed rig; there is no `moisture` column and no field capture in this dataset |
 > | The target's shape and background are unknown, so §16 rejects segmentation on that basis | The target is a centred 90 mm circle in both conditions; ADR 0009 is amended and the ROI shape becomes an E1 experiment |
 >
@@ -221,8 +221,8 @@ must produce before any training decision is taken.
 | 1418 images across five classes | `ml/README.md:29-35` | No — `data/raw/` absent |
 | Splits versioned in git for reproducibility | `ml/README.md:73` | No — `data/splits/` holds only `.gitkeep` |
 | Previous v1 (SqueezeNet) and v2 (label-order bug) existed | `ml/README.md:154` | No — `models/v1` and `models/v2` are empty |
-| Labels derive from official laboratory granulometry | User, this session | Pending: the manifest must carry the lab reference |
-| Class boundaries follow the Embrapa standard textural grouping | User, this session | Pending: the exact thresholds must be recorded in the manifest |
+| Labels derive from official laboratory granulometry | User, this session | **Permanently unverifiable, 2026-08-11.** The granulometry is not linked into this process and the reports are not supplied, so the manifest carries no lab reference and the derivation cannot be checked |
+| Class boundaries follow the Embrapa standard textural grouping | User, this session | **Moot, 2026-08-11.** Nothing checks a class against percentages it does not carry |
 
 ### 4.2 Declared class distribution
 
@@ -246,9 +246,10 @@ does not create the variation that 30 images do not contain.
 
 The inventory is the first executable step of the whole programme. Per image:
 
-- class label and the laboratory sample identifier it derives from;
-- the granulometric percentages behind the label (metadata, never a training
-  target) so boundary samples can be identified;
+- class label and the sample identifier;
+- ~~the granulometric percentages behind the label~~ — **removed 2026-08-11.**
+  Not carried, so boundary samples cannot be identified and will be counted as
+  model errors;
 - pixel dimensions, file size, format;
 - EXIF orientation tag value, to size the §1.3 skew;
 - capture device and, where present, capture timestamp;
@@ -977,8 +978,11 @@ distinct conditions.
    E0 answers this and everything depends on it.
 2. Does the existing partial dataset record moisture state? If not, is it
    recoverable, or must collection restart on that axis?
-3. What are the exact Embrapa grouping thresholds used by the laboratory that
-   produced the labels? Needed to build the cost-weighted confusion matrix.
+3. ~~What are the exact Embrapa grouping thresholds used by the laboratory that
+   produced the labels? Needed to build the cost-weighted confusion matrix.~~
+   **Closed 2026-08-11, without an answer.** No granulometric data is linked into
+   this process, so the thresholds are moot and **the cost-weighted confusion
+   matrix is not buildable** — every confusion weighs the same in evaluation.
 4. How many distinct sample groups, sites, and devices does the existing partial
    dataset contain? Image counts alone do not size a split.
 5. Should the negative class live in the model or be handled entirely by the

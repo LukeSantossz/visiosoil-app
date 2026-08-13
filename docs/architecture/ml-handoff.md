@@ -6,8 +6,10 @@ Last updated: 2026-08-11. The ordered backlog with acceptance criteria lives in
 
 Full reasoning lives in `docs/architecture/soil-classification.md`, **with one
 caveat worth reading before it**: that study predates the 2026-08-11 answers and
-four of its premises are false — label traceability, the grouping thresholds,
-moisture as a live confound, and field capture as the collection method. It
+three of its premises are false — moisture as a live confound, field capture as
+the collection method, and the target's shape being unknown. A fourth, label
+traceability, reaches the study's own conclusion by a different route: the
+records are usable but are deliberately not used. It
 carries a supersession table at its head. Where it and ADR 0014 disagree, ADR
 0014 wins.
 
@@ -47,9 +49,11 @@ research agent. Full reasoning and what each side owes the other:
    localize.
 4. The declared dataset counts in `ml/README.md:29-35` are unverifiable; the
    raw data is absent from the repository and from this machine. **Updated
-   2026-08-11:** labelled physical samples with measured granulometry do exist,
-   archived at the project's own laboratory. What is absent is the photography,
-   not the material.
+   2026-08-11:** labelled physical samples do exist, archived at the project's
+   own laboratory. What is absent is the photography, not the material. The
+   granulometry behind those labels is **not** linked into this process by
+   decision, so labels stay untraceable to their measurements and label noise
+   stays unbounded.
 5. **New, and now the dominant one: the application has no way to establish
    scale.** The dataset is shot on a fixed rig with a 90 mm dish, so its
    millimetres per pixel is constant; the app is handheld with no dish. The
