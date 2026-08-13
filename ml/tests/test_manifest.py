@@ -477,6 +477,37 @@ def test_read_manifest_rejects_a_missing_file(tmp_path):
     assert MANIFEST_FILENAME in str(error.value)
 
 
+def test_manifest_rejects_a_duplicate_column_name(tmp_path):
+    """`DictReader` keeps one value of a repeated column and drops the other.
+
+    Membership alone cannot see this, so a header repeating `texture_class` would
+    silently pick a winner and change the authoritative label with no error.
+    """
+    columns = list(REQUIRED_COLUMNS) + ["texture_class"]
+    rows = paired_rows("S1", "Arenosa")
+    root = write_dataset(tmp_path, rows, columns=columns)
+
+    with pytest.raises(ManifestError) as error:
+        read_manifest(root, CLASSES)
+
+    message = str(error.value)
+    assert "texture_class" in message
+    assert "more than once" in message
+
+
+def test_read_manifest_rejects_a_root_that_is_not_a_version_directory(tmp_path):
+    """`--root` must not smuggle a non-version name into `splits.json`.
+
+    The version comes from the directory name and is published as a split's
+    `dataset_version`, so a directory called `latest` would record provenance
+    that the immutability contract does not allow.
+    """
+    root = write_dataset(tmp_path, paired_rows("S1", "Arenosa"), version="latest")
+
+    with pytest.raises(ValueError, match="dataset version"):
+        read_manifest(root, CLASSES)
+
+
 def test_read_manifest_rejects_a_blank_required_value(tmp_path):
     """A blank cell in a required column is not a value."""
     rows = paired_rows("S1", "Arenosa")

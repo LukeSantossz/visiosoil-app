@@ -348,6 +348,53 @@ def test_admit_refuses_when_a_split_claims_the_version_with_a_stale_digest(
     assert "immutable" in capsys.readouterr().err.lower()
 
 
+def test_admit_treats_a_non_mapping_split_as_unusable(tmp_path, admit_images):
+    """`[]` is valid JSON, so the guard must not crash on it.
+
+    The surrounding code promises an unreadable split is treated as claiming
+    nothing; `recorded.get` on a list raised `AttributeError` instead.
+    """
+    root = write_image_version(tmp_path, {"S1": [("dish", noise_image())]})
+    splits_dir = tmp_path / "splits"
+    splits_dir.mkdir()
+    (splits_dir / "splits.json").write_text("[]", encoding="utf-8")
+
+    code = admit_images.main(
+        ["--root", str(root), "--write", "--splits-dir", str(splits_dir)]
+    )
+
+    assert code == 0
+
+
+def test_admit_keeps_the_dataset_consistent_when_quarantine_fails(
+    tmp_path, admit_images, monkeypatch
+):
+    """A half-applied --write must not exist.
+
+    The manifest is staged before any file moves, so a failure while moving
+    leaves the committed manifest and the images exactly as they were, and the
+    staged file is not left behind to be mistaken for one.
+    """
+    root = write_image_version(
+        tmp_path, {"S1": [("dish", noise_image()), ("paper", flat_image())]}
+    )
+    before = (root / "manifest.csv").read_bytes()
+    monkeypatch.setattr(
+        admit_images,
+        "quarantine_refused",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk went away")),
+    )
+
+    with pytest.raises(OSError):
+        admit_images.main(
+            ["--root", str(root), "--write", "--splits-dir", str(tmp_path / "none")]
+        )
+
+    assert (root / "manifest.csv").read_bytes() == before
+    assert (root / "images" / "S1_paper.png").is_file()
+    assert list(root.glob("manifest.csv.*")) == []
+
+
 def test_admit_rejects_a_version_name_that_escapes_the_datasets_root(
     tmp_path, admit_images
 ):
