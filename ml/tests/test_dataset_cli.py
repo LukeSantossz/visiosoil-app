@@ -7,6 +7,7 @@ collector's own manifest, so it does nothing destructive without being told to.
 """
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -318,6 +319,41 @@ def test_admit_refuses_to_rewrite_a_version_an_existing_split_claims(
     assert (root / "manifest.csv").read_bytes() == before
     err = capsys.readouterr().err
     assert "immutable" in err.lower()
+
+
+def test_admit_refuses_when_a_split_claims_the_version_with_a_stale_digest(
+    tmp_path, admit_images, validate_dataset, capsys
+):
+    """Any split naming this version freezes it, matching digest or not.
+
+    Guarding on an exact digest match was backwards: a split recording an older
+    digest of the same version is the one already unverifiable, and rewriting
+    again makes that permanent instead of telling the operator to move to vN+1.
+    """
+    root = write_version(tmp_path)
+    splits_dir = tmp_path / "splits"
+    validate_dataset.main(["--root", str(root), "--splits-dir", str(splits_dir)])
+    splits = splits_dir / "splits.json"
+    recorded = json.loads(splits.read_text(encoding="utf-8"))
+    recorded["manifest_digest"] = "0" * 64
+    splits.write_text(json.dumps(recorded), encoding="utf-8")
+    before = (root / "manifest.csv").read_bytes()
+
+    code = admit_images.main(
+        ["--root", str(root), "--write", "--splits-dir", str(splits_dir)]
+    )
+
+    assert code == 3
+    assert (root / "manifest.csv").read_bytes() == before
+    assert "immutable" in capsys.readouterr().err.lower()
+
+
+def test_admit_rejects_a_version_name_that_escapes_the_datasets_root(
+    tmp_path, admit_images
+):
+    """`--version` is a directory name, not a path, and it reaches a writer."""
+    with pytest.raises(ValueError, match="dataset version"):
+        admit_images.main(["--version", "../elsewhere", "--write"])
 
 
 def test_admit_writes_when_no_split_claims_the_version(

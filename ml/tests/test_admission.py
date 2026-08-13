@@ -6,10 +6,11 @@ a property of the criteria rather than of whatever image happened to be handy.
 
 import pytest
 
-from src.admission import admit, write_refusal_report
+from src.admission import admit, quarantine_refused, write_refusal_report
 from src.image_quality import Verdict
 from src.manifest import (
     METRIC_COLUMNS,
+    QUARANTINE_DIRNAME,
     QUALITY_FLAGS_COLUMN,
     QUALITY_VERDICT_COLUMN,
     REJECTED_FILENAME,
@@ -145,6 +146,41 @@ def test_write_refusal_report_writes_a_header_when_nothing_was_refused(
     report = write_refusal_report(root, ())
 
     assert report.read_text(encoding="utf-8").strip() == "image,verdict,reason"
+
+
+def test_quarantine_moves_nothing_when_a_source_is_absent(tmp_path, blocking_image):
+    """A partial move would leave the dataset in the state quarantine prevents.
+
+    The caller rewrites the manifest around this call, so a failure halfway
+    through would drop rows whose files had not moved — exactly the orphan state
+    quarantine exists to avoid. Everything is checked before anything moves.
+    """
+    root = write_image_version(
+        tmp_path,
+        {"S1": [("dish", blocking_image)], "S2": [("dish", flat_image())]},
+    )
+    refused = admit(read_manifest(root, CLASSES)).refused
+    assert len(refused) == 2
+    (root / refused[1].image).unlink()
+
+    with pytest.raises(FileNotFoundError):
+        quarantine_refused(root, refused)
+
+    assert (root / refused[0].image).is_file()
+    assert not (root / QUARANTINE_DIRNAME).exists()
+
+
+def test_quarantine_refuses_to_overwrite_existing_evidence(tmp_path, blocking_image):
+    """The record of an earlier refusal is not scratch space for a later one."""
+    root = write_image_version(tmp_path, {"S1": [("dish", blocking_image)]})
+    refused = admit(read_manifest(root, CLASSES)).refused
+    quarantine_refused(root, refused)
+    blocking_image.save(root / refused[0].image)
+
+    with pytest.raises(FileExistsError) as error:
+        quarantine_refused(root, refused)
+
+    assert refused[0].image in str(error.value)
 
 
 def test_write_manifest_preserves_the_schema_column_order(tmp_path, ok_image):

@@ -420,6 +420,42 @@ def test_dataset_root_joins_the_version_directory(tmp_path):
     assert dataset_root(tmp_path / "datasets", "v3") == tmp_path / "datasets" / "v3"
 
 
+@pytest.mark.parametrize("version", ["../other", "..\\other", "/etc", "C:\\data", "latest", "v0", ""])
+def test_dataset_root_rejects_a_version_that_is_not_a_version_name(tmp_path, version):
+    """A version reaches this from a command-line flag, not only from the config.
+
+    `config.yaml` validates its own value, so the flag was the unvalidated way in:
+    joined straight onto the datasets root, `../other` makes a writing command
+    operate outside `data/datasets` entirely.
+    """
+    with pytest.raises(ValueError, match="dataset version"):
+        dataset_root(tmp_path / "datasets", version)
+
+
+@pytest.mark.parametrize("captured_at", ["20260812", "2026-W33-3", "2026-224"])
+def test_read_manifest_rejects_a_non_canonical_iso_date(tmp_path, captured_at):
+    """`date.fromisoformat` accepts forms the protocol and the message do not.
+
+    Both say `YYYY-MM-DD`; accepting a compact or week-date form means metadata
+    that no two readers sort or group the same way.
+    """
+    rows = paired_rows("S1", "Arenosa")
+    rows[0]["captured_at"] = captured_at
+    root = write_dataset(tmp_path, rows)
+
+    with pytest.raises(ManifestError) as error:
+        read_manifest(root, CLASSES)
+
+    assert "captured_at" in str(error.value)
+
+
+def test_read_manifest_accepts_a_canonical_iso_date(tmp_path):
+    """The documented form still passes."""
+    root = write_dataset(tmp_path, paired_rows("S1", "Arenosa"))
+
+    assert read_manifest(root, CLASSES).rows[0].captured_at == "2026-08-12"
+
+
 def test_read_manifest_rejects_an_empty_manifest(tmp_path):
     """An empty dataset is a mistake, and a silent empty split is worse."""
     root = write_dataset(tmp_path, [])
