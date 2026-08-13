@@ -147,6 +147,45 @@ def manifest_digest(root: str | Path) -> str:
     return hashlib.sha256(manifest_path(root).read_bytes()).hexdigest()
 
 
+#: The order a manifest is written in. One writer owns it, so a manifest that
+#: has been through admission is never reshaped by whoever wrote it last.
+WRITE_COLUMNS = (
+    *REQUIRED_COLUMNS,
+    QUALITY_VERDICT_COLUMN,
+    QUALITY_FLAGS_COLUMN,
+    *METRIC_COLUMNS,
+)
+
+
+def write_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
+    """Write ``rows`` as the manifest of the dataset version at ``root``.
+
+    Line endings are forced to LF rather than left to the platform, because the
+    digest is over the file bytes and a split has to be shown to belong to the
+    same manifest on any machine.
+    """
+    path = manifest_path(root)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(WRITE_COLUMNS)
+        for row in rows:
+            writer.writerow(
+                [
+                    row.sample_id,
+                    row.texture_class,
+                    row.image,
+                    row.setting,
+                    row.site,
+                    row.device,
+                    row.captured_at,
+                    row.quality_verdict,
+                    FLAG_SEPARATOR.join(row.quality_flags),
+                    *(_format_metric(row.metrics.get(column)) for column in METRIC_COLUMNS),
+                ]
+            )
+    return path
+
+
 def read_manifest(
     root: str | Path, classes: Sequence[str], *, check_files: bool = False
 ) -> Manifest:
@@ -544,6 +583,17 @@ def _parse_flags(value: str | None) -> tuple[str, ...]:
     if not value:
         return ()
     return tuple(flag.strip() for flag in value.split(FLAG_SEPARATOR) if flag.strip())
+
+
+def _format_metric(value: float | None) -> str:
+    """Render a metric for a file a person also reads.
+
+    An integral value is written without a decimal part so ``roi_side_px`` reads
+    as ``600`` rather than ``600.0``; both round-trip through :func:`float`.
+    """
+    if value is None:
+        return ""
+    return str(int(value)) if float(value).is_integer() else repr(float(value))
 
 
 def _is_iso_date(value: str) -> bool:

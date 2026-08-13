@@ -1,0 +1,162 @@
+"""Dataset admission: the SPEC 0030 criteria deciding what enters a version.
+
+An image whose verdict is ``blocking`` does not enter the dataset. An
+``advisory`` image does, with its failing criteria recorded, because a marginal
+photograph is representative of real conditions and excluding it would curate the
+dataset into the narrow subpopulation ADR 0009 warns about.
+
+The thresholds are provisional, so admission records the measured metrics for
+every admitted image rather than only the verdict. When the thresholds are
+recalibrated the decision can be recomputed from the manifest without re-reading
+a single file.
+
+Specified by ``docs/specs/0033-dataset-protocol-manifest-and-splits.md``.
+"""
+
+import csv
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Sequence
+
+from PIL import Image
+
+from .image_quality import (
+    DEFAULT_CRITERIA,
+    CriterionFailure,
+    ImageQualityCriteria,
+    ImageQualityMetrics,
+    ImageQualityReport,
+    Verdict,
+    analyze,
+)
+from .manifest import (
+    METRIC_COLUMNS,
+    REJECTED_FILENAME,
+    Manifest,
+    ManifestRow,
+)
+
+#: The refusal report a collector reads to know what to retake.
+REFUSAL_COLUMNS = ("image", "verdict", "reason")
+
+
+@dataclass(frozen=True)
+class RefusedImage:
+    """One candidate that did not enter the dataset, and why."""
+
+    image: str
+    verdict: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class AdmissionResult:
+    """The manifest rows that were admitted, and the candidates that were not."""
+
+    admitted: tuple[ManifestRow, ...]
+    refused: tuple[RefusedImage, ...]
+
+
+def admit(
+    manifest: Manifest, criteria: ImageQualityCriteria = DEFAULT_CRITERIA
+) -> AdmissionResult:
+    """Run the quality criteria over every row and decide what enters."""
+    admitted: list[ManifestRow] = []
+    refused: list[RefusedImage] = []
+
+    for row in manifest.rows:
+        report = _analyze_file(manifest.root / row.image, criteria)
+
+        if report.verdict is Verdict.UNVALIDATED:
+            # SPEC 0030 requires an analyzer failure never to block a capture.
+            # Admission is the other context: a row with no recorded metrics
+            # breaks the guarantee that a threshold change can be recomputed
+            # from the manifest, so the image is refused with its cause rather
+            # than admitted blind.
+            refused.append(
+                RefusedImage(
+                    image=row.image,
+                    verdict=Verdict.UNVALIDATED.value,
+                    reason=report.unvalidated_reason
+                    or "the analyzer could not measure this image",
+                )
+            )
+            continue
+
+        if report.verdict is Verdict.BLOCKING:
+            refused.append(
+                RefusedImage(
+                    image=row.image,
+                    verdict=Verdict.BLOCKING.value,
+                    reason=_describe(report.failures, Verdict.BLOCKING),
+                )
+            )
+            continue
+
+        admitted.append(
+            replace(
+                row,
+                quality_verdict=report.verdict.value,
+                quality_flags=tuple(
+                    failure.criterion.value for failure in report.failures
+                ),
+                metrics=_metrics_of(report.metrics),
+            )
+        )
+
+    return AdmissionResult(admitted=tuple(admitted), refused=tuple(refused))
+
+
+def write_refusal_report(
+    root: str | Path, refused: Sequence[RefusedImage]
+) -> Path:
+    """Write the refusal report, header included even when nothing was refused.
+
+    Always written, so its absence means admission never ran rather than that
+    every candidate passed.
+    """
+    path = Path(root) / REJECTED_FILENAME
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(REFUSAL_COLUMNS)
+        for refusal in refused:
+            writer.writerow([refusal.image, refusal.verdict, refusal.reason])
+    return path
+
+
+def _analyze_file(path: Path, criteria: ImageQualityCriteria) -> ImageQualityReport:
+    """Analyze one file, converting an unreadable image into a verdict.
+
+    Broad by intent: a corrupt file, an unsupported format and a truncated
+    download all mean the same thing here, and every one of them must become an
+    ``UNVALIDATED`` verdict with its cause attached rather than an exception that
+    abandons the rest of the batch.
+    """
+    try:
+        with Image.open(path) as image:
+            image.load()
+            return analyze(image, criteria)
+    except Exception as error:  # noqa: BLE001 - converted to a verdict, not swallowed
+        return ImageQualityReport(
+            verdict=Verdict.UNVALIDATED,
+            metrics=None,
+            failures=(),
+            unvalidated_reason=f"{type(error).__name__}: {error}",
+        )
+
+
+def _describe(failures: Sequence[CriterionFailure], severity: Verdict) -> str:
+    """Name every failure of one severity, with what it measured against."""
+    return "; ".join(
+        f"{failure.criterion.value} measured {failure.measured:.4g} against "
+        f"threshold {failure.threshold:.4g}"
+        for failure in failures
+        if failure.severity is severity
+    )
+
+
+def _metrics_of(metrics: ImageQualityMetrics | None) -> dict[str, float]:
+    """Extract the seven recorded metrics in schema order."""
+    if metrics is None:
+        return {}
+    return {column: float(getattr(metrics, column)) for column in METRIC_COLUMNS}

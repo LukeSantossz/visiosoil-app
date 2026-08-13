@@ -27,7 +27,14 @@ CLASSES = ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"]
 FIXTURE_SIDE_PX = 600
 
 
-def noise_image(side, means, amplitude=40.0, seed=7):
+#: Uniform noise of this amplitude gives a luma standard deviation near 27,
+#: clearing the contrast floor of 20 so no fixture picks up a contrast advisory
+#: it was not testing for. A smaller amplitude does not: luma is a weighted sum
+#: of the three channels, which shrinks the spread by a factor of about 0.67.
+NOISE_AMPLITUDE = 70.0
+
+
+def noise_image(side, means, amplitude=NOISE_AMPLITUDE, seed=7):
     """A textured image with per-channel means, so blur and contrast both pass."""
     generator = np.random.default_rng(seed)
     noise = generator.uniform(-amplitude, amplitude, size=(side, side, 3))
