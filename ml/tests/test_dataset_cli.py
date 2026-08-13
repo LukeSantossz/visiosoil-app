@@ -334,6 +334,25 @@ def test_admit_writes_when_no_split_claims_the_version(
     assert read_manifest(root, CLASSES).rows[0].metrics
 
 
+def test_admit_output_survives_a_narrow_console_encoding(
+    tmp_path, admit_images, capsys
+):
+    """A collector's Windows console may be cp437, which has no em dash.
+
+    `print` encodes with the console's code page, so a non-ASCII character in a
+    refusal line crashes the tool on the machine it exists to serve — and only
+    there, which is the worst place to find out.
+    """
+    root = write_image_version(
+        tmp_path, {"S1": [("dish", noise_image()), ("paper", flat_image())]}
+    )
+
+    admit_images.main(["--root", str(root), "--splits-dir", str(tmp_path / "none")])
+
+    captured = capsys.readouterr()
+    (captured.out + captured.err).encode("cp437")
+
+
 def test_admit_reports_an_invalid_manifest_without_analyzing(
     tmp_path, admit_images, capsys
 ):
