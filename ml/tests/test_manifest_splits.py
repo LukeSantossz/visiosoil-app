@@ -21,66 +21,7 @@ from src.manifest import (
     read_manifest,
     sample_ids_by_image,
 )
-
-CLASSES = ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"]
-
-#: Nothing here decodes an image, so a marker byte string is all the
-#: manifest-to-disk check needs.
-PLACEHOLDER_IMAGE_BYTES = b"dataset fixture image"
-
-MANIFEST_COLUMNS = (
-    "sample_id",
-    "texture_class",
-    "image",
-    "setting",
-    "site",
-    "device",
-    "captured_at",
-)
-
-#: Eight paired samples per class. Both stratified cuts then hold at least one
-#: group of every class, which is what scikit-learn requires of each side.
-SAMPLES_PER_CLASS = 8
-
-
-def write_version(tmp_path, extra_photographs=0):
-    """Write a manifest-backed dataset version and return its root."""
-    root = tmp_path / "datasets" / "v1"
-    (root / "images").mkdir(parents=True)
-    rows = []
-
-    def add(sample_id, texture_class, suffix, setting, site):
-        relative = "images/{}_{}.jpg".format(sample_id, suffix)
-        (root / relative).write_bytes(PLACEHOLDER_IMAGE_BYTES)
-        rows.append(
-            {
-                "sample_id": sample_id,
-                "texture_class": texture_class,
-                "image": relative,
-                "setting": setting,
-                "site": site,
-                "device": "Pixel 8",
-                "captured_at": "2026-08-12",
-            }
-        )
-
-    for texture_class in CLASSES:
-        prefix = texture_class.replace(" ", "_")
-        for index in range(SAMPLES_PER_CLASS):
-            sample_id = "{}-{}".format(prefix, index)
-            site = "Fazenda {}".format(index % 2)
-            add(sample_id, texture_class, "dish", "dish", site)
-            add(sample_id, texture_class, "paper", "paper", site)
-
-    for extra in range(extra_photographs):
-        add("Arenosa-0", "Arenosa", "dish{}".format(extra + 2), "dish", "Fazenda 0")
-
-    lines = [",".join(MANIFEST_COLUMNS)]
-    lines += [
-        ",".join(str(row[column]) for column in MANIFEST_COLUMNS) for row in rows
-    ]
-    (root / "manifest.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return root
+from tests.support import CLASSES, SAMPLES_PER_CLASS, write_version
 
 
 def generate(tmp_path, root, *, with_provenance=True):
