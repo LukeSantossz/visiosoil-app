@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{len(manifest.rows)} candidate(s) in {manifest.version}")
     print(f"admitted {len(result.admitted)}, refused {len(result.refused)}")
     for refusal in result.refused:
-        print(f"  refused {refusal.image}: {refusal.verdict} — {refusal.reason}")
+        print(f"  refused {refusal.image}: {refusal.verdict}: {refusal.reason}")
 
     if args.write:
         write_manifest(root, result.admitted)
