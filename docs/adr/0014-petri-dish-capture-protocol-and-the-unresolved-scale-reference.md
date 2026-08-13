@@ -42,9 +42,19 @@ short form is that the study's conclusion that labels are untraceable to their
 measurements **stands**, and label noise remains an unmeasurable ceiling on
 every accuracy figure this dataset produces.
 
-**The samples come from many origins**, because the laboratory serves many
-clients. The site axis, which SPEC 0033 recorded but declined to enforce a split
-along because nobody knew whether more than one site existed, is populated.
+**The samples come from many origins across Brazil**, and the origin is
+recoverable per sample. The site axis, which SPEC 0033 recorded but declined to
+enforce a split along because nobody knew whether more than one site existed, is
+not merely populated but geographically spread — which is what makes a
+site-held-out evaluation worth running rather than merely possible. Soil from one
+region shares mineralogy, colour and organic-matter content, so holding a region
+out is the difference between measuring generalisation and measuring recall of a
+particular soil.
+
+**The samples are already treated and already classified.** Air-drying, sieving
+and class assignment all happened before this project touches them. Only the
+photography remains, which is why this record describes a capture protocol rather
+than a collection protocol.
 
 **The presentation is a 90 mm Petri dish on a fixed rig.** The target is
 therefore a circle of known diameter, centred, at a known distance. ADR 0009
@@ -65,12 +75,26 @@ Samples are drawn from the laboratory archive. What crosses into this process is
 the sample, its textural class, and its origin — the class name is the whole
 label.
 
-**No granulometry and no laboratory report cross with it.** The manifest carries
-no `sand_pct`, `silt_pct`, `clay_pct` or `lab_report` column, and SPEC 0033
-**rejects** a manifest that presents one rather than ignoring it, so the decision
-is enforced rather than merely stated. Absent, not optional: optional columns get
-filled by halves, and a check that runs on some rows establishes nothing about
-the dataset.
+**No granulometry and no laboratory reference cross with it, anywhere in the
+project.** Confirmed by the project owner as a project-wide exclusion rather than
+a manifest-schema choice: this programme deals with textural classification and
+nothing else. The manifest carries no `sand_pct`, `silt_pct`, `clay_pct` or
+`lab_report` column, and SPEC 0033 **rejects** a manifest that presents one
+rather than ignoring it, so the decision is enforced rather than merely stated.
+Absent, not optional: optional columns get filled by halves, and a check that
+runs on some rows establishes nothing about the dataset.
+
+The scope matters beyond the schema. It means no evaluation artefact may be
+specified that needs the percentages — the cost-weighted confusion matrix is not
+deferred, it is **not buildable** — and no future record should propose one
+without reopening this decision first.
+
+**One thing survives that reads like granulometry and is not.** The task is
+textural classification, and textural class is a statement about particle size,
+so the *physical* fact that apparent grain size in an image depends on scale is
+untouched by this exclusion. That is the argument behind the unresolved scale
+question below. It uses no laboratory value and no report; it is a property of
+photographs.
 
 The cost is real, it lands on evaluation rather than on training, and it is
 recorded here so no later document has to rediscover it:

@@ -33,7 +33,8 @@ research agent. Full reasoning and what each side owes the other:
 | The released `.tflite` and its `spec.json` are tracked in git; experiment outputs stay ignored; a model update ships as an app release | ADR 0012 |
 | Monitoring is local-first: aggregates on the device, nothing transmitted, no image or coordinate in telemetry under any setting | ADR 0013 |
 | Task stays five-way classification of the Embrapa textural groups; no granulometry regression, no ordinal loss | Study §12.2 |
-| The dataset is the laboratory's existing sample archive photographed on a fixed rig — 90 mm Petri dish, two background conditions, zero new analyses | ADR 0014 |
+| The dataset is the laboratory's existing sample archive photographed on a fixed rig — 90 mm Petri dish, two background conditions, zero new analyses. Samples are already treated and classified, span sites across Brazil, and only the photography remains | ADR 0014 |
+| No granulometry and no laboratory reference is used **anywhere in the project**; the class name is the whole label. The cost-weighted confusion matrix is consequently not buildable | ADR 0014 |
 | Field-fresh material is **not** covered by the dataset. Today this is a stated accuracy limitation, not an enforced rule — nothing in the app can detect it | ADR 0014 |
 | The target is a centred circle of known diameter, so ADR 0009's unknown-target premise is amended and the ROI shape becomes an E1 experiment | ADR 0014, ADR 0009 |
 | Per-class sample targets are asymmetric; Siltosa is rare in the material and no effort fixes it | ADR 0014, SPEC 0033 |

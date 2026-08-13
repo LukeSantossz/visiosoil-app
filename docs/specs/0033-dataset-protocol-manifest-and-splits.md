@@ -62,7 +62,8 @@ spec:
 | Where photographs are taken | **On a bench rig at fixed distance**, on archive material (air-dried, sieved) | Moisture is near-constant by construction, and **the domain gap replaces it as the dominant risk** |
 | Presentation | **90 mm Petri dish**, always the same; a second condition arranges the same soil as a disc of that size on paper, without the dish | The target is a centred circle of known diameter. See ADR 0014, and the amendment it forces on ADR 0009 |
 | Field-fresh material | **Out of scope for this dataset.** In-situ deferred | The app must not treat fresh material as analysable |
-| Sites | **Many** — the laboratory serves many clients | The site axis is populated, so a site-held-out split becomes affordable |
+| Sites | **Many, spread across Brazil**, and the origin is recoverable per sample | The site axis is populated and geographically varied, so a site-held-out evaluation is worth running rather than merely affordable |
+| Sample state | **Already air-dried, sieved and classified** before this project touches them | Only the photography remains. The class is fixed before any image exists, so nothing in the labelling can be influenced by how a photograph looks |
 | Capture devices | One | The device axis does not exist in the dataset and does vary in deployment |
 | Sample count | ~150 per class on average, **asymmetric**; Siltosa is rare in the material itself | A uniform target is unattainable and is dropped |
 | Photographs per sample | One per condition | The group is the sample; two conditions make a group of two |
@@ -111,10 +112,16 @@ One physical soil sample has one Embrapa textural class. Its identifier is a
 code the collector assigns, and it is **globally unique across the dataset**.
 
 **The manifest carries no granulometry and no laboratory reference.** Decided by
-the project owner on 2026-08-11: no granulometric data is linked into the
-classification process and the reports are not supplied to it. The class name is
-the entire label, and the columns are not merely optional — they are absent, so
-nothing collects them by halves.
+the project owner on 2026-08-11, and **project-wide** rather than a schema
+choice: this programme deals with textural classification and nothing else, so no
+granulometric value or laboratory reference is used in any part of it. The class
+name is the entire label, and the columns are not merely optional — they are
+absent, so nothing collects them by halves.
+
+The scope has a consequence past the schema: **no evaluation artefact may be
+specified that needs the percentages.** The cost-weighted confusion matrix is not
+deferred to a later spec; it is not buildable, and proposing one later would mean
+reopening this decision rather than filling a gap.
 
 This is recorded with its cost rather than as a neutral choice, because the cost
 is real and lands on evaluation rather than on training:

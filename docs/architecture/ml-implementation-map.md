@@ -526,8 +526,14 @@ question 6; it is now the one that matters most.
 1. ~~**Who collects the dataset, at which sites, with which devices?**~~
    **Answered.** Devices: **one**, answered 2026-08-01, so the device axis is
    constant in the dataset and varies in deployment — an unmeasurable limitation
-   by construction. Sites: **many**, answered 2026-08-11, because the laboratory
-   serves many clients and the archive spans their origins.
+   by construction. Sites: **many, spread across Brazil**, answered 2026-08-11,
+   with the origin recoverable per sample. That spread is what makes a
+   site-held-out evaluation worth running rather than merely possible: soil from
+   one region shares mineralogy, colour and organic matter, so holding a region
+   out separates generalisation from recall of a particular soil.
+
+   Collection is also **already done** — the samples are treated, sieved and
+   classified, and only the photography remains.
 
    The site answer expires SPEC 0033's reason for declining a site-held-out
    split, which was stated as "with two sites it is unaffordable; with ten it is

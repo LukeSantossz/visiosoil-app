@@ -584,11 +584,26 @@ not exist and is not costed anywhere.
 
 ## 14. Data, Training, and Evaluation Pipeline
 
+**Revised 2026-08-11.** The version this replaced began at field capture, ran the
+sample through laboratory granulometry and the Embrapa grouping to obtain a
+class, and carried percentages and moisture in the manifest. None of that
+describes the programme any more: the samples are already treated, already
+labelled, and already on a shelf, and no granulometric value or laboratory
+reference enters any part of this project.
+
+The dashed boundary marks the part that happened before this pipeline begins and
+outside it.
+
 ```mermaid
 flowchart LR
-    A[Field capture under<br/>the acceptance criteria] --> B[Lab granulometry]
-    B --> C[Embrapa grouping to class]
-    C --> D[Manifest: image + class +<br/>percentages + site + device + moisture]
+    subgraph prior [Already done, outside this pipeline]
+        direction LR
+        A0[Sampling across sites in Brazil] --> A1[Air-dry and sieve]
+        A1 --> A2[Class assigned by the laboratory]
+    end
+    prior --> B[Archive on the shelf:<br/>sample + class + origin]
+    B --> C[Rig capture: 90 mm dish,<br/>then the same disc on paper]
+    C --> D[Manifest: image + class + sample<br/>+ site + device + setting]
     D --> E[Acceptance-criteria audit]
     E -->|reject| F[Quarantine, reported]
     E -->|accept| G[Split: grouped by sample, stratified by class<br/>site and device recorded, not held out]
@@ -600,6 +615,20 @@ flowchart LR
     L --> M[Post-conversion parity on the real test set]
     M --> N[spec.json + model.tflite]
 ```
+
+Two properties of this shape are worth naming, because both are easy to lose.
+
+**The class is fixed before any image exists.** Labels were assigned by the
+laboratory on the physical sample, and the photographs come afterwards. That
+rules out a specific and nasty failure: a label that was influenced by how the
+sample looked in a photograph would make the model's task partly circular, and
+the resulting accuracy would measure agreement with a photograph-derived opinion
+rather than with a physical measurement. Nothing here can be circular in that
+way.
+
+**What the arrow from the archive does not carry is as decided as what it
+does.** The granulometry that produced the class stays in the laboratory. What
+that costs is in ADR 0014; the pipeline simply has no node for it.
 
 Changes to what exists today, all of them prerequisites rather than
 improvements:
