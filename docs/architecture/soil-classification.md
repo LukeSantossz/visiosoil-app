@@ -1,9 +1,27 @@
 # Soil Texture Classification: Architecture Study
 
 Status: research and planning. No implementation decision in this document is
-binding until it is promoted to an ADR or a numbered SPEC. Three decisions have
+binding until it is promoted to an ADR or a numbered SPEC. Four decisions have
 already been promoted: ADR 0008 (inference runtime), ADR 0009 (target isolation),
-ADR 0010 (synthetic data).
+ADR 0010 (synthetic data), ADR 0014 (capture protocol).
+
+> **Superseded in part, 2026-08-11.** This study was written before the project
+> owner's answers to the §7 inputs, and four of its premises are now false.
+> Where this document and ADR 0014 disagree, **ADR 0014 is authoritative** — the
+> passages below are kept as the reasoning that produced the questions, not as a
+> description of the plan.
+>
+> | This study says | Actually |
+> |---|---|
+> | Labels are not traceable to granulometry, because the spreadsheets are unusable | **Still not traceable, for a different reason.** The laboratory is the project's own and its records are usable, but the project owner decided that no granulometric data is linked into the classification process and the reports are not supplied to it. The conclusion survives; the premise behind it does not |
+> | The Embrapa grouping thresholds are unknown and block the cost-weighted matrix | The thresholds are moot — nothing checks a class against percentages it does not carry. **The cost-weighted matrix is not blocked, it is not buildable**, so every confusion weighs the same in evaluation |
+> | Collection is field capture, with moisture an uncontrolled confound recorded in the manifest | Collection is an existing archive of air-dried sieved samples photographed on a fixed rig; there is no `moisture` column and no field capture in this dataset |
+> | The target's shape and background are unknown, so §16 rejects segmentation on that basis | The target is a centred 90 mm circle in both conditions; ADR 0009 is amended and the ROI shape becomes an E1 experiment |
+>
+> One thing this study did **not** anticipate is now the dominant risk: the
+> dataset has a constant millimetres-per-pixel scale and the application has no
+> way to establish one, on a task whose signal is particle size. See ADR 0014
+> and `ml-implementation-map.md` §7 question 6.
 
 Scope of this study: computer vision, real and synthetic data, training,
 image processing, mobile inference, calibration, and model monitoring. It does
@@ -203,8 +221,8 @@ must produce before any training decision is taken.
 | 1418 images across five classes | `ml/README.md:29-35` | No — `data/raw/` absent |
 | Splits versioned in git for reproducibility | `ml/README.md:73` | No — `data/splits/` holds only `.gitkeep` |
 | Previous v1 (SqueezeNet) and v2 (label-order bug) existed | `ml/README.md:154` | No — `models/v1` and `models/v2` are empty |
-| Labels derive from official laboratory granulometry | User, this session | Pending: the manifest must carry the lab reference |
-| Class boundaries follow the Embrapa standard textural grouping | User, this session | Pending: the exact thresholds must be recorded in the manifest |
+| Labels derive from official laboratory granulometry | User, this session | **Permanently unverifiable, 2026-08-11.** The granulometry is not linked into this process and the reports are not supplied, so the manifest carries no lab reference and the derivation cannot be checked |
+| Class boundaries follow the Embrapa standard textural grouping | User, this session | **Moot, 2026-08-11.** Nothing checks a class against percentages it does not carry |
 
 ### 4.2 Declared class distribution
 
@@ -228,9 +246,10 @@ does not create the variation that 30 images do not contain.
 
 The inventory is the first executable step of the whole programme. Per image:
 
-- class label and the laboratory sample identifier it derives from;
-- the granulometric percentages behind the label (metadata, never a training
-  target) so boundary samples can be identified;
+- class label and the sample identifier;
+- ~~the granulometric percentages behind the label~~ — **removed 2026-08-11.**
+  Not carried, so boundary samples cannot be identified and will be counted as
+  model errors;
 - pixel dimensions, file size, format;
 - EXIF orientation tag value, to size the §1.3 skew;
 - capture device and, where present, capture timestamp;
@@ -458,6 +477,7 @@ selection, and hyperparameter tuning.
 | E10 | Synthetic restricted to deficient classes only | Targeted beats uniform | E9 |
 | E11 | Synthetic restricted to rare environmental conditions only | Targeted beats uniform | E9 |
 | E12 | Combined with hard-negative mining | Negatives improve rejection more than they improve accuracy | E7 |
+| E13 | **ROI shape**: centred square vs circular mask with constant fill vs the square inscribed in the circle | For a texture task, a smaller all-soil region beats a larger one that is ~21.5% background. Added 2026-08-11 by ADR 0014, which amends ADR 0009's unknown-target premise | E1 |
 
 E0 is not optional and not a formality. If E0 cannot separate the real model
 from the label-shuffled control by more than run-to-run variance, the product
@@ -564,11 +584,26 @@ not exist and is not costed anywhere.
 
 ## 14. Data, Training, and Evaluation Pipeline
 
+**Revised 2026-08-11.** The version this replaced began at field capture, ran the
+sample through laboratory granulometry and the Embrapa grouping to obtain a
+class, and carried percentages and moisture in the manifest. None of that
+describes the programme any more: the samples are already treated, already
+labelled, and already on a shelf, and no granulometric value or laboratory
+reference enters any part of this project.
+
+The dashed boundary marks the part that happened before this pipeline begins and
+outside it.
+
 ```mermaid
 flowchart LR
-    A[Field capture under<br/>the acceptance criteria] --> B[Lab granulometry]
-    B --> C[Embrapa grouping to class]
-    C --> D[Manifest: image + class +<br/>percentages + site + device + moisture]
+    subgraph prior [Already done, outside this pipeline]
+        direction LR
+        A0[Sampling across sites in Brazil] --> A1[Air-dry and sieve]
+        A1 --> A2[Class assigned by the laboratory]
+    end
+    prior --> B[Archive on the shelf:<br/>sample + class + origin]
+    B --> C[Rig capture: 90 mm dish,<br/>then the same disc on paper]
+    C --> D[Manifest: image + class + sample<br/>+ site + device + setting]
     D --> E[Acceptance-criteria audit]
     E -->|reject| F[Quarantine, reported]
     E -->|accept| G[Split: grouped by sample, stratified by class<br/>site and device recorded, not held out]
@@ -580,6 +615,20 @@ flowchart LR
     L --> M[Post-conversion parity on the real test set]
     M --> N[spec.json + model.tflite]
 ```
+
+Two properties of this shape are worth naming, because both are easy to lose.
+
+**The class is fixed before any image exists.** Labels were assigned by the
+laboratory on the physical sample, and the photographs come afterwards. That
+rules out a specific and nasty failure: a label that was influenced by how the
+sample looked in a photograph would make the model's task partly circular, and
+the resulting accuracy would measure agreement with a photograph-derived opinion
+rather than with a physical measurement. Nothing here can be circular in that
+way.
+
+**What the arrow from the archive does not carry is as decided as what it
+does.** The granulometry that produced the class stays in the laboratory. What
+that costs is in ADR 0014; the pipeline simply has no node for it.
 
 Changes to what exists today, all of them prerequisites rather than
 improvements:
@@ -958,8 +1007,11 @@ distinct conditions.
    E0 answers this and everything depends on it.
 2. Does the existing partial dataset record moisture state? If not, is it
    recoverable, or must collection restart on that axis?
-3. What are the exact Embrapa grouping thresholds used by the laboratory that
-   produced the labels? Needed to build the cost-weighted confusion matrix.
+3. ~~What are the exact Embrapa grouping thresholds used by the laboratory that
+   produced the labels? Needed to build the cost-weighted confusion matrix.~~
+   **Closed 2026-08-11, without an answer.** No granulometric data is linked into
+   this process, so the thresholds are moot and **the cost-weighted confusion
+   matrix is not buildable** — every confusion weighs the same in evaluation.
 4. How many distinct sample groups, sites, and devices does the existing partial
    dataset contain? Image counts alone do not size a split.
 5. Should the negative class live in the model or be handled entirely by the

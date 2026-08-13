@@ -8,12 +8,35 @@ enters the dataset and what the app accepts at capture time.
 
 ## Status
 
-Accepted, with one claim narrowed on 2026-08-01. Recorded during the 2026-07-30
-ML architecture study (`docs/architecture/soil-classification.md`, §16).
-SPEC 0030 implements the acceptance criteria in both languages with a
-conformance test; wiring the gate into the capture flow is a follow-up spec,
-deliberately separated because `capture_screen.dart` is shared with the UI/UX
-terminal.
+Accepted, with one claim narrowed on 2026-08-01 and one premise amended on
+2026-08-11. Recorded during the 2026-07-30 ML architecture study
+(`docs/architecture/soil-classification.md`, §16). SPEC 0030 implements the
+acceptance criteria in both languages with a conformance test; wiring the gate
+into the capture flow is a follow-up spec, deliberately separated because
+`capture_screen.dart` is shared with the UI/UX terminal.
+
+### Amended 2026-08-11: the target shape is known, so the ROI shape is now an open experiment
+
+The rejection of segmentation below is argued in part from a target of unknown
+shape against an unknown background. That premise no longer holds. Under the
+capture protocol in ADR 0014 the target is a **circle of known diameter,
+centred**, in both conditions: soil in a 90 mm Petri dish on the bench, and the
+same soil arranged as a disc of the same size on paper.
+
+A circle inscribed in a square fills π/4 ≈ 78.5 % of it, so about **21.5 % of
+every ROI this ADR specifies is guaranteed not to be soil**, and it is exactly
+the region that differs between the two conditions.
+
+**The decision below stands**, because the alternatives that follow from the new
+premise are not segmentation. A circular mask and a crop to the square inscribed
+in the circle are fixed geometric conventions, computed from the frame with no
+model, no per-scene tuning, and no run-to-run variation — the same category as
+the centred square itself. ADR 0014 turns the choice among the three into arms
+of experiment E1, so it is settled by measurement rather than by argument.
+
+What this amendment changes is narrower and immediate: **any later argument
+citing this ADR's unknown-target premise must cite this amendment too.** The
+premise was true when written and is not true now.
 
 ### Narrowed: the criteria do not close the subpopulation gap
 
@@ -42,11 +65,21 @@ What no longer holds:
 - the claim that applying one criteria set to both sides closes the
   subpopulation gap. It closes the photographic-quality gap only.
 
-The domain gap is now an open programme risk rather than a solved one. Whether
-it is measurable at all depends on collecting a paired in-situ photograph of the
-same sample before it is removed from the field, which is irreversible per
-sample and is an open decision in SPEC 0033. Until that decision is made and the
-gap is measured, no claim about field accuracy is supportable from this dataset.
+The domain gap is now an open programme risk rather than a solved one, and no
+claim about field accuracy is supportable from this dataset.
+
+**Corrected 2026-08-11.** This previously said the gap's measurability depended
+on a paired in-situ photograph of the same sample taken before it left the
+field, treating that as an open, irreversible decision in SPEC 0033. That framing
+assumed a collection campaign whose samples had not yet been taken. ADR 0014
+establishes that the dataset is the laboratory's **existing archive**, already
+air-dried and sieved, so no sample in it can yield a paired field view — the
+moment passed before this project began, and no decision now recovers it. The
+paired photograph is not a pending choice; it is unavailable for these rows.
+
+Measuring the gap therefore requires a **separate in-situ collection** with its
+own samples and its own cost, which is deferred. Nothing about that blocks
+photographing the archive.
 
 ### Decided
 
@@ -121,8 +154,10 @@ gap is measured, no claim about field accuracy is supportable from this dataset.
   is still right, because it removes the one component of the gap that is
   removable. The residue is a genuine domain gap, it is now the dominant
   unmeasured risk in the programme, and **no field-accuracy claim is supportable
-  from a bench-collected dataset**. Closing it needs paired in-situ photographs,
-  which SPEC 0033 costs out and which blocks the start of collection.
+  from a bench-collected dataset**. Closing it needs a separate in-situ
+  collection with its own samples, deferred per ADR 0014. It does **not** block
+  photographing the archive, and the earlier wording here — that it "blocks the
+  start of collection" — is corrected under Status above.
 - The ROI crop must be applied identically in both places. If the dataset is
   cropped and the app is not, or the two crops differ, this ADR's central claim
   fails silently.
