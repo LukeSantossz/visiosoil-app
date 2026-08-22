@@ -49,15 +49,20 @@ of a producer nobody has exercised end to end.
   "classes": ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"],
   "bands": {
     "per_class": {
-      "Arenosa": {
-        "conclusive_min_margin": 0.15,
-        "conclusive_min_top_share": 0.50,
-        "ambiguous_min_pair_share": 0.65
-      }
+      "Arenosa": { "conclusive_min_margin": 0.15, "conclusive_min_top_share": 0.50, "ambiguous_min_pair_share": 0.65 },
+      "Media": { "conclusive_min_margin": 0.15, "conclusive_min_top_share": 0.50, "ambiguous_min_pair_share": 0.65 },
+      "Siltosa": { "conclusive_min_margin": 0.15, "conclusive_min_top_share": 0.50, "ambiguous_min_pair_share": 0.65 },
+      "Muito Argilosa": { "conclusive_min_margin": 0.15, "conclusive_min_top_share": 0.50, "ambiguous_min_pair_share": 0.65 },
+      "Argilosa": { "conclusive_min_margin": 0.15, "conclusive_min_top_share": 0.50, "ambiguous_min_pair_share": 0.65 }
     }
   }
 }
 ```
+
+`bands.per_class` carries **one entry for every member of `classes`**, and the
+block is written out in full above rather than abbreviated, because a schema
+shown with one class and described as per-class is a schema B3 can implement
+partially without noticing.
 
 The four additions, and why each is not optional:
 
@@ -98,13 +103,16 @@ independently into `assets/models/` can therefore be a current schema describing
 a different model, and nothing in the paragraph above would notice.
 
 The contract is checked against the loaded model itself: after
-`Interpreter.fromBuffer`, the interpreter's own input and output tensor shapes
-are compared with `input.shape` and `output.shape`, and a disagreement is
-`modelContractMismatch`. The service already reads the output shape
+`Interpreter.fromBuffer`, the interpreter's own input and output tensors are
+compared with `input` and `output` — **shape and dtype both** — and a
+disagreement is `modelContractMismatch`. The dtype half matters on its own: a
+model whose input tensor is `int8` or `float16` while the contract declares
+`float32` passes every shape check, and the service would feed it the float32
+tensor it built from the declaration. The service already reads the output shape
 (`inference_service.dart:236-237`) to size its output buffer; this makes the
 read a check rather than an assumption, and it costs nothing new. It catches the
 mismatches that change the arithmetic — a different input size, a different
-class count.
+class count, a different element type.
 
 **What it does not catch is recorded rather than papered over:** two models with
 identical tensor shapes and different label orders are indistinguishable to this
@@ -327,14 +335,25 @@ training path enforces it.
   - `ClassificationOutcome` (`ok`, `rejectedOod`, `failed`),
     `ClassificationFailureCause` (the twelve above), and `ClassificationReport`
     carrying the outcome with its result or its cause.
-  - `InferenceService.classify` returns `Future<ClassificationReport>`;
-    `initialize` reports its failures through the same causes rather than a bare
-    `bool`.
+  - `InferenceService.classify` returns `Future<ClassificationReport>`, and
+    **`initialize` returns `Future<ClassificationFailureCause?>`** — `null` when
+    the service is ready. A `bool` is what loses the cause: `classify` calls
+    `initialize` before every run (`inference_service.dart:163-166`), so a bare
+    `false` would put `contractMissing`, `contractMalformed`, `modelMissing` and
+    `modelEmpty` back into one indistinguishable value at exactly the boundary
+    this spec exists to widen.
   - **The isolate response message becomes the report**, so the five causes
     produced inside `_runInference` reach the caller.
+  - **`_runInference` is decomposed into a decode-and-preprocess step and a pure
+    interpret-output step**, both `@visibleForTesting`, mirroring how
+    `resolveTextureLabel` and `buildDistribution` are already exposed
+    (`inference_service.dart:311,329`). Without this, `InferenceIsolateEntry`
+    replaces the whole worker, so a fake can only send a prebuilt report and the
+    branches inside it are never exercised — the criteria would assert the
+    taxonomy against a test double of themselves.
   - `InferenceService` reads labels, input size and normalization from the
     contract and declares none of them; it compares the contract's input and
-    output shapes against the loaded interpreter's own.
+    output shape **and dtype** against the loaded interpreter's own.
   - Dart preprocessing: bake EXIF orientation explicitly, crop the largest
     centred square via the existing `roiBounds`, resize, normalize as the
     contract declares.
@@ -405,6 +424,10 @@ Contract parsing:
   `divide_255` is refused rather than approximated.
 - `unknown_roi_yields_contract_unsupported` — any `input.preprocessing.roi`
   other than `centered_square` is refused.
+- `unsupported_exif_orientation_yields_contract_unsupported` — any
+  `input.preprocessing.exif_orientation` other than `baked` is refused. The Dart
+  path always bakes, so accepting `none` would declare the skew this field
+  exists to detect and then proceed anyway.
 - `unsupported_input_dtype_yields_contract_unsupported` — an `input.dtype` other
   than `float32` is refused, because the Dart path builds a float32 tensor.
 - `unsupported_output_type_yields_contract_unsupported` — an `output.type` other
@@ -426,15 +449,17 @@ and distinguishable:
 
 - `missing_model_asset_yields_model_missing`.
 - `empty_model_asset_yields_model_empty`.
-- `failed_initialize_reports_a_cause` — `initialize` surfaces the same cause
-  `classify` would report, rather than a bare failure.
+- `failed_initialize_returns_the_cause` — `initialize` returns the cause
+  `classify` then reports, and returns `null` once the service is ready, so no
+  startup failure is flattened on its way to the caller.
 - `missing_image_file_yields_image_missing`.
 - `undecodable_image_yields_image_undecodable`.
 - `inference_timeout_yields_timeout` — and the isolate is still killed.
 - `isolate_spawn_failure_yields_isolate_failure`.
 - `interpreter_error_yields_interpreter_error`.
-- `interpreter_shape_disagreeing_with_contract_yields_model_contract_mismatch` —
-  for the input tensor and for the output tensor independently.
+- `interpreter_disagreeing_with_contract_yields_model_contract_mismatch` — for
+  the input tensor and the output tensor independently, and for shape and dtype
+  independently.
 - `non_probability_output_yields_output_invalid` — a non-finite probability, or
   one outside the unit interval, refuses the tensor.
 - `successful_run_yields_ok_with_the_distribution` — the existing distribution
@@ -479,14 +504,24 @@ flutter test
 cd ml && python -m pytest tests/ -v
 ```
 
-No randomness is involved in any criterion. Every criterion that exercises
-`InferenceService` drives it through its two injected seams — `ModelAssetLoader`
-and `InferenceIsolateEntry` — so none of them needs a real `.tflite`, which is
-what makes the set runnable before a model exists. Four criteria do not touch
-the service at all and are static or fixture checks:
-`dart_roi_bounds_match_the_committed_table`,
-`no_texture_label_literal_outside_the_colour_table`,
-`unknown_label_falls_back_to_outline` and `model_asset_paths_are_not_ignored`.
+No randomness is involved in any criterion. Nothing here needs a real `.tflite`,
+which is what makes the whole set runnable before a model exists, and the three
+ways that holds are worth separating because the second is new:
+
+1. The service-level criteria drive `InferenceService` through its two injected
+   seams, `ModelAssetLoader` and `InferenceIsolateEntry`.
+2. The criteria for causes produced inside the worker call the two
+   `@visibleForTesting` steps directly — decode-and-preprocess with a real image
+   file, interpret-output with a fabricated tensor — rather than through a fake
+   entry point that would only replay a canned answer. `interpreterError` is the
+   single exception: it needs a real interpreter to throw, so it is asserted
+   through the injected entry point, and that is stated rather than hidden
+   behind a criterion that looks like the others.
+3. Four criteria do not touch the service at all and are static or fixture
+   checks: `dart_roi_bounds_match_the_committed_table`,
+   `no_texture_label_literal_outside_the_colour_table`,
+   `unknown_label_falls_back_to_outline` and `model_asset_paths_are_not_ignored`.
+
 The ROI table compares integer bounds and is exact. Versions: Flutter 3.44.1 /
 Dart 3.12.1 as pinned by ADR 0004, Python 3.12 with `ml/requirements.txt`.
 
