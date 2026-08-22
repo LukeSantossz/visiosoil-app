@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-08-01.
+Last updated: 2026-08-22.
 
 ## 1. What we are building
 
@@ -132,9 +132,12 @@ provisional numbers today and both say so in their source.
 
 ### A4 — `spec.json` as the runtime contract
 
-**Record:** SPEC, full tier. Closes #79; #116 lands with the UI/UX terminal's
-item 1, which makes the label list single-source first.
-**Depends on:** ADR 0012, and their item 1 for the label source.
+**Record:** SPEC 0035, full tier, **gate-approved 2026-08-22**, with ADR 0015
+promoted from it for the failure taxonomy. Closes #79. #116 is closed — the
+UI/UX terminal's item 1 landed the single app-side label declaration this item
+now replaces with the contract.
+**Depends on:** ADR 0012, and their item 1 for the label source — both
+satisfied.
 **Paired with:** B3, which must emit exactly what this reads. **The schema is
 defined in this spec and consumed by B3, not defined twice.**
 
@@ -162,10 +165,31 @@ their item 1.
 - Zero string literals naming a texture class remain in `lib/`, enforced by a
   test that greps the tree. The label list currently exists in six independent
   copies with nothing asserting they agree.
+
+  **Narrowed by SPEC 0035**, with the reason recorded there: the criterion binds
+  the values the model decides — the labels a classification is named with, the
+  input size, the normalization — and not design tokens. The keys of
+  `SoilTextureColors._colorMap` stay, and the sweep permits exactly that one
+  file. A colour is not model output, `forClass` already degrades for an unknown
+  label, and the two ways to satisfy the criterion literally (a machine `key`
+  per class in the schema, or colours keyed by output index) each cost more than
+  the property is worth.
 - Dart-side preprocessing matches `ml/src/preprocess.py` exactly: centred square
   ROI, then resize, then the normalization named in `spec.json`. The current
   `img.copyResize(width: 224, height: 224)` squashes the aspect ratio and is a
   defect, not a convention.
+
+  **Narrowed by SPEC 0035** on two points implementation surfaced. "Matches
+  exactly" is the geometry and the order, not the pixels: `img.copyResize` and
+  `tf.image.resize` do not agree to `1e-9`, and closing that would mean a second
+  hand-written cross-language kernel to fix a difference nothing has measured.
+  And `roi_bounds` cannot be reused from `preprocess()`, which runs in graph
+  mode on a symbolic shape, so the Python side carries a `tf.shape` expression
+  proved equal to `roi_bounds` by a committed table of dimensions that both
+  languages assert against. The EXIF half of the criterion also read the code
+  wrongly: `img.copyResize` already bakes orientation internally, so what the
+  spec fixes is the order — an explicit bake before the crop — rather than an
+  absence.
 
 ### A5 — Local diagnostics
 

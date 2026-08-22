@@ -32,19 +32,30 @@ retry on `notAnalysed` until A4 lands**. This is A4's half of that bargain.
   | Nothing to do — the build is wrong | Retrying is the right response | Re-export the model |
   | --- | --- | --- |
   | `contractMissing` | `timeout` | `contractUnsupported` |
-  | `contractMalformed` | `interpreterError` | `outputMismatch` |
+  | `contractMalformed` | `interpreterError` | `modelContractMismatch` |
   | `modelMissing` | `isolateFailure` | `outputInvalid` |
   | `modelEmpty` | `imageMissing` | |
   | | `imageUndecodable` | |
 
-  Six of these are the ones ADR 0011 enumerated. Three are new, and arrive with
-  the `spec.json` contract this ADR's spec introduces: a contract can be absent,
-  unreadable, or written to a schema the reader does not implement. The
-  remaining three are facts the code already distinguishes and then discards —
-  `initialize` sets `_modelUnavailable` for an empty asset and not for an absent
-  one, and the output guards refuse a class-count mismatch and a non-probability
-  tensor for different reasons — so separating them costs nothing and recovers
-  information that already existed.
+  **Six are the ones ADR 0011 enumerated** (`0011:95-97`) — a missing model
+  asset, an isolate spawn failure, a timeout, a decode failure, a class-count
+  mismatch and an inference error — which are `modelMissing`, `isolateFailure`,
+  `timeout`, `imageUndecodable`, `modelContractMismatch` and `interpreterError`
+  here. `modelContractMismatch` widens the class-count case to cover the input
+  tensor too, since the contract now declares both and the loaded interpreter
+  can disagree with either.
+
+  **Three are new**, and arrive with the `spec.json` contract this ADR's spec
+  introduces: a contract can be absent, unreadable, or written to a schema the
+  reader does not implement.
+
+  **Three are facts the code already distinguishes and then discards on the way
+  out.** `initialize` separates an empty asset from an absent one via
+  `_modelUnavailable` (`inference_service.dart:124-128`); `_runInference`
+  separates a missing image file from an undecodable one (`:211` against
+  `:215`); and `buildDistribution` refuses a non-probability tensor for a
+  different reason than a class-count mismatch (`:347-351` against `:333-334`).
+  Separating them costs nothing and recovers information that already existed.
 
 - **An enum outcome with a nullable payload, not a sealed hierarchy.** SPEC 0030
   established this shape for `ImageQualityVerdict` / `ImageQualityReport`, and
@@ -105,6 +116,13 @@ retry on `notAnalysed` until A4 lands**. This is A4's half of that bargain.
   reason: `capture_ui_state.dart:10` already owns the other name, and the two
   are not variants of one idea. One tracks where a screen is in an operation,
   the other reports what an operation concluded.
+
+- **The isolate boundary carries the report, not the result.** Five of the
+  twelve causes are produced inside `_runInference`, which answers on a
+  `SendPort`. A taxonomy produced behind a boundary that only transports
+  `InferenceResult?` is not implementable, so the message type changes with the
+  return type — a consequence worth naming because it is invisible from the
+  public signature.
 
 - **ADR 0011's prohibition lifts, but not automatically.** Retry becomes
   offerable on the causes in the middle column. Deciding which of them the
