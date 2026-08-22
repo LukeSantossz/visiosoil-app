@@ -234,13 +234,13 @@ square, resize, the normalization the contract names.
 
 **The Dart correction is about order, not about absence.** `img.copyResize`
 bakes EXIF orientation itself when the tag is present and not identity
-(`image-4.8.0/lib/src/transform/copy_resize.dart:32-34`), so today's path is
+(`image-4.8.0/lib/src/transform/copy_resize.dart:33-35`), so today's path is
 already upright — by a side effect of the resize, discovered only by reading a
 third-party function's body. Introducing a crop in front of it would make the
 result depend on that internal, so the baking becomes explicit and happens
 first. This is safe against double application because `bakeOrientation` clears
 the orientation tag on the copy it returns
-(`image-4.8.0/lib/src/transform/bake_orientation.dart:18-19`), so the subsequent
+(`image-4.8.0/lib/src/transform/bake_orientation.dart:19`), so the subsequent
 `copyResize` finds nothing to bake. The aspect-ratio squash at
 `inference_service.dart:218-223` is the real defect and is what the crop fixes.
 
