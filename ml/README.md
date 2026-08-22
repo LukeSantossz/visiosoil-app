@@ -26,8 +26,17 @@ Output [1, 5] float32 probabilities
 
 ## Classes
 
-| # | Class | Folder | Images |
-|---|-------|--------|--------|
+The five Embrapa textural groups, in the order `ml/config.yaml` declares and the
+model emits.
+
+**The image counts below are targets, not a description of this repository.**
+No dataset exists here: `ml/data/` holds only `splits/.gitkeep`, and dataset
+images are git-ignored by design (see `docs/ml/collection-protocol.md`). The
+figures are carried from an earlier planning estimate and no run has ever
+confirmed them; the inventory that will is work item C0.
+
+| # | Class | Folder | Target images |
+|---|-------|--------|---------------|
 | 0 | Arenosa | `data/raw/Arenosa/` | 340 |
 | 1 | Media | `data/raw/Media/` | 262 |
 | 2 | Siltosa | `data/raw/Siltosa/` | 30 |
@@ -118,7 +127,7 @@ Generates `models/v1/metrics.json` with accuracy, F1 scores, per-class metrics, 
 python -m src.export --version v1
 ```
 
-Converts the Keras model to TFLite (no quantization by default) and generates `models/v1/spec.json` — the integration contract consumed by the Flutter `InferenceService`.
+Converts the Keras model to TFLite (no quantization by default) and generates `models/v1/spec.json` — the integration contract the Flutter `InferenceService` is specified to consume. It does not read it yet: `SPEC 0035` is the change that makes the contract a runtime source, and until it lands the Dart side declares the same values in source.
 
 ## Full Pipeline
 
@@ -187,7 +196,9 @@ Tests cover:
 
 ## Integration with Flutter App
 
-The Flutter `InferenceService` reads `spec.json` to understand the model contract:
+`spec.json` describes the model contract. **The Flutter `InferenceService` does
+not read it today** — it hardcodes the same values, which is issue #79 and what
+`docs/specs/0035-spec-json-runtime-contract.md` specifies away. The contract is:
 - **Input:** Divide pixel values by 255 → produces [0, 1] range.
 - **Model internal:** Rescaling layer converts [0, 1] → [-1, 1] (no Flutter code change needed).
 - **Output:** 5-class softmax probabilities.

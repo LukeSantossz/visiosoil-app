@@ -79,6 +79,12 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Share omits location by default, opt-in per share ([ADR 0007](docs/adr/0007-share-location-opt-in.md)) | Coarsen coordinates to ~1 km, or omit location entirely | Preserves the legitimate use of sending a colleague the sample's location while defaulting to non-disclosure of a client's field coordinates |
 | Research agent is advisory and web-grounded ([ADR 0001](docs/adr/0001-research-agent-advisory-web-grounded.md)) | Ship canned agronomic guidance, or omit tips entirely | Soil management advice is regional and changes; grounding each tip in a citable source keeps it useful without the app appearing to prescribe |
 | Local JSON for experiment tracking | MLflow / Weights & Biases | Disproportionate overhead for the project size; each model version emits `metrics.json` + `config.json` under `ml/models/vN/` |
+| TFLite stays the only on-device inference runtime ([ADR 0008](docs/adr/0008-tflite-remains-the-mobile-inference-runtime.md)) | Core ML on iOS alongside TFLite on Android; ONNX Runtime Mobile; ExecuTorch | A second runtime doubles the export path, the parity gate and the failure surface, and none of the alternatives solves a problem this project has measured |
+| Target isolation is a fixed ROI plus a heuristic quality gate ([ADR 0009](docs/adr/0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md)) | Classical segmentation; a MobileNet-backbone segmentation model; a detector feeding the classifier | The capture protocol is enforced rather than compensated for. Detection is deferred rather than discarded — it is what would recover a real millimetres-per-pixel scale from the coin the protocol already asks for |
+| Synthetic image generation is deferred behind a measured gap ([ADR 0010](docs/adr/0010-synthetic-image-generation-deferred-behind-a-measured-gap.md)) | cGAN conditioned on the class; diffusion img2img at low strength; a VAE for minority-class oversampling | Collection, corrected augmentation and compositing come first, and generation only if an ablation proves a downstream gain on a real-only test set. If field collection stalls, this is the record to revisit |
+| Classification uncertainty is a four-state verdict from the margin and the mass ([ADR 0011](docs/adr/0011-classification-verdict-from-margin-and-mass.md)) | A top-1 confidence percentage; Shannon entropy of the distribution | With five classes a single number cannot separate "one class, confidently" from "two classes, tied"; the app abstains when it can assert nothing and names two candidates when two hold the mass |
+| The released model artifact and its `spec.json` are tracked in git ([ADR 0012](docs/adr/0012-released-model-artifact-tracked-in-git.md)) | A GitHub Release plus a CI download step; Git LFS; a model registry | A clone at any commit builds an APK whose behaviour that commit fully determines, which is what makes a regression bisectable. Experiment outputs under `ml/models/` stay ignored |
+| Model monitoring is local-first ([ADR 0013](docs/adr/0013-local-first-model-monitoring.md)) | Server-side monitoring with sampled image upload | Aggregates stay on the device and no image, coordinate or record is transmitted; the field data is a client's, and there is no backend to receive it |
 | A classification reports an outcome and a named cause, never an absent value ([ADR 0015](docs/adr/0015-classification-reports-a-named-failure-cause.md)) | Keep returning `null` and add a separate failure getter; throw a typed exception per failure | One `null` reported a model that was never shipped and a run that timed out alike, so the interface could not tell "nothing to retry" from "retry is exactly right"; a second getter would be a separate read of mutable state with a classification in flight between them |
 | Dataset is the laboratory's sample archive photographed on a fixed rig, carrying the class name and no granulometry ([ADR 0014](docs/adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)) | Run a field collection campaign; link the laboratory reports into the pipeline | The samples already exist and are labelled, so the dataset costs rig time and zero new analyses. Two trades are accepted and recorded: every row is air-dried sieved material, so no accuracy figure describes fresh soil; and without the granulometry, label noise cannot be bounded and every confusion weighs the same in evaluation |
 
@@ -212,32 +218,29 @@ visiosoil-app/
 - [x] Optional Google sign-in with the session in secure storage
 - [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
-- [x] Repository, widget and migration tests with `NativeDatabase.memory()` — 260 tests passing
+- [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 430 Dart tests passing (3 skipped), plus 119 Python tests under `ml/tests/`
 - [x] CI pipeline (analyze → test → APK build), with the Flutter toolchain pinned in all three jobs
 - [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
 
 ### Pending
 
 - [ ] Train and deploy the production model, then export and ship the `.tflite` to `assets/models/`
-- [ ] Track the model's provenance — no dataset, split manifest, checkpoint or metrics file is versioned, so no published training run is reproducible from this repository
+- [ ] Collect the dataset the protocol in `docs/ml/collection-protocol.md` describes — the manifest, the version contract and the validator exist ([SPEC 0033](docs/specs/0033-dataset-protocol-manifest-and-splits.md)); the images do not, so no training run is possible yet
+- [ ] Track the artifacts a training run would produce — no checkpoint or metrics file is versioned, so no published run is reproducible from this repository
 - [ ] Add an asset-existence test so a missing model cannot pass a green suite, and produce a genuinely release-signed APK in CI
-- [ ] Add a contract test asserting the label list agrees across every copy, and correct the `SoilTextureColors` ordering
-- [ ] Load labels, input size, and normalization from `spec.json` at runtime instead of hardcoding them in `InferenceService`
+- [ ] Load labels, input size, and normalization from `spec.json` at runtime instead of hardcoding them in `InferenceService` — specified in [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md), not yet implemented
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
 - [ ] Wire `ProxyResearchService` and per-user auth so management tips actually resolve
-- [ ] Run the `ml/` Python tests in CI, and add an iOS build job
 
 ## Known Issues & Limitations
 
 - **No model artifact ships with the repo** — `assets/models/` contains only `.gitkeep` and `assets/models/*.tflite` is git-ignored, so classification does not work until a trained model is supplied by the pipeline.
-- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. The label list currently exists in six independent copies with no test asserting they agree.
-- **`SoilTextureColors.all` is ordered inconsistently** — it documents itself as being in model-output order but transposes `Siltosa` and `Media` relative to `InferenceService` and `ml/config.yaml`. The getter has no call sites today, so this is a latent trap rather than a live defect.
+- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specifies the fix. Within Dart the list now has one declaration and a test asserting the colour map covers it, but nothing asserts it against `ml/config.yaml`, the Python test fixtures each carry their own copy, and `VisioSoil Design System/components/data/TextureScale.prompt.md` declares a different order while calling it the model's.
 - **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
-- **No iOS build is exercised** — there is no `Podfile`, no `DEVELOPMENT_TEAM` set, and no iOS job in CI, so only Android is verified on every change.
+- **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
 - **Management tips always report unavailable** — `researchServiceProvider` returns `UnavailableResearchService` until the proxy and per-user auth wiring lands, so the UI, cache table and `ProxyResearchService` exist but no tip is ever fetched.
-- **`home_screen.dart` has no test file** — the home dashboard surface is untested (#120).
 - **`drift_flutter` pinned to `>=0.2.0 <0.2.4`** — do not bump without verifying compatibility.
 
 ## Contributing
