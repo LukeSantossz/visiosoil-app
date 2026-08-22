@@ -5,9 +5,21 @@ from pathlib import Path
 
 import yaml
 
+from .manifest import validate_version_name
+
 
 _REQUIRED_TOP_KEYS = {"project", "classes", "data", "preprocessing", "model", "training", "export"}
-_REQUIRED_DATA_KEYS = {"raw_dir", "splits_dir", "image_size", "val_split", "test_split", "seed"}
+_REQUIRED_DATA_KEYS = {
+    "raw_dir",
+    "splits_dir",
+    "datasets_dir",
+    "dataset_version",
+    "image_size",
+    "val_split",
+    "test_split",
+    "seed",
+}
+
 _REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
@@ -100,6 +112,13 @@ def _validate(cfg: dict) -> None:
         raise ValueError("val_split + test_split must be less than 1")
     if data["image_size"] < 32:
         raise ValueError("image_size must be at least 32")
+
+    # The rule lives in src.manifest, which owns the dataset layout, so this
+    # check and the --version flag check cannot diverge.
+    try:
+        validate_version_name(str(data["dataset_version"]))
+    except ValueError as error:
+        raise ValueError(f"data.dataset_version invalid: {error}") from error
 
     # A seed that is not a plain non-negative int changes seeding behaviour
     # without erroring. bool is an int subclass, so it is excluded explicitly.
@@ -264,6 +283,7 @@ def resolve_paths(cfg: dict) -> dict:
     cfg["data"] = cfg["data"].copy()
     cfg["data"]["raw_dir"] = str(ml_root / cfg["data"]["raw_dir"])
     cfg["data"]["splits_dir"] = str(ml_root / cfg["data"]["splits_dir"])
+    cfg["data"]["datasets_dir"] = str(ml_root / cfg["data"]["datasets_dir"])
     cfg["export"] = cfg["export"].copy()
     cfg["export"]["output_dir"] = str(ml_root / cfg["export"]["output_dir"])
     return cfg

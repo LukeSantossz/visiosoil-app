@@ -12,6 +12,11 @@ classes:
 data:
   raw_dir: "data/raw"
   splits_dir: "data/splits"
+  # A dataset version is an immutable directory: adding images creates the next
+  # one and never mutates this one, so every experiment can name the data it ran
+  # on. See docs/specs/0033-dataset-protocol-manifest-and-splits.md.
+  datasets_dir: "data/datasets"
+  dataset_version: "v1"
   image_size: 224
   val_split: 0.15
   test_split: 0.15

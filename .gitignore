@@ -76,6 +76,16 @@ ml/.venv/
 ml/data/raw/
 ml/data/processed/
 ml/data/splits/
+
+# Dataset versions: manifest.csv is the record and is versioned; everything else
+# under a version directory is image data and is not. Written as ignore-all plus
+# explicit exceptions rather than a list of extensions, so no camera file slips
+# in on an extension or a casing nobody enumerated — the CI runner's filesystem
+# is case-sensitive and cameras produce .JPG. See docs/ml/collection-protocol.md.
+ml/data/datasets/**
+!ml/data/datasets/**/
+!ml/data/datasets/**/manifest.csv
+!ml/data/datasets/**/admission-rejected.csv
 ml/models/**/
 ml/notebooks/.ipynb_checkpoints/
 
