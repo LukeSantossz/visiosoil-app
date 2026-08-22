@@ -33,8 +33,9 @@ Set<String> adrNumbersIn(Iterable<String> filenames) {
 /// The ADR numbers [readme] links to, by any `docs/adr/NNNN-...` reference.
 ///
 /// Matches the path rather than the link text: the Engineering Decisions table
-/// names a decision in prose and carries the record as a markdown link, and it
-/// is the link that has to resolve.
+/// names a decision in prose and carries the record as a markdown link, and the
+/// number in that path is what ties the row to a record. Whether the path
+/// resolves is [danglingAdrLinks]' question, not this one.
 Set<String> linkedAdrNumbers(String readme) {
   final numbers = <String>{};
   for (final match in RegExp(r'docs/adr/(\d{4})-').allMatches(readme)) {
@@ -47,6 +48,16 @@ Set<String> linkedAdrNumbers(String readme) {
 List<String> unlinkedAdrNumbers(Iterable<String> filenames, String readme) {
   final missing = adrNumbersIn(filenames).difference(linkedAdrNumbers(readme));
   return missing.toList()..sort();
+}
+
+/// Numbers [readme] links that no record under [_adrDir] carries, sorted.
+///
+/// The inverse of [unlinkedAdrNumbers], and the reason the index cannot be
+/// satisfied cheaply: a link to `docs/adr/0099-invented.md` would otherwise
+/// count as indexing a record that does not exist.
+List<String> danglingAdrLinks(Iterable<String> filenames, String readme) {
+  final dangling = linkedAdrNumbers(readme).difference(adrNumbersIn(filenames));
+  return dangling.toList()..sort();
 }
 
 void main() {
@@ -85,6 +96,25 @@ void main() {
         isEmpty,
       );
     });
+
+    test('danglingAdrLinks reports a link to a record that does not exist', () {
+      // Without this the index could be satisfied by a link that resolves to
+      // nothing, which reads as coverage and is the opposite of it.
+      expect(
+        danglingAdrLinks(
+          ['0001-first.md'],
+          '[a](docs/adr/0001-first.md) [b](docs/adr/0099-invented.md)',
+        ),
+        ['0099'],
+      );
+    });
+
+    test('danglingAdrLinks reports nothing when every link resolves', () {
+      expect(
+        danglingAdrLinks(['0001-first.md'], '[a](docs/adr/0001-first.md)'),
+        isEmpty,
+      );
+    });
   });
 
   group('this repository', () {
@@ -107,6 +137,21 @@ void main() {
         isEmpty,
         reason: 'every ADR must be linked from $_readmePath, per '
             '.standards/docs/standards/INDEX.md and SPEC 0010',
+      );
+    });
+
+    test('readme_links_no_absent_adr', () {
+      final adrs = Directory(_adrDir)
+          .listSync()
+          .whereType<File>()
+          .map((file) => file.uri.pathSegments.last)
+          .toList();
+      final readme = File(_readmePath).readAsStringSync();
+      expect(
+        danglingAdrLinks(adrs, readme),
+        isEmpty,
+        reason: 'an ADR link in $_readmePath points at a record that does not '
+            'exist under $_adrDir',
       );
     });
   });

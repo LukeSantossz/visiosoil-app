@@ -3,23 +3,30 @@
 ## Problem
 
 `README.md`, `CLAUDE.md`, `ml/README.md` and `docs/architecture/ml-handoff.md`
-state things about this repository that are false today — the README indexes 8
-of the 14 ADRs, publishes a test count 165 short, and lists as pending four
-items that have shipped — and the one criterion that was supposed to prevent
-this, SPEC 0010's `readme_indexes_every_adr`, is enforced by nothing.
+state things about this repository that are false today — the README indexes 9
+of the 15 ADRs, publishes a Dart test count 170 short and no Python count at
+all, describes a three-job CI pipeline that has six jobs, and lists as pending
+three items that have shipped — and the one criterion that was supposed to
+prevent this, SPEC 0010's `readme_indexes_every_adr`, is enforced by nothing.
 
 ## Scope
 
 - Includes:
   - `README.md` Engineering Decisions: rows for ADRs 0008, 0009, 0010, 0011,
-    0012 and 0013, so the table indexes all fourteen records as
+    0012 and 0013, so the table indexes every record as
     `.standards/docs/standards/INDEX.md` requires.
-  - `README.md` Done: the test count, currently "260 tests passing".
+  - `README.md` Done: the test count, currently "260 tests passing", and the CI
+    line, which describes three jobs where `.github/workflows/ci.yml` defines
+    six.
+  - `CLAUDE.md` CI Pipeline: the same three-job description, whose "depends on
+    analyze + test passing" also predates `build`'s `needs: [analyze, test,
+    ml-tests]`.
   - `README.md` Pending: remove the entries for the ML tests in CI and the iOS
-    build job (both shipped, `.github/workflows/ci.yml`), and the entry for the
-    label-agreement test and the `SoilTextureColors` ordering (shipped with
-    #116). Narrow the model-provenance entry, since SPEC 0033 landed the
-    manifest, the dataset version and the split provenance.
+    build job (both shipped, `.github/workflows/ci.yml`). Split the entry that
+    paired the label-agreement test with the `SoilTextureColors` ordering: the
+    ordering shipped with #116, the cross-language contract test did not, so
+    that half stays. Narrow the model-provenance entry, since SPEC 0033 landed
+    the manifest, the dataset version and the split provenance.
   - `README.md` Known Issues: correct the `SoilTextureColors.all` entry (the
     ordering is fixed and the getter derives from the single label source), the
     `home_screen.dart` entry (#120 closed, `test/features/home/home_screen_test.dart`
@@ -36,8 +43,9 @@ this, SPEC 0010's `readme_indexes_every_adr`, is enforced by nothing.
     removed the `assets/models` entries from `.gitignore`, and the stale line
     reference for the EXIF claim, which now points inside a different function.
   - `test/standards/readme_adr_index_test.dart` — a guard asserting the README
-    links every record under `docs/adr/`, so this criterion is enforced rather
-    than trusted, in the same shape as the numbering guard SPEC 0013 added.
+    links every record under `docs/adr/`, and that every ADR link in the README
+    resolves to a record that exists, so this criterion is enforced rather than
+    trusted, in the same shape as the numbering guard SPEC 0013 added.
 - Does NOT include:
   - Any change under `lib/`, `ml/src/`, `ml/scripts/` or `ml/tests/`, and no
     test change other than the new guard.
@@ -58,6 +66,11 @@ this, SPEC 0010's `readme_indexes_every_adr`, is enforced by nothing.
 
 - `readme_indexes_every_adr` — the guard passes: every `NNNN-*.md` under
   `docs/adr/` is linked from `README.md`.
+- `readme_links_no_absent_adr` — the guard also fails on the inverse, a README
+  link to a record that does not exist, so the index cannot be satisfied by a
+  link that resolves to nothing.
+- `readme_and_claude_md_describe_the_ci_pipeline_that_exists` — both name the
+  six jobs and the dependencies `ci.yml` declares.
 - `readme_adr_index_guard_fails_on_an_unlinked_adr` — the guard is proved by
   mutation, not merely observed passing against today's tree.
 - `readme_pending_names_no_shipped_work` — no Pending entry names work present
