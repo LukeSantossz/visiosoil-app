@@ -74,7 +74,7 @@ research agent. Full reasoning and what each side owes the other:
   `classify()` always returns `null` and every record is saved unclassified.
 - Train/serve skew on EXIF orientation. The app bakes orientation via
   `img.copyResize` (`image-4.8.0/lib/src/transform/copy_resize.dart:33-35`);
-  training ignores EXIF entirely (`ml/src/dataset.py:257-259`).
+  training ignores EXIF entirely (`ml/src/dataset.py:375`, inside `_parse_image`).
 - `spec.json` is generated and never read; labels, input size, and normalization
   are hardcoded in `inference_service.dart` (#79, #116).
 - `export.py` verifies TFLite parity against `np.random.rand` (`export.py:92`).
@@ -261,9 +261,12 @@ that. `inconclusive` was consequently dropped from the status enum above.
   on the present values.
 - **A database migration** for the new record fields collides with any other
   schema work. Schema is at v4; coordinate before writing v5 (map item A2).
-- **`.gitignore`** — ADR 0012 removes the `assets/models/*.tflite` and
-  `assets/models/spec.json` entries. Both files become tracked. This unblocks
-  #79 and #116.
+- **`.gitignore`** — ADR 0012 decides that the `assets/models/*.tflite` and
+  `assets/models/spec.json` entries go, so both files become tracked. **This has
+  not happened yet**: `.gitignore` still carries both, which ADR 0012 states in
+  its own text, and the removal lands with SPEC 0035 — the specification that
+  first makes the contract readable. #116 is closed; #79 closes with that
+  implementation.
 
 ## Dependencies
 
