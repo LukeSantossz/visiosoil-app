@@ -8,8 +8,50 @@ enters the dataset and what the app accepts at capture time.
 
 ## Status
 
-Accepted, with one claim narrowed on 2026-08-01 and one premise amended on
-2026-08-11. Recorded during the 2026-07-30 ML architecture study
+Accepted, with one claim narrowed on 2026-08-01, one premise amended on
+2026-08-11, and two amendments on 2026-08-25.
+
+### Amended 2026-08-25: the classical route was never what this record rejected
+
+[ADR 0017](0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)
+reads scale from an object of known size — the dish rim in the dataset, the A4
+sheet in the application — by contour extraction and a fitted shape.
+
+The "detector then classifier" option below is rejected citing *"bounding-box
+annotation instead of masks, and a second model in the inference path"*. That
+objection is about a **learned** detector: something to annotate, train,
+version, convert and verify. A deterministic operator over an object of known
+geometry is none of those. It is the same category as the centred-square crop
+this record already permits, and ADR 0014 conceded the point in passing when it
+wrote that *"a circle of known diameter [is] detectable without any model"*.
+
+**What this record rejects stays rejected**: no segmentation model, no learned
+detector, no second `.tflite` in the inference path. The amendment is narrow —
+any later argument citing this record against a classical, parameter-free
+operator is citing it wrongly, and must cite this amendment too.
+
+### Amended 2026-08-25: the one-criteria-set thesis is narrowed to photographic quality
+
+This record decides that **one set of acceptance criteria governs both the
+dataset and the application**. That cannot hold unqualified once the two sides
+read different scale references: applying the application's rule to the dataset
+would refuse all 194 archive photographs, none of which contains an A4 sheet.
+
+The set splits, and the split is deliberate:
+
+| Layer | Shared? |
+|---|---|
+| Photographic quality — blur, exposure, clipping, effective resolution, contrast, colour cast, specular | **Yes.** One definition, two implementations, held together by the committed golden file |
+| Scale source — which object carries the reference, and how it is found | **No.** Dish rim on the dataset side, A4 sheet on the application side |
+
+The reasoning below applies to the first row and never applied to the second,
+which did not exist when this was written.
+
+Two further consequences land on the criteria themselves, both from
+[ADR 0018](0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md):
+the region of interest becomes a grid of patches rather than one centred square,
+so `minRoiSidePx` is re-scoped to the disc; and a colour-cast threshold stops
+being load-bearing, because the model no longer sees colour. Recorded during the 2026-07-30 ML architecture study
 (`docs/architecture/soil-classification.md`, §16). SPEC 0030 implements the
 acceptance criteria in both languages with a conformance test; wiring the gate
 into the capture flow is a follow-up spec, deliberately separated because
