@@ -1,5 +1,39 @@
 # Soil Dataset Collection Protocol
 
+> **Superseded for the current dataset, 2026-08-25.** This document describes a
+> collection to be performed. It was not performed this way: 221 photographs of
+> 194 samples were delivered on 2026-08-25, already taken, and
+> [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+> describes what they are. Read this document as the protocol for **any future
+> re-photography**, not as a description of `v1`.
+>
+> **What the delivered set does not match:**
+>
+> | This document requires | The delivered set |
+> |---|---|
+> | One camera for the whole dataset | At least two, with different framing and resolution |
+> | A fixed camera-to-sample distance | Scale spans a factor of 2.6 |
+> | Two photographs per sample, `dish` and `paper`, pairing enforced | One condition, `dish`. 177 of 194 samples have a single photograph |
+> | A coin in frame, outside the centred square | Not usable, and dropped — see ADR 0017 |
+> | A paper template for the `paper` condition | No `paper` rows exist |
+> | 30 samples per class as the feasibility floor | Siltosa holds three |
+>
+> **What still holds, and is why this file is kept:** the immutable-version rule
+> (§6), the manifest as the authoritative record (§5), the admission verdicts
+> (§7), the rejection of granulometry and moisture columns, and the counting unit
+> being samples rather than photographs (§8).
+>
+> **What a future re-photography must add**, from decisions taken after this was
+> written: a `disc_diameter_px` measured per row; the rig set to the **finest**
+> millimetres per pixel it can achieve, because resampling only runs toward
+> coarser and resolution given away at capture is never recovered; and an A4
+> sheet under the dish, so both sides share one scale reference.
+>
+> The application-side protocol is a different document and belongs to the UI/UX
+> terminal: a bare A4 sheet, soil spread as a disc of at least ~70 mm, the whole
+> sheet in frame, the collection point marked before preparing the sample, and a
+> declaration of whether the sample was sieved.
+
 The procedure for building a dataset version, written so it can be executed
 without the engineering terminal present. Every rule here was decided against a
 stated alternative; the reasons are kept next to the rules because a rule whose

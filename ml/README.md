@@ -29,19 +29,36 @@ Output [1, 5] float32 probabilities
 The five Embrapa textural groups, in the order `ml/config.yaml` declares and the
 model emits.
 
-**The image counts below are targets, not a description of this repository.**
-No dataset exists here: `ml/data/` holds only `splits/.gitkeep`, and dataset
-images are git-ignored by design (see `docs/ml/collection-protocol.md`). The
-figures are carried from an earlier planning estimate and no run has ever
-confirmed them; the inventory that will is work item C0.
+**The counts below are measured, as of 2026-08-25.** They replace an earlier
+planning estimate of 1,418 images that no run ever confirmed. The images
+themselves stay git-ignored by design; what is committed is the manifest. See
+[ADR 0016](../docs/adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
 
-| # | Class | Folder | Target images |
-|---|-------|--------|---------------|
-| 0 | Arenosa | `data/raw/Arenosa/` | 340 |
-| 1 | Media | `data/raw/Media/` | 262 |
-| 2 | Siltosa | `data/raw/Siltosa/` | 30 |
-| 3 | Muito Argilosa | `data/raw/Muito_Argilosa/` | 220 |
-| 4 | Argilosa | `data/raw/Argilosa/` | 566 |
+The unit that matters is the **sample**, not the image: splits group on it, and
+some samples carry more than one photograph.
+
+| # | Class | Samples | Images | In the first model |
+|---|-------|---------|--------|---|
+| 0 | Arenosa | 57 | 68 | yes |
+| 1 | Media | 36 | 42 | yes |
+| 2 | Siltosa | **3** | 6 | **no** |
+| 3 | Muito Argilosa | 39 | 42 | yes |
+| 4 | Argilosa | 59 | 63 | yes |
+| | **Total** | **194** | **221** | |
+
+**Siltosa is excluded from the first model.** Three samples is the arithmetic
+minimum for a three-way split — one row each in train, validation and test — and
+a per-class figure computed on one test sample is a coin flip presented as a
+measurement. The first model classifies four groups; the product still names
+five, and the application declares the absence.
+
+**129 of the 221 files are HEIC**, which neither `tf.io.decode_image` nor the
+Dart `image` package can read. Conversion precedes everything (#196).
+
+The photographs are soil in a 90 mm Petri dish, top-down, on a pale background.
+The laboratory number is carried in the filename — `100262,1 (1).JPEG` is
+photograph 1 of sample `100262,1` — so the manifest is derived from a directory
+scan rather than authored.
 
 ## Setup
 
