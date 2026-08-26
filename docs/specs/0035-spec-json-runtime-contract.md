@@ -1,5 +1,37 @@
 # SPEC (full): refactor(inference): read the model contract from spec.json instead of hardcoding it
 
+
+> **Revised 2026-08-25.** The schema below is incomplete against three decisions
+> taken after this specification was Gate-approved. The contract must declare
+> every value the model was trained under, and six are missing.
+>
+> | Field | From |
+> |---|---|
+> | `canonical_mm_per_px` | [ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md) — a model trained at one canonical scale cannot be served at another |
+> | `scale_reference` | ADR 0017 — which object carries the reference on the application side |
+> | `patch_mm`, `patch_count` | [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) |
+> | `color_mode` | ADR 0018 — greyscale, replicated to three channels |
+> | `aggregation` | ADR 0018 — mean over patch distributions |
+> | `dispersion_threshold` | ADR 0018 — advisory, uncalibrated |
+>
+> Two further changes:
+>
+> - **`classes` carries four entries, not five.** ADR 0016 excludes Siltosa from
+>   the first model. This makes reading the contract a **release blocker rather
+>   than a next item**: `SoilTextureLabels.ordered` declares five and
+>   `resolveTextureLabel` refuses a four-class tensor, so a four-class model
+>   cannot run in the application until the labels come from this file.
+> - **The centred-square crop is not the preprocessing any more.** Reading the
+>   scale precedes the crop, and the crop is a patch grid.
+>   [SPEC 0037](0037-scale-normalised-greyscale-patch-pipeline.md) owns that
+>   pipeline; this specification owns the contract file and the failure taxonomy,
+>   and gains one cause — the scale reference could not be read — in ADR 0015's
+>   middle column, where retrying is the right response.
+>
+> Everything else here stands: the twelve causes, the refusal to fall back
+> silently, the enum-plus-payload shape, and the preservation of the initialise
+> cause across the isolate boundary.
+
 ## Problem
 
 `InferenceService` hardcodes the label list, the input size and the
