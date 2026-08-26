@@ -5,6 +5,31 @@ binding until it is promoted to an ADR or a numbered SPEC. Four decisions have
 already been promoted: ADR 0008 (inference runtime), ADR 0009 (target isolation),
 ADR 0010 (synthetic data), ADR 0014 (capture protocol).
 
+> **Superseded again, 2026-08-25, and more widely than in August.** The image
+> set was delivered and audited, and five decisions followed the same day. A
+> resync is tracked as **#189**; until it lands, this table is what stops the
+> study being read as current. **Where this study and ADRs 0016, 0017 or 0018
+> disagree, the ADRs win.**
+>
+> | This study says | Actually |
+> |---|---|
+> | §4 The dataset cannot be audited because no images exist | 221 photographs of **194 samples** exist and are audited in ADR 0016. The counts are 57 / 36 / **3** / 59 / 39 |
+> | §11, §21 Lane C is gated on weeks of collection | It is gated on **#196** — 58 % of the set is HEIC and unreadable — and on the three defects that would bias E0. **E0 is runnable now** (#197) |
+> | Five-way classification throughout | The first model classifies **four**. Siltosa holds three samples, which is the arithmetic minimum for a split and not a measurement. The product still names five |
+> | §5 Background is a "severe" gap | **Wrong under ADR 0018.** A patch cut from inside the soil region is soil and nothing else, so the container stops mattering at the level the model sees |
+> | §5 Distance and angle are "severe" gaps | Closed by ADR 0017: both sides measure millimetres per pixel from an object of known size, and a photograph without one is refused |
+> | §16 The region of interest is one centred square | It is an overlapping grid of patches of fixed **physical** size, in greyscale (ADR 0018) |
+> | §17 Rejection is a threshold on the top-1 and the margin | Unchanged in structure, but computed on an **aggregate** over patches, and the app **never shows nothing** — ADR 0011 is amended |
+> | §12.1 MobileNetV2 at 224, "4.2M params, Howard et al. 2017" | The input is **160 px**, one of the published ImageNet sizes. The parameter figure and the citation are both V1's, not V2's — #189 |
+> | §19 The cost-weighted confusion matrix is not buildable | **It is.** The ordering follows from class semantics, not from granulometry, and it is recorded in ADR 0016 |
+> | §20 R5, EXIF orientation, is a train/serve skew | Downgraded to cosmetic: patches are cut from a located region and the symmetry augmentation makes orientation irrelevant |
+> | §6.1 The wiki does not cover thresholds, calibration or edge quantization | Three pages have appeared since — see the #189 comment for which |
+>
+> **What this study still owns**, and why it is kept rather than retired: the
+> reasoning behind ADR 0010, the backbone comparison, the task formulation in
+> §12.2, and the framing of every risk. It is the document that produced the
+> questions; it is no longer the document that describes the state.
+
 > **Superseded in part, 2026-08-11.** This study was written before the project
 > owner's answers to the §7 inputs, and four of its premises are now false.
 > Where this document and ADR 0014 disagree, **ADR 0014 is authoritative** — the
