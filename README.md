@@ -260,8 +260,9 @@ visiosoil-app/
 Branch from `main` (`type/short-description`), keep `flutter analyze` and `flutter test` green, use single-line Conventional Commits (`type(scope): subject`), and open a PR with type and complexity labels.
 
 Run `bash scripts/setup.sh` once per clone; it is what wires the gates. Then per
-change: a spec under `docs/specs/NNNN-<slug>.md` before the code, `mf author
-declare` once per branch, and `mf check` before pushing — the same gates the
+change of any substance: a spec under `docs/specs/NNNN-<slug>.md` before the
+code — a typo or a one-line fix needs none — then `mf author declare` once per
+branch, and `mf check` before pushing — the same gates the
 hooks run. The binding standards are in `.standards/docs/standards/`, and
 `CLAUDE.md` and `AGENTS.md` are generated from them plus this repository's own
 sections in `docs/agents/project.md`; edit that file, never the generated ones.
