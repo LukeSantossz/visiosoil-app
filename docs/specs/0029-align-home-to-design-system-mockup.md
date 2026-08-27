@@ -1,4 +1,4 @@
-# SPEC (full): feat(home): align the home screen to the design-system mockup
+# SPEC: feat(home): align the home screen to the design-system mockup
 
 ## Problem
 

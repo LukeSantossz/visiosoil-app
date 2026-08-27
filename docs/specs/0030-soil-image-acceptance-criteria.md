@@ -1,4 +1,4 @@
-# SPEC (full): feat(image-quality): define the soil image acceptance criteria with matching Python and Dart implementations
+# SPEC: feat(image-quality): define the soil image acceptance criteria with matching Python and Dart implementations
 
 ## Problem
 

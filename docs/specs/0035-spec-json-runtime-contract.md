@@ -1,4 +1,4 @@
-# SPEC (full): refactor(inference): read the model contract from spec.json instead of hardcoding it
+# SPEC: refactor(inference): read the model contract from spec.json instead of hardcoding it
 
 ## Problem
 

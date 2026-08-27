@@ -1,4 +1,4 @@
-# SPEC (spec-lite): build(deps): raise the Dart SDK floor to 3.12 to match the lockfile
+# SPEC: build(deps): raise the Dart SDK floor to 3.12 to match the lockfile
 
 ## Problem
 

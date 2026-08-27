@@ -1,4 +1,4 @@
-# SPEC (spec-lite): docs: resync the project documents with the implemented state and guard the ADR index
+# SPEC: docs: resync the project documents with the implemented state and guard the ADR index
 
 ## Problem
 

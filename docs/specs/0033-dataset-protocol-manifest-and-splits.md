@@ -1,4 +1,4 @@
-# SPEC (full): feat(ml): define the dataset collection protocol, its manifest, and versioned splits
+# SPEC: feat(ml): define the dataset collection protocol, its manifest, and versioned splits
 
 ## Problem
 

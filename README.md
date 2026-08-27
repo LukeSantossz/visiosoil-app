@@ -27,7 +27,7 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 
 | Layer | Technology |
 | --- | --- |
-| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.11.0`) |
+| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.12.0`) |
 | Framework / Runtime | Flutter 3.44.1, pinned to match CI (Android + iOS) |
 | State management | Riverpod (`flutter_riverpod`) |
 | Navigation | GoRouter |
@@ -99,13 +99,24 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 ### Installation
 
 ```bash
-git clone https://github.com/LukeSantossz/visiosoil-app.git
+git clone --recurse-submodules https://github.com/LukeSantossz/visiosoil-app.git
 cd visiosoil-app
+# On a clone made without --recurse-submodules:
+# git submodule update --init
 
 flutter pub get
 # Generate Drift adapters (required after changes to DB tables / models)
 dart run build_runner build --delete-conflicting-outputs
+
+# Wire the commit-msg and pre-push gates, and report what has no route.
+# Needs `mf` on PATH; see .standards/README.md for the install command.
+bash scripts/setup.sh
 ```
+
+`.standards/` is the development-standards harness, vendored as a submodule. The
+gates read the corpus it supplies; a clone without it has no standards to check
+against. Both hooks fail closed, so `mf` missing from `PATH` refuses the next
+commit rather than passing it.
 
 ### Running
 
@@ -247,6 +258,14 @@ visiosoil-app/
 ## Contributing
 
 Branch from `main` (`type/short-description`), keep `flutter analyze` and `flutter test` green, use single-line Conventional Commits (`type(scope): subject`), and open a PR with type and complexity labels.
+
+Run `bash scripts/setup.sh` once per clone; it is what wires the gates. Then per
+change of any substance: a spec under `docs/specs/NNNN-<slug>.md` before the
+code — a typo or a one-line fix needs none — then `mf author declare` once per
+branch, and `mf check` before pushing — the same gates the
+hooks run. The binding standards are in `.standards/docs/standards/`, and
+`CLAUDE.md` and `AGENTS.md` are generated from them plus this repository's own
+sections in `docs/agents/project.md`; edit that file, never the generated ones.
 
 ## License
 
