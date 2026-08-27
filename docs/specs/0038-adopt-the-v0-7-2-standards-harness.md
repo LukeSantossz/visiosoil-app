@@ -1,4 +1,4 @@
-# SPEC: chore(standards): adopt the v0.7.1 harness
+# SPEC: chore(standards): adopt the v0.7.2 harness
 
 ## Problem
 
@@ -26,7 +26,7 @@ binary at all. Everything downstream of that pin is stale or dead:
 
 ## Design Decision
 
-Adopt `v0.7.1` and let the harness own what it owns.
+Adopt `v0.7.2` and let the harness own what it owns.
 
 Two things in that release are why this migration waited for it. The 130 lines
 of project-specific instructions in `CLAUDE.md` are the first: until
@@ -37,7 +37,7 @@ role markers, and `mf agents sync` appends them to each generated file after the
 framework's sections. Nothing is lost and nothing is hand-maintained twice.
 
 The second is the numbering gate. PR #198 holds spec `0037`, so this branch must
-claim `0038` and its archive has a gap it did not make. Until `v0.7.1` the
+claim `0038` and its archive has a gap it did not make. Until `v0.7.2` the
 records gate read that as a deleted record and refused the push, and both hooks
 fail closed, so there was no way to adopt the harness and open this pull request
 at the same time.
@@ -87,7 +87,7 @@ file, and naming it would claim a route that does not exist.
 
 ## Scope
 
-- Includes: the submodule pin at `v0.7.1`; `.framework.toml` and
+- Includes: the submodule pin at `v0.7.2`; `.framework.toml` and
   `.framework.lock`; both hooks written and staged executable;
   `docs/agents/project.md` and the regenerated `CLAUDE.md` and `AGENTS.md`;
   `scripts/setup.sh` rewritten to delegate; deletion of
@@ -116,14 +116,14 @@ file, and naming it would claim a route that does not exist.
 ## Reproducibility
 
 ```sh
-git submodule status .standards          # v0.7.1
+git submodule status .standards          # v0.7.2
 git ls-files --stage .githooks/          # 100755 for both
 mf doctor                                # every role names a defined backend
 mf check                                 # 7/7
 flutter test test/standards/
 ```
 
-Versions: `mf` v0.7.1, Flutter 3.44.1 / Dart 3.12.1.
+Versions: `mf` v0.7.2, Flutter 3.44.1 / Dart 3.12.1.
 
 ## Risks and Assumptions
 
