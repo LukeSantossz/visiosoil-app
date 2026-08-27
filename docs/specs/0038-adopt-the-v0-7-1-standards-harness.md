@@ -47,6 +47,11 @@ live in its tracker. Wiring the hooks and reporting what resolves are `mf hooks
 install` and `mf doctor`, called rather than reimplemented — a second
 implementation of activation is a second thing that can be wrong about it.
 
+The CI test job now checks out the submodule. That is one line and it is the
+same reasoning as the `fetch-depth: 0` above it: a guard that reads an empty
+directory passes vacuously, which is the failure this repository already wrote a
+comment about once. It was found by the guard failing in CI, not by reading.
+
 `test/standards/harness_wiring_test.dart` is new, and it is the lesson from the
 two repositories that adopted before this one: both staged their hooks `100644`,
 because `core.fileMode` is false on the Windows checkout that wrote them, and
@@ -88,9 +93,10 @@ file, and naming it would claim a route that does not exist.
   `scripts/setup.sh` rewritten to delegate; deletion of
   `scripts/codex-review.sh`, `scripts/test/codex-review.test.sh` and
   `scripts/test/docs-consistency.sh`; `test/standards/harness_wiring_test.dart`;
-  the README's Installation and Contributing sections.
-- Does NOT include: any change to application code, the ML pipeline, the CI
-  workflow, or any ADR; the work on the open PR #198, which is a different
+  the README's Installation and Contributing sections; `submodules: recursive`
+  on the CI test job's checkout.
+- Does NOT include: any change to application code, the ML pipeline, or any ADR;
+  any other change to the CI workflow; the work on the open PR #198, which is a different
   change on a different branch; `CONTEXT.md`, which stays the domain glossary it
   is; pinning reviewer models with `mf models pin`, which is a machine decision.
 

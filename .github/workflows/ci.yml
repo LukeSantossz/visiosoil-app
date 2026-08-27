@@ -37,6 +37,10 @@ jobs:
           # The durable-numbering guard reads git history to detect a deleted
           # spec or ADR. A shallow clone would show none and pass vacuously.
           fetch-depth: 0
+          # The harness-wiring guard reads the standards the .standards
+          # submodule supplies. Without this it finds an empty directory, which
+          # is the same vacuous pass the line above exists to prevent.
+          submodules: recursive
           # The steps below run repository-controlled code (build_runner, tests)
           # and need no GitHub credentials, so do not leave a token in .git.
           persist-credentials: false
