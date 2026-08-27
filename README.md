@@ -27,7 +27,7 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 
 | Layer | Technology |
 | --- | --- |
-| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.11.0`) |
+| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.12.0`) |
 | Framework / Runtime | Flutter 3.44.1, pinned to match CI (Android + iOS) |
 | State management | Riverpod (`flutter_riverpod`) |
 | Navigation | GoRouter |
