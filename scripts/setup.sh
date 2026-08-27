@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-# Activation bootstrap: turns the framework's documented activation steps into
-# one idempotent command. Sets core.hooksPath, reports toolchain state
-# (advisory), and creates missing triage labels.
-# See docs/standards/codex_review.md and docs/agents/triage-labels.md.
+# Activation bootstrap: one idempotent command for what a fresh clone needs.
+#
+# The harness owns activation now, so the framework steps here are `mf` calls
+# rather than a second implementation of them: `mf hooks install` wires the
+# gates and refuses a hooks path it does not own, and `mf doctor` reports what
+# resolves and what is missing. What remains this repository's own is the
+# triage labels, which live in its tracker and nowhere else.
+#
+# See .standards/docs/standards/r2_gate.md and .standards/docs/agents/triage-labels.md.
 set -u
 
 gh_bin="${GH_BIN:-gh}"
-codex_bin="${CODEX_BIN:-codex}"
+mf_bin="${MF_BIN:-mf}"
 
 log() { printf '[setup] %s\n' "$1"; }
 
-# Optional interactive adoption mode; anything else is a usage error.
-interactive=0
-if [ "${1:-}" = "--interactive" ]; then
-  interactive=1
-elif [ -n "${1:-}" ]; then
-  log "unknown option: $1 (supported: --interactive)"
+if [ -n "${1:-}" ]; then
+  log "unknown option: $1 (this script takes none)"
   exit 1
 fi
 
-# Canonical triage labels (docs/agents/triage-labels.md): name|color|description.
+# Canonical triage labels (.standards/docs/agents/triage-labels.md): name|color|description.
 LABEL_SPECS='needs-triage|ededed|Maintainer needs to evaluate this issue
 needs-info|d876e3|Waiting on reporter for more information
 ready-for-agent|0e8a16|Fully specified, ready for an AFK agent
@@ -33,21 +34,31 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 }
 log "repo: $repo_root"
 
-# 2. Activate the R2 pre-push gate (idempotent local setting). This is the
-#    activation itself: if it cannot be set, the bootstrap failed.
-if ! git config core.hooksPath .githooks; then
-  log "failed to set core.hooksPath (is .git/config writable?); activation incomplete."
+# 2. The submodule supplies the standards every gate reads. An empty directory
+#    is not a checkout, and every step below would then be reading nothing.
+if [ ! -f "$repo_root/.standards/docs/standards/INDEX.md" ]; then
+  log ".standards is not checked out; running git submodule update --init."
+  if ! git submodule update --init "$repo_root/.standards"; then
+    log "failed to check out .standards; activation incomplete."
+    exit 1
+  fi
+fi
+
+# 3. Activate the gates. This is the activation itself: both hooks fail closed,
+#    so a clone that skips it has no gate at all rather than a lenient one.
+if ! command -v "$mf_bin" >/dev/null 2>&1; then
+  log "mf: not installed. Both hooks fail closed, so the next commit is refused"
+  log "    until it is on PATH. See .standards/README.md for the install command."
   exit 1
 fi
-log "core.hooksPath -> .githooks (R2 pre-push gate active)."
-
-# 3. Toolchain report. Advisory: absence never fails the bootstrap, matching
-#    the R2 gate's own skip-with-message behavior.
-if command -v "$codex_bin" >/dev/null 2>&1; then
-  log "codex: found."
-else
-  log "codex: not installed; R2 reviews will be skipped until it is (see docs/standards/codex_review.md)."
+if ! "$mf_bin" hooks install; then
+  log "mf hooks install failed; activation incomplete."
+  exit 1
 fi
+
+# 4. Report. Advisory: what has no route is named, not fixed, because which
+#    reviewer runs on this machine is the Developer's choice to make.
+"$mf_bin" doctor || log "mf doctor reported problems; read them above."
 
 labels_ok=1
 if ! command -v "$gh_bin" >/dev/null 2>&1; then
@@ -58,7 +69,7 @@ elif ! "$gh_bin" auth status >/dev/null 2>&1; then
   labels_ok=0
 fi
 
-# 4. Create the triage labels that are missing from the tracker.
+# 5. Create the triage labels that are missing from the tracker.
 # A failed listing must not read as an empty label set: creating against an
 # unknown set misreports existing labels as creation failures.
 if [ "$labels_ok" -eq 1 ] && ! existing="$("$gh_bin" label list --limit 500 --json name --jq '.[].name')"; then
@@ -79,38 +90,15 @@ if [ "$labels_ok" -eq 1 ]; then
       log "label '$name': create failed (check gh permissions for this repo)."
       label_failures=$((label_failures + 1))
     fi
-  done <<EOF
+  done <<LABELS
 $LABEL_SPECS
-EOF
+LABELS
   if [ "$label_failures" -gt 0 ]; then
     log "activation bootstrap incomplete: $label_failures label(s) could not be created."
     exit 1
   fi
 fi
 
-# Interactive adoption questionnaire. Enter (or EOF) keeps the current
-# default and writes nothing, so script defaults can evolve.
-if [ "$interactive" -eq 1 ]; then
-  current_model="$(git config --local codexreview.model 2>/dev/null || true)"
-  current_effort="$(git config --local codexreview.effort 2>/dev/null || true)"
-  printf '[setup] R2 reviewer model [%s]: ' "${current_model:-gpt-5.6-terra}"
-  IFS= read -r answer_model || answer_model=""
-  if [ -n "$answer_model" ] && ! git config --local codexreview.model "$answer_model"; then
-    log "failed to persist codexreview.model (is .git/config writable?); activation incomplete."
-    exit 1
-  fi
-  printf '[setup] R2 reasoning effort [%s]: ' "${current_effort:-high}"
-  IFS= read -r answer_effort || answer_effort=""
-  if [ -n "$answer_effort" ] && ! git config --local codexreview.effort "$answer_effort"; then
-    log "failed to persist codexreview.effort (is .git/config writable?); activation incomplete."
-    exit 1
-  fi
-  printf '[setup] token economy (caveman/terse/off) [terse]: '
-  IFS= read -r answer_economy || answer_economy=""
-  resolved_model="${answer_model:-${current_model:-gpt-5.6-terra}}"
-  resolved_effort="${answer_effort:-${current_effort:-high}}"
-  log "choices: reviewer=$resolved_model effort=$resolved_effort token-economy=${answer_economy:-terse} (see docs/standards/skills_guidelines.md)."
-fi
-
 log "activation bootstrap complete."
+log "Next: mf author declare --provider <name> --model <id>   # once per branch"
 exit 0
