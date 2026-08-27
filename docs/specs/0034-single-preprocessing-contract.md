@@ -1,4 +1,4 @@
-# SPEC (full): fix(ml): accept only the preprocessing contract the model graph implements
+# SPEC: fix(ml): accept only the preprocessing contract the model graph implements
 
 ## Problem
 

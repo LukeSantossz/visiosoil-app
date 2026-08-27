@@ -1,4 +1,4 @@
-# SPEC (full): feat(inference): return the full class distribution and derive a verdict band
+# SPEC: feat(inference): return the full class distribution and derive a verdict band
 
 ## Problem
 

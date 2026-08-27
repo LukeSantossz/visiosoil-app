@@ -1,4 +1,4 @@
-# SPEC (full): fix(ml): make training deterministic and the data pipeline fail loud
+# SPEC: fix(ml): make training deterministic and the data pipeline fail loud
 
 ## Problem
 
