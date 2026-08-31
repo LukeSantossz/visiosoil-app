@@ -9,8 +9,70 @@ real-only test set shows a gain exceeding run-to-run variance.
 
 ## Status
 
-Accepted. Recorded during the 2026-07-30 ML architecture study
+Accepted, and re-checked on 2026-08-25 with a sixth condition added. Recorded
+during the 2026-07-30 ML architecture study
 (`docs/architecture/soil-classification.md`, §6 to §11).
+
+### Re-checked 2026-08-25: zero of five conditions hold
+
+Not one of the five conditions below is satisfied. The first three are
+sequential and the first of them now has data available, so the check is worth
+recording rather than assuming: a real baseline has not been trained, corrected
+augmentation and compositing have not been measured, and no residual gap has
+been named because nothing has been run.
+
+**Two developments could have reopened this and do not.**
+
+The dry-to-wet gap has no collection remedy — re-wetting archive samples was
+ruled out on 2026-08-25 — which makes it the kind of named, unclosable gap
+condition 3 asks for. It is nevertheless not a case for generation. In greyscale
+the dominant dry-to-wet difference is luminance, and brightness variation in
+augmentation addresses it deterministically, without a generator and without any
+risk to the label. Simulating wet soil from dry with a learned transform would
+need paired dry-and-wet photographs of the same sample to fit, which is exactly
+what cannot be produced.
+
+The gaps this programme can now name are scale, background, illumination, the
+camera pipeline and one thin class. **Four of the five are geometric or
+photometric transformations of a photograph that exists**, which is the
+territory where deterministic operations win outright — cheaper, exactly
+label-preserving, and auditable in effect. The fifth is a sample-count
+deficiency, and a generator trained on three images of a class memorises those
+three, which the acceptance test in *Decided* forbids.
+
+### Added 2026-08-25: a sixth condition
+
+**The real-only test set must be large enough that the ablation's minimum
+detectable effect falls below a delta declared in advance.**
+
+Condition 5 requires a downstream gain "exceeding run-to-run variance". That is
+the wrong denominator, and the error is worth naming because it makes the
+condition read as satisfiable when it is not. Run-to-run variance is the
+seed-reducible part and is the smaller of the two; the binding constraint is the
+test set's detectable-effect floor. At the measured archive size — 191 samples
+across four classes, roughly 29 in test — no augmentation change, loss swap,
+backbone substitution or synthetic ratio moves a result by enough to be
+distinguished from noise.
+
+So condition 5 is not merely unmet today. **It is arithmetically unsatisfiable at
+every dataset size this programme currently plans for**, which is a stronger
+argument for deferral than any of the five reasons originally listed. Recorded
+in #183, which carries the power arithmetic.
+
+### Distinguishing simulation from generation
+
+This record governs **generation** — a learned model drawing pixels that were
+never photographed, where the label survives only if the generator happened not
+to redraw the discriminating structure. It has never governed **simulation** — a
+deterministic transformation of a real photograph whose physical effect is known,
+where the soil pixels are unmodified or modified by an operation that can be
+reasoned about.
+
+Normalising a photograph to a canonical scale (ADR 0017), cutting it into
+patches, converting it to greyscale (ADR 0018) and compositing a masked disc
+onto a different background are all simulation. **None of them is gated by this
+record**, and the distinction is stated here so that no later reader cites it
+against a resample.
 
 ### Decided
 

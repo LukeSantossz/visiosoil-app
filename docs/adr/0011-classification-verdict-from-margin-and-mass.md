@@ -9,6 +9,46 @@ a verdict.
 
 ## Status
 
+Accepted, with the presentation rule amended on 2026-08-25.
+
+### Amended 2026-08-25: the app never shows nothing
+
+This record decides that **the app abstains** — below the bar, no class name, no
+percentage, no soil-scale colour. The project owner reversed that on 2026-08-25:
+a result surface always names the leading class and its percentage.
+
+**The computation is untouched and `ClassificationVerdict` stays.** What changes
+is what the interface does with `insufficient`, which is now a banner rather
+than a blank. Three things ship with it, and the third and fourth are the
+project owner's own wording:
+
+- the leading class and its share are always shown;
+- when the verdict is not `conclusive`, the surface carries a **weak-evidence
+  warning** naming what is wrong — with four classes, chance is 0.25, so a
+  leading share near it is a near-guess presented in the same shape as a
+  reading;
+- **every result states that it comes from an AI and can be wrong**;
+- **when the share is low, the copy tells the user to retake with better light
+  or to consult a specialist**, so the screen offers a next step rather than a
+  bare number.
+
+The reason recorded here for abstaining — that a greyed-out class name is still
+an assertion — is not withdrawn. It is outweighed by the countervailing cost the
+owner weighed: a field user who receives no answer at all has nothing to act on,
+and an unlabelled blank teaches nothing about why.
+
+**The verdict is computed on an aggregate now.**
+[ADR 0018](0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)
+classifies an overlapping grid of patches per photograph — twenty-five for a
+90 mm disc, nine at the refusal floor — and averages them. The shape
+of the distribution reaching this record's two quantities is unchanged; what
+produced it is not. The **disagreement between those patches is deliberately not
+folded into this verdict** — it is an image-quality criterion, because it
+measures how evenly the sample was spread rather than how sure the model is, and
+the two have different remedies.
+
+### The original status
+
 Accepted. Promoted at the Spec Gate for
 [`docs/specs/0031-classification-distribution-and-verdict.md`](../specs/0031-classification-distribution-and-verdict.md),
 whose Design Decision it records. Design rationale and the presentation rules

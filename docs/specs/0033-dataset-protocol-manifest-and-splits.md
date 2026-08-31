@@ -1,5 +1,38 @@
 # SPEC: feat(ml): define the dataset collection protocol, its manifest, and versioned splits
 
+
+> **Revised 2026-08-25**, and this is the second revision — ADR 0014 forced the
+> first, and its own retirement forces this one. See
+> [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
+>
+> **The premise below is false: the dataset exists.** 221 photographs of 194
+> samples were delivered on 2026-08-25. What this specification describes as a
+> protocol for a collector to execute is, for the current version, a description
+> of photographs already taken.
+>
+> - **The manifest is derived, not authored.** The laboratory number is in the
+>   filename — `100262,1 (1).JPEG` is photograph 1 of sample `100262,1` — so
+>   `sample_id`, `texture_class` and `image` come from a scan of the directory.
+>   `site`, `device` and `captured_at` are absent for most rows and are optional
+>   for this version.
+> - **`setting` has one value, `dish`.** The `paper` condition describes the
+>   application, not the dataset. `in_situ` stays rejected.
+> - **A `disc_diameter_px` column is added**, measured per row, with the
+>   validator refusing a missing or non-positive value and reporting the spread
+>   per version. It is what makes the archive's 2.6× scale variation a recorded
+>   quantity instead of an invisible one.
+> - **The pairing rule does not apply.** It requires two photographs per sample,
+>   one per condition; 177 of 194 samples have exactly one.
+> - **The target counts are superseded by the measured counts.** 57 / 36 / 3 /
+>   59 / 39. Siltosa is below the 30-sample floor this specification sets, which
+>   selects the branch it already carries: E0 runs reduced, reports the exclusion,
+>   and does not authorise Lane C on that basis.
+>
+> **What survives unchanged**, and is the reason this record still governs: the
+> immutable-version rule, the group-aware split on `sample_id`, the rejection of
+> granulometry and moisture columns, the digest tying a split to the manifest it
+> was built from, and the admission gate deciding what enters a version.
+
 ## Problem
 
 The dataset does not exist. `ml/data/` holds only `splits/.gitkeep`, and

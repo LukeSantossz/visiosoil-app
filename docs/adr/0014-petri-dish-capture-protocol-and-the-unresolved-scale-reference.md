@@ -13,6 +13,49 @@ on a task whose signal is particle size.
 
 ## Status
 
+**Retired 2026-08-25**, superseded by
+[ADR 0016](0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
+Kept in place with its number and file, per the durable-numbering rule.
+
+This record described a collection campaign that was going to be performed. The
+images were delivered on 2026-08-25 and had already been taken, under an
+arrangement that differs from the one specified here on every axis it fixed.
+Measured against the delivered set:
+
+| This record specifies | The images show |
+|---|---|
+| A fixed rig, constant millimetres per pixel | Scale spans 5.73 to 14.93 px/mm — a factor of 2.6 |
+| One device | At least two: iPhone 11 EXIF dated 2023-11, and a second population with no EXIF, landscape framing and a printed label card in frame |
+| Two conditions per sample, `dish` and `paper` | One condition. Every photograph is a dish |
+| ~150 samples per class, Siltosa expected thin | 194 samples total; Siltosa holds **three** |
+| Photography remains to be done | Photography is finished for this set |
+
+**Three of its decisions survive and are carried forward by ADR 0016**, and they
+are the reason this file is worth reading rather than only worth citing: the
+project-wide exclusion of granulometry and the laboratory reference; the
+statement that no accuracy figure from air-dried sieved material describes
+field-fresh soil; and the Siltosa policy, whose third branch — below the
+feasibility floor, so the class is excluded and Lane C is not authorised on a
+partial result — is exactly the branch the measured count selects.
+
+**Everything else is withdrawn**: the rig, the two conditions, the target
+counts, the framing rules, and the claim that the dataset's scale is constant.
+The unresolved scale question this record opened is closed by
+[ADR 0017](0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md),
+which takes the classical-detector route this record priced as expensive — the
+pricing was wrong, and ADR 0017 records why.
+
+> The text below is the record as accepted on 2026-08-11. It is kept because it
+> is where the granulometry exclusion, the bench-to-field limitation and the
+> Siltosa policy were decided, and because the reasoning that produced the
+> unresolved scale question is worth preserving alongside its answer. **Do not
+> cite it for anything about the rig, the conditions, the counts or the scale
+> constancy.**
+
+---
+
+## Status (as accepted 2026-08-11)
+
 Accepted for the collection protocol. **The deployment scale reference is open**
 and is registered as an input in `docs/architecture/ml-implementation-map.md` §7.
 

@@ -1,5 +1,33 @@
 # SPEC: feat(image-quality): define the soil image acceptance criteria with matching Python and Dart implementations
 
+
+> **Revised 2026-08-25.** Three of the criteria below change meaning under
+> [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md),
+> and the revision is recorded here rather than left to a reader to infer.
+>
+> - **`minRoiSidePx` is re-scoped to the disc, not the analysed region.** The
+>   region of interest is now a grid of ~160 px patches, and 160 is far below the
+>   512 px floor, so applied literally this criterion would refuse every image.
+>   Re-scoped, the value is coincidentally right: 512 px across a 90 mm disc is
+>   0.176 mm/px, which is the coarsest photograph in the archive.
+> - **Colour cast stops being load-bearing.** This specification argues the
+>   criterion matters because soil colour is signal. The model no longer sees
+>   colour, so it is a capture-quality signal only and its threshold governs
+>   nothing downstream.
+> - **An eighth criterion joins the seven: patch dispersion.** Shannon entropy
+>   over the class distribution of the patch predictions, computed *after*
+>   inference rather than before it, reported as *the regions of this sample
+>   disagree — spread it more evenly and retake*. It is advisory and cannot
+>   block, like the three uncalibrated criteria already here.
+>
+> The dispersion is **normalised by the patch count** — entropy divided by its
+> maximum for that count — because the count varies with the size of the soil
+> region, from nine at the refusal floor to twenty-five for a 90 mm disc, and a
+> raw entropy is not comparable across photographs.
+>
+> The seven metric definitions, the three verdicts, the `unvalidated` rule and
+> the golden-file conformance test are unchanged.
+
 ## Problem
 
 `lib/core/features/onboarding/onboarding_screen.dart:24-49` declares a capture

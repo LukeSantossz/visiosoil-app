@@ -7,7 +7,36 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-08-22.
+Last updated: 2026-08-25.
+
+> **Revised 2026-08-25.** The lane structure below is sound and its premise is
+> not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
+> were delivered and audited, so the ordering that put weeks of collection on
+> the critical path is obsolete. The map is corrected here rather than rewritten,
+> because every item's acceptance criteria still hold.
+>
+> - **§7 question 6, the scale reference, is closed** by
+>   [ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md):
+>   read from an object of known size by a classical operator — dish rim in the
+>   dataset, A4 sheet in the app — with a refusal when neither is found.
+> - **§7 questions 1 and 5 are answered by measurement.** 194 samples: 57 / 36 /
+>   3 / 59 / 39. Siltosa is below the floor, so
+>   [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+>   excludes it and the first model classifies four classes. ADR 0014 is Retired.
+> - **C0's inventory half is done and its E0 half is issue #197**, runnable now.
+>   Its blockers are #196 (58 % of the set is HEIC and unreadable), #178, #179
+>   and #180 — the defects that would bias the gate.
+> - **A1's region of interest is superseded.** It is a patch grid now
+>   ([ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
+>   the model sees greyscale, and SPEC 0030 is revised accordingly.
+> - **A4 is a release blocker, not a next item.** A four-class model cannot run
+>   against a five-entry Dart label list.
+> - **A new item sits between A4 and B3**: SPEC 0037, the scale-normalised
+>   greyscale patch pipeline, which is the preprocessing on both sides.
+> - **C2's ordering is wrong**: calibration must follow quantization, not precede
+>   it (#187).
+>
+> Where this revision and the text below disagree, this revision wins.
 
 ## 1. What we are building
 
