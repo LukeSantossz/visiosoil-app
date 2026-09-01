@@ -76,6 +76,11 @@ ml/.venv/
 ml/data/raw/
 ml/data/processed/
 ml/data/splits/
+# The delivered sample archive, as the laboratory handed it over: original
+# filenames, original formats, English class folders. It is source material,
+# not a pipeline input — ingestion reads it by path and writes a dataset
+# version. Never scanned as raw_dir.
+ml/data/archive/
 
 # Dataset versions: manifest.csv is the record and is versioned; everything else
 # under a version directory is image data and is not. Written as ignore-all plus
