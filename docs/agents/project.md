@@ -47,6 +47,15 @@ of the sections above rather than exceptions to them.
   layer and never blocks a ship, but its absence is recorded rather than
   silent — if the skill did not run, the reviewer reads the diff directly and
   the PR says the CRUX aid was absent, mirroring the R2 fallback record.
+- **R2 runs twice, after the pull request is opened and before it is merged**,
+  and not on push. Both rounds are `mf review --role r2`, which reaches
+  Antigravity pinned to a GPT model; a Claude model there would meet the
+  cross-provider rule by name while being the Author's own vendor. Two rounds
+  rather than one because the second reads the change after the first round's
+  findings have been answered, and rather than more because a third round on an
+  unchanged diff repeats the second. Push with `SKIP_R2_REVIEW=1` — the hook
+  prints that R2 did not run, which is true of the push and not of the pull
+  request, so the PR records both rounds and the model that answered.
 - Specs are numbered durably under `docs/specs/NNNN-<slug>.md`; a number is
   never reused, and `test/standards/durable_numbering_test.dart` replays each
   number's history in commit order to enforce it. Contiguity is checked on

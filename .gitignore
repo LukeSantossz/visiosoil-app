@@ -82,15 +82,14 @@ ml/data/splits/
 # version. Never scanned as raw_dir.
 ml/data/archive/
 
-# Dataset versions: manifest.csv is the record and is versioned; everything else
-# under a version directory is image data and is not. Written as ignore-all plus
-# explicit exceptions rather than a list of extensions, so no camera file slips
-# in on an extension or a casing nobody enumerated — the CI runner's filesystem
-# is case-sensitive and cameras produce .JPG. See docs/ml/collection-protocol.md.
+# Dataset versions: nothing under one is versioned, the manifest included.
+# Reversed on 2026-09-01 by the Developer, against the earlier rule that made
+# manifest.csv the versioned record. A dataset version is now reproducible from
+# the archive by `python scripts/ingest_archive.py`, which is deterministic, so
+# the manifest is a build product rather than a record — and the tests that
+# asserted the archive's inventory from the committed manifest now skip wherever
+# the version is absent, CI included. See docs/adr/0019.
 ml/data/datasets/**
-!ml/data/datasets/**/
-!ml/data/datasets/**/manifest.csv
-!ml/data/datasets/**/admission-rejected.csv
 ml/models/**/
 ml/notebooks/.ipynb_checkpoints/
 
