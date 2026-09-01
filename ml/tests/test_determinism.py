@@ -13,13 +13,19 @@ import json
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
-from src import train as train_module
-from src.model import build_model
-from src.preprocess import build_augmentation_layer
-from src.train import (
+# The training stack is pinned to Python 3.12 and has no wheel for every
+# interpreter this repository is developed on, so this module skips rather than
+# failing to collect. In CI, where `ml/requirements.txt` is installed, it runs.
+tf = pytest.importorskip("tensorflow")
+
+from src import train as train_module  # noqa: E402
+from src.dataset import derive_repeat_seed  # noqa: E402
+from src.model import build_model  # noqa: E402
+from src.preprocess import build_augmentation_layer  # noqa: E402
+from src.train import (  # noqa: E402
     RUNTIME_FILENAME,
+    control_seed,
     load_runtime,
     runtime_mode,
     seed_everything,
@@ -69,69 +75,105 @@ class _StopHere(Exception):
     """Raised by the patched scanner to end the run under test."""
 
 
-def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
-    calls = []
-    cfg = {
+def _fold_config(tmp_path, deterministic_ops=True):
+    """The keys `train_fold` indexes, in the shape `load_config` guarantees."""
+    return {
         "classes": ["A", "B"],
         "data": {
             "raw_dir": str(tmp_path / "raw"),
             "splits_dir": str(tmp_path / "splits"),
             "image_size": 224,
-            "val_split": 0.15,
-            "test_split": 0.15,
             "seed": SEED,
         },
+        "evaluation": {"k": 5, "repeats": 5, "inner_k": 4},
         # `load_config` guarantees this key, defaulting it to True, so a stub
         # standing in for it has to supply it too.
-        "training": {"deterministic_ops": True},
+        "training": {"deterministic_ops": deterministic_ops},
         "export": {"output_dir": str(tmp_path / "models")},
     }
 
-    monkeypatch.setattr(train_module, "load_config", lambda path=None: cfg)
-    monkeypatch.setattr(train_module, "resolve_paths", lambda c: c)
+
+REPEAT = 2
+
+
+def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
+    calls = []
+
     # The stub defaults to None, not True: with a True default the test would
-    # pass even if `train` stopped forwarding the flag entirely, which is the
-    # regression most worth catching here.
+    # pass even if `train_fold` stopped forwarding the flag entirely, which is
+    # the regression most worth catching here.
     def _seed(seed, deterministic_ops=None):
         calls.append(("seed", seed, deterministic_ops))
         return {"deterministic_ops": deterministic_ops, "device": "CPU", "gpu_count": 0}
 
     monkeypatch.setattr(train_module, "seed_everything", _seed)
 
-    def _splits(*args, **kwargs):
-        calls.append(("splits", None))
+    def _split(*args, **kwargs):
+        calls.append(("fold_split", None))
         raise _StopHere
 
-    monkeypatch.setattr(train_module, "create_splits_for_config", _splits)
+    monkeypatch.setattr(train_module, "fold_split", _split)
 
     with pytest.raises(_StopHere):
-        train_module.train("vtest")
+        train_module.train_fold(
+            _fold_config(tmp_path),
+            {"seed": SEED},
+            arm_dir=tmp_path / "models" / "vtest" / "cnn",
+            arm="cnn",
+            repeat=REPEAT,
+            fold=0,
+        )
 
-    assert calls, "train() ran without seeding or reading the dataset"
-    assert calls[0] == ("seed", SEED, True), f"first call was {calls[0]}"
-    assert ("splits", None) in calls
+    assert calls, "train_fold() ran without seeding or reading the dataset"
+    assert calls[0] == ("seed", derive_repeat_seed(SEED, REPEAT), True), (
+        f"first call was {calls[0]}"
+    )
+    assert ("fold_split", None) in calls
 
 
-def test_train_persists_the_runtime_beside_the_artifact(tmp_path, monkeypatch):
+def test_each_repeat_trains_under_its_own_derived_seed(tmp_path, monkeypatch):
+    """The repeat spread measures training variance, which needs distinct seeds."""
+    seeds = []
+    monkeypatch.setattr(
+        train_module,
+        "seed_everything",
+        lambda seed, deterministic_ops=None: seeds.append(seed)
+        or {"deterministic_ops": True, "device": "CPU", "gpu_count": 0},
+    )
+    monkeypatch.setattr(
+        train_module, "fold_split", lambda *a, **k: (_ for _ in ()).throw(_StopHere)
+    )
+
+    for repeat in range(3):
+        with pytest.raises(_StopHere):
+            train_module.train_fold(
+                _fold_config(tmp_path),
+                {"seed": SEED},
+                arm_dir=tmp_path / "models" / "vtest" / "cnn",
+                arm="cnn",
+                repeat=repeat,
+                fold=0,
+            )
+
+    assert seeds == [derive_repeat_seed(SEED, r) for r in range(3)]
+    assert len(set(seeds)) == 3
+
+
+def test_the_shuffled_control_seed_is_distinct_from_every_fold_seed():
+    """A permutation drawn from the seed that drew the folds is not a control."""
+    fold_seeds = {derive_repeat_seed(SEED, r) for r in range(10)}
+    control_seeds = {
+        control_seed(SEED, repeat, fold) for repeat in range(10) for fold in range(5)
+    }
+
+    assert not (fold_seeds & control_seeds)
+    assert len(control_seeds) == 50
+
+
+def test_train_persists_the_runtime_beside_the_fold_artifacts(tmp_path, monkeypatch):
     """Recorded at training time, so evaluation on another host cannot overwrite
     it with a description of that host.
     """
-    cfg = {
-        "classes": ["A", "B"],
-        "data": {
-            "raw_dir": str(tmp_path / "raw"),
-            "splits_dir": str(tmp_path / "splits"),
-            "image_size": 224,
-            "val_split": 0.15,
-            "test_split": 0.15,
-            "seed": SEED,
-        },
-        "training": {"deterministic_ops": False},
-        "export": {"output_dir": str(tmp_path / "models")},
-    }
-
-    monkeypatch.setattr(train_module, "load_config", lambda path=None: cfg)
-    monkeypatch.setattr(train_module, "resolve_paths", lambda c: c)
     monkeypatch.setattr(
         train_module,
         "seed_everything",
@@ -141,16 +183,22 @@ def test_train_persists_the_runtime_beside_the_artifact(tmp_path, monkeypatch):
             "gpu_count": 0,
         },
     )
+    monkeypatch.setattr(
+        train_module, "fold_split", lambda *a, **k: (_ for _ in ()).throw(_StopHere)
+    )
 
-    def _splits(*args, **kwargs):
-        raise _StopHere
-
-    monkeypatch.setattr(train_module, "create_splits_for_config", _splits)
-
+    arm_dir = tmp_path / "models" / "vtest" / "cnn"
     with pytest.raises(_StopHere):
-        train_module.train("vtest")
+        train_module.train_fold(
+            _fold_config(tmp_path, deterministic_ops=False),
+            {"seed": SEED},
+            arm_dir=arm_dir,
+            arm="cnn",
+            repeat=1,
+            fold=3,
+        )
 
-    recorded = load_runtime(tmp_path / "models" / "vtest")
+    recorded = load_runtime(arm_dir / "repeat-1" / "fold-3")
     assert recorded == {
         "deterministic_ops": False,
         "device": "CPU",
