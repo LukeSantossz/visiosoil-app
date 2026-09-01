@@ -12,6 +12,7 @@ from src.admission import admit, quarantine_refused, write_refusal_report
 from src.image_quality import Verdict
 from src.manifest import (
     METRIC_COLUMNS,
+    PROVENANCE_COLUMNS,
     QUARANTINE_DIRNAME,
     QUALITY_FLAGS_COLUMN,
     QUALITY_VERDICT_COLUMN,
@@ -239,5 +240,6 @@ def test_write_manifest_preserves_the_schema_column_order(tmp_path, ok_image):
         QUALITY_VERDICT_COLUMN,
         QUALITY_FLAGS_COLUMN,
         *METRIC_COLUMNS,
+        *PROVENANCE_COLUMNS,
     ]
     assert header.split(",") == expected

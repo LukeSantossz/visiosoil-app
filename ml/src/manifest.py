@@ -77,6 +77,51 @@ FLAG_SEPARATOR = "|"
 #: manifest. Shared with :mod:`src.dataset` so the two cannot drift.
 IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp"})
 
+#: Suffixes that are images the pipeline cannot read, listed so a file offered
+#: in one is refused by name with the remedy rather than skipped as a non-image.
+#: See docs/specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md.
+UNREADABLE_IMAGE_SUFFIXES = frozenset({".heic", ".heif"})
+
+#: The literal a column carries when the archive cannot supply it. Written
+#: rather than left blank, and rather than filled with a plausible value: an
+#: invented date is indistinguishable from a measured one once it is in the
+#: column. Accepted by `device` and `captured_at`, and by nothing else.
+UNKNOWN = "unknown"
+
+#: Recorded per row so a capture population that correlates with the label stays
+#: visible to evaluation, and so a derived sample identity is never read as a
+#: declared one. Optional in a manifest a collector authored by hand; written by
+#: ingestion, which knows all of them.
+PROVENANCE_COLUMNS = (
+    "source_format",
+    "source_group",
+    "source_width",
+    "source_height",
+    "sample_id_source",
+)
+
+#: How a row's `sample_id` was arrived at. `filename` means the collector's own
+#: identifier was in the name; `capture-burst` means it was derived from the
+#: photograph's capture time because the name declared nothing. A derived
+#: identity is weaker evidence than a declared one and every figure that rests
+#: on grouping has to be readable as such, so it is recorded rather than assumed.
+VALID_SAMPLE_ID_SOURCES = ("filename", "capture-burst")
+
+#: The capture populations of the delivered archive, told apart by evidence
+#: rather than by filename spelling: `C` is the native HEIC session, `A` is the
+#: exported JPEG that kept its EXIF, `B` is the transported JPEG that lost it.
+VALID_SOURCE_GROUPS = ("A", "B", "C")
+
+VALID_SOURCE_FORMATS = ("heic", "jpeg", "png")
+
+#: A sample photographed only in one of these groups may enter the training
+#: split and never validation or test. Group B is a second generation at reduced
+#: resolution whose population is confounded with the label, and the application
+#: captures directly from the camera, so its degradation is not representative
+#: of deployment. Letting it score would flatter the one measurement that has to
+#: be honest. ADR 0016 and SPEC 0040 D6.
+TRAIN_ONLY_SOURCE_GROUPS = frozenset({"B"})
+
 #: Where admission moves a refused image. It stays inside the version as
 #: evidence, so the directory is excluded from the manifest-to-disk comparison
 #: and no row may declare a path inside it.
@@ -124,6 +169,11 @@ class ManifestRow:
     quality_verdict: str = ""
     quality_flags: tuple[str, ...] = ()
     metrics: Mapping[str, float] = field(default_factory=dict)
+    source_format: str = ""
+    source_group: str = ""
+    source_width: int = 0
+    source_height: int = 0
+    sample_id_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -187,6 +237,7 @@ WRITE_COLUMNS = (
     QUALITY_VERDICT_COLUMN,
     QUALITY_FLAGS_COLUMN,
     *METRIC_COLUMNS,
+    *PROVENANCE_COLUMNS,
 )
 
 
@@ -226,6 +277,11 @@ def stage_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
                     row.quality_verdict,
                     FLAG_SEPARATOR.join(row.quality_flags),
                     *(_format_metric(row.metrics.get(column)) for column in METRIC_COLUMNS),
+                    row.source_format,
+                    row.source_group,
+                    row.source_width or "",
+                    row.source_height or "",
+                    row.sample_id_source,
                 ]
             )
     return path
@@ -307,6 +363,78 @@ def read_manifest(
     )
 
 
+def read_manifest_or_none(
+    root: str | Path, classes: Sequence[str], *, check_files: bool = False
+) -> Manifest | None:
+    """Return the manifest at ``root``, or ``None`` when there is none.
+
+    Only a missing file yields ``None``. A manifest that exists and is wrong
+    still raises, because "absent" and "broken" have different remedies and a
+    caller that treats them alike falls back to a legacy path on a typo.
+    """
+    try:
+        return read_manifest(root, classes, check_files=check_files)
+    except FileNotFoundError:
+        return None
+
+
+def derived_sample_ids(manifest: Manifest) -> set[str]:
+    """Return the samples whose identity was inferred rather than declared.
+
+    Every figure that rests on grouping — a leakage guarantee above all — is
+    only as strong as the grouping, so which rows are held together by an
+    inference is a number a reader is entitled to see.
+    """
+    return {
+        row.sample_id
+        for row in manifest.rows
+        if row.sample_id_source == "capture-burst"
+    }
+
+
+def train_only_sample_ids(manifest: Manifest) -> set[str]:
+    """Return the samples that may enter training and never validation or test.
+
+    A sample qualifies only when *every* photograph of it comes from a
+    train-only source group. One photograph from another group is evidence
+    representative of deployment, and holding that sample out would discard a
+    measurement rather than protect one.
+    """
+    groups_by_sample: dict[str, set[str]] = defaultdict(set)
+    for row in manifest.rows:
+        groups_by_sample[row.sample_id].add(row.source_group)
+
+    return {
+        sample_id
+        for sample_id, groups in groups_by_sample.items()
+        if groups and groups <= TRAIN_ONLY_SOURCE_GROUPS
+    }
+
+
+def check_unreadable_images(root: str | Path) -> list[str]:
+    """Report every file in a container the pipeline cannot decode.
+
+    Refused by name with the remedy, never skipped. `.heic` is not in
+    `IMAGE_SUFFIXES`, so without this check a HEIC file dropped into a version
+    is neither a manifest row nor an orphan: it is simply not seen, which is how
+    58 % of the delivered archive stayed invisible to both pipelines until it was
+    measured. See docs/specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md.
+    """
+    root = Path(root)
+    quarantine = (root / QUARANTINE_DIRNAME).resolve()
+    return [
+        f"{path.resolve().relative_to(root.resolve()).as_posix()} is in a container "
+        f"the pipeline cannot decode. Convert the archive once with "
+        f"`python scripts/ingest_archive.py`, which writes PNG into the version; "
+        f"a file left in this format is invisible to both the training decoder "
+        f"and the application"
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+        and path.suffix.lower() in UNREADABLE_IMAGE_SUFFIXES
+        and not path.resolve().is_relative_to(quarantine)
+    ]
+
+
 def verify_directory(manifest: Manifest) -> list[str]:
     """Report every disagreement between the manifest and the files on disk."""
     quarantine = (manifest.root / QUARANTINE_DIRNAME).resolve()
@@ -328,33 +456,52 @@ def verify_directory(manifest: Manifest) -> list[str]:
         f"{orphan.relative_to(manifest.root.resolve()).as_posix()}"
         for orphan in sorted(present - declared.keys())
     )
+    problems.extend(check_unreadable_images(manifest.root))
     return problems
 
 
+def covered_settings(manifest: Manifest) -> tuple[str, ...]:
+    """The settings this version covers, in the order ``VALID_SETTINGS`` declares."""
+    present = {row.setting for row in manifest.rows}
+    return tuple(setting for setting in VALID_SETTINGS if setting in present)
+
+
 def check_setting_pairing(manifest: Manifest) -> list[str]:
-    """Report every sample not holding exactly one photograph per setting.
+    """Report every sample not covering the same settings as the version does.
 
-    The pairing is the whole point of the two conditions: it is what lets the
-    background effect be measured within one physical sample rather than across
-    two populations. Without this check a manifest of ``dish`` rows alone passes
-    every other criterion while silently being a one-condition dataset.
+    The original rule required both settings of every sample, because pairing is
+    what lets the background effect be measured within one physical sample
+    rather than across two populations. ADR 0018 dissolved that need — a patch
+    cut from inside the soil region is soil and nothing else, so what the model
+    sees carries no background — and the delivered archive is single-condition,
+    so the rule as written would report all 171 of its samples as broken.
+
+    What is kept is the fault the rule actually exists to catch: a version that
+    is *half* paired, where a background effect and a sample effect cannot be
+    told apart. Coverage must be uniform across samples; how many photographs
+    each setting holds is not constrained, because the archive holds one to four
+    per sample and no criterion depends on the count. A single-condition version
+    is legitimate and is reported by :func:`format_composition` on every run, so
+    it is declared rather than silent.
     """
-    settings_by_sample: dict[str, Counter] = defaultdict(Counter)
+    settings_by_sample: dict[str, set[str]] = defaultdict(set)
     for row in manifest.rows:
-        settings_by_sample[row.sample_id][row.setting] += 1
+        settings_by_sample[row.sample_id].add(row.setting)
 
-    expected = ", ".join(VALID_SETTINGS)
+    expected = covered_settings(manifest)
+    if not expected:
+        return []
+
     problems = []
     for sample_id in sorted(settings_by_sample):
-        counts = settings_by_sample[sample_id]
-        # Every setting is validated before a Manifest exists, so a count of one
-        # for each accepted value is the whole of the requirement.
-        if all(counts.get(setting) == 1 for setting in VALID_SETTINGS):
+        held = settings_by_sample[sample_id]
+        if held == set(expected):
             continue
-        held = ", ".join(f"{setting}={counts[setting]}" for setting in sorted(counts))
         problems.append(
-            f"sample '{sample_id}' must hold exactly one photograph per setting "
-            f"({expected}); it holds {held}"
+            f"sample '{sample_id}' covers {', '.join(sorted(held))} while version "
+            f"{manifest.version} covers {', '.join(expected)}; coverage must be "
+            f"uniform across samples or a setting effect cannot be told from a "
+            f"sample effect"
         )
     return problems
 
@@ -411,10 +558,12 @@ def sample_ids_by_image(manifest: Manifest) -> dict[str, str]:
 def split_composition(
     splits: Mapping[str, Sequence[Mapping[str, object]]], manifest: Manifest
 ) -> dict[str, dict[str, Counter]]:
-    """Count each split by class, site, and device.
+    """Count each split by class, site, device, setting, and source group.
 
-    Site and device are recorded and reported rather than held out, so the
-    policy for either axis can be set from a count instead of a guess.
+    Every axis here is recorded and reported rather than held out, so the policy
+    for any of them can be set from a count instead of a guess. Source group is
+    the one axis that also carries a rule — see :data:`TRAIN_ONLY_SOURCE_GROUPS`
+    — and reporting it is how that rule is checked by eye as well as by test.
     """
     rows_by_path = {
         str((manifest.root / row.image).resolve()): row for row in manifest.rows
@@ -426,6 +575,8 @@ def split_composition(
             "class": Counter(),
             "site": Counter(),
             "device": Counter(),
+            "setting": Counter(),
+            "source_group": Counter(),
         }
         for entry in entries:
             path = str(Path(str(entry["path"])).resolve())
@@ -438,6 +589,8 @@ def split_composition(
             axes["class"][row.texture_class] += 1
             axes["site"][row.site] += 1
             axes["device"][row.device] += 1
+            axes["setting"][row.setting] += 1
+            axes["source_group"][row.source_group or "(unrecorded)"] += 1
         composition[split_name] = axes
 
     return composition
@@ -449,7 +602,7 @@ def format_composition(composition: Mapping[str, Mapping[str, Counter]]) -> str:
     for split_name, axes in composition.items():
         total = sum(axes["class"].values())
         lines.append(f"{split_name}: {total} photograph(s)")
-        for axis in ("class", "site", "device"):
+        for axis in ("class", "site", "device", "setting", "source_group"):
             counts = ", ".join(
                 f"{value}={count}" for value, count in sorted(axes[axis].items())
             )
@@ -582,10 +735,10 @@ def _parse_rows(
                 f"row {number}: setting {values['setting']!r} is not accepted. "
                 f"Accepted: {accepted_settings}"
             )
-        if not _is_iso_date(values["captured_at"]):
+        if not _is_iso_date(values["captured_at"]) and values["captured_at"] != UNKNOWN:
             problems.append(
-                f"row {number}: captured_at {values['captured_at']!r} is not an "
-                "ISO 8601 date (YYYY-MM-DD)"
+                f"row {number}: captured_at {values['captured_at']!r} is neither an "
+                f"ISO 8601 date (YYYY-MM-DD) nor {UNKNOWN!r}"
             )
 
         image = _normalized_image(values["image"])
@@ -613,6 +766,9 @@ def _parse_rows(
         metrics, metric_problems = _parse_metrics(raw, metric_columns, number)
         problems.extend(metric_problems)
 
+        provenance, provenance_problems = _parse_provenance(raw, number)
+        problems.extend(provenance_problems)
+
         rows.append(
             ManifestRow(
                 sample_id=values["sample_id"],
@@ -625,6 +781,7 @@ def _parse_rows(
                 quality_verdict=(raw.get(QUALITY_VERDICT_COLUMN) or "").strip(),
                 quality_flags=_parse_flags(raw.get(QUALITY_FLAGS_COLUMN)),
                 metrics=metrics,
+                **provenance,
             )
         )
 
@@ -717,6 +874,67 @@ def _parse_metrics(
         except ValueError:
             problems.append(f"row {number}: {column} {value!r} is not a number")
     return metrics, problems
+
+
+def _parse_provenance(
+    raw: Mapping[str, str], number: int
+) -> tuple[dict[str, object], list[str]]:
+    """Read the provenance columns, which a hand-authored manifest omits.
+
+    Absent, they are empty and nothing downstream restricts the row. Present,
+    they are checked: a `source_group` outside the declared set would silently
+    exempt a population from the train-only rule, which is the one thing these
+    columns exist to enforce.
+    """
+    values = {column: (raw.get(column) or "").strip() for column in PROVENANCE_COLUMNS}
+    if not any(values.values()):
+        return {}, []
+
+    problems: list[str] = []
+    if values["source_format"] and values["source_format"] not in VALID_SOURCE_FORMATS:
+        problems.append(
+            f"row {number}: source_format {values['source_format']!r} is not "
+            f"accepted. Accepted: {', '.join(VALID_SOURCE_FORMATS)}"
+        )
+    if values["source_group"] and values["source_group"] not in VALID_SOURCE_GROUPS:
+        problems.append(
+            f"row {number}: source_group {values['source_group']!r} is not "
+            f"accepted. Accepted: {', '.join(VALID_SOURCE_GROUPS)}"
+        )
+    if (
+        values["sample_id_source"]
+        and values["sample_id_source"] not in VALID_SAMPLE_ID_SOURCES
+    ):
+        problems.append(
+            f"row {number}: sample_id_source {values['sample_id_source']!r} is not "
+            f"accepted. Accepted: {', '.join(VALID_SAMPLE_ID_SOURCES)}"
+        )
+
+    sizes: dict[str, object] = {}
+    for column in ("source_width", "source_height"):
+        text = values[column]
+        if not text:
+            sizes[column] = 0
+            continue
+        try:
+            size = int(text)
+        except ValueError:
+            problems.append(f"row {number}: {column} {text!r} is not a whole number")
+            sizes[column] = 0
+            continue
+        if size <= 0:
+            problems.append(f"row {number}: {column} must be positive, got {size}")
+        sizes[column] = size
+
+    return (
+        {
+            "source_format": values["source_format"],
+            "source_group": values["source_group"],
+            "sample_id_source": values["sample_id_source"],
+            **sizes,
+        },
+        problems,
+    )
 
 
 def _parse_flags(value: str | None) -> tuple[str, ...]:

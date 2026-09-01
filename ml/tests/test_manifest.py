@@ -20,6 +20,7 @@ from src.manifest import (
     ManifestError,
     check_class_coverage,
     check_setting_pairing,
+    covered_settings,
     class_images,
     dataset_root,
     format_composition,
@@ -148,17 +149,41 @@ def test_manifest_accepts_repeated_sample_id_within_one_class(tmp_path):
     assert set(sample_ids_by_image(manifest).values()) == {"S1"}
 
 
-def test_manifest_requires_exactly_one_photograph_per_setting_per_sample(tmp_path):
-    """A sample missing a condition, or doubling one, is reported by name."""
+def test_manifest_requires_uniform_setting_coverage_across_samples(tmp_path):
+    """A version that is only half paired is reported by sample name.
+
+    This is the fault the check exists to catch: with some samples paired and
+    some not, a background effect and a sample effect cannot be told apart. A
+    version covering one setting throughout is legitimate — the delivered
+    archive is one — and is reported by the composition instead. SPEC 0040 D8.
+    """
     rows = [paired_rows("Paired", "Arenosa")[0]]  # dish only
     rows[0]["sample_id"] = "DishOnly"
     rows[0]["image"] = "images/DishOnly_dish.jpg"
-    rows.extend(paired_rows("Doubled", "Media"))
+    rows.extend(paired_rows("Paired", "Media"))
+    root = write_dataset(tmp_path, rows)
+    manifest = read_manifest(root, CLASSES)
+
+    problems = check_setting_pairing(manifest)
+
+    joined = "; ".join(problems)
+    assert "DishOnly" in joined
+    assert "paper" in joined
+    assert len(problems) == 1
+
+
+def test_manifest_accepts_more_than_one_photograph_of_a_setting(tmp_path):
+    """The count per setting is not constrained; the coverage is.
+
+    The delivered archive holds one to four photographs of each sample in a
+    single setting, and no criterion depends on how many.
+    """
+    rows = list(paired_rows("Twice", "Arenosa"))
     rows.append(
         {
-            "sample_id": "Doubled",
-            "texture_class": "Media",
-            "image": "images/Doubled_dish_2.jpg",
+            "sample_id": "Twice",
+            "texture_class": "Arenosa",
+            "image": "images/Twice_dish_2.jpg",
             "setting": "dish",
             "site": "Fazenda Um",
             "device": "Pixel 8",
@@ -166,14 +191,29 @@ def test_manifest_requires_exactly_one_photograph_per_setting_per_sample(tmp_pat
         }
     )
     root = write_dataset(tmp_path, rows)
+
+    assert check_setting_pairing(read_manifest(root, CLASSES)) == []
+
+
+def test_manifest_accepts_a_single_condition_version(tmp_path):
+    """A dish-only version is legitimate and reports no pairing problem."""
+    rows = [
+        {
+            "sample_id": f"Dish{index}",
+            "texture_class": texture_class,
+            "image": f"images/Dish{index}_dish.jpg",
+            "setting": "dish",
+            "site": "unknown",
+            "device": "unknown",
+            "captured_at": "unknown",
+        }
+        for index, texture_class in enumerate(("Arenosa", "Media", "Argilosa"))
+    ]
+    root = write_dataset(tmp_path, rows)
     manifest = read_manifest(root, CLASSES)
 
-    problems = check_setting_pairing(manifest)
-
-    joined = "\n".join(problems)
-    assert "DishOnly" in joined
-    assert "paper" in joined
-    assert "Doubled" in joined
+    assert check_setting_pairing(manifest) == []
+    assert covered_settings(manifest) == ("dish",)
 
 
 def test_manifest_pairing_accepts_one_photograph_per_setting(tmp_path):

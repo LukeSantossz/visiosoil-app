@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from .config import load_config, resolve_paths
 from .dataset import (
-    scan_dataset, create_splits, load_splits, build_dataset,
+    create_splits_for_config, load_splits, build_dataset,
     compute_class_weights, validate_splits_against_config, verify_images,
 )
 from .model import build_model, unfreeze_model
@@ -140,14 +140,7 @@ def train(version: str, config_path: str | None = None) -> None:
         splits = manifest["splits"]
     else:
         print("Scanning dataset and creating splits...")
-        class_images = scan_dataset(cfg["data"]["raw_dir"], cfg["classes"])
-        splits = create_splits(
-            class_images,
-            val_split=cfg["data"]["val_split"],
-            test_split=cfg["data"]["test_split"],
-            seed=cfg["data"]["seed"],
-            splits_dir=splits_dir,
-        )
+        splits = create_splits_for_config(cfg, splits_dir)
 
     # Verify what will actually be read, on BOTH paths. Verifying only the
     # freshly scanned set left the far more common path unchecked: a manifest

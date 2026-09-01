@@ -1,4 +1,4 @@
-# SPEC (full): feat(inference): normalise by a measured scale and classify a greyscale patch grid in both languages
+# SPEC: feat(inference): normalise by a measured scale and classify a greyscale patch grid in both languages
 
 ## Problem
 
@@ -113,6 +113,24 @@ ImageNet weights load unchanged.
   inference.
 
 ## Scope
+
+- Includes: a scale reader per side and the normalisation to a canonical
+  millimetres-per-pixel; greyscale conversion; locating the soil region; the
+  overlapping patch grid and its inset; batching the patches through the
+  interpreter; the mean aggregation and the normalised dispersion metric; the
+  `disc_diameter_px` manifest column; widening `_ARCHITECTURE_IMAGE_SIZE`; the
+  shared geometry fixture table.
+- Does NOT include: reading `spec.json` or separating the failure causes, which
+  is SPEC 0035 and lands first; the verdict bands and the result surface, which
+  the UI/UX terminal owns; converting the archive's HEIC files and building the
+  dataset version, which is
+  [SPEC 0040](0040-ingest-the-delivered-archive-as-dataset-version-v1.md); the
+  out-of-distribution score (#194); any change to `ml/src/export.py`, which work
+  item B3 owns; calibrating the dispersion threshold, which ships advisory
+  because no validation set exists to calibrate it against.
+
+The paragraphs below are the same two lists with their reasoning, kept because
+each boundary above was drawn for a stated reason rather than by convenience.
 
 **In scope, Python:** a scale reader over the dish rim; a normalisation to the
 canonical scale; greyscale conversion via the shared luma; a patch grid over the

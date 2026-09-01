@@ -1,8 +1,10 @@
-"""The ignore rules must actually keep dataset images out of the repository.
+"""The ignore rules must actually keep a dataset version out of the repository.
 
-`manifest.csv` is the record and is versioned; the images it lists are large and
-are not. Asserted against `git check-ignore` rather than by re-implementing
-gitignore matching, because the pattern semantics are the thing under test.
+Nothing under a version directory is versioned, the manifest included: the
+version is reproducible from the archive by a deterministic ingestion, so it is a
+build product. Asserted against `git check-ignore` rather than by
+re-implementing gitignore matching, because the pattern semantics are the thing
+under test.
 
 Casing matters here and not only in theory: the scanner matches suffixes
 case-insensitively, cameras commonly produce `.JPG`, and the CI runner is
@@ -28,7 +30,11 @@ IGNORED_PATHS = [
     "ml/data/datasets/v2/images/other.png",
 ]
 
-TRACKED_PATHS = [
+#: Bookkeeping files that used to be excepted from the ignore-all rule. They are
+#: listed here so the reversal is asserted rather than merely performed: an
+#: exception that creeps back would put a build product under version control
+#: again, and nothing else would notice.
+BOOKKEEPING_PATHS = [
     "ml/data/datasets/v1/manifest.csv",
     "ml/data/datasets/v1/admission-rejected.csv",
 ]
@@ -57,7 +63,28 @@ def test_dataset_images_are_ignored(path):
     assert check_ignore(path), f"{path} would be committed"
 
 
-@pytest.mark.parametrize("path", TRACKED_PATHS)
-def test_dataset_bookkeeping_files_are_not_ignored(path):
-    """The manifest is the record, so it has to be committable."""
-    assert not check_ignore(path), f"{path} is ignored but must be versioned"
+@pytest.mark.parametrize("path", BOOKKEEPING_PATHS)
+def test_dataset_bookkeeping_files_are_ignored_too(path):
+    """A dataset version is reproducible, so none of it is a record."""
+    assert check_ignore(path), f"{path} would be committed"
+
+
+def test_no_dataset_version_file_is_tracked():
+    """The reversal is asserted against the index, not only against the rules.
+
+    An ignore rule says nothing about a file already in history: `git rm
+    --cached` is what removes one, and forgetting it leaves the file tracked and
+    the rule inert. This is the check that would have caught that.
+    """
+    completed = subprocess.run(
+        ["git", "ls-files", "--", "ml/data/datasets"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "", (
+        "these dataset-version files are still tracked:\n" + completed.stdout
+    )

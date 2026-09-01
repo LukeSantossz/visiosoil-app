@@ -98,18 +98,18 @@ def test_seed_is_set_before_any_dataset_or_model_work(tmp_path, monkeypatch):
 
     monkeypatch.setattr(train_module, "seed_everything", _seed)
 
-    def _scan(*args, **kwargs):
-        calls.append(("scan", None))
+    def _splits(*args, **kwargs):
+        calls.append(("splits", None))
         raise _StopHere
 
-    monkeypatch.setattr(train_module, "scan_dataset", _scan)
+    monkeypatch.setattr(train_module, "create_splits_for_config", _splits)
 
     with pytest.raises(_StopHere):
         train_module.train("vtest")
 
-    assert calls, "train() ran without seeding or scanning"
+    assert calls, "train() ran without seeding or reading the dataset"
     assert calls[0] == ("seed", SEED, True), f"first call was {calls[0]}"
-    assert ("scan", None) in calls
+    assert ("splits", None) in calls
 
 
 def test_train_persists_the_runtime_beside_the_artifact(tmp_path, monkeypatch):
@@ -142,10 +142,10 @@ def test_train_persists_the_runtime_beside_the_artifact(tmp_path, monkeypatch):
         },
     )
 
-    def _scan(*args, **kwargs):
+    def _splits(*args, **kwargs):
         raise _StopHere
 
-    monkeypatch.setattr(train_module, "scan_dataset", _scan)
+    monkeypatch.setattr(train_module, "create_splits_for_config", _splits)
 
     with pytest.raises(_StopHere):
         train_module.train("vtest")

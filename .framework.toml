@@ -59,6 +59,23 @@ agents_file = "AGENTS.md"
 base = "main"
 effort = "high"
 
+# The limit stays at the 30 kB default and that is a Windows constraint, not a
+# preference. `mf` hands a prompt-driven backend its prompt through argv, and
+# CreateProcess caps a command line at 32,767 characters, so the role prompt,
+# the instruction file and the diff have to fit inside that together. Raising
+# this to 250 kB made every run fail with "The filename or extension is too
+# long", which is an unavailable backend and therefore an empty chain.
+#
+# The consequence is real and is recorded rather than worked around: **a change
+# larger than about 30 kB of diff is reviewed in part**, and the runner says so
+# on the line it prints for the pull request. R3 reads the whole change server
+# side, which is why it found seven issues in a diff where R2 found none. A
+# large change should be split, or its R2 rounds read as partial.
+#
+# The timeout is raised because a reasoning model over even a truncated diff can
+# exceed four minutes, and a review killed by its budget reports as unavailable.
+timeout_seconds = "900"
+
 # --- roles ------------------------------------------------------------------
 
 # R1 carries no provider constraint: what defines it is when it runs and how
@@ -68,10 +85,20 @@ effort = "high"
 [roles.r1]
 backends = ["superpowers"]
 
-# R2 is the only role that carries the cross-provider requirement. Both entries
-# are CLIs the Developer already runs, so no machine route is needed for either.
+# R2 is the only role that carries the cross-provider requirement. One entry,
+# named by the Developer on 2026-09-01: `codex` had been first in this chain and
+# reported `quota, authentication, or network` on every run it was given, so it
+# was a fallback that had never once been available. A chain exists to keep an
+# unavailable reviewer from becoming a hole; an entry that is always unavailable
+# is the hole.
+#
+# **R2 does not run on push here.** It runs twice, by hand, after the pull
+# request for a spec is opened and before it is merged, so both rounds read the
+# change as the reviewer of that pull request sees it. The push therefore carries
+# SKIP_R2_REVIEW=1 and the pull request records the two rounds and their model.
+# See "Working here" in docs/agents/project.md.
 [roles.r2]
-backends = ["codex", "agy"]
+backends = ["agy-gpt"]
 require_cross_provider = true
 
 # CodeRabbit reviews every pull request opened here. It runs as a forge app
@@ -123,14 +150,39 @@ unavailable_patterns = [
   "network error", "connection (refused|reset)",
 ]
 
-# Antigravity's CLI. Prompt-driven rather than repository-reading, so the role
-# instructions and the diff are handed to it through {{.Prompt}}.
+# Antigravity's CLI, pinned to a GPT model, and the R2 reviewer here.
 #
-# It is a gateway rather than a vendor: the same command reaches several, so
-# which vendor actually reviews depends entirely on the model pinned below. That
-# is why the provider says `google` and the model is a Gemini one — a Claude
-# model here would satisfy the cross-provider rule against an Anthropic Author
-# by name while being the same vendor in substance.
+# Declared separately from `agy` below rather than by repointing it, because the
+# explainer role uses that one and changing a shared block would have swapped the
+# explainer's vendor as a side effect of choosing a reviewer.
+#
+# The provider says `openai` because that is whose model answers. Nothing here
+# verifies it — r2_gate.md is explicit that a backend's provider is a label and
+# that the gateway's machine layer is what actually routes the call — so the
+# claim is worth exactly what the pin is worth, and the pin is visible in this
+# file.
+#
+# Why not a Claude model, which is equally available through this gateway: the
+# Author on this repository is Anthropic, and r2_gate.md requires the Reviewer to
+# be a **different provider**. A Claude reviewer would satisfy that rule by name
+# and be the same vendor in substance, which is the failure the rule exists to
+# prevent rather than a way of meeting it.
+[backends.agy-gpt]
+kind = "cli"
+provider = "openai"
+command = "agy"
+model = "gpt-oss-120b-medium"
+args = ["--print", "{{.Prompt}}", "--model", "{{.Model}}"]
+structured = true
+unavailable_patterns = [
+  "quota", "rate limit", "resource[_ ]exhausted",
+  "not authenticated", "unauthorized", "401", "403",
+  "network error", "connection (refused|reset)",
+]
+
+# The same CLI pinned to Gemini, kept for the explainer role only. It is not in
+# any review chain: see the note above on why a gateway's vendor is the model
+# pin and not the command.
 #
 # The effort is baked into the model id (`-high`, `-low`), so --effort is not
 # passed: two settings for one dial is a way to have them disagree.

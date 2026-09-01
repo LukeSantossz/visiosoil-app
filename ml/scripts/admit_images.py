@@ -36,6 +36,7 @@ from src.manifest import (  # noqa: E402
     REJECTED_FILENAME,
     Manifest,
     ManifestError,
+    check_unreadable_images,
     commit_staged_manifest,
     dataset_root,
     discard_staged_manifest,
@@ -102,6 +103,12 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 3
+
+    unreadable = check_unreadable_images(root)
+    if unreadable:
+        for problem in unreadable:
+            print(problem, file=sys.stderr)
+        return 2
 
     result = admit(manifest)
 

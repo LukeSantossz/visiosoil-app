@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Collection, Mapping
 
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -22,7 +22,16 @@ from sklearn.model_selection import train_test_split
 if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
     import tensorflow as tf
 
-from .manifest import IMAGE_SUFFIXES, verify_split_digest
+from .manifest import (
+    IMAGE_SUFFIXES,
+    check_class_coverage,
+    class_images as manifest_class_images,
+    dataset_root,
+    read_manifest_or_none,
+    sample_ids_by_image,
+    train_only_sample_ids,
+    verify_split_digest,
+)
 
 
 def _tensorflow():
@@ -127,7 +136,7 @@ def _group_id(class_name: str, sample_id: str) -> str:
     return f"{class_name}::{sample_id}"
 
 
-def _extract_sample_id(filepath: str) -> str:
+def sample_id_from_filename(filepath: str) -> str:
     """Extract sample ID from filename for group-aware splitting.
 
     Handles patterns like "100147,21 (6).JPG" -> "100147,21"
@@ -155,7 +164,7 @@ def _sample_id_of(path: str, sample_ids: Mapping[str, str] | None) -> str:
     keeps one physical sample out of two splits.
     """
     if sample_ids is None:
-        return _extract_sample_id(path)
+        return sample_id_from_filename(path)
     declared = sample_ids.get(path)
     if declared is None:
         raise ValueError(
@@ -174,6 +183,7 @@ def create_splits(
     sample_ids: Mapping[str, str] | None = None,
     dataset_version: str | None = None,
     manifest_digest: str | None = None,
+    train_only_samples: Collection[str] | None = None,
 ) -> dict[str, list[dict]]:
     """Create group-aware stratified train/val/test splits and save manifests.
 
@@ -193,6 +203,11 @@ def create_splits(
         dataset_version: The immutable version directory the images came from.
         manifest_digest: Digest of the manifest they were listed in, so a split
             can be shown to belong to the data it claims.
+        train_only_samples: Sample ids that may enter training and never
+            validation or test. They are removed before the stratified split
+            runs and appended to train afterwards, so they neither influence
+            the stratification nor appear in a score. See
+            `manifest.TRAIN_ONLY_SOURCE_GROUPS`.
 
     Returns:
         Dict with "train", "val", "test" keys, each a list of
@@ -207,6 +222,13 @@ def create_splits(
     group_labels = []
     group_files: list[list[str]] = []
 
+    restricted = set(train_only_samples or ())
+    # Kept separate from the splittable groups rather than filtered out of the
+    # result afterwards: a restricted group left in the stratification would
+    # shift the class proportions the split is trying to preserve, and the
+    # correction would then be invisible in the counts.
+    train_only_files: list[tuple[int, list[str]]] = []
+
     for class_name, paths in class_images.items():
         label = class_to_idx[class_name]
         # Group files by sample ID within this class
@@ -216,9 +238,19 @@ def create_splits(
             sample_groups.setdefault(sid, []).append(p)
 
         for sid, files in sample_groups.items():
+            if sid in restricted:
+                train_only_files.append((label, files))
+                continue
             group_ids.append(_group_id(class_name, sid))
             group_labels.append(label)
             group_files.append(files)
+
+    if not group_ids:
+        raise ValueError(
+            "every sample group is restricted to training, so no validation or "
+            "test split can be formed. Check train_only_samples against the "
+            "manifest's source_group column"
+        )
 
     group_ids = np.array(group_ids)
     group_labels = np.array(group_labels)
@@ -228,11 +260,16 @@ def create_splits(
     from collections import Counter
     label_counts = Counter(group_labels.tolist())
     min_groups = 3
-    for label_idx, count in label_counts.items():
+    # Over every class, not over the counter's keys: a class whose groups are
+    # all restricted to training leaves no entry in the counter at all, so
+    # iterating the counter would pass it silently — and validation and test
+    # would then omit a class the model still has an output for.
+    for label_idx in sorted(idx_to_class):
+        count = label_counts.get(label_idx, 0)
         if count < min_groups:
             cls_name = idx_to_class[label_idx]
             raise ValueError(
-                f"Class '{cls_name}' has only {count} sample group(s), "
+                f"Class '{cls_name}' has only {count} splittable sample group(s), "
                 f"but at least {min_groups} are required for stratified "
                 f"train/val/test splitting."
             )
@@ -265,8 +302,15 @@ def create_splits(
                 })
         return entries
 
+    train_entries = _build_manifest(train_idx)
+    for label, files in train_only_files:
+        train_entries.extend(
+            {"path": str(p), "label": label, "class": idx_to_class[label]}
+            for p in files
+        )
+
     splits = {
-        "train": _build_manifest(train_idx),
+        "train": train_entries,
         "val": _build_manifest(val_idx),
         "test": _build_manifest(test_idx),
     }
@@ -290,6 +334,7 @@ def create_splits(
             "val": len(splits["val"]),
             "test": len(splits["test"]),
         },
+        "train_only_samples": sorted(restricted),
         "splits": splits,
     }
 
@@ -297,6 +342,65 @@ def create_splits(
         json.dump(manifest, f, indent=2)
 
     return splits
+
+
+def create_splits_for_config(cfg: Mapping, splits_dir: str) -> dict[str, list[dict]]:
+    """Create splits for ``cfg``, preferring the manifest over a folder scan.
+
+    The manifest is preferred because it declares three things a directory
+    cannot: which physical sample each photograph belongs to, which dataset
+    version and manifest the split was generated from, and which capture
+    population a row came from. Grouping in particular stops being a guess —
+    without the declared ids `_sample_id_of` falls back to a filename pattern,
+    and a pattern that happens to fit is the worst case, because nothing reports
+    that it was used.
+
+    The folder scan remains for a version that has no manifest yet, and says so
+    rather than falling back quietly.
+    """
+    data = cfg["data"]
+    root = dataset_root(data["datasets_dir"], data["dataset_version"])
+    manifest = read_manifest_or_none(root, cfg["classes"])
+
+    if manifest is None:
+        print(
+            f"No manifest at {root}; falling back to the folder scan of "
+            f"{data['raw_dir']}. Sample grouping will be inferred from filenames "
+            f"and the split will record no dataset version."
+        )
+        return create_splits(
+            scan_dataset(data["raw_dir"], cfg["classes"]),
+            val_split=data["val_split"],
+            test_split=data["test_split"],
+            seed=data["seed"],
+            splits_dir=splits_dir,
+        )
+
+    absent = check_class_coverage(manifest, cfg["classes"])
+    if absent:
+        raise ValueError(
+            "the dataset version does not cover every configured class:\n  - "
+            + "\n  - ".join(absent)
+        )
+
+    restricted = train_only_sample_ids(manifest)
+    if restricted:
+        print(
+            f"{len(restricted)} sample group(s) are restricted to training by "
+            f"their source group; they will not appear in validation or test."
+        )
+
+    return create_splits(
+        manifest_class_images(manifest, cfg["classes"]),
+        val_split=data["val_split"],
+        test_split=data["test_split"],
+        seed=data["seed"],
+        splits_dir=splits_dir,
+        sample_ids=sample_ids_by_image(manifest),
+        dataset_version=manifest.version,
+        manifest_digest=manifest.digest,
+        train_only_samples=restricted,
+    )
 
 
 def validate_splits_against_config(manifest: dict, cfg: dict) -> None:

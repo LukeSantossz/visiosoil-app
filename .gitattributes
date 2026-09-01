@@ -2,3 +2,8 @@
 # on every platform (CRLF breaks the shebang with "\r: command not found").
 *.sh text eol=lf
 .githooks/** text eol=lf
+
+# No dataset-version file is tracked any more (see .gitignore), so there is
+# nothing here to pin. The digest a split carries is still over the manifest's
+# bytes, and ingestion still writes LF explicitly; what is gone is the checkout
+# that could have rewritten them.
