@@ -18,11 +18,17 @@ def valid_config() -> dict:
             "raw_dir": "data/raw",
             "splits_dir": "data/splits",
             "image_size": 224,
-            "val_split": 0.15,
-            "test_split": 0.15,
             "seed": 42,
             "datasets_dir": "data/datasets",
             "dataset_version": "v1",
+        },
+        "evaluation": {
+            "k": 5,
+            "repeats": 5,
+            "inner_k": 4,
+            "alpha": 0.05,
+            "power": 0.8,
+            "contrasts": [],
         },
         "preprocessing": {
             "normalization": "mobilenet_v2",
@@ -75,23 +81,6 @@ def test_missing_top_key(valid_config):
     del valid_config["classes"]
     path = _write_config(valid_config)
     with pytest.raises(ValueError, match="Missing top-level keys"):
-        load_config(path)
-
-
-def test_invalid_val_split(valid_config):
-    """val_split outside (0, 1) raises ValueError."""
-    valid_config["data"]["val_split"] = 1.5
-    path = _write_config(valid_config)
-    with pytest.raises(ValueError, match="val_split"):
-        load_config(path)
-
-
-def test_splits_sum_too_large(valid_config):
-    """val_split + test_split >= 1 raises ValueError."""
-    valid_config["data"]["val_split"] = 0.5
-    valid_config["data"]["test_split"] = 0.5
-    path = _write_config(valid_config)
-    with pytest.raises(ValueError, match="val_split.*test_split"):
         load_config(path)
 
 
@@ -388,3 +377,154 @@ def test_resolve_paths_resolves_the_datasets_dir(valid_config):
     cfg = resolve_paths(load_config(path))
     assert Path(cfg["data"]["datasets_dir"]).is_absolute()
     assert Path(cfg["data"]["datasets_dir"]).name == "datasets"
+
+
+# --- SPEC 0042: the evaluation protocol is configuration ---------------------
+
+
+def test_single_split_path_is_removed(valid_config):
+    """A config still carrying the split fractions is refused, naming them."""
+    valid_config["data"]["val_split"] = 0.15
+    valid_config["data"]["test_split"] = 0.15
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError) as raised:
+        load_config(path)
+
+    message = str(raised.value)
+    assert "val_split" in message
+    assert "test_split" in message
+    assert "evaluation" in message
+
+
+def test_a_config_carrying_only_one_stale_fraction_is_still_refused(valid_config):
+    """Half a migration is the case a set-difference check would miss."""
+    valid_config["data"]["test_split"] = 0.15
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="test_split"):
+        load_config(path)
+
+
+def test_the_evaluation_block_is_required(valid_config):
+    del valid_config["evaluation"]
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="evaluation"):
+        load_config(path)
+
+
+def test_every_evaluation_key_is_required(valid_config):
+    for key in ("k", "repeats", "inner_k", "alpha", "power", "contrasts"):
+        config = {**valid_config, "evaluation": dict(valid_config["evaluation"])}
+        del config["evaluation"][key]
+        path = _write_config(config)
+
+        with pytest.raises(ValueError, match=key):
+            load_config(path)
+
+
+def test_k_below_two_is_rejected(valid_config):
+    valid_config["evaluation"]["k"] = 1
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="evaluation.k"):
+        load_config(path)
+
+
+def test_inner_k_below_two_is_rejected(valid_config):
+    """One inner fold is not a selection set; it is the training set again."""
+    valid_config["evaluation"]["inner_k"] = 1
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="evaluation.inner_k"):
+        load_config(path)
+
+
+def test_repeats_below_one_is_rejected(valid_config):
+    valid_config["evaluation"]["repeats"] = 0
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="evaluation.repeats"):
+        load_config(path)
+
+
+def test_alpha_and_power_must_lie_in_the_unit_interval(valid_config):
+    for key in ("alpha", "power"):
+        config = {**valid_config, "evaluation": dict(valid_config["evaluation"])}
+        config["evaluation"][key] = 1.0
+        path = _write_config(config)
+
+        with pytest.raises(ValueError, match=f"evaluation.{key}"):
+            load_config(path)
+
+
+def test_a_contrast_must_name_two_distinct_arms(valid_config):
+    valid_config["evaluation"]["contrasts"] = [
+        {"name": "self", "arms": ["cnn", "cnn"], "family": "primary"}
+    ]
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="two distinct arms"):
+        load_config(path)
+
+
+def test_a_contrast_must_declare_a_known_family(valid_config):
+    valid_config["evaluation"]["contrasts"] = [
+        {"name": "c", "arms": ["a", "b"], "family": "exploratory"}
+    ]
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="family"):
+        load_config(path)
+
+
+def test_only_one_secondary_contrast_may_be_registered(valid_config):
+    """ADR 0020 registers one named secondary; two is a family, uncorrected."""
+    valid_config["evaluation"]["contrasts"] = [
+        {"name": "one", "arms": ["a", "b"], "family": "secondary"},
+        {"name": "two", "arms": ["a", "c"], "family": "secondary"},
+    ]
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="one secondary"):
+        load_config(path)
+
+
+def test_two_contrasts_may_not_share_a_name(valid_config):
+    valid_config["evaluation"]["contrasts"] = [
+        {"name": "same", "arms": ["a", "b"], "family": "primary"},
+        {"name": "same", "arms": ["a", "c"], "family": "primary"},
+    ]
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="same"):
+        load_config(path)
+
+
+def test_a_registered_family_of_contrasts_is_accepted(valid_config):
+    valid_config["evaluation"]["contrasts"] = [
+        {"name": "cnn_vs_control", "arms": ["cnn", "control"], "family": "primary"},
+        {"name": "cnn_vs_descriptors", "arms": ["cnn", "lbp"], "family": "secondary"},
+    ]
+    path = _write_config(valid_config)
+
+    cfg = load_config(path)
+
+    assert [c["name"] for c in cfg["evaluation"]["contrasts"]] == [
+        "cnn_vs_control",
+        "cnn_vs_descriptors",
+    ]
+
+
+def test_the_shipped_config_declares_the_protocol_ADR_0020_fixed():
+    """k, R and the inner fold count are the decision, not a default."""
+    cfg = load_config()
+
+    assert cfg["evaluation"]["k"] == 5
+    assert cfg["evaluation"]["repeats"] == 5
+    assert cfg["evaluation"]["inner_k"] == 4
+    assert cfg["evaluation"]["alpha"] == 0.05
+    assert cfg["evaluation"]["power"] == 0.8
+    assert "val_split" not in cfg["data"]
+    assert "test_split" not in cfg["data"]
