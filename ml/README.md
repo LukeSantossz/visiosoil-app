@@ -34,8 +34,9 @@ planning estimate of 1,418 images that no run ever confirmed. The images
 themselves stay git-ignored by design; what is committed is the manifest. See
 [ADR 0016](../docs/adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
 
-The unit that matters is the **sample**, not the image: splits group on it, and
-some samples carry more than one photograph.
+The unit that matters is the **sample**, not the image: folds group on it, every
+interval and every paired contrast is computed over it, and some samples carry
+more than one photograph.
 
 | # | Class | Samples | Images | In the first model |
 |---|-------|---------|--------|---|
@@ -46,11 +47,13 @@ some samples carry more than one photograph.
 | 4 | Argilosa | 59 | 63 | yes |
 | | **Total** | **194** | **221** | |
 
-**Siltosa is excluded from the first model.** Three samples is the arithmetic
-minimum for a three-way split — one row each in train, validation and test — and
-a per-class figure computed on one test sample is a coin flip presented as a
+**Siltosa is excluded from the first model.** Three sample groups is below the
+five the evaluation protocol needs — one in each of the k = 5 folds' test sides —
+and a per-class figure computed on one test sample is a coin flip presented as a
 measurement. The first model classifies four groups; the product still names
-five, and the application declares the absence.
+five, and the application declares the absence. `config.yaml` still lists five
+classes, so generating folds over the real `v1` refuses Siltosa by name until
+roadmap item A4 aligns the class list on both sides.
 
 **129 of the 221 files are HEIC**, which neither `tf.io.decode_image` nor the
 Dart `image` package can read. Conversion precedes everything (#196).
@@ -102,41 +105,85 @@ TensorFlow installed.
 
 ```bash
 python scripts/admit_images.py --version v1      # report; add --write to apply
-python scripts/validate_dataset.py --version v1  # schema, disk, pairing, splits
+python scripts/validate_dataset.py --version v1  # schema, disk, pairing, folds
 ```
 
 The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
-formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is what `src.train` still
-reads, and stays until the training entry point is moved onto the manifest.
+formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is still readable by the fold
+generator, but the training entry point requires the manifest: the protocol
+groups by the declared `sample_id`, and a filename pattern that happens to fit is
+the worst case because nothing reports that it was used.
 
-Either way the pipeline creates stratified train/val/test splits and writes them
-to `data/splits/splits.json` — the split assignment plus its provenance, not a
-copy of `manifest.csv`. A manifest-backed split records the dataset version and a
-digest of the `manifest.csv` it was generated from, so it can be shown to belong
-to the data it claims.
+`validate_dataset.py --splits-dir data/splits` writes the **fold manifest** to
+`data/splits/splits.json`: the fold index of every sample group per repeat, the
+seeds those folds were drawn from, the train-only groups, and the dataset version
+and `manifest.csv` digest that make a result attributable to the data it claims.
+It is `schema_version: 2`; a version-1 file — one `train`/`val`/`test` partition —
+is refused by name rather than reinterpreted.
 
 `data/splits/` is gitignored, so `splits.json` is **not** versioned in git today
-and the seed plus the recorded digest are what make a split reproducible.
+and the seed plus the recorded digest are what make a fold reproducible.
+
+## Evaluation protocol
+
+Every number comes from **repeated stratified group k-fold cross-validation** —
+k = 5 outer folds, R = 5 repeats — with every selection nested inside the fold's
+own training side
+([ADR 0020](../docs/adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md),
+[SPEC 0042](../docs/specs/0042-repeated-group-k-fold-evaluation-protocol.md)).
+There is no `train`/`val`/`test` partition, and a result reported from one is not
+a VisioSoil result.
+
+- The **sample group** is the unit of every interval and every paired contrast.
+  A group's prediction is the argmax of the mean of its photographs'
+  distributions; photograph-level macro-F1 stays the primary number.
+- **Uncertainty is never the spread across folds.** The Wilson interval on the
+  pooled group count carries sampling variance and the spread across repeats
+  carries training variance.
+- **Contrasts are pre-registered** in `config.yaml` under
+  `evaluation.contrasts`, Holm-corrected within the family, and an unregistered
+  contrast is refused by name.
+- The **minimum detectable effect** is computed from the observed discordance
+  and recorded beside every difference.
 
 ## Training
 
 ```bash
-python -m src.train --version v1
+python -m src.crossval --version v1 --arm cnn                     # every fold
+python -m src.crossval --version v1 --shuffled-control            # the control
+python -m src.train --version v1 --repeat 0 --fold 0              # one fold
 ```
 
-Saves the Keras checkpoint (`model.keras`), config snapshot (`config.json`), training history (`history.json`), and best model checkpoint (`best_model.keras`) to `models/v1/`.
+`src.crossval` runs every repeat and outer fold and writes
+`models/v1/<arm>/metrics.json`. Each fold writes its own directory —
+`models/v1/<arm>/repeat-<r>/fold-<i>/` — holding `model.keras`, the config
+snapshot, `runtime.json`, `predictions.json`, `cost.json`, and
+`selection_audit.json`, which records every sample group read while selecting a
+setting for that fold so the nesting can be checked rather than assumed.
 
-The training runs in two phases:
-- **Phase 1:** Head-only training (backbone frozen) for the first N epochs (configured by `model.unfreeze_at_epoch`).
-- **Phase 2:** Fine-tuning with top backbone layers unfrozen and lower learning rate until EarlyStopping triggers.
+Inside a fold the recipe is unchanged:
+- **Phase 1:** Head-only training (backbone frozen) for the first N epochs
+  (configured by `model.unfreeze_at_epoch`).
+- **Phase 2:** Fine-tuning with top backbone layers unfrozen and a lower
+  learning rate.
+
+The epoch count is chosen on `evaluation.inner_k` inner folds of the outer
+fold's training side, and the model that is scored is refitted on the whole
+training side with that choice.
 
 ## Evaluation
 
 ```bash
-python -m src.evaluate --version v1
+python -m src.evaluate --version v1 --arm cnn        # recompute metrics.json
+python -m src.evaluate --version v1 --contrasts      # the registered family
 ```
 
-Generates `models/v1/metrics.json` with accuracy, F1 scores, per-class metrics, and `models/v1/confusion_matrix.png`.
+`metrics.json` carries the primary number per repeat, the Wilson interval on
+each repeat's pooled group accuracy, the median and range across repeats,
+per-class figures flagged `"headline": false`, and what the run cost in
+trainings and wall-clock seconds. `--contrasts` writes `models/v1/contrasts.json`
+with each registered contrast's discordant counts, exact McNemar p-value, its
+Holm-corrected value and its minimum detectable effect.
 
 ## Export to TFLite
 
@@ -146,13 +193,19 @@ python -m src.export --version v1
 
 Converts the Keras model to TFLite (no quantization by default) and generates `models/v1/spec.json` — the integration contract the Flutter `InferenceService` is specified to consume. It does not read it yet: `SPEC 0035` is the change that makes the contract a runtime source, and until it lands the Dart side declares the same values in source.
 
+`src.export` reads `models/v1/model.keras`. Cross-validation produces one model
+per fold per repeat under `models/v1/<arm>/repeat-<r>/fold-<i>/`, and **which of
+them ships is a release decision this protocol does not make**: the folds exist
+to measure, not to nominate. Promoting a model to `models/v1/model.keras` is the
+step that precedes an export.
+
 ## Full Pipeline
 
 Run all three steps in sequence:
 
 ```bash
-python -m src.train --version v1
-python -m src.evaluate --version v1
+python -m src.crossval --version v1 --arm cnn
+python -m src.evaluate --version v1 --arm cnn
 python -m src.export --version v1
 ```
 
