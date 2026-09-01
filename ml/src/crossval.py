@@ -177,6 +177,19 @@ def load_runtime(fold_dir: Path | str) -> dict | None:
         return json.load(handle)
 
 
+def read_fold_metadata(arm_dir: Path | str, repeat: int, fold: int) -> dict:
+    """The header of one fold's predictions file, without its records.
+
+    Lets a reporting run recover what the arm was — a control or a real arm —
+    from the artifacts rather than from a flag the operator has to repeat, so a
+    control's `metrics.json` cannot claim to describe a real arm.
+    """
+    path = fold_directory(arm_dir, repeat, fold) / PREDICTIONS_FILENAME
+    with open(path) as handle:
+        record = json.load(handle)
+    return {key: value for key, value in record.items() if key != "predictions"}
+
+
 def load_arm_predictions(
     arm_dir: Path | str, fold_manifest: Mapping
 ) -> tuple[dict[tuple[int, int], list[dict]], dict[tuple[int, int], dict]]:

@@ -19,6 +19,7 @@ from src.crossval import (
     SELECTION_AUDIT_FILENAME,
     fold_directory,
     load_arm_predictions,
+    read_fold_metadata,
     write_fold_cost,
     write_fold_predictions,
     write_selection_audit,
@@ -614,3 +615,23 @@ def test_the_fold_cost_record_round_trips_into_the_metrics(tmp_path, folds):
     assert metrics["cost"]["wall_clock_seconds_total"] == pytest.approx(
         REPEATS * K * 5 * 1.5
     )
+
+
+def test_the_arm_metadata_says_whether_it_was_the_shuffled_control(tmp_path, folds):
+    """A control reported as a real arm is the mislabelling that inverts E0."""
+    arm_dir = tmp_path / "models" / "v1" / "shuffled_control"
+    write_fold_predictions(
+        arm_dir,
+        repeat=0,
+        fold=0,
+        arm="shuffled_control",
+        classes=folds["classes"],
+        records=fabricate(folds)[(0, 0)],
+        shuffled_control=True,
+    )
+
+    metadata = read_fold_metadata(arm_dir, 0, 0)
+
+    assert metadata["shuffled_control"] is True
+    assert metadata["arm"] == "shuffled_control"
+    assert "predictions" not in metadata

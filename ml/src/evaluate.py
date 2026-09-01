@@ -293,7 +293,7 @@ def evaluate(
 
     Reads what `src.crossval` wrote; it neither trains nor predicts.
     """
-    from .crossval import arm_directory, load_arm_predictions
+    from .crossval import arm_directory, load_arm_predictions, read_fold_metadata
 
     cfg = resolve_paths(load_config(config_path))
     fold_manifest = load_folds(cfg["data"]["splits_dir"])
@@ -340,6 +340,12 @@ def evaluate(
         version=version,
         predictions=predictions,
         costs=costs,
+        # Read from the artifacts, not from a flag this invocation repeats: a
+        # control reported as a real arm is the one mislabelling that would
+        # invert E0's verdict.
+        shuffled_control=bool(
+            read_fold_metadata(arm_dir, 0, 0).get("shuffled_control", False)
+        ),
         runtime=_first_runtime(arm_dir, fold_manifest),
     )
     with open(arm_dir / METRICS_FILENAME, "w") as handle:
