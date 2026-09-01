@@ -13,6 +13,42 @@ Accepted, and re-checked on 2026-08-25 with a sixth condition added. Recorded
 during the 2026-07-30 ML architecture study
 (`docs/architecture/soil-classification.md`, §6 to §11).
 
+### Amended 2026-09-01: collection is gone, and the decision survives it on a different argument
+
+The decision stands: no generator is trained. Two of the reasons it rests on do
+not, because both assumed collection was available and it no longer is. The
+project owner closed that route on 2026-09-01 — the delivered archive is the
+whole dataset, and the laboratory takes no part in the project in any aspect.
+
+**"Targeted collection first" is not a first step any more; it is not a step.**
+It is listed below as the chosen option with the highest value per unit of
+effort, and the Consequences say that if field collection stalls this record
+must be revisited. Collection has not stalled — it is impossible. The ordering
+this record imposes therefore has one fewer stage, and the first stage becomes
+corrected augmentation over the photographs that exist.
+
+**Condition 3 changes meaning rather than being satisfied.** It asks for a named
+residual gap with a documented shortage of physical samples *and no near-term
+collection path*. There is now no collection path at all, for any class, so the
+clause is satisfied permanently and by circumstance rather than by evidence — a
+condition that can never fail is not a gate. It is withdrawn as a discriminator,
+and the weight it carried moves to condition 5.
+
+**What now does the work is the arithmetic in #183.** Condition 5 requires a
+downstream gain on a real-only test set that exceeds run-to-run variance, and
+the binding constraint is not that variance but the test set's minimum
+detectable effect. With the archive's real inventory — 105 sample groups, 77 of
+them splittable across four classes — a single three-way split leaves two to
+three groups per class, and no generative ablation can clear an effect floor
+that large. The condition is arithmetically unsatisfiable, and that is a
+stronger reason to defer than any of the five it was written beside. It also
+does not go away if #203 replaces the split with cross-validation: k-fold
+raises the effective evaluation set to 77 groups, which improves the floor
+without coming close to what an ablation of this kind needs.
+
+So generation stays deferred, on a reason that survives the loss of collection
+rather than on one that depended on it.
+
 ### Re-checked 2026-08-25: zero of five conditions hold
 
 Not one of the five conditions below is satisfied. The first three are
@@ -152,5 +188,7 @@ against a resample.
   filtered synthetic data mixed with fresh real data does not necessarily follow
   that trajectory. It argues for filtering and for a real-only test set, both of
   which this decision already requires.
-- Deferring generation makes collection a hard dependency rather than an
-  optional one. If field collection stalls, this ADR is what must be revisited.
+- Deferring generation made collection a hard dependency rather than an
+  optional one. **Superseded by the 2026-09-01 amendment**: collection did not
+  stall, it ended, and this record was revisited then rather than left waiting
+  for a trigger that can no longer fire.
