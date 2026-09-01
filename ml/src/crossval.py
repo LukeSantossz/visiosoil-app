@@ -113,6 +113,28 @@ def write_fold_cost(
     return path
 
 
+def assert_selection_is_nested(
+    selection_group_ids: Sequence[str],
+    test_group_ids: Sequence[str],
+    repeat: int,
+    fold: int,
+) -> None:
+    """Refuse before a leaked fold is trained, not after.
+
+    Called before the inner loop runs as well as when the audit is written: a
+    check that only fires at write time would have spent the whole selection
+    budget training on the groups it is about to refuse, and an operator who
+    interrupts the run would be left with no record of why.
+    """
+    leaked = sorted(set(selection_group_ids) & set(test_group_ids))
+    if leaked:
+        raise ValueError(
+            f"selection for repeat {repeat} fold {fold} reads {len(leaked)} of "
+            f"its own test groups: {', '.join(leaked)}. Nested selection is "
+            "what makes the fold's number honest (ADR 0020)"
+        )
+
+
 def write_selection_audit(
     arm_dir: Path | str,
     repeat: int,
@@ -150,12 +172,7 @@ def write_selection_audit(
             handle,
             indent=2,
         )
-    if leaked:
-        raise ValueError(
-            f"selection for repeat {repeat} fold {fold} read {len(leaked)} of "
-            f"its own test groups: {', '.join(leaked)}. Nested selection is "
-            "what makes the fold's number honest (ADR 0020)"
-        )
+    assert_selection_is_nested(selection_group_ids, test_group_ids, repeat, fold)
     return path
 
 

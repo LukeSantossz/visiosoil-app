@@ -136,6 +136,7 @@ def train_fold(
         The runtime record this fold trained under.
     """
     from .crossval import (
+        assert_selection_is_nested,
         fold_directory,
         write_fold_cost,
         write_fold_predictions,
@@ -195,6 +196,17 @@ def train_fold(
         f"{len({e['group'] for e in split['test']})} test group(s)"
     )
 
+    selection_group_ids = [
+        entry["group"]
+        for inner_split in inner
+        for side in ("train", "val")
+        for entry in inner_split[side]
+    ]
+    test_group_ids = [entry["group"] for entry in split["test"]]
+    # Before the first inner training, not after the last: a leak found at write
+    # time has already cost the whole selection budget.
+    assert_selection_is_nested(selection_group_ids, test_group_ids, repeat, fold)
+
     seconds: list[float] = []
     chosen_epochs = []
     for index, inner_split in enumerate(inner):
@@ -211,13 +223,8 @@ def train_fold(
         arm_dir,
         repeat,
         fold,
-        selection_group_ids=[
-            entry["group"]
-            for inner_split in inner
-            for side in ("train", "val")
-            for entry in inner_split[side]
-        ],
-        test_group_ids=[entry["group"] for entry in split["test"]],
+        selection_group_ids=selection_group_ids,
+        test_group_ids=test_group_ids,
         inner_k=cfg["evaluation"]["inner_k"],
         chosen={
             "epochs": selected,
