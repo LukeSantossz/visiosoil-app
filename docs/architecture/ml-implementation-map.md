@@ -36,6 +36,15 @@ Last updated: 2026-08-25.
 > - **C2's ordering is wrong**: calibration must follow quantization, not precede
 >   it (#187).
 >
+> **Revised 2026-09-01.** The evaluation design changed under every item in
+> Lanes B and C. [ADR 0020](../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md)
+> replaces the single seeded `train`/`val`/`test` split with repeated stratified
+> group k-fold (k = 5, R = 5) and nested selection; the sample group is the unit
+> of every interval and every paired contrast; contrasts are pre-registered; and
+> the minimum detectable effect is a recorded output rather than a planning
+> table. Where an item below still describes a three-way split or reads a
+> per-fold spread as uncertainty, ADR 0020 wins.
+>
 > Where this revision and the text below disagree, this revision wins.
 
 ## 1. What we are building
@@ -376,14 +385,24 @@ it without this terminal present.
 **Depends on:** B1, B2, and images existing.
 **Gate for:** everything below.
 
+**Every number below is produced under the evaluation protocol**, which is
+repeated stratified group k-fold with nested selection —
+[ADR 0020](../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md),
+[SPEC 0042](../specs/0042-repeated-group-k-fold-evaluation-protocol.md). A result
+reported from a single `train`/`val`/`test` split is not a VisioSoil result, and
+that path no longer exists in `ml/`.
+
 **Acceptance criteria**
 
 - An inventory of whatever exists: counts by class, group, site, device, and
-  `setting`. Image counts alone do not size a split.
-- E0 runs three arms across several seeds: the real model, a
-  colour-histogram-only baseline, and a label-shuffled control.
+  `setting`. Image counts alone do not size an evaluation.
+- E0 runs its arms under SPEC 0042: every arm on the same folds, its contrasts
+  pre-registered in `evaluation.contrasts` before the run, Holm-corrected within
+  the family, and the label-shuffled control run through the same code path as
+  the real arm.
 - The verdict is written down and committed with its numbers, whichever way it
-  goes.
+  goes, and every difference is read against the recorded minimum detectable
+  effect.
 
 **If the real model does not separate from the shuffled control by more than
 run-to-run variance, the product premise is wrong and Lane C stops.** Soil colour
@@ -391,6 +410,14 @@ tracks organic matter and iron oxides rather than granulometry, so this is a
 genuine open question, not a formality. The colour-histogram baseline exists to
 answer a second one: if the real model matches it, the model learned colour, not
 texture, and no amount of architecture work will fix that.
+
+**The detectable-effect floor is measured, not tabulated.** #183 carried an MDE
+table over three hypothetical dataset regimes; those rows are superseded. The
+minimum detectable effect is computed from each contrast's observed discordance
+at alpha = 0.05 two-sided and 80 % power, and recorded in
+`ml/models/<version>/contrasts.json` beside the difference it bounds. Read it
+there rather than from any table: at 77 groups it is expected near 15-20 pp
+(estimate), and an arm that wins by less has not been shown to win.
 
 ### C1 — Baseline and sweep (E1–E5, E13)
 
@@ -668,6 +695,10 @@ question 6; it is now the one that matters most.
    it does not, E0 runs on the classes that clear it, reports which were excluded,
    and **does not authorise Lane C** — a positive result on the easy classes
    bounds nothing.
+
+   Under SPEC 0042 the floor a class must clear to be evaluated at all is `k`
+   splittable sample groups, one for each fold's test side. Siltosa holds three,
+   so the fold generator refuses it by name.
 
 ## 8. Coordination with the UI/UX terminal
 
