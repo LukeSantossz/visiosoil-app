@@ -49,6 +49,14 @@ without coming close to what an ablation of this kind needs.
 So generation stays deferred, on a reason that survives the loss of collection
 rather than on one that depended on it.
 
+**One figure in the body below is stale and is left standing.** The cGAN option
+is rejected against "roughly 1400 declared images", which was the count
+`ml/README.md` asserted when this record was written and which the archive audit
+later found unverifiable. The real inventory is 105 sample groups over 221
+photographs. The body is not edited, because an approved record's value is that
+it holds what was decided at the time; the correction is here, where a reader
+meets it first, and it makes that rejection stronger rather than weaker.
+
 ### Re-checked 2026-08-25: zero of five conditions hold
 
 Not one of the five conditions below is satisfied. The first three are
