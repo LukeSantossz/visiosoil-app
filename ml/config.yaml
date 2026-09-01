@@ -18,9 +18,36 @@ data:
   datasets_dir: "data/datasets"
   dataset_version: "v1"
   image_size: 224
-  val_split: 0.15
-  test_split: 0.15
   seed: 42
+
+# The evaluation protocol: repeated stratified group k-fold with nested
+# selection (ADR 0020, SPEC 0042). There is no train/val/test partition; every
+# splittable sample group is tested exactly once per repeat, and the choice made
+# for an outer fold is made on inner folds of that fold's own training side.
+evaluation:
+  # Five outer folds leave roughly 15 test groups each and keep Argilosa, the
+  # binding class at 16 splittable groups, at three or four per fold. Ten would
+  # halve that and double the cost for the same 77-group pool.
+  k: 5
+  # Five repeats, each redrawing the folds from its own derived seed, so the
+  # spread across repeats measures training and fold-assignment variance. It is
+  # not a confidence interval: the Wilson interval on the pooled group count
+  # carries sampling variance, and the spread across folds is never reported as
+  # uncertainty at all.
+  repeats: 5
+  # Inner folds of each outer fold's training side. Selection runs here or it
+  # leaks, and at this sample size the leak dominates (Vabalas et al. 2019).
+  inner_k: 4
+  alpha: 0.05
+  power: 0.80
+  # Contrasts are pre-registered before a run, so a result cannot be read for
+  # whichever comparison happens to clear. Each entry names two arms and its
+  # family: `primary` for an arm against the shuffled-label control, and at most
+  # one `secondary`. An unregistered contrast is refused by name.
+  #
+  # Empty until the experiment that owns the arms registers its own: E0's arms
+  # and its decision rule belong to SPEC 0043, not to this protocol.
+  contrasts: []
 
 preprocessing:
   normalization: "mobilenet_v2"
