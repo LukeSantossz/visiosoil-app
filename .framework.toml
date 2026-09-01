@@ -59,18 +59,21 @@ agents_file = "AGENTS.md"
 base = "main"
 effort = "high"
 
-# The default limit is 30 kB, and a change here routinely exceeds it — the
-# ingestion change was 146 kB, so the first R2 round read a fifth of it and
-# reported no findings while the automated PR reviewer, reading all of it, found
-# seven. The runner does say the diff was truncated, so this was never silent;
-# it was merely easy to accept. A reviewer that cannot see the change has not
-# reviewed it, and the honest fix is to raise the limit rather than to read
-# "no findings" from a fifth of a diff.
+# The limit stays at the 30 kB default and that is a Windows constraint, not a
+# preference. `mf` hands a prompt-driven backend its prompt through argv, and
+# CreateProcess caps a command line at 32,767 characters, so the role prompt,
+# the instruction file and the diff have to fit inside that together. Raising
+# this to 250 kB made every run fail with "The filename or extension is too
+# long", which is an unavailable backend and therefore an empty chain.
 #
-# The timeout goes with it: a reasoning model over a diff five times longer
-# needs more than four minutes, and a review killed by its budget is reported as
-# unavailable, which would quietly empty a one-backend chain.
-max_diff_bytes = "250000"
+# The consequence is real and is recorded rather than worked around: **a change
+# larger than about 30 kB of diff is reviewed in part**, and the runner says so
+# on the line it prints for the pull request. R3 reads the whole change server
+# side, which is why it found seven issues in a diff where R2 found none. A
+# large change should be split, or its R2 rounds read as partial.
+#
+# The timeout is raised because a reasoning model over even a truncated diff can
+# exceed four minutes, and a review killed by its budget reports as unavailable.
 timeout_seconds = "900"
 
 # --- roles ------------------------------------------------------------------
