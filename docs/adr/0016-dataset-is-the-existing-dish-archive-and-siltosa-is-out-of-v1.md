@@ -16,6 +16,43 @@ differ from that description on every axis it fixed.
 Accepted 2026-08-25, from an audit of the delivered image set against the
 records that described it.
 
+**Amended 2026-09-01**, while implementing
+[SPEC 0040](../specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md).
+The decisions this record takes — the archive is the dataset, scale comes from
+the dish rim, Siltosa is out of the first model — all stand. Three of its
+measurements do not, and the title's `194 samples` is the first of them. The
+title and body are left as they were approved; the corrections are here.
+
+- **The archive holds 105 sample groups, not 194.** Per class: Arenosa 26,
+  Media 22, Siltosa 3, Argilosa 33, Muito Argilosa 21, over 221 photographs.
+- **"The laboratory number is in the filename, so grouping needs no extra
+  record" is true of 92 photographs and false of 129.** The whole HEIC session
+  is named `IMG_####` — a camera counter — and carries no laboratory number and
+  no label card. Counting each of those as its own sample is what produced 194
+  and would have put two photographs of one dish into two different splits over
+  58 % of the archive. SPEC 0040 D4 recovers the identity from the capture
+  clock: photographs within 60 seconds are one sample, which yields 63 groups,
+  and every such identity is marked `capture-burst` in the manifest so a derived
+  group is never read as a declared one.
+- **There is one camera, not "more than one".** Every population that carries
+  EXIF carries an iPhone 11. The 2.6× scale spread this record measured from the
+  dish rim is three export and transport paths out of one device: the native
+  HEIC session at 3024×4032, a JPEG export at 1536×2048 that kept its EXIF, and
+  a transported JPEG at roughly 1600×900 that lost its EXIF and was re-encoded
+  with a luminance quantization table three to four times coarser in the
+  high-frequency band. Their long-side ratios are 1.00 : 0.508 : 0.397, a spread
+  of 2.52.
+
+**One consequence this record should be read against, and does not itself
+resolve.** It excludes Siltosa for holding fewer than 30 samples. Under the
+corrected count **three of the four remaining classes are also below 30** —
+Arenosa 26, Media 22, Muito Argilosa 21 — and only Argilosa clears it at 33.
+With the transported population held to training per SPEC 0040 D6, 77 sample
+groups are splittable across the four classes, so a 0.15 test fraction leaves
+two to three groups of each class in the test set. Whether a floor of 30 still
+means what it meant here, and whether a single three-way split is the right
+instrument at this size, are open and are not decided by this amendment.
+
 ## Context
 
 ADR 0014 was written on 2026-08-11 from the project owner's answers, before any
