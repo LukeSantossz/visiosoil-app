@@ -61,3 +61,34 @@ def test_dataset_images_are_ignored(path):
 def test_dataset_bookkeeping_files_are_not_ignored(path):
     """The manifest is the record, so it has to be committable."""
     assert not check_ignore(path), f"{path} is ignored but must be versioned"
+
+
+def test_the_manifest_is_pinned_to_lf_so_its_digest_survives_a_checkout():
+    """A split proves it belongs to a manifest by that manifest's byte digest.
+
+    `core.autocrlf` is on by default on Windows, so without an explicit
+    attribute the same committed manifest hashes differently on a Windows
+    checkout than on the Linux runner, and every split generated on one platform
+    reports itself foreign on the other.
+
+    Asserted through `git check-attr` rather than by reading `.gitattributes`,
+    because what matters is the attribute git actually resolves for the path.
+    """
+    completed = subprocess.run(
+        [
+            "git",
+            "check-attr",
+            "text",
+            "eol",
+            "--",
+            "ml/data/datasets/v1/manifest.csv",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "text: set" in completed.stdout
+    assert "eol: lf" in completed.stdout

@@ -2,3 +2,10 @@
 # on every platform (CRLF breaks the shebang with "\r: command not found").
 *.sh text eol=lf
 .githooks/** text eol=lf
+
+# A manifest's digest is over its bytes, so a split can be shown to belong to the
+# manifest it was generated from (SPEC 0033). An end-of-line conversion on
+# checkout would give the same manifest a different digest per platform and
+# break that proof, and core.autocrlf is enough to cause it.
+ml/data/datasets/**/manifest.csv text eol=lf
+ml/data/datasets/**/admission-rejected.csv text eol=lf
