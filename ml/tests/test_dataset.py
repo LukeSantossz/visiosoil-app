@@ -89,14 +89,14 @@ def test_scan_dataset_preserves_config_order(fake_dataset):
     assert list(result.keys()) == classes
 
 
-def testsample_id_from_filename_grouped():
+def test_sample_id_from_filename_grouped():
     """sample_id_from_filename extracts prefix from 'name (N).ext' pattern."""
     assert sample_id_from_filename("/data/100147,21 (6).JPG") == "100147,21"
     assert sample_id_from_filename("/data/100147,21 (7).JPG") == "100147,21"
     assert sample_id_from_filename("/data/sample_3 (1).jpg") == "sample_3"
 
 
-def testsample_id_from_filename_singleton():
+def test_sample_id_from_filename_singleton():
     """sample_id_from_filename returns stem for single-image files."""
     assert sample_id_from_filename("/data/single_image.jpg") == "single_image"
 

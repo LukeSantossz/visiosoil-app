@@ -753,3 +753,117 @@ def test_skip_existing_rewrites_a_file_whose_bytes_do_not_match(tmp_path):
 
     assert report.copied >= 1
     assert target.read_bytes() != b"truncated"
+
+
+# --- Nothing in the archive is passed over in silence ----------------------
+
+
+def test_a_file_at_the_archive_root_is_refused(tmp_path):
+    """A photograph outside a class folder has no label, so it is not a skip."""
+    source = write_archive(tmp_path)
+    _image(80).save(source / "stray (1).JPEG", exif=_exif(), quality=95)
+
+    with pytest.raises(ArchiveError) as excinfo:
+        scan_archive(source)
+
+    assert "stray (1).JPEG" in str(excinfo.value)
+    assert "no class folder" in str(excinfo.value)
+
+
+def test_a_nested_directory_inside_a_class_folder_is_refused(tmp_path):
+    source = write_archive(tmp_path)
+    nested = source / "1 Sandy" / "rescanned"
+    nested.mkdir()
+    _image(81).save(nested / "x (1).JPEG", exif=_exif(), quality=95)
+
+    with pytest.raises(ArchiveError) as excinfo:
+        scan_archive(source)
+
+    assert "rescanned" in str(excinfo.value)
+    assert "is a directory" in str(excinfo.value)
+
+
+def test_skip_existing_rewrites_a_png_of_the_right_size_but_the_wrong_pixels(tmp_path):
+    """A stale conversion is caught by its pixels, not by its dimensions.
+
+    A dimension check alone would accept any valid PNG of the right shape and
+    then record it as this photograph, which is how a partial or stale ingestion
+    keeps wrong training data.
+    """
+    source = write_archive(tmp_path)
+    version = tmp_path / "datasets" / "v1"
+    first = ingest_archive(source, version, classes=CLASSES)
+
+    row = next(row for row in rows_of(version) if row["source_format"] == "heic")
+    target = version / row["image"]
+    original = Image.open(target).convert("RGB")
+    Image.new("RGB", original.size, (7, 7, 7)).save(target, format="PNG")
+
+    report = ingest_archive(source, version, classes=CLASSES, skip_existing=True)
+
+    assert report.converted == 1
+    assert report.reused == first.converted + first.copied - 1
+    assert Image.open(target).convert("RGB").tobytes() == original.tobytes()
+
+
+# --- A class cannot disappear between the manifest and the splits ----------
+
+
+def test_create_splits_refuses_a_class_whose_every_group_is_restricted(tmp_path):
+    """Restricting a whole class to training would silently drop it from scoring.
+
+    The class keeps an output in the model and vanishes from validation and
+    test, so the reported metrics describe a different task from the one shipped.
+    """
+    from src.dataset import create_splits
+    from src.manifest import class_images
+
+    source = write_splittable_archive(tmp_path)
+    version = tmp_path / "datasets" / "v1"
+    ingest_archive(source, version, classes=CLASSES)
+    manifest = read_manifest(version, CLASSES)
+
+    doomed = {
+        row.sample_id for row in manifest.rows if row.texture_class == "Media"
+    }
+
+    with pytest.raises(ValueError) as excinfo:
+        create_splits(
+            class_images(manifest, CLASSES),
+            val_split=0.15,
+            test_split=0.15,
+            seed=42,
+            splits_dir=str(tmp_path / "splits"),
+            sample_ids=sample_ids_by_image(manifest),
+            train_only_samples=doomed,
+        )
+
+    assert "Media" in str(excinfo.value)
+    assert "splittable sample group" in str(excinfo.value)
+
+
+def test_create_splits_for_config_refuses_a_configured_class_with_no_rows(tmp_path):
+    """`class_images` omits an empty class, which reindexes every label after it."""
+    from src.dataset import create_splits_for_config
+
+    source = write_splittable_archive(tmp_path)
+    version = tmp_path / "datasets" / "v1"
+    ingest_archive(source, version, classes=CLASSES)
+
+    cfg = {
+        "classes": CLASSES,
+        "data": {
+            "datasets_dir": str(tmp_path / "datasets"),
+            "dataset_version": "v1",
+            "raw_dir": str(tmp_path / "raw"),
+            "val_split": 0.15,
+            "test_split": 0.15,
+            "seed": 42,
+        },
+    }
+
+    with pytest.raises(ValueError) as excinfo:
+        create_splits_for_config(cfg, str(tmp_path / "splits"))
+
+    # The splittable fixture holds four of the five configured classes.
+    assert "Siltosa" in str(excinfo.value)

@@ -89,8 +89,9 @@ UNREADABLE_IMAGE_SUFFIXES = frozenset({".heic", ".heif"})
 UNKNOWN = "unknown"
 
 #: Recorded per row so a capture population that correlates with the label stays
-#: visible to evaluation. Optional in a manifest a collector authored by hand;
-#: written by ingestion, which knows all four.
+#: visible to evaluation, and so a derived sample identity is never read as a
+#: declared one. Optional in a manifest a collector authored by hand; written by
+#: ingestion, which knows all of them.
 PROVENANCE_COLUMNS = (
     "source_format",
     "source_group",
@@ -878,7 +879,7 @@ def _parse_metrics(
 def _parse_provenance(
     raw: Mapping[str, str], number: int
 ) -> tuple[dict[str, object], list[str]]:
-    """Read the four provenance columns, which a hand-authored manifest omits.
+    """Read the provenance columns, which a hand-authored manifest omits.
 
     Absent, they are empty and nothing downstream restricts the row. Present,
     they are checked: a `source_group` outside the declared set would silently

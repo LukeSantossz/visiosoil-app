@@ -24,6 +24,7 @@ if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
 
 from .manifest import (
     IMAGE_SUFFIXES,
+    check_class_coverage,
     class_images as manifest_class_images,
     dataset_root,
     read_manifest_or_none,
@@ -259,11 +260,16 @@ def create_splits(
     from collections import Counter
     label_counts = Counter(group_labels.tolist())
     min_groups = 3
-    for label_idx, count in label_counts.items():
+    # Over every class, not over the counter's keys: a class whose groups are
+    # all restricted to training leaves no entry in the counter at all, so
+    # iterating the counter would pass it silently — and validation and test
+    # would then omit a class the model still has an output for.
+    for label_idx in sorted(idx_to_class):
+        count = label_counts.get(label_idx, 0)
         if count < min_groups:
             cls_name = idx_to_class[label_idx]
             raise ValueError(
-                f"Class '{cls_name}' has only {count} sample group(s), "
+                f"Class '{cls_name}' has only {count} splittable sample group(s), "
                 f"but at least {min_groups} are required for stratified "
                 f"train/val/test splitting."
             )
@@ -368,6 +374,13 @@ def create_splits_for_config(cfg: Mapping, splits_dir: str) -> dict[str, list[di
             test_split=data["test_split"],
             seed=data["seed"],
             splits_dir=splits_dir,
+        )
+
+    absent = check_class_coverage(manifest, cfg["classes"])
+    if absent:
+        raise ValueError(
+            "the dataset version does not cover every configured class:\n  - "
+            + "\n  - ".join(absent)
         )
 
     restricted = train_only_sample_ids(manifest)

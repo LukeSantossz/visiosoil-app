@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Sequence
 
-from PIL import Image, ExifTags
+from PIL import Image
 from pillow_heif import register_heif_opener
 
 from .dataset import sample_id_from_filename
@@ -324,11 +324,32 @@ def _assign_burst_sample_ids(
     return sorted(declared + grouped, key=lambda image: str(image.path)), []
 
 
-def _candidate_files(source: Path) -> Iterator[tuple[str, Path]]:
+def _candidate_files(source: Path) -> Iterator[tuple[str, Path | None, str]]:
+    """Yield every entry the archive holds, processable or not.
+
+    Entries this scan cannot turn into a photograph are yielded as faults rather
+    than skipped. A nested directory under a class folder and a loose file at the
+    archive root are both places a photograph can end up, and both were silently
+    dropped by an earlier form of this function — which is the same failure, at a
+    different layer, as the unreadable container this module exists to close.
+    """
+    for path in sorted(source.iterdir(), key=lambda p: p.name):
+        if path.is_file():
+            yield "", None, (
+                f"{path.name} sits at the archive root, where it belongs to no "
+                f"class folder and therefore has no label"
+            )
+
     for folder in sorted(child.name for child in source.iterdir() if child.is_dir()):
         for path in sorted((source / folder).iterdir(), key=lambda p: p.name):
             if path.is_file():
-                yield folder, path
+                yield folder, path, ""
+            else:
+                yield folder, None, (
+                    f"{folder}/{path.name} is a directory. A class folder holds "
+                    f"photographs directly; a nested one is either a sub-class or "
+                    f"a mistake, and both need a decision rather than a skip"
+                )
 
 
 def scan_archive(source: str | Path) -> list[SourceImage]:
@@ -356,7 +377,10 @@ def scan_archive(source: str | Path) -> list[SourceImage]:
             f"decision rather than a skip"
         )
 
-    for folder, path in _candidate_files(source):
+    for folder, path, fault in _candidate_files(source):
+        if fault:
+            problems.append(fault)
+            continue
         if folder in unmapped:
             continue
         try:
@@ -376,9 +400,12 @@ def scan_archive(source: str | Path) -> list[SourceImage]:
 def _already_written(target: Path, image: SourceImage) -> bool:
     """Whether ``target`` is already this photograph, verified rather than assumed.
 
-    A resumed run must not trust a filename. A copied JPEG is compared byte for
-    byte against its source; a converted PNG is checked for the dimensions the
-    source declares, which is what a truncated write fails.
+    A resumed run must not trust a filename, and it must not trust a size
+    either: a valid PNG of the right dimensions but unrelated pixels passes a
+    dimension check, and ingestion would then record it as this photograph. A
+    copied JPEG is compared byte for byte against its source; a converted PNG is
+    decoded and compared pixel for pixel. That costs a decode of both files,
+    which is what verifying a conversion is worth.
     """
     if not target.is_file():
         return False
@@ -387,7 +414,11 @@ def _already_written(target: Path, image: SourceImage) -> bool:
     try:
         with Image.open(target) as written:
             written.load()
-            return written.size == (image.width, image.height)
+            if written.size != (image.width, image.height):
+                return False
+            with Image.open(image.path) as source:
+                source.load()
+                return written.convert("RGB").tobytes() == source.convert("RGB").tobytes()
     except Exception:
         return False
 
