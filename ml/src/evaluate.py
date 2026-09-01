@@ -588,9 +588,7 @@ def _apply_holm_within_families(contrasts: list[dict]) -> None:
 
 def _first_runtime(arm_dir: Path, fold_manifest: Mapping) -> dict | None:
     """The runtime recorded by the first fold that has one, or ``None``."""
-    from .train import load_runtime
-
-    from .crossval import fold_directory
+    from .crossval import fold_directory, load_runtime
 
     for repeat in range(fold_manifest["repeats"]):
         for fold in range(fold_manifest["k"]):

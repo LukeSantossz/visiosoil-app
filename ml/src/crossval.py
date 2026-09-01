@@ -42,6 +42,7 @@ from .evaluate import METRICS_FILENAME, arm_metrics
 PREDICTIONS_FILENAME = "predictions.json"
 COST_FILENAME = "cost.json"
 SELECTION_AUDIT_FILENAME = "selection_audit.json"
+RUNTIME_FILENAME = "runtime.json"
 
 #: Default arm names. The real arm is named for what it is rather than for the
 #: run, so two experiments comparing the same thing land in the same directory
@@ -158,6 +159,24 @@ def write_selection_audit(
     return path
 
 
+def load_runtime(fold_dir: Path | str) -> dict | None:
+    """The recorded runtime of the training run that produced ``fold_dir``.
+
+    ``None`` when the directory predates this record, which is honest: absent is
+    not the same as deterministic, and a comparison must be able to tell them
+    apart rather than assuming the safe value.
+
+    It lives here rather than in `src.train` so that reading a result never
+    reaches the training stack: `src.train` imports TensorFlow at module scope,
+    and reporting has to run where TensorFlow cannot be installed.
+    """
+    path = Path(fold_dir) / RUNTIME_FILENAME
+    if not path.exists():
+        return None
+    with open(path) as handle:
+        return json.load(handle)
+
+
 def load_arm_predictions(
     arm_dir: Path | str, fold_manifest: Mapping
 ) -> tuple[dict[tuple[int, int], list[dict]], dict[tuple[int, int], dict]]:
@@ -206,6 +225,7 @@ def run_arm(
     # Imported here, not at module scope: everything above this function is
     # readable and testable without the training stack, and the tests that
     # assert what a result says run on a machine that has none.
+    from .dataset import verify_images
     from .train import train_fold
 
     cfg = resolve_paths(load_config(config_path))
@@ -219,6 +239,11 @@ def run_arm(
     output_dir = Path(cfg["export"]["output_dir"]) / version
     arm_dir = arm_directory(output_dir, arm)
     arm_dir.mkdir(parents=True, exist_ok=True)
+
+    # Once for the run, not once per fold: every fold reads the same images, and
+    # an unreadable file has to stop the run before the first training rather
+    # than twenty-four folds later. `train_fold` verifies when called directly.
+    verify_images(_images_by_class(fold_manifest))
 
     runtime = None
     for repeat in range(fold_manifest["repeats"]):
@@ -236,6 +261,7 @@ def run_arm(
                 repeat=repeat,
                 fold=fold,
                 shuffled_control=shuffled_control,
+                verify=False,
             )
             print(f"fold finished in {time.monotonic() - started:.1f}s")
 
@@ -253,6 +279,14 @@ def run_arm(
         json.dump(metrics, handle, indent=2)
     print(f"\nmetrics saved to {arm_dir / METRICS_FILENAME}")
     return metrics
+
+
+def _images_by_class(fold_manifest: Mapping) -> dict[str, list[str]]:
+    """Every image the folds reference, grouped by class for verification."""
+    grouped: dict[str, list[str]] = {}
+    for record in fold_manifest["groups"].values():
+        grouped.setdefault(record["class"], []).extend(record["images"])
+    return grouped
 
 
 def default_arm_name(arm: str | None, shuffled_control: bool) -> str:

@@ -32,7 +32,10 @@ from .dataset import (
 )
 from .model import build_model, unfreeze_model
 
-RUNTIME_FILENAME = "runtime.json"
+# Re-exported: the runtime record is part of the fold's artifact layout, which
+# `src.crossval` owns, and reading one must not reach the training stack. Kept
+# importable from here because this is the module that writes it.
+from .crossval import RUNTIME_FILENAME, load_runtime  # noqa: F401
 
 #: Separates a control run's permutation seed from every fold and repeat seed,
 #: so the permutation cannot coincide with the draw that produced the folds it
@@ -97,20 +100,6 @@ def runtime_mode(deterministic_ops: bool) -> dict:
         "device": "GPU" if gpus else "CPU",
         "gpu_count": len(gpus),
     }
-
-
-def load_runtime(output_dir: Path) -> dict | None:
-    """The recorded runtime of the training run that produced `output_dir`.
-
-    `None` when the directory predates this record, which is honest: absent is
-    not the same as deterministic, and a comparison must be able to tell them
-    apart rather than assuming the safe value.
-    """
-    path = Path(output_dir) / RUNTIME_FILENAME
-    if not path.exists():
-        return None
-    with open(path) as handle:
-        return json.load(handle)
 
 
 def control_seed(seed: int, repeat: int, fold: int) -> int:

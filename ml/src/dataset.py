@@ -295,7 +295,7 @@ def create_folds(
             "test side. Check train_only_samples against the manifest's "
             "source_group column"
         )
-    _refuse_a_class_below_the_fold_count(groups, splittable, classes, class_to_idx, k)
+    _refuse_a_class_below_the_fold_count(groups, splittable, classes, k)
 
     labels = np.array([groups[group_id]["label"] for group_id in splittable])
     assignments = {
@@ -638,7 +638,6 @@ def _refuse_a_class_below_the_fold_count(
     groups: Mapping[str, dict],
     splittable: list[str],
     classes: list[str],
-    class_to_idx: Mapping[str, int],
     k: int,
 ) -> None:
     """Refuse a class that cannot put a group in every fold's test side.

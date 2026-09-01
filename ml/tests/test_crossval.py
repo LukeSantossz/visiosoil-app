@@ -14,13 +14,16 @@ import numpy as np
 import pytest
 
 from src.crossval import (
-    PREDICTIONS_FILENAME,
     COST_FILENAME,
+    PREDICTIONS_FILENAME,
+    SELECTION_AUDIT_FILENAME,
     fold_directory,
     load_arm_predictions,
+    write_fold_cost,
     write_fold_predictions,
+    write_selection_audit,
 )
-from src.dataset import create_folds, fold_split
+from src.dataset import create_folds, fold_split, selection_groups
 from src.evaluate import (
     arm_metrics,
     contrast_results,
@@ -493,3 +496,121 @@ def test_loading_an_arm_with_a_missing_fold_names_it(tmp_path, folds):
 
     with pytest.raises(FileNotFoundError, match="repeat 0 fold 1"):
         load_arm_predictions(arm_dir, folds)
+
+
+# --- the artifacts that make the nesting checkable --------------------------
+
+
+def test_the_selection_audit_records_what_was_read_and_what_was_chosen(
+    tmp_path, folds
+):
+    """`selection_is_nested` and `refit_uses_the_whole_training_side` are both
+    asserted against this file, so it has to carry both facts.
+    """
+    arm_dir = tmp_path / "models" / "v1" / "cnn"
+    split = fold_split(folds, repeat=0, fold=0)
+    read = sorted(selection_groups(folds, 0, 0, inner_k=4))
+    test_groups = sorted({entry["group"] for entry in split["test"]})
+    refit_groups = {entry["group"] for entry in split["train"]}
+
+    path = write_selection_audit(
+        arm_dir,
+        0,
+        0,
+        selection_group_ids=read,
+        test_group_ids=test_groups,
+        inner_k=4,
+        chosen={"epochs": 7, "shuffled_control": False, "permutation_seed": None},
+        refit_group_count=len(refit_groups),
+    )
+
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert path == fold_directory(arm_dir, 0, 0) / SELECTION_AUDIT_FILENAME
+    assert written["groups_read_during_selection"] == read
+    assert written["test_groups"] == test_groups
+    assert written["leaked_groups"] == []
+    assert written["chosen"]["epochs"] == 7
+    assert written["refit_groups"] == len(refit_groups)
+    assert written["inner_k"] == 4
+
+
+def test_the_selection_audit_refuses_a_leak_it_would_otherwise_only_record(
+    tmp_path, folds
+):
+    """Recording a leak and continuing would produce a number nobody may use."""
+    arm_dir = tmp_path / "models" / "v1" / "cnn"
+    split = fold_split(folds, repeat=0, fold=0)
+    test_groups = sorted({entry["group"] for entry in split["test"]})
+
+    with pytest.raises(ValueError, match="its own test groups"):
+        write_selection_audit(
+            arm_dir,
+            0,
+            0,
+            selection_group_ids=test_groups[:1],
+            test_group_ids=test_groups,
+            inner_k=4,
+            chosen={"epochs": 7},
+            refit_group_count=0,
+        )
+
+    written = json.loads(
+        (fold_directory(arm_dir, 0, 0) / SELECTION_AUDIT_FILENAME).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert written["leaked_groups"] == test_groups[:1], (
+        "the evidence must survive the refusal"
+    )
+
+
+def test_the_control_records_the_seed_its_permutation_was_drawn_from(
+    tmp_path, folds
+):
+    """`shuffled_control_permutes_labels_at_group_level` requires the seed to be
+    recorded, and the audit beside the fold is where it lives.
+    """
+    arm_dir = tmp_path / "models" / "v1" / "shuffled_control"
+    split = fold_split(folds, repeat=0, fold=0)
+
+    path = write_selection_audit(
+        arm_dir,
+        0,
+        0,
+        selection_group_ids=sorted(selection_groups(folds, 0, 0, inner_k=4)),
+        test_group_ids=sorted({e["group"] for e in split["test"]}),
+        inner_k=4,
+        chosen={"epochs": 5, "shuffled_control": True, "permutation_seed": 500042},
+        refit_group_count=len({e["group"] for e in split["train"]}),
+    )
+
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["chosen"]["shuffled_control"] is True
+    assert written["chosen"]["permutation_seed"] == 500042
+
+
+def test_the_fold_cost_record_round_trips_into_the_metrics(tmp_path, folds):
+    arm_dir = tmp_path / "models" / "v1" / "cnn"
+    predictions = fabricate(folds, correct_rate=0.7, seed=51)
+
+    for (repeat, fold), records in predictions.items():
+        write_fold_predictions(
+            arm_dir,
+            repeat=repeat,
+            fold=fold,
+            arm="cnn",
+            classes=folds["classes"],
+            records=records,
+            shuffled_control=False,
+        )
+        write_fold_cost(arm_dir, repeat, fold, trainings=5, seconds=[1.5] * 5)
+
+    loaded, costs = load_arm_predictions(arm_dir, folds)
+    metrics = arm_metrics(
+        folds, arm="cnn", version="v1", predictions=loaded, costs=costs
+    )
+
+    assert metrics["cost"]["trainings"] == REPEATS * K * 5
+    assert metrics["cost"]["wall_clock_seconds_total"] == pytest.approx(
+        REPEATS * K * 5 * 1.5
+    )
