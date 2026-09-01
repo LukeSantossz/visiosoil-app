@@ -289,6 +289,12 @@ def create_folds(
     splittable = [
         group_id for group_id, record in groups.items() if not record["train_only"]
     ]
+    if not splittable:
+        raise ValueError(
+            "every sample group is restricted to training, so no fold has a "
+            "test side. Check train_only_samples against the manifest's "
+            "source_group column"
+        )
     _refuse_a_class_below_the_fold_count(groups, splittable, classes, class_to_idx, k)
 
     labels = np.array([groups[group_id]["label"] for group_id in splittable])

@@ -459,11 +459,15 @@ def test_read_manifest_or_none_still_raises_on_a_broken_manifest(tmp_path):
         read_manifest_or_none(root, CLASSES)
 
 
-# --- Acceptance criteria 10 and 11, through create_splits ------------------
+# --- Acceptance criteria 10 and 11, through create_folds -------------------
 
-#: Four classes need a test slice of at least four groups for a stratified cut,
-#: which at a 0.15 fraction means at least 27 splittable groups.
+#: Every class needs at least k splittable groups so that each of the k folds
+#: holds one of it in its test side (SPEC 0042). Seven clears k = 5, and leaves
+#: Argilosa above it once its three group B samples are held to training.
 ELIGIBLE_PER_CLASS = 7
+
+FOLD_COUNT = 5
+REPEAT_COUNT = 3
 
 SPLITTABLE_CLASSES = ("1 Sandy", "3 Medium", "4 Clayey", "5 Very Clayey")
 
@@ -495,8 +499,8 @@ def write_splittable_archive(tmp_path):
     return root
 
 
-def build_splits(tmp_path):
-    from src.dataset import create_splits
+def build_folds(tmp_path):
+    from src.dataset import create_folds
     from src.manifest import class_images
 
     source = write_splittable_archive(tmp_path)
@@ -504,10 +508,10 @@ def build_splits(tmp_path):
     ingest_archive(source, version, classes=CLASSES)
     manifest = read_manifest(version, CLASSES)
 
-    splits = create_splits(
+    folds = create_folds(
         class_images(manifest, CLASSES),
-        val_split=0.15,
-        test_split=0.15,
+        k=FOLD_COUNT,
+        repeats=REPEAT_COUNT,
         seed=42,
         splits_dir=str(tmp_path / "splits"),
         sample_ids=sample_ids_by_image(manifest),
@@ -515,49 +519,62 @@ def build_splits(tmp_path):
         manifest_digest=manifest.digest,
         train_only_samples=train_only_sample_ids(manifest),
     )
-    return manifest, splits
+    return manifest, folds
 
 
-def test_create_splits_places_no_group_b_sample_in_val_or_test(tmp_path):
-    manifest, splits = build_splits(tmp_path)
+def test_create_folds_places_no_group_b_sample_in_a_test_side(tmp_path):
+    from src.dataset import fold_split
+
+    manifest, folds = build_folds(tmp_path)
 
     restricted = train_only_sample_ids(manifest)
     assert len(restricted) == 3
 
     sample_of = sample_ids_by_image(manifest)
-    for split_name in ("val", "test"):
-        held = {sample_of[entry["path"]] for entry in splits[split_name]}
-        assert not (held & restricted), f"{split_name} holds a train-only sample"
-
-    trained = {sample_of[entry["path"]] for entry in splits["train"]}
-    assert restricted <= trained, "a restricted sample must still reach training"
-
-
-def test_create_splits_keeps_every_image_of_one_sample_in_one_split(tmp_path):
-    manifest, splits = build_splits(tmp_path)
-
-    sample_of = sample_ids_by_image(manifest)
-    seen: dict[str, str] = {}
-    for split_name, entries in splits.items():
-        for entry in entries:
-            sample_id = sample_of[entry["path"]]
-            assert seen.setdefault(sample_id, split_name) == split_name, (
-                f"sample {sample_id} reaches both {seen[sample_id]} and {split_name}"
+    for repeat in range(REPEAT_COUNT):
+        for fold in range(FOLD_COUNT):
+            split = fold_split(folds, repeat, fold)
+            held = {sample_of[entry["path"]] for entry in split["test"]}
+            assert not (held & restricted), (
+                f"repeat {repeat} fold {fold} scores a train-only sample"
+            )
+            trained = {sample_of[entry["path"]] for entry in split["train"]}
+            assert restricted <= trained, (
+                "a restricted sample must still reach every training side"
             )
 
 
-def test_create_splits_records_the_restricted_samples_in_the_manifest(tmp_path):
+def test_create_folds_keeps_every_image_of_one_sample_on_one_side(tmp_path):
+    from src.dataset import fold_split
+
+    manifest, folds = build_folds(tmp_path)
+
+    sample_of = sample_ids_by_image(manifest)
+    for repeat in range(REPEAT_COUNT):
+        for fold in range(FOLD_COUNT):
+            split = fold_split(folds, repeat, fold)
+            seen: dict[str, str] = {}
+            for side, entries in split.items():
+                for entry in entries:
+                    sample_id = sample_of[entry["path"]]
+                    assert seen.setdefault(sample_id, side) == side, (
+                        f"sample {sample_id} reaches both {seen[sample_id]} "
+                        f"and {side} in repeat {repeat} fold {fold}"
+                    )
+
+
+def test_create_folds_records_the_restricted_samples_in_the_manifest(tmp_path):
     import json
 
-    _, _ = build_splits(tmp_path)
+    _, _ = build_folds(tmp_path)
     written = json.loads((tmp_path / "splits" / "splits.json").read_text(encoding="utf-8"))
 
     assert written["train_only_samples"] == ["119026_0", "119026_1", "119026_2"]
     assert written["dataset_version"] == "v1"
 
 
-def test_create_splits_refuses_when_every_group_is_restricted(tmp_path):
-    from src.dataset import create_splits
+def test_create_folds_refuses_when_every_group_is_restricted(tmp_path):
+    from src.dataset import create_folds
     from src.manifest import class_images
 
     source = write_splittable_archive(tmp_path)
@@ -566,10 +583,10 @@ def test_create_splits_refuses_when_every_group_is_restricted(tmp_path):
     manifest = read_manifest(version, CLASSES)
 
     with pytest.raises(ValueError) as excinfo:
-        create_splits(
+        create_folds(
             class_images(manifest, CLASSES),
-            val_split=0.15,
-            test_split=0.15,
+            k=FOLD_COUNT,
+            repeats=REPEAT_COUNT,
             seed=42,
             splits_dir=str(tmp_path / "splits"),
             sample_ids=sample_ids_by_image(manifest),
@@ -809,13 +826,13 @@ def test_skip_existing_rewrites_a_png_of_the_right_size_but_the_wrong_pixels(tmp
 # --- A class cannot disappear between the manifest and the splits ----------
 
 
-def test_create_splits_refuses_a_class_whose_every_group_is_restricted(tmp_path):
+def test_create_folds_refuses_a_class_whose_every_group_is_restricted(tmp_path):
     """Restricting a whole class to training would silently drop it from scoring.
 
-    The class keeps an output in the model and vanishes from validation and
-    test, so the reported metrics describe a different task from the one shipped.
+    The class keeps an output in the model and vanishes from every test side, so
+    the reported metrics describe a different task from the one shipped.
     """
-    from src.dataset import create_splits
+    from src.dataset import create_folds
     from src.manifest import class_images
 
     source = write_splittable_archive(tmp_path)
@@ -828,10 +845,10 @@ def test_create_splits_refuses_a_class_whose_every_group_is_restricted(tmp_path)
     }
 
     with pytest.raises(ValueError) as excinfo:
-        create_splits(
+        create_folds(
             class_images(manifest, CLASSES),
-            val_split=0.15,
-            test_split=0.15,
+            k=FOLD_COUNT,
+            repeats=REPEAT_COUNT,
             seed=42,
             splits_dir=str(tmp_path / "splits"),
             sample_ids=sample_ids_by_image(manifest),
@@ -842,9 +859,9 @@ def test_create_splits_refuses_a_class_whose_every_group_is_restricted(tmp_path)
     assert "splittable sample group" in str(excinfo.value)
 
 
-def test_create_splits_for_config_refuses_a_configured_class_with_no_rows(tmp_path):
+def test_create_folds_for_config_refuses_a_configured_class_with_no_rows(tmp_path):
     """`class_images` omits an empty class, which reindexes every label after it."""
-    from src.dataset import create_splits_for_config
+    from src.dataset import create_folds_for_config
 
     source = write_splittable_archive(tmp_path)
     version = tmp_path / "datasets" / "v1"
@@ -856,14 +873,13 @@ def test_create_splits_for_config_refuses_a_configured_class_with_no_rows(tmp_pa
             "datasets_dir": str(tmp_path / "datasets"),
             "dataset_version": "v1",
             "raw_dir": str(tmp_path / "raw"),
-            "val_split": 0.15,
-            "test_split": 0.15,
             "seed": 42,
         },
+        "evaluation": {"k": FOLD_COUNT, "repeats": REPEAT_COUNT, "inner_k": 4},
     }
 
     with pytest.raises(ValueError) as excinfo:
-        create_splits_for_config(cfg, str(tmp_path / "splits"))
+        create_folds_for_config(cfg, str(tmp_path / "splits"))
 
     # The splittable fixture holds four of the five configured classes.
     assert "Siltosa" in str(excinfo.value)

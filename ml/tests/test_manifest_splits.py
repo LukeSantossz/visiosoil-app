@@ -1,10 +1,15 @@
-"""Tests for splits generated from a manifest (SPEC 0033).
+"""Tests for folds generated from a manifest (SPEC 0033, revised by SPEC 0042).
 
 Separate from ``test_dataset.py``, which covers the folder-scan path that
 predates the manifest. What is asserted here is the manifest-backed contract:
 grouping comes from the ``sample_id`` column rather than from a filename
-pattern, and a split records which dataset version and which manifest it was
-generated from.
+pattern, and a fold manifest records which dataset version and which manifest it
+was generated from.
+
+SPEC 0042 replaced the single ``train``/``val``/``test`` partition with repeated
+stratified group k-fold, so the same contract is now asserted against
+``create_folds`` and ``load_folds``. The generator changed; what it has to
+guarantee did not.
 """
 
 import json
@@ -14,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dataset import create_splits, load_splits
+from src.dataset import FOLD_MANIFEST_FILENAME, create_folds, load_folds
 from src.manifest import (
     class_images,
     manifest_digest,
@@ -23,107 +28,113 @@ from src.manifest import (
 )
 from tests.support import CLASSES, SAMPLES_PER_CLASS, write_version
 
+K = 5
+REPEATS = 3
+
 
 def generate(tmp_path, root, *, with_provenance=True):
-    """Generate splits from the manifest at ``root`` and return them."""
+    """Generate the fold manifest from the manifest at ``root``."""
     manifest = read_manifest(root, CLASSES)
     splits_dir = tmp_path / "splits"
-    splits = create_splits(
+    folds = create_folds(
         class_images(manifest, CLASSES),
-        val_split=0.15,
-        test_split=0.15,
+        k=K,
+        repeats=REPEATS,
         seed=42,
         splits_dir=str(splits_dir),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version if with_provenance else None,
         manifest_digest=manifest.digest if with_provenance else None,
     )
-    return manifest, splits_dir, splits
+    return manifest, splits_dir, folds
 
 
-def photographs_of(splits, stem_prefix):
-    """Return the split names holding a sample, and how many rows it has."""
+def groups_holding(folds, stem_prefix):
+    """Return the groups holding a sample's photographs, and how many rows."""
     holders = set()
     count = 0
-    for name, entries in splits.items():
-        for entry in entries:
-            if Path(entry["path"]).name.startswith(stem_prefix):
-                holders.add(name)
+    for group_id, record in folds["groups"].items():
+        for path in record["images"]:
+            if Path(path).name.startswith(stem_prefix):
+                holders.add(group_id)
                 count += 1
     return holders, count
 
 
-def test_splits_group_by_sample_id(tmp_path):
-    """Every photograph of one physical sample lands in exactly one split."""
+def test_folds_group_by_sample_id(tmp_path):
+    """Every photograph of one physical sample belongs to exactly one group."""
     root = write_version(tmp_path, extra_photographs=1)
 
-    _, _, splits = generate(tmp_path, root)
+    _, _, folds = generate(tmp_path, root)
 
-    holders, count = photographs_of(splits, "Arenosa-0_")
+    holders, count = groups_holding(folds, "Arenosa-0_")
     assert count == 3
     assert len(holders) == 1
 
 
-def test_splits_group_on_the_column_not_the_filename(tmp_path):
+def test_folds_group_on_the_column_not_the_filename(tmp_path):
     """Two files with unrelated names group together when the column says so."""
     root = write_version(tmp_path)
     manifest = read_manifest(root, CLASSES)
     grouping = sample_ids_by_image(manifest)
     assert len(set(grouping.values())) == len(CLASSES) * SAMPLES_PER_CLASS
 
-    _, _, splits = generate(tmp_path, root)
+    _, _, folds = generate(tmp_path, root)
 
-    holders, count = photographs_of(splits, "Media-3_")
+    holders, count = groups_holding(folds, "Media-3_")
     assert count == 2
     assert len(holders) == 1
+    assert len(folds["groups"]) == len(CLASSES) * SAMPLES_PER_CLASS
 
 
-def test_splits_record_the_dataset_version_and_manifest_hash(tmp_path):
-    """A split carries the provenance that makes it checkable."""
+def test_folds_record_the_dataset_version_and_manifest_hash(tmp_path):
+    """A fold manifest carries the provenance that makes it checkable."""
     root = write_version(tmp_path)
 
     manifest, splits_dir, _ = generate(tmp_path, root)
 
-    with open(splits_dir / "splits.json") as handle:
+    with open(splits_dir / FOLD_MANIFEST_FILENAME) as handle:
         written = json.load(handle)
     assert written["dataset_version"] == manifest.version == "v1"
     assert written["manifest_digest"] == manifest_digest(root)
 
 
-def test_loading_a_split_whose_hash_does_not_match_fails(tmp_path):
-    """Splits generated before the manifest changed must not be reused."""
+def test_loading_a_fold_manifest_whose_hash_does_not_match_fails(tmp_path):
+    """Folds generated before the manifest changed must not be reused."""
     root = write_version(tmp_path)
     _, splits_dir, _ = generate(tmp_path, root)
 
     with pytest.raises(ValueError, match="manifest_digest"):
-        load_splits(str(splits_dir), manifest_digest="0" * 64)
+        load_folds(str(splits_dir), manifest_digest="0" * 64)
 
 
-def test_loading_a_split_whose_hash_matches_succeeds(tmp_path):
+def test_loading_a_fold_manifest_whose_hash_matches_succeeds(tmp_path):
     """The matching case loads, so the check is a guard rather than a wall."""
     root = write_version(tmp_path)
     manifest, splits_dir, _ = generate(tmp_path, root)
 
-    loaded = load_splits(str(splits_dir), manifest_digest=manifest.digest)
+    loaded = load_folds(str(splits_dir), manifest_digest=manifest.digest)
 
     assert loaded["dataset_version"] == "v1"
 
 
-def test_loading_a_split_without_provenance_fails_when_a_hash_is_required(tmp_path):
-    """A split predating this schema cannot be shown to match anything."""
+def test_loading_a_fold_manifest_without_provenance_fails_when_a_hash_is_required(
+    tmp_path,
+):
+    """A fold manifest carrying no digest cannot be shown to match anything."""
     root = write_version(tmp_path)
     _, splits_dir, _ = generate(tmp_path, root, with_provenance=False)
 
     with pytest.raises(ValueError, match="manifest_digest"):
-        load_splits(str(splits_dir), manifest_digest=manifest_digest(root))
+        load_folds(str(splits_dir), manifest_digest=manifest_digest(root))
 
 
-def test_loading_a_split_without_a_required_hash_still_works(tmp_path):
-    """The folder-scan path passes no digest, so it must keep loading."""
+def test_loading_a_fold_manifest_without_a_required_hash_still_works(tmp_path):
+    """A caller that passes no digest asks for no provenance check."""
     root = write_version(tmp_path)
     _, splits_dir, _ = generate(tmp_path, root, with_provenance=False)
 
-    assert load_splits(str(splits_dir))["classes"] == CLASSES
+    assert load_folds(str(splits_dir))["classes"] == CLASSES
 
 
 def test_importing_dataset_does_not_load_tensorflow():
@@ -145,6 +156,30 @@ def test_importing_dataset_does_not_load_tensorflow():
             "-c",
             "import src.dataset, sys; "
             "assert 'tensorflow' not in sys.modules, 'dataset imported tensorflow'",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_importing_the_reporting_layer_does_not_load_tensorflow():
+    """Every criterion about what a result says has to be checkable without it.
+
+    `src.evaluate` reads stored predictions and `src.crossval` reaches the
+    training stack only inside `run_arm`, so the whole reporting layer imports
+    clean. Without this the modules would drift back to a top-level import and
+    the protocol's own tests would stop running anywhere but CI.
+    """
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import src.crossval, src.evaluate, src.stats, sys; "
+            "assert 'tensorflow' not in sys.modules, 'reporting imported tensorflow'",
         ],
         cwd=Path(__file__).resolve().parents[1],
         capture_output=True,

@@ -2,10 +2,14 @@
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
-from src import preprocess as preprocess_module
-from src.preprocess import (
+# The training stack is pinned to Python 3.12 and has no wheel for every
+# interpreter this repository is developed on, so this module skips rather than
+# failing to collect. In CI, where `ml/requirements.txt` is installed, it runs.
+tf = pytest.importorskip("tensorflow")
+
+from src import preprocess as preprocess_module  # noqa: E402
+from src.preprocess import (  # noqa: E402
     normalize_mobilenet_v2,
     resize,
     preprocess,

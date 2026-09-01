@@ -4,10 +4,21 @@ Not a test module. It exists so the manifest, split, and CLI suites describe one
 dataset layout rather than three that can drift apart.
 """
 
+import importlib.util
 from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
+
+#: TensorFlow is pinned to Python 3.12 in `ml/requirements.txt` and has no wheel
+#: for every interpreter this repository is developed on. A test that needs it
+#: skips rather than failing, so the suite still reports on what it did check;
+#: CI installs the pinned stack and runs every one of them.
+requires_tensorflow = pytest.mark.skipif(
+    importlib.util.find_spec("tensorflow") is None,
+    reason="TensorFlow is not installed; CI runs these on Python 3.12",
+)
 
 #: The five Embrapa groups, spelled as `ml/config.yaml` spells them. The CLIs
 #: read their class list from that file, so a fixture has to agree with it.
@@ -163,8 +174,6 @@ def real_manifest_or_skip(classes=None):
     Narrowing to the classes the protocol evaluates is `class_images`' job, at
     the point the pool is built.
     """
-    import pytest
-
     from src.manifest import read_manifest
 
     if not (REAL_DATASET_ROOT / "manifest.csv").exists():
