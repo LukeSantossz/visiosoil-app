@@ -11,7 +11,7 @@ from src.dataset import (
     scan_dataset,
     create_splits,
     verify_images,
-    _extract_sample_id,
+    sample_id_from_filename,
     _group_id,
 )
 
@@ -89,16 +89,16 @@ def test_scan_dataset_preserves_config_order(fake_dataset):
     assert list(result.keys()) == classes
 
 
-def test_extract_sample_id_grouped():
-    """_extract_sample_id extracts prefix from 'name (N).ext' pattern."""
-    assert _extract_sample_id("/data/100147,21 (6).JPG") == "100147,21"
-    assert _extract_sample_id("/data/100147,21 (7).JPG") == "100147,21"
-    assert _extract_sample_id("/data/sample_3 (1).jpg") == "sample_3"
+def testsample_id_from_filename_grouped():
+    """sample_id_from_filename extracts prefix from 'name (N).ext' pattern."""
+    assert sample_id_from_filename("/data/100147,21 (6).JPG") == "100147,21"
+    assert sample_id_from_filename("/data/100147,21 (7).JPG") == "100147,21"
+    assert sample_id_from_filename("/data/sample_3 (1).jpg") == "sample_3"
 
 
-def test_extract_sample_id_singleton():
-    """_extract_sample_id returns stem for single-image files."""
-    assert _extract_sample_id("/data/single_image.jpg") == "single_image"
+def testsample_id_from_filename_singleton():
+    """sample_id_from_filename returns stem for single-image files."""
+    assert sample_id_from_filename("/data/single_image.jpg") == "single_image"
 
 
 def test_create_splits_persists_fractions(fake_dataset):
@@ -153,14 +153,14 @@ def _leaked_groups(manifest: dict) -> dict:
     """Groups appearing in more than one split, keyed by the split pair.
 
     Compares the key `create_splits` actually groups by. Comparing the bare
-    `_extract_sample_id` stem instead would report a leak for any two classes
+    `sample_id_from_filename` stem instead would report a leak for any two classes
     that happen to number their samples the same way, which is a naming
     coincidence and not a shared physical sample: one soil sample carries one
     laboratory texture class, so it lives in exactly one class folder.
     """
     per_split = {
         name: {
-            _group_id(entry["class"], _extract_sample_id(entry["path"]))
+            _group_id(entry["class"], sample_id_from_filename(entry["path"]))
             for entry in manifest["splits"][name]
         }
         for name in ("train", "val", "test")
