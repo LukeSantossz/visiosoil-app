@@ -31,12 +31,15 @@ if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
     import tensorflow as tf
 
 from .manifest import (
+    FOLD_COMPOSITION_AXES,
     IMAGE_SUFFIXES,
     check_class_coverage,
     class_images as manifest_class_images,
     dataset_root,
+    format_composition,
     read_manifest_or_none,
     sample_ids_by_image,
+    split_composition,
     train_only_sample_ids,
     verify_split_digest,
 )
@@ -562,6 +565,29 @@ def permute_labels_by_group(entries: list[dict], seed: int) -> list[dict]:
         }
         for entry in entries
     ]
+
+
+def format_fold_composition(fold_manifest: Mapping, manifest) -> str:
+    """Render every fold's training and test composition, per repeat.
+
+    Reported rather than held out, so the two rules that govern a fold can be
+    checked by eye as well as by test: every class appears in every test side,
+    and the transported population (source group B, SPEC 0040 D6) appears only
+    on training sides.
+    """
+    blocks = []
+    for repeat in range(fold_manifest["repeats"]):
+        for fold in range(fold_manifest["k"]):
+            split = fold_split(fold_manifest, repeat, fold)
+            blocks.append(
+                f"repeat {repeat} fold {fold}:\n"
+                + format_composition(
+                    split_composition(split, manifest),
+                    axes=FOLD_COMPOSITION_AXES,
+                    indent="  ",
+                )
+            )
+    return "\n".join(blocks)
 
 
 def _index_to_class(entries: list[dict]) -> dict[int, str]:
