@@ -1,4 +1,4 @@
-# SPEC (full): feat(inference): normalise by a measured scale and classify a greyscale patch grid in both languages
+# SPEC: feat(inference): normalise by a measured scale and classify a greyscale patch grid in both languages
 
 ## Problem
 
