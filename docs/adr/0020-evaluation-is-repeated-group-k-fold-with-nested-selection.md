@@ -95,7 +95,7 @@ which k-fold does and a single split cannot.
   be, and the reduction is recorded.
 - The paired MDE at 77 groups is expected near 15–20 pp (estimate). The
   protocol makes that visible and cannot make it small: an arm that wins by less
-  has not been shown to win, and the E0 decision rule in SPEC 0043 is written on
+  has not been shown to win, and the E0 decision rule in SPEC 0044 is written on
   that basis.
 - #203's acceptance criteria are met by SPEC 0042; #183's estimated MDE table is
   superseded by the recorded value.

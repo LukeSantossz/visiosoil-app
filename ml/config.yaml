@@ -46,7 +46,7 @@ evaluation:
   # one `secondary`. An unregistered contrast is refused by name.
   #
   # Empty until the experiment that owns the arms registers its own: E0's arms
-  # and its decision rule belong to SPEC 0043, not to this protocol.
+  # and its decision rule belong to SPEC 0044, not to this protocol.
   contrasts: []
 
 preprocessing:
