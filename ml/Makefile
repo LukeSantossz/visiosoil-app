@@ -23,6 +23,11 @@ evaluate:
 contrasts:
 	$(PYTHON) -m src.evaluate --version $(VERSION) --contrasts
 
+# Not part of `pipeline`: cross-validation produces one model per fold per
+# repeat under models/$(VERSION)/$(ARM)/repeat-<r>/fold-<i>/, and src.export
+# reads models/$(VERSION)/model.keras. Which fold's model ships is a release
+# decision the evaluation protocol does not make, so promoting one is a
+# deliberate step and not something `make pipeline` should do on the way past.
 export:
 	$(PYTHON) -m src.export --version $(VERSION)
 
@@ -32,9 +37,9 @@ deploy:
 test:
 	$(PYTEST) tests/ -v
 
-pipeline: train evaluate export
+pipeline: folds train evaluate
 
-all: pipeline deploy
+all: pipeline
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

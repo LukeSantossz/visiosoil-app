@@ -105,7 +105,8 @@ TensorFlow installed.
 
 ```bash
 python scripts/admit_images.py --version v1      # report; add --write to apply
-python scripts/validate_dataset.py --version v1  # schema, disk, pairing, folds
+python scripts/validate_dataset.py --version v1  # report only, folds discarded
+python scripts/validate_dataset.py --version v1 --splits-dir data/splits  # write them
 ```
 
 The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
