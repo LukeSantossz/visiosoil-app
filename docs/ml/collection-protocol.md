@@ -13,6 +13,13 @@
 >
 > Its counts also predate the corrected inventory: it says 194 samples where the
 > archive holds **105 sample groups over 221 photographs**.
+>
+> Its `texture_class` column says "one of the five Embrapa groups, spelled exactly
+> as `ml/config.yaml` spells it". The five is right and the citation is not:
+> since [SPEC 0046](../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)
+> `ml/config.yaml` declares the **four** the model emits, and the vocabulary a
+> manifest row may use is `src.manifest.ARCHIVE_CLASSES`. The table below is left
+> as written, as the rest of this withdrawn document is.
 
 > **Superseded for the current dataset, 2026-08-25.** This document describes a
 > collection to be performed. It was not performed this way: 221 photographs of
