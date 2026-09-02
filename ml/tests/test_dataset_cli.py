@@ -91,6 +91,37 @@ def test_fold_composition_is_reported(tmp_path, validate_dataset, capsys):
         assert texture_class in out
 
 
+def parse_class_counts(section):
+    """Read a composition section's `class:` line into name to count.
+
+    Parsed rather than searched for substrings. `"Argilosa" in section` is true
+    of a section that holds only `Muito Argilosa=4`, so a substring check
+    reported every class present whenever the longer name was, which is exactly
+    the case this test exists to catch.
+    """
+    for line in section.splitlines():
+        line = line.strip()
+        if not line.startswith("class:"):
+            continue
+        counts = {}
+        for item in line[len("class:"):].split(","):
+            item = item.strip()
+            if not item:
+                continue
+            name, _, count = item.rpartition("=")
+            counts[name.strip()] = int(count)
+        return counts
+    raise AssertionError(f"no class line in section: {section!r}")
+
+
+def test_parse_class_counts_does_not_confuse_two_classes_sharing_a_word():
+    """Guards the parser this test's assertion rests on."""
+    counts = parse_class_counts("  class: Muito Argilosa=4, Media=2\n")
+
+    assert counts == {"Muito Argilosa": 4, "Media": 2}
+    assert "Argilosa" not in counts
+
+
 def test_fold_composition_holds_every_class_in_every_fold(
     tmp_path, validate_dataset, capsys
 ):
@@ -102,13 +133,20 @@ def test_fold_composition_holds_every_class_in_every_fold(
     )
 
     out = capsys.readouterr().out
+    cfg = load_config()
+    expected_blocks = cfg["evaluation"]["k"] * cfg["evaluation"]["repeats"]
     blocks = out.split("repeat ")[1:]
-    assert blocks, "no fold composition was printed"
+    assert len(blocks) == expected_blocks, (
+        f"{len(blocks)} fold block(s) printed, expected {expected_blocks}"
+    )
+
     for block in blocks:
-        test_section = block.split("test:")[1]
+        # One `test:` per block, so the section cannot run into the next fold.
+        assert block.count("test:") == 1, block
+        held = parse_class_counts(block.split("test:")[1])
         for texture_class in CLASSES:
-            assert texture_class in test_section, (
-                f"{texture_class} is absent from a fold's test side"
+            assert held.get(texture_class, 0) >= 1, (
+                f"{texture_class} is absent from a fold's test side: {held}"
             )
 
 
