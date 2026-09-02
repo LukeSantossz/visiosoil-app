@@ -546,9 +546,9 @@ features transfer at all to this task is part of what E0 measures.
 
 | Option | Verdict |
 |---|---|
-| Five-way classification (current) | **Chosen.** The product target is the textural class |
+| Four-way classification (current) | **Chosen.** The product target is the textural class. Five until ADR 0016 excluded Siltosa from the first model; the archive still holds it |
 | Regress granulometric percentages, then bin | Rejected: the project targets the class, not granulometry; adds a target the product does not need |
-| Ordinal loss over the five classes | Rejected: the classes are not totally ordered. Under the Embrapa standard grouping, Arenosa, Média, Argilosa and Muito Argilosa track increasing clay, but Siltosa is defined by low sand and sits off that axis. A linear ordinal penalty would encode a false geometry |
+| Ordinal loss over the classes | Rejected when the list was five, because Siltosa is defined by low sand and sits off the clay axis, so a linear penalty encoded a false geometry. **That reason is gone**: the four the model now emits — Arenosa, Média, Argilosa, Muito Argilosa — do track increasing clay. Still not chosen, now for a different and weaker reason: no arm has been run, so there is no evidence an ordinal penalty helps, and adopting one would add a loss to E0's comparison that no contrast is registered for (SPEC 0044). Reopen it if Siltosa returns to the model, or with a registered arm |
 | Cost-sensitive evaluation and per-class rejection thresholds | **Chosen** as the way to express the asymmetry without corrupting the loss |
 
 ### 12.3 Inference runtime

@@ -35,7 +35,7 @@ from src.manifest import (
 )
 from tests.support import (
     CLASSES,
-    V1_EVALUATION_CLASSES,
+    configured_classes,
     real_manifest_or_skip,
     write_version,
 )
@@ -68,7 +68,7 @@ def real_folds(tmp_path, **kwargs):
     """Fold manifest over the ingested archive, or a skip when it is absent."""
     manifest = real_manifest_or_skip()
     folds = create_folds(
-        class_images(manifest, V1_EVALUATION_CLASSES),
+        class_images(manifest, configured_classes()),
         k=K,
         repeats=REPEATS,
         seed=SEED,
@@ -827,7 +827,7 @@ def test_fold_creation_succeeds_at_k_five(tmp_path):
     _, folds = real_folds(tmp_path)
 
     assert folds["k"] == K
-    assert sorted(folds["classes"]) == sorted(V1_EVALUATION_CLASSES)
+    assert sorted(folds["classes"]) == sorted(configured_classes())
 
     for repeat in range(REPEATS):
         by_fold = {}
@@ -837,7 +837,7 @@ def test_fold_creation_succeeds_at_k_five(tmp_path):
             ] += 1
         assert sorted(by_fold) == list(range(K))
         for index, held in by_fold.items():
-            missing = sorted(set(V1_EVALUATION_CLASSES) - set(held))
+            missing = sorted(set(configured_classes()) - set(held))
             assert not missing, (
                 f"repeat {repeat} fold {index} holds no {missing}: {dict(held)}"
             )

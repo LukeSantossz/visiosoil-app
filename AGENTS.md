@@ -69,7 +69,7 @@ libraries, or abstractions the project did not already establish.
 
 ## This project
 
-**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (5 soil texture classes).
+**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (4 soil texture classes; the delivered archive holds five, and ADR 0016 keeps Siltosa out of the first model).
 
 **Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite
 
@@ -110,9 +110,10 @@ The stack, the layering and the schema are in `## This project` above and in
   accepted decision, whatever it looks like locally.
 - **`drift_flutter` is pinned `>=0.2.0 <0.2.4`.** A bump without a compatibility
   check is a finding.
-- **The five-class label list exists in independent copies across Dart and
-  Python**, and nothing asserts one against `ml/config.yaml`. A change touching
-  labels in one language and not the other is a defect even when both compile.
+- **The model emits four classes and the archive holds five**, and they are
+  different lists on purpose (SPEC 0046). `test/standards/class_list_test.dart`
+  asserts the Dart list against `ml/config.yaml`, so a change touching labels in
+  one language and not the other now fails rather than compiling quietly.
 - **`ClassificationVerdict` and `ImageQualityAnalyzer` have no production
   callers** by design, each waiting on a wiring spec. Dead-code findings against
   them are answered by their specs' Scope.

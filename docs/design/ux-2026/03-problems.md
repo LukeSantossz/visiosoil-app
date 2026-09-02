@@ -8,9 +8,9 @@ Anything that locks a user out outranks inconsistency.
 
 ### P0-1 A probabilistic inference is presented as a diagnosis
 
-`InferenceResult` carries only the argmax and its probability. With five
-classes, chance is twenty percent. A top-1 of 0.25 is rendered exactly like a
-top-1 of 0.95: the class name in `headlineMedium`, the soil-scale colour, and a
+`InferenceResult` carries only the argmax and its probability. With four
+classes, chance is twenty-five percent. A top-1 of 0.25 is chance exactly, and is
+rendered exactly like a top-1 of 0.95: the class name in `headlineMedium`, the soil-scale colour, and a
 badge. Only the badge tint differs.
 
 There is no abstention. There is no notion of two candidates being close. The
