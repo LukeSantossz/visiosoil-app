@@ -8,6 +8,7 @@ a training at all.
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +38,33 @@ from tests.support import CLASSES, write_version
 K = 5
 REPEATS = 3
 SEED = 42
+
+
+#: `write_version(extra_photographs=1)` gives this sample a third photograph;
+#: every other sample has the two the protocol prescribes.
+THREE_PHOTOGRAPH_GROUP = "Arenosa::Arenosa-0"
+
+
+@pytest.fixture
+def folds_with_a_three_photograph_group(tmp_path):
+    """A version where one group carries an odd number of photographs.
+
+    The default fixture gives every group two, and at two a majority vote over
+    photographs cannot disagree with the mean of their distributions — it can
+    only tie. A test meaning to separate the two rules needs three.
+    """
+    root = write_version(tmp_path, extra_photographs=1)
+    manifest = read_manifest(root, CLASSES)
+    return create_folds(
+        class_images(manifest, CLASSES),
+        k=K,
+        repeats=REPEATS,
+        seed=SEED,
+        splits_dir=str(tmp_path / "splits"),
+        sample_ids=sample_ids_by_image(manifest),
+        dataset_version=manifest.version,
+        manifest_digest=manifest.digest,
+    )
 
 
 @pytest.fixture
@@ -157,22 +185,43 @@ def test_group_level_prediction_is_mean_of_photograph_distributions(folds):
         )
 
 
-def test_a_group_is_scored_by_its_mean_distribution_not_a_photograph_vote(folds):
-    """Two weak photographs and one certain one: the mean is what decides."""
+def test_a_group_is_scored_by_its_mean_distribution_not_a_photograph_vote(
+    folds_with_a_three_photograph_group,
+):
+    """Two weak photographs and one certain one: the mean is what decides.
+
+    The two rules have to be made to disagree or the test proves nothing. Two
+    photographs weakly prefer the true class and one is certain of another: a
+    majority vote over the photographs' own argmaxes scores the group correct,
+    the mean of their distributions scores it wrong. The assertion is that the
+    group is scored wrong, which only the mean produces.
+    """
+    folds = folds_with_a_three_photograph_group
+    width = len(folds["classes"])
     predictions = fabricate(folds, correct_rate=1.0)
-    key = (0, 0)
-    target = predictions[key][0]["group"]
-    truth = predictions[key][0]["label"]
-    other = (truth + 1) % len(folds["classes"])
 
-    weak = [0.0] * len(folds["classes"])
+    key, photographs = _fold_holding(predictions, THREE_PHOTOGRAPH_GROUP)
+    assert len(photographs) == 3, (
+        f"{THREE_PHOTOGRAPH_GROUP} carries {len(photographs)} photograph(s); "
+        "at two a vote can only tie with the mean, never contradict it"
+    )
+
+    truth = photographs[0]["label"]
+    other = (truth + 1) % width
+    weak = [0.0] * width
     weak[truth], weak[other] = 0.51, 0.49
-    certain = [0.0] * len(folds["classes"])
+    certain = [0.0] * width
     certain[other] = 1.0
-
-    photographs = [r for r in predictions[key] if r["group"] == target]
     for index, record in enumerate(photographs):
-        record["probabilities"] = list(weak if index < len(photographs) - 1 else certain)
+        record["probabilities"] = list(weak if index < 2 else certain)
+
+    # The rule this test exists to rule out would have got it right.
+    votes = Counter(
+        int(np.argmax(record["probabilities"])) for record in photographs
+    )
+    assert votes.most_common(1)[0][0] == truth, (
+        "the fixture no longer makes a photograph vote disagree with the mean"
+    )
 
     metrics = arm_metrics(
         folds,
@@ -182,9 +231,24 @@ def test_a_group_is_scored_by_its_mean_distribution_not_a_photograph_vote(folds)
         costs=fabricate_costs(folds),
     )
 
-    assert metrics["repeats"][0]["groups_correct"] == (
-        folds["counts"]["splittable_groups"] - 1
-    ), "the mean of the distributions must have moved the group to the wrong class"
+    repeat = metrics["repeats"][key[0]]
+    assert repeat["groups_correct"] == folds["counts"]["splittable_groups"] - 1, (
+        "the mean of the distributions must have moved the group to the wrong class"
+    )
+
+
+def _fold_holding(predictions, group_id):
+    """The (repeat, fold) key whose test side holds ``group_id``, and its rows.
+
+    Located rather than assumed: which fold a group lands in is a function of
+    the seed and of the scikit-learn version, and hard-coding fold 0 is how this
+    test would quietly stop testing anything after either changed.
+    """
+    for key in sorted(predictions):
+        rows = [record for record in predictions[key] if record["group"] == group_id]
+        if rows:
+            return key, rows
+    raise AssertionError(f"{group_id} is in no test side")
 
 
 # --- uncertainty_is_never_fold_spread_alone ---------------------------------
