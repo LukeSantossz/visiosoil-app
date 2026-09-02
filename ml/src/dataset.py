@@ -20,11 +20,13 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING, Collection, Mapping
 
 import numpy as np
+import sklearn
 from sklearn.model_selection import StratifiedGroupKFold
 
 if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
@@ -214,6 +216,18 @@ REGENERATE_FOLDS_COMMAND = (
 )
 
 
+def library_versions() -> dict[str, str]:
+    """The libraries whose version decides which groups land in which fold.
+
+    `StratifiedGroupKFold` is a greedy balancing heuristic, not a specification,
+    and it has changed between scikit-learn releases: 1.5.2 and 1.8.0 partition
+    the same 40 groups differently under the same seed. The seed alone therefore
+    does not reproduce a fold set, and a manifest that records only the seed
+    promises more than it can deliver.
+    """
+    return {"scikit_learn": sklearn.__version__, "numpy": np.__version__}
+
+
 def derive_repeat_seed(seed: int, repeat: int) -> int:
     """The seed repeat ``repeat`` draws its folds from.
 
@@ -323,6 +337,9 @@ def create_folds(
         "seeds": {
             str(repeat): derive_repeat_seed(seed, repeat) for repeat in range(repeats)
         },
+        # Recorded beside the seeds because it is the other half of what
+        # reproduces this partition. See `library_versions`.
+        "library_versions": library_versions(),
         "train_only_samples": sorted(set(train_only_samples or ())),
         "groups": groups,
         "folds": assignments,
@@ -435,6 +452,8 @@ def load_folds(splits_dir: str, manifest_digest: str | None = None) -> dict:
             f"cannot read it. Regenerate the fold manifest with: "
             f"{REGENERATE_FOLDS_COMMAND}"
         )
+
+    _warn_on_a_library_mismatch(path, fold_manifest)
 
     if manifest_digest is not None:
         verify_split_digest(fold_manifest, manifest_digest)
@@ -669,6 +688,11 @@ def _assign_folds(
     photograph would balance photograph counts instead, and a class whose
     samples carry uneven numbers of photographs would then land unevenly at the
     level that matters.
+
+    The generator's own balancing is approximate and version-dependent, so its
+    result is rebalanced deterministically before it is used. That is what makes
+    "every class in every fold's test side" a property of the code rather than
+    of the scikit-learn release that happens to be installed.
     """
     splitter = StratifiedGroupKFold(
         n_splits=splits, shuffle=True, random_state=seed
@@ -680,7 +704,123 @@ def _assign_folds(
     ):
         for position in held_out:
             assignment[group_ids[position]] = index
+
+    labels_by_group = {
+        group_id: int(label) for group_id, label in zip(group_ids, labels)
+    }
+    assignment = rebalance_fold_assignment(assignment, labels_by_group, splits)
+    _require_balanced_classes(assignment, labels_by_group, splits)
     return assignment
+
+
+def rebalance_fold_assignment(
+    assignment: Mapping[str, int], labels_by_group: Mapping[str, int], splits: int
+) -> dict[str, int]:
+    """Even out each class across the folds, moving whole groups and nothing else.
+
+    `StratifiedGroupKFold` minimises the spread of the whole class-count matrix
+    greedily, which balances well and guarantees nothing: a class can miss a
+    fold's test side entirely, and scikit-learn 1.5.2 does exactly that on a
+    40-group fixture where 1.8.0 does not. A fold that tests no group of a class
+    contributes an undefined per-class F1 to a macro average, silently, so the
+    property has to be established rather than assumed.
+
+    The repair takes one group at a time from the fold holding most of a class
+    and gives it to the fold holding fewest, until no two folds differ by more
+    than one. That terminates — the sum of squared counts strictly falls by at
+    least two on every move — and it leaves every class with either
+    ``floor(n / k)`` or ``ceil(n / k)`` groups per fold. Where a class has at
+    least ``k`` groups, which :func:`create_folds` requires, the floor is at
+    least one and every class therefore reaches every fold.
+
+    Every choice is by lowest index and then by lowest group id, so the result
+    is a function of the input alone; the seed still decides the assignment the
+    repair starts from, and an already balanced assignment is returned unchanged.
+
+    Args:
+        assignment: Group id to fold index.
+        labels_by_group: Group id to class label.
+        splits: Number of folds.
+
+    Returns:
+        A new assignment, balanced per class.
+    """
+    balanced = dict(assignment)
+    for label in sorted(set(labels_by_group.values())):
+        members = sorted(
+            group_id for group_id in balanced if labels_by_group[group_id] == label
+        )
+        while True:
+            held: dict[int, list[str]] = {fold: [] for fold in range(splits)}
+            for group_id in members:
+                held[balanced[group_id]].append(group_id)
+            counts = {fold: len(group_ids) for fold, group_ids in held.items()}
+            fullest = min(counts, key=lambda fold: (-counts[fold], fold))
+            emptiest = min(counts, key=lambda fold: (counts[fold], fold))
+            if counts[fullest] - counts[emptiest] <= 1:
+                break
+            balanced[sorted(held[fullest])[0]] = emptiest
+    return balanced
+
+
+def _require_balanced_classes(
+    assignment: Mapping[str, int], labels_by_group: Mapping[str, int], splits: int
+) -> None:
+    """Post-condition of :func:`rebalance_fold_assignment`.
+
+    It cannot fire while the repair is correct, and it is here because the thing
+    it protects — a macro average over a class no fold tested — fails silently
+    at report time rather than loudly at generation time. A future change to the
+    generator that skipped the repair would be caught here instead of producing
+    a number nobody could interpret.
+    """
+    for label in sorted(set(labels_by_group.values())):
+        counts = Counter(
+            assignment[group_id]
+            for group_id in assignment
+            if labels_by_group[group_id] == label
+        )
+        held = [counts.get(fold, 0) for fold in range(splits)]
+        if max(held) - min(held) > 1:
+            raise ValueError(
+                f"class label {label} is spread {held} over {splits} fold(s), "
+                "which no balanced assignment allows. The fold generator did "
+                "not rebalance; a fold missing a class makes its macro-F1 "
+                "undefined for that class"
+            )
+
+
+def _warn_on_a_library_mismatch(path: Path, fold_manifest: Mapping) -> None:
+    """Say when a fold manifest was generated under another stack.
+
+    A warning and not a refusal, because loading reads the stored assignment and
+    never recomputes it: the folds in the file are the folds that were used,
+    whatever version reads them. Refusing would make a valid partition unusable
+    after a dependency bump, and the only remedy — regenerating — would move the
+    folds, which is the one thing a reader comparing against an existing result
+    must not do without noticing.
+    """
+    recorded = fold_manifest.get("library_versions")
+    current = library_versions()
+    if recorded is None:
+        warnings.warn(
+            f"{path} records no library versions, so the stack that generated "
+            f"its folds is unknown; it cannot be shown to match this one "
+            f"({current}). Regenerate it to record them",
+            UserWarning,
+            stacklevel=3,
+        )
+        return
+    if recorded != current:
+        warnings.warn(
+            f"{path} was generated under {recorded} and is being read under "
+            f"{current}. The stored fold assignment is used as it stands, but "
+            "regenerating it here would produce different folds: "
+            "StratifiedGroupKFold partitions differently across scikit-learn "
+            "versions",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 def _repeat_assignments(fold_manifest: Mapping, repeat: int) -> Mapping[str, int | None]:

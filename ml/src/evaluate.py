@@ -367,6 +367,10 @@ def _protocol_record(fold_manifest: Mapping) -> dict:
         "repeats": fold_manifest["repeats"],
         "seed": fold_manifest["seed"],
         "seed_derivation": fold_manifest["seed_derivation"],
+        # The seed reproduces the partition only together with these: the fold
+        # generator is a heuristic that has changed between scikit-learn
+        # releases.
+        "library_versions": fold_manifest.get("library_versions"),
         "dataset_version": fold_manifest.get("dataset_version"),
         "manifest_digest": fold_manifest.get("manifest_digest"),
         "train_only_samples": len(fold_manifest.get("train_only_samples", [])),

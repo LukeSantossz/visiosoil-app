@@ -26,6 +26,7 @@ from .dataset import (
     derive_repeat_seed,
     fold_split,
     inner_folds,
+    library_versions,
     load_folds,
     permute_labels_by_group,
     verify_images,
@@ -99,6 +100,20 @@ def runtime_mode(deterministic_ops: bool) -> dict:
         "deterministic_ops": bool(deterministic_ops),
         "device": "GPU" if gpus else "CPU",
         "gpu_count": len(gpus),
+        # The stack the fold ran under, recorded for the same reason the fold
+        # manifest records it: the partition a result was computed on is a
+        # function of the scikit-learn version as well as of the seed, and two
+        # runs under different versions are not comparable however identically
+        # they were seeded.
+        # `getattr` with a fallback rather than an attribute access: this runs
+        # at the head of every training, and a provenance field is not worth
+        # crashing a run over if a future Keras stops exposing it. "unknown" is
+        # recorded rather than the key omitted, so absent cannot read as matching.
+        "library_versions": {
+            **library_versions(),
+            "tensorflow": getattr(tf, "__version__", "unknown"),
+            "keras": getattr(tf.keras, "__version__", "unknown"),
+        },
     }
 
 

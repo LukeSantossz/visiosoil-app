@@ -116,8 +116,24 @@ the worst case because nothing reports that it was used.
 
 `validate_dataset.py --splits-dir data/splits` writes the **fold manifest** to
 `data/splits/splits.json`: the fold index of every sample group per repeat, the
-seeds those folds were drawn from, the train-only groups, and the dataset version
-and `manifest.csv` digest that make a result attributable to the data it claims.
+seeds those folds were drawn from, the scikit-learn and NumPy versions they were
+drawn under, the train-only groups, and the dataset version and `manifest.csv`
+digest that make a result attributable to the data it claims.
+
+The versions are recorded because the seed alone does not reproduce a partition:
+`StratifiedGroupKFold` is a greedy balancing heuristic and scikit-learn 1.5.2 and
+1.8.0 partition the same groups differently under the same seed. Loading a
+manifest generated under another stack **warns** rather than refusing — the
+stored assignment is read, never recomputed, so it is still the partition the
+result was computed on; regenerating it is what would move the folds.
+
+For the same reason the assignment is **rebalanced deterministically** after the
+generator runs: `StratifiedGroupKFold` balances approximately and can leave a
+class out of a fold's test side entirely, which makes that fold's macro-F1
+undefined for the class and silently so. The repair moves whole groups from the
+fold holding most of a class to the fold holding fewest until no two differ by
+more than one, so every class with at least k groups reaches every fold under any
+library version.
 It is `schema_version: 2`; a version-1 file — one `train`/`val`/`test` partition —
 is refused by name rather than reinterpreted.
 
