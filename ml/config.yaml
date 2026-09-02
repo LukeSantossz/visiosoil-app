@@ -1,6 +1,8 @@
 project:
+  # A label for humans. `version` was removed by SPEC 0047: it was required by
+  # `load_config`, read by nothing, and collided in meaning with
+  # `data.dataset_version` and the CLIs' `--version`.
   name: "visiosoil-soil-classifier"
-  version: 2
 
 # The classes the model emits, in output order. Four, not five: ADR 0016 keeps
 # Siltosa out of the first model, and SPEC 0042's k = 5 needs at least five
@@ -67,11 +69,13 @@ preprocessing:
 augmentation:
   horizontal_flip: true
   vertical_flip: false
-  rotation_range: 15
+  # Degrees, converted to a fraction of a full turn by `preprocess.py`.
+  rotation_degrees: 15
   brightness_range: [0.85, 1.15]
   contrast_range: [0.9, 1.1]
   zoom_range: [0.95, 1.05]
-  translation_range: 0.05
+  # A fraction of the image side, in each direction.
+  translation_fraction: 0.05
 
 model:
   architecture: "mobilenetv2"

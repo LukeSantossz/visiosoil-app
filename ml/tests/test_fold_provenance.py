@@ -46,7 +46,7 @@ def write_config(tmp_path, *, classes=CLASSES, seed=SEED, k=K, repeats=REPEATS):
     root and would send the run at the real dataset.
     """
     config = {
-        "project": {"name": "test", "version": 2},
+        "project": {"name": "test"},
         "classes": list(classes),
         "data": {
             "raw_dir": str(tmp_path / "raw"),

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
+from .model_paths import find_model_checkpoint
 from .config import load_config, resolve_paths
 
 
@@ -32,18 +33,7 @@ def export(version: str, config_path: str | None = None) -> Path:
     output_dir = Path(cfg["export"]["output_dir"]) / version
     tflite_path = output_dir / "model.tflite"
 
-    # Try .keras first, then .h5 for backward compatibility
-    keras_path = output_dir / "model.keras"
-    h5_path = output_dir / "model.h5"
-
-    if keras_path.exists():
-        model_path = keras_path
-    elif h5_path.exists():
-        model_path = h5_path
-    else:
-        raise FileNotFoundError(
-            f"Model checkpoint not found: tried {keras_path} and {h5_path}"
-        )
+    model_path = find_model_checkpoint(output_dir)
 
     # Load Keras model
     model = tf.keras.models.load_model(model_path)

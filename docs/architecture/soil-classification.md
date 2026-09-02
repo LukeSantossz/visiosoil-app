@@ -98,7 +98,7 @@ The app honours EXIF orientation; training ignores it.
   `preprocess` → `tf.image.resize`. Neither reads EXIF.
 
 Any training image carrying an orientation tag other than 1 is learned in one
-geometry and served in another. With `augmentation.rotation_range: 15`, a 90°
+geometry and served in another. With `augmentation.rotation_degrees: 15` (renamed from `rotation_range` by SPEC 0047), a 90°
 discrepancy is outside the training distribution by construction. The severity
 depends on how many raw images carry the tag, which the inventory (§4) must
 measure. The training-side omission is unconditional regardless.
