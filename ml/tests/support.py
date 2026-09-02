@@ -4,8 +4,21 @@ Not a test module. It exists so the manifest, split, and CLI suites describe one
 dataset layout rather than three that can drift apart.
 """
 
+import importlib.util
+from pathlib import Path
+
 import numpy as np
+import pytest
 from PIL import Image
+
+#: TensorFlow is pinned to Python 3.12 in `ml/requirements.txt` and has no wheel
+#: for every interpreter this repository is developed on. A test that needs it
+#: skips rather than failing, so the suite still reports on what it did check;
+#: CI installs the pinned stack and runs every one of them.
+requires_tensorflow = pytest.mark.skipif(
+    importlib.util.find_spec("tensorflow") is None,
+    reason="TensorFlow is not installed; CI runs these on Python 3.12",
+)
 
 #: The five Embrapa groups, spelled as `ml/config.yaml` spells them. The CLIs
 #: read their class list from that file, so a fixture has to agree with it.
@@ -135,3 +148,37 @@ def write_image_version(tmp_path, images, version="v1"):
 
     write_manifest_rows(root, rows)
     return root
+
+
+#: The ingested archive, which is git-ignored (ADR 0019) and therefore absent in
+#: CI. Tests that read it skip rather than fail, so a criterion asserted over the
+#: real data is checked wherever the data exists and never blocks a machine that
+#: has none.
+REAL_DATASET_ROOT = (
+    Path(__file__).resolve().parents[1] / "data" / "datasets" / "v1"
+)
+
+#: The classes the v1 protocol evaluates. Siltosa holds three sample groups and
+#: is excluded from the first model by ADR 0016, so it is not in the pool the
+#: fold generator partitions. `ml/config.yaml` still lists five classes: aligning
+#: it is roadmap item A4, which also has to move the Dart label list, and is not
+#: this spec's work.
+V1_EVALUATION_CLASSES = ["Arenosa", "Media", "Muito Argilosa", "Argilosa"]
+
+
+def real_manifest_or_skip(classes=None):
+    """Return the ingested v1 manifest, skipping the test when it is absent.
+
+    Read against all five declared classes, because `read_manifest` rejects a
+    row whose class is not declared and the archive holds six Siltosa rows.
+    Narrowing to the classes the protocol evaluates is `class_images`' job, at
+    the point the pool is built.
+    """
+    from src.manifest import read_manifest
+
+    if not (REAL_DATASET_ROOT / "manifest.csv").exists():
+        pytest.skip(
+            f"no ingested dataset at {REAL_DATASET_ROOT}; it is git-ignored "
+            "per ADR 0019 and absent in CI"
+        )
+    return read_manifest(REAL_DATASET_ROOT, classes or CLASSES)

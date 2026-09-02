@@ -6,11 +6,15 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
-from src.config import _VALID_NORMALIZATIONS
-from src.model import build_model
-from src.export import _build_spec
+# The training stack is pinned to Python 3.12 and has no wheel for every
+# interpreter this repository is developed on, so this module skips rather than
+# failing to collect. In CI, where `ml/requirements.txt` is installed, it runs.
+tf = pytest.importorskip("tensorflow")
+
+from src.config import _VALID_NORMALIZATIONS  # noqa: E402
+from src.model import build_model  # noqa: E402
+from src.export import _build_spec  # noqa: E402
 
 
 @pytest.fixture

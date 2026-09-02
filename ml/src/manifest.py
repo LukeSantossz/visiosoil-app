@@ -596,17 +596,29 @@ def split_composition(
     return composition
 
 
-def format_composition(composition: Mapping[str, Mapping[str, Counter]]) -> str:
+#: Every axis :func:`split_composition` counts, in the order the report prints
+#: them. A fold report narrows to two of them: at k folds over R repeats the
+#: full set is fifty blocks of five lines, and the two axes that carry a rule
+#: are the two worth reading that many times.
+COMPOSITION_AXES = ("class", "site", "device", "setting", "source_group")
+FOLD_COMPOSITION_AXES = ("class", "source_group")
+
+
+def format_composition(
+    composition: Mapping[str, Mapping[str, Counter]],
+    axes: Sequence[str] = COMPOSITION_AXES,
+    indent: str = "",
+) -> str:
     """Render :func:`split_composition` as the text the validator prints."""
     lines = []
-    for split_name, axes in composition.items():
-        total = sum(axes["class"].values())
-        lines.append(f"{split_name}: {total} photograph(s)")
-        for axis in ("class", "site", "device", "setting", "source_group"):
+    for split_name, counters in composition.items():
+        total = sum(counters["class"].values())
+        lines.append(f"{indent}{split_name}: {total} photograph(s)")
+        for axis in axes:
             counts = ", ".join(
-                f"{value}={count}" for value, count in sorted(axes[axis].items())
+                f"{value}={count}" for value, count in sorted(counters[axis].items())
             )
-            lines.append(f"  {axis}: {counts or '(none)'}")
+            lines.append(f"{indent}  {axis}: {counts or '(none)'}")
     return "\n".join(lines)
 
 

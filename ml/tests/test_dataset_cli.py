@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from src.config import load_config
 from src.manifest import (
     QUARANTINE_DIRNAME,
     REJECTED_FILENAME,
@@ -63,8 +64,68 @@ def test_validator_accepts_a_clean_version(tmp_path, validate_dataset, capsys):
     assert "rejected" not in capsys.readouterr().err
 
 
-def test_validator_prints_the_split_composition(tmp_path, validate_dataset, capsys):
-    """Per-split counts by class, site, and device are what the report is for."""
+def test_fold_composition_is_reported(tmp_path, validate_dataset, capsys):
+    """Per repeat and fold, the training and test counts by class and group.
+
+    The composition is what lets a reader see the rules hold — every class in
+    every fold, the transported population only ever on the training side —
+    without running a test.
+    """
+    root = write_version(tmp_path)
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    cfg = load_config()
+    for repeat in range(cfg["evaluation"]["repeats"]):
+        for fold in range(cfg["evaluation"]["k"]):
+            assert f"repeat {repeat} fold {fold}" in out
+    assert "train:" in out
+    assert "test:" in out
+    assert "class:" in out
+    assert "source_group:" in out
+    for texture_class in CLASSES:
+        assert texture_class in out
+
+
+def parse_class_counts(section):
+    """Read a composition section's `class:` line into name to count.
+
+    Parsed rather than searched for substrings. `"Argilosa" in section` is true
+    of a section that holds only `Muito Argilosa=4`, so a substring check
+    reported every class present whenever the longer name was, which is exactly
+    the case this test exists to catch.
+    """
+    for line in section.splitlines():
+        line = line.strip()
+        if not line.startswith("class:"):
+            continue
+        counts = {}
+        for item in line[len("class:"):].split(","):
+            item = item.strip()
+            if not item:
+                continue
+            name, _, count = item.rpartition("=")
+            counts[name.strip()] = int(count)
+        return counts
+    raise AssertionError(f"no class line in section: {section!r}")
+
+
+def test_parse_class_counts_does_not_confuse_two_classes_sharing_a_word():
+    """Guards the parser this test's assertion rests on."""
+    counts = parse_class_counts("  class: Muito Argilosa=4, Media=2\n")
+
+    assert counts == {"Muito Argilosa": 4, "Media": 2}
+    assert "Argilosa" not in counts
+
+
+def test_fold_composition_holds_every_class_in_every_fold(
+    tmp_path, validate_dataset, capsys
+):
+    """A fold missing a class would be visible here before a run wasted a day."""
     root = write_version(tmp_path)
 
     validate_dataset.main(
@@ -72,12 +133,21 @@ def test_validator_prints_the_split_composition(tmp_path, validate_dataset, caps
     )
 
     out = capsys.readouterr().out
-    for split_name in ("train", "val", "test"):
-        assert split_name in out
-    assert "class:" in out
-    assert "site:" in out
-    assert "device:" in out
-    assert "Fazenda 0" in out
+    cfg = load_config()
+    expected_blocks = cfg["evaluation"]["k"] * cfg["evaluation"]["repeats"]
+    blocks = out.split("repeat ")[1:]
+    assert len(blocks) == expected_blocks, (
+        f"{len(blocks)} fold block(s) printed, expected {expected_blocks}"
+    )
+
+    for block in blocks:
+        # One `test:` per block, so the section cannot run into the next fold.
+        assert block.count("test:") == 1, block
+        held = parse_class_counts(block.split("test:")[1])
+        for texture_class in CLASSES:
+            assert held.get(texture_class, 0) >= 1, (
+                f"{texture_class} is absent from a fold's test side: {held}"
+            )
 
 
 def test_validator_reports_a_schema_problem_and_exits_nonzero(
@@ -203,13 +273,14 @@ def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset
     assert not (configured / "splits.json").exists()
 
 
-def test_validator_reports_a_version_that_cannot_be_split(
+def test_validator_reports_a_version_that_cannot_be_folded(
     tmp_path, validate_dataset, capsys
 ):
     """Too few groups per class is a dataset-size problem, named as one.
 
-    Every class is present, so the coverage check passes and the split generator
-    is what has to speak.
+    Every class is present, so the coverage check passes and the fold generator
+    is what has to speak. The floor is k, which is what the protocol needs to
+    put a group of every class in every fold's test side.
     """
     root = write_version(tmp_path, samples_per_class=2)
 
@@ -219,7 +290,8 @@ def test_validator_reports_a_version_that_cannot_be_split(
 
     err = capsys.readouterr().err
     assert code == 1
-    assert "sample group" in err
+    assert "splittable sample group" in err
+    assert str(load_config()["evaluation"]["k"]) in err
 
 
 # --- admit_images.py ----------------------------------------------------------

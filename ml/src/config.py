@@ -8,17 +8,37 @@ import yaml
 from .manifest import validate_version_name
 
 
-_REQUIRED_TOP_KEYS = {"project", "classes", "data", "preprocessing", "model", "training", "export"}
+_REQUIRED_TOP_KEYS = {
+    "project",
+    "classes",
+    "data",
+    "evaluation",
+    "preprocessing",
+    "model",
+    "training",
+    "export",
+}
 _REQUIRED_DATA_KEYS = {
     "raw_dir",
     "splits_dir",
     "datasets_dir",
     "dataset_version",
     "image_size",
-    "val_split",
-    "test_split",
     "seed",
 }
+
+# Keys the single three-way split needed. They are refused rather than ignored:
+# a config still carrying them describes an evaluation design that no longer
+# exists (ADR 0020), and silently dropping them would let a reader believe the
+# fractions still governed something.
+_RETIRED_DATA_KEYS = ("val_split", "test_split")
+
+_REQUIRED_EVALUATION_KEYS = {"k", "repeats", "inner_k", "alpha", "power", "contrasts"}
+
+# A contrast belongs either to the primary family — every arm against the
+# shuffled-label control — or is the one named secondary. More than one
+# secondary is a second family with no correction applied to it.
+_VALID_CONTRAST_FAMILIES = {"primary", "secondary"}
 
 _REQUIRED_PREPROCESSING_KEYS = {"normalization"}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
@@ -104,12 +124,15 @@ def _validate(cfg: dict) -> None:
     if missing_data:
         raise ValueError(f"Missing data keys: {missing_data}")
 
-    if not (0 < data["val_split"] < 1):
-        raise ValueError("val_split must be between 0 and 1")
-    if not (0 < data["test_split"] < 1):
-        raise ValueError("test_split must be between 0 and 1")
-    if data["val_split"] + data["test_split"] >= 1:
-        raise ValueError("val_split + test_split must be less than 1")
+    retired = [key for key in _RETIRED_DATA_KEYS if key in data]
+    if retired:
+        raise ValueError(
+            f"data.{' and data.'.join(retired)} no longer governs anything and "
+            "must be removed: evaluation is repeated stratified group k-fold "
+            "with nested selection (ADR 0020), configured under the "
+            "'evaluation' block. There is no train/val/test partition to size"
+        )
+
     if data["image_size"] < 32:
         raise ValueError("image_size must be at least 32")
 
@@ -125,6 +148,8 @@ def _validate(cfg: dict) -> None:
     seed = data["seed"]
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError(f"data.seed must be a non-negative integer, got {seed!r}")
+
+    _validate_evaluation(cfg["evaluation"])
 
     # preprocessing
     pre = cfg["preprocessing"]
@@ -267,6 +292,108 @@ def _validate(cfg: dict) -> None:
     quantization = export.get("quantization", "dynamic_range")
     if quantization not in _VALID_QUANTIZATIONS:
         raise ValueError(f"quantization must be one of {_VALID_QUANTIZATIONS}")
+
+
+def _validate_evaluation(evaluation: dict) -> None:
+    """Validate the k-fold protocol block (SPEC 0042).
+
+    Every number the protocol reports is a function of these values, so an
+    invalid one has to fail at load rather than partway through the twenty-fifth
+    training of a run.
+    """
+    if not isinstance(evaluation, dict):
+        raise ValueError("'evaluation' must be a mapping")
+
+    missing = _REQUIRED_EVALUATION_KEYS - set(evaluation.keys())
+    if missing:
+        raise ValueError(f"Missing evaluation keys: {sorted(missing)}")
+
+    _require_integer_at_least(evaluation, "k", 2)
+    _require_integer_at_least(evaluation, "repeats", 1)
+    _require_integer_at_least(evaluation, "inner_k", 2)
+    _require_unit_fraction(evaluation, "alpha")
+    _require_unit_fraction(evaluation, "power")
+    _validate_contrasts(evaluation["contrasts"])
+
+
+def _require_integer_at_least(evaluation: dict, key: str, minimum: int) -> None:
+    value = evaluation[key]
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(
+            f"evaluation.{key} must be an integer of at least {minimum}, "
+            f"got {value!r}"
+        )
+
+
+def _require_unit_fraction(evaluation: dict, key: str) -> None:
+    value = evaluation[key]
+    valid = (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and 0 < value < 1
+    )
+    if not valid:
+        raise ValueError(
+            f"evaluation.{key} must lie strictly between 0 and 1, got {value!r}"
+        )
+
+
+def _validate_contrasts(contrasts) -> None:
+    """Validate the pre-registered contrast family.
+
+    Pre-registration is the point: a contrast that is not in this list before
+    the run cannot be evaluated after it, so E0 cannot be read for whichever
+    comparison happens to clear. An empty list is valid and refuses every
+    contrast, which is the honest state until the experiment that owns the arms
+    registers its own.
+    """
+    if not isinstance(contrasts, list):
+        raise ValueError("evaluation.contrasts must be a list")
+
+    seen: set[str] = set()
+    secondaries = 0
+    for index, contrast in enumerate(contrasts):
+        where = f"evaluation.contrasts[{index}]"
+        if not isinstance(contrast, dict):
+            raise ValueError(f"{where} must be a mapping")
+
+        name = contrast.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"{where}.name must be a non-empty string")
+        if name in seen:
+            raise ValueError(
+                f"{where}.name {name!r} is registered twice; a contrast is "
+                "named so a result can be attributed to it"
+            )
+        seen.add(name)
+
+        arms = contrast.get("arms")
+        valid_arms = (
+            isinstance(arms, list)
+            and len(arms) == 2
+            and all(isinstance(arm, str) and arm.strip() for arm in arms)
+            and arms[0] != arms[1]
+        )
+        if not valid_arms:
+            raise ValueError(
+                f"{where}.arms must name two distinct arms, got {arms!r}"
+            )
+
+        family = contrast.get("family")
+        if family not in _VALID_CONTRAST_FAMILIES:
+            raise ValueError(
+                f"{where}.family must be one of "
+                f"{sorted(_VALID_CONTRAST_FAMILIES)}, got {family!r}"
+            )
+        if family == "secondary":
+            secondaries += 1
+
+    if secondaries > 1:
+        raise ValueError(
+            f"{secondaries} secondary contrasts are registered; ADR 0020 "
+            "registers one secondary, because a second family carries no "
+            "correction of its own"
+        )
 
 
 def resolve_paths(cfg: dict) -> dict:

@@ -1,4 +1,11 @@
-"""Tests for dataset scanning, splitting, class ordering, and data leakage."""
+"""Tests for dataset scanning, fold generation, class ordering, and leakage.
+
+The folder-scan path predates the manifest and is what these cover; the
+manifest-backed contract is `test_manifest_splits.py`, and the protocol's own
+criteria are `test_folds.py`. SPEC 0042 replaced the single three-way split with
+repeated group k-fold, so what was asserted about `create_splits` here is
+asserted about `create_folds`.
+"""
 
 import json
 import tempfile
@@ -8,12 +15,25 @@ import pytest
 from PIL import Image
 
 from src.dataset import (
-    scan_dataset,
-    create_splits,
-    verify_images,
+    FOLD_MANIFEST_FILENAME,
+    create_folds,
+    fold_split,
     sample_id_from_filename,
+    scan_dataset,
+    verify_images,
     _group_id,
 )
+from tests.support import requires_tensorflow
+
+K = 5
+REPEATS = 2
+
+
+def generate(class_images, splits_dir, *, k=K, repeats=REPEATS):
+    """Generate folds over a folder-scanned dataset and return the manifest."""
+    return create_folds(
+        class_images, k=k, repeats=repeats, seed=42, splits_dir=splits_dir
+    )
 
 
 @pytest.fixture
@@ -46,15 +66,15 @@ def grouped_dataset(tmp_path):
     return str(raw_dir), classes
 
 
-def test_create_splits_preserves_config_order(fake_dataset):
-    """create_splits must use class order from input dict, not sorted()."""
+def test_create_folds_preserves_config_order(fake_dataset):
+    """create_folds must use class order from input dict, not sorted()."""
     raw_dir, classes = fake_dataset
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    create_splits(class_images, val_split=0.15, test_split=0.15, seed=42, splits_dir=splits_dir)
+    generate(class_images, splits_dir)
 
-    with open(Path(splits_dir) / "splits.json") as f:
+    with open(Path(splits_dir) / FOLD_MANIFEST_FILENAME) as f:
         manifest = json.load(f)
 
     assert manifest["classes"] == classes, (
@@ -63,23 +83,23 @@ def test_create_splits_preserves_config_order(fake_dataset):
     assert manifest["class_to_idx"] == {c: i for i, c in enumerate(classes)}
 
 
-def test_create_splits_labels_match_class_to_idx(fake_dataset):
+def test_create_folds_labels_match_class_to_idx(fake_dataset):
     """Each entry's label must match class_to_idx for its class name."""
     raw_dir, classes = fake_dataset
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    create_splits(class_images, val_split=0.15, test_split=0.15, seed=42, splits_dir=splits_dir)
+    folds = generate(class_images, splits_dir)
 
-    with open(Path(splits_dir) / "splits.json") as f:
-        manifest = json.load(f)
-
-    class_to_idx = manifest["class_to_idx"]
-    for split_name in ("train", "val", "test"):
-        for entry in manifest["splits"][split_name]:
-            assert entry["label"] == class_to_idx[entry["class"]], (
-                f"Entry {entry} has mismatched label in {split_name}"
-            )
+    class_to_idx = folds["class_to_idx"]
+    for repeat in range(REPEATS):
+        for fold in range(K):
+            split = fold_split(folds, repeat, fold)
+            for side in ("train", "test"):
+                for entry in split[side]:
+                    assert entry["label"] == class_to_idx[entry["class"]], (
+                        f"Entry {entry} has mismatched label in {side}"
+                    )
 
 
 def test_scan_dataset_preserves_config_order(fake_dataset):
@@ -101,97 +121,76 @@ def test_sample_id_from_filename_singleton():
     assert sample_id_from_filename("/data/single_image.jpg") == "single_image"
 
 
-def test_create_splits_persists_fractions(fake_dataset):
-    """splits.json must persist val_split and test_split fractions."""
-    raw_dir, classes = fake_dataset
-    class_images = scan_dataset(raw_dir, classes)
-    splits_dir = tempfile.mkdtemp()
-
-    create_splits(class_images, val_split=0.15, test_split=0.15, seed=42, splits_dir=splits_dir)
-
-    with open(Path(splits_dir) / "splits.json") as f:
-        manifest = json.load(f)
-
-    assert manifest["val_split"] == 0.15
-    assert manifest["test_split"] == 0.15
-
-
-def test_create_splits_rejects_too_few_groups(tmp_path):
-    """create_splits raises ValueError when a class has fewer than 3 groups."""
+def test_create_folds_rejects_a_class_below_the_fold_count(tmp_path):
+    """The floor is k, which is what puts a group of every class in every fold."""
     classes = ["A", "B"]
     raw_dir = tmp_path / "raw"
     for cls in classes:
         folder = raw_dir / cls
         folder.mkdir(parents=True)
-        # Only 2 singleton images = 2 groups (below minimum of 3)
-        for i in range(2):
+        # Four singleton images = four groups, below k = 5.
+        for i in range(4):
             (folder / f"img_{i}.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
 
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    with pytest.raises(ValueError, match="at least 3"):
-        create_splits(class_images, val_split=0.15, test_split=0.15, seed=42, splits_dir=splits_dir)
+    with pytest.raises(ValueError, match="at least 5"):
+        generate(class_images, splits_dir)
 
 
-def test_no_sample_leakage_between_splits(grouped_dataset):
-    """No sample group should appear in more than one split."""
+def test_no_sample_leakage_between_a_folds_two_sides(grouped_dataset):
+    """No sample group may be both trained on and scored in one fold."""
     raw_dir, classes = grouped_dataset
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    create_splits(class_images, val_split=0.15, test_split=0.15, seed=42, splits_dir=splits_dir)
+    folds = generate(class_images, splits_dir)
 
-    with open(Path(splits_dir) / "splits.json") as f:
-        manifest = json.load(f)
+    for repeat in range(REPEATS):
+        for fold in range(K):
+            leaks = _leaked_groups(fold_split(folds, repeat, fold))
+            assert not leaks, (
+                f"repeat {repeat} fold {fold} leaked sample groups: {leaks}"
+            )
 
-    leaks = _leaked_groups(manifest)
-    assert not leaks, f"Sample groups leaked between splits: {leaks}"
 
+def _leaked_groups(split: dict) -> set:
+    """Groups appearing on both sides of one fold.
 
-def _leaked_groups(manifest: dict) -> dict:
-    """Groups appearing in more than one split, keyed by the split pair.
-
-    Compares the key `create_splits` actually groups by. Comparing the bare
-    `sample_id_from_filename` stem instead would report a leak for any two classes
-    that happen to number their samples the same way, which is a naming
-    coincidence and not a shared physical sample: one soil sample carries one
-    laboratory texture class, so it lives in exactly one class folder.
+    Compares the key `create_folds` actually groups by, rebuilt from the file
+    path. Comparing the bare `sample_id_from_filename` stem instead would report
+    a leak for any two classes that happen to number their samples the same way,
+    which is a naming coincidence and not a shared physical sample: one soil
+    sample carries one laboratory texture class, so it lives in exactly one
+    class folder.
     """
-    per_split = {
+    per_side = {
         name: {
             _group_id(entry["class"], sample_id_from_filename(entry["path"]))
-            for entry in manifest["splits"][name]
+            for entry in split[name]
         }
-        for name in ("train", "val", "test")
+        for name in ("train", "test")
     }
-
-    leaks = {}
-    for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
-        overlap = per_split[a] & per_split[b]
-        if overlap:
-            leaks[f"{a}/{b}"] = overlap
-    return leaks
+    return per_side["train"] & per_side["test"]
 
 
 def test_leakage_check_still_catches_a_real_leak():
-    """A group forced into two splits must be reported.
+    """A group forced onto both sides must be reported.
 
     Without this, correcting the assertion above could have turned it into a
     check that passes unconditionally.
     """
     shared = {"path": "/raw/Arenosa/lab_77 (1).jpg", "class": "Arenosa", "label": 0}
-    manifest = {
-        "splits": {
-            "train": [shared, {"path": "/raw/Media/lab_12.jpg", "class": "Media", "label": 1}],
-            "val": [{"path": "/raw/Arenosa/lab_77 (2).jpg", "class": "Arenosa", "label": 0}],
-            "test": [],
-        }
+    split = {
+        "train": [
+            shared,
+            {"path": "/raw/Media/lab_12.jpg", "class": "Media", "label": 1},
+        ],
+        "test": [{"path": "/raw/Arenosa/lab_77 (2).jpg", "class": "Arenosa", "label": 0}],
     }
 
-    leaks = _leaked_groups(manifest)
-    assert "train/val" in leaks
-    assert leaks["train/val"] == {_group_id("Arenosa", "lab_77")}
+    assert _leaked_groups(split) == {_group_id("Arenosa", "lab_77")}
 
 
 # --- SPEC 0032: the dataset is verified before training, not during it -----
@@ -202,6 +201,7 @@ def _write_image(path: Path, size=(16, 16)) -> None:
     Image.new("RGB", size, (120, 90, 60)).save(path, format="JPEG")
 
 
+@requires_tensorflow
 def test_verify_accepts_readable_images(tmp_path):
     paths = [tmp_path / f"soil_{i}.jpg" for i in range(3)]
     for path in paths:
@@ -210,6 +210,7 @@ def test_verify_accepts_readable_images(tmp_path):
     verify_images({"Arenosa": [str(p) for p in paths]})
 
 
+@requires_tensorflow
 def test_verify_names_the_unreadable_file(tmp_path):
     good = tmp_path / "good.jpg"
     _write_image(good)
@@ -220,6 +221,7 @@ def test_verify_names_the_unreadable_file(tmp_path):
         verify_images({"Arenosa": [str(good), str(bad)]})
 
 
+@requires_tensorflow
 def test_verify_names_every_unreadable_file(tmp_path):
     """One run must tell the operator everything to fix."""
     bad_names = ["a.jpg", "b.jpg", "c.jpg"]
@@ -234,11 +236,13 @@ def test_verify_names_every_unreadable_file(tmp_path):
         assert name in message
 
 
+@requires_tensorflow
 def test_verify_reports_a_missing_file(tmp_path):
     with pytest.raises(ValueError, match="absent.jpg"):
         verify_images({"Arenosa": [str(tmp_path / "absent.jpg")]})
 
 
+@requires_tensorflow
 def test_verify_rejects_a_format_the_training_decoder_cannot_read(tmp_path):
     """Verification must use the decoder training uses, not a more tolerant one.
 

@@ -1,4 +1,4 @@
-"""Validate a dataset version and report how its splits are composed.
+"""Validate a dataset version and report how its evaluation folds are composed.
 
 Reports every problem it can find in one pass, because the reader is a collector
 fixing a spreadsheet: one list of faults is the difference between one correction
@@ -25,17 +25,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import load_config, resolve_paths  # noqa: E402
-from src.dataset import create_splits  # noqa: E402
+from src.dataset import create_folds, format_fold_composition  # noqa: E402
 from src.manifest import (  # noqa: E402
     ManifestError,
     check_class_coverage,
     check_setting_pairing,
     class_images,
     dataset_root,
-    format_composition,
     read_manifest,
     sample_ids_by_image,
-    split_composition,
+    train_only_sample_ids,
     verify_directory,
 )
 
@@ -110,17 +109,19 @@ def main(argv: list[str] | None = None) -> int:
         _report(problems)
         return 1
 
+    evaluation = cfg["evaluation"]
     with _splits_destination(args.splits_dir) as splits_dir:
         try:
-            splits = create_splits(
+            folds = create_folds(
                 class_images(manifest, classes),
-                val_split=data["val_split"],
-                test_split=data["test_split"],
+                k=evaluation["k"],
+                repeats=evaluation["repeats"],
                 seed=data["seed"],
                 splits_dir=splits_dir,
                 sample_ids=sample_ids_by_image(manifest),
                 dataset_version=manifest.version,
                 manifest_digest=manifest.digest,
+                train_only_samples=train_only_sample_ids(manifest),
             )
         except ValueError as error:
             _report([str(error)])
@@ -128,7 +129,12 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"{len(manifest.rows)} photograph(s) in {manifest.version}")
         print(f"manifest digest {manifest.digest}")
-        print(format_composition(split_composition(splits, manifest)))
+        print(
+            f"{folds['counts']['splittable_groups']} splittable sample group(s), "
+            f"{folds['counts']['train_only_groups']} restricted to training, "
+            f"over {evaluation['k']} fold(s) and {evaluation['repeats']} repeat(s)"
+        )
+        print(format_fold_composition(folds, manifest))
         if args.splits_dir:
             print(f"splits.json written to {splits_dir}")
     return 0
@@ -138,9 +144,9 @@ def main(argv: list[str] | None = None) -> int:
 def _splits_destination(requested: str | None):
     """Yield where splits.json goes, discarding it unless one was requested.
 
-    `create_splits` always persists. Defaulting to the configured `splits_dir`
+    `create_folds` always persists. Defaulting to the configured `splits_dir`
     would make a command that reads like a report overwrite the artefact
-    `src.train` reuses — and it is gitignored, so unrecoverably.
+    `src.crossval` reuses — and it is gitignored, so unrecoverably.
     """
     if requested:
         yield requested

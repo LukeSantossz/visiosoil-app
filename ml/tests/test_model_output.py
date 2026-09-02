@@ -2,9 +2,13 @@
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
-from src.model import build_model, unfreeze_model
+# The training stack is pinned to Python 3.12 and has no wheel for every
+# interpreter this repository is developed on, so this module skips rather than
+# failing to collect. In CI, where `ml/requirements.txt` is installed, it runs.
+tf = pytest.importorskip("tensorflow")
+
+from src.model import build_model, unfreeze_model  # noqa: E402
 
 
 @pytest.fixture
