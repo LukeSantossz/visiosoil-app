@@ -30,7 +30,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import load_config, resolve_paths  # noqa: E402
 from src.ingest import ArchiveError, ingest_archive, version_root  # noqa: E402
-from src.manifest import MANIFEST_FILENAME, manifest_path  # noqa: E402
+from src.manifest import (  # noqa: E402
+    ARCHIVE_CLASSES,
+    MANIFEST_FILENAME,
+    manifest_path,
+)
 
 #: Where the delivery sits by default, relative to the resolved data root. It is
 #: git-ignored: the archive is 214 MB of image data and the version is what the
@@ -102,7 +106,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         report = ingest_archive(
-            source, root, classes=cfg["classes"], skip_existing=args.skip_existing
+            # Ingestion writes every archive class into the version, so it
+            # takes the archive's vocabulary and not the model's four.
+            source,
+            root,
+            classes=ARCHIVE_CLASSES,
+            skip_existing=args.skip_existing,
         )
     except ArchiveError as error:
         print(str(error), file=sys.stderr)

@@ -32,6 +32,7 @@ from src.manifest import (  # noqa: E402
     check_setting_pairing,
     class_images,
     dataset_root,
+    ARCHIVE_CLASSES,
     read_manifest,
     sample_ids_by_image,
     train_only_sample_ids,
@@ -64,6 +65,10 @@ def main(argv: list[str] | None = None) -> int:
     cfg = resolve_paths(load_config(args.config))
     data = cfg["data"]
     classes = cfg["classes"]
+    # Two lists, two questions. `classes` is what the model emits and is what
+    # the coverage check and the pool are built from; `ARCHIVE_CLASSES` is what
+    # a manifest row may say, and is what the manifest is parsed against.
+    archive_classes = ARCHIVE_CLASSES
 
     version = args.version or data["dataset_version"]
 
@@ -85,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     # Most specific clause first: `ManifestError` subclasses `ValueError`, and
     # Python takes the first match rather than trying the rest.
     try:
-        manifest = read_manifest(root, classes, check_files=True)
+        manifest = read_manifest(root, archive_classes, check_files=True)
     except ManifestError as error:
         _report(
             list(error.problems)

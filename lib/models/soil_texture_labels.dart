@@ -10,10 +10,18 @@
 /// becomes the fallback rather than the source (see issue #79).
 abstract final class SoilTextureLabels {
   /// Every class, in model output order.
+  /// Four, not five. ADR 0016 keeps Siltosa out of the first model: it holds
+  /// three sample groups against the five that SPEC 0042's k = 5 needs, and its
+  /// defining fraction is not resolvable at the archive's measured millimetres
+  /// per pixel. The archive still contains those samples; the model does not
+  /// emit the class.
+  ///
+  /// Index 2 means Muito Argilosa from SPEC 0046 onward, and meant Siltosa
+  /// before it. Nothing produced under the five-class list is comparable to
+  /// anything produced after.
   static const List<String> ordered = [
     'Arenosa',
     'Media',
-    'Siltosa',
     'Muito Argilosa',
     'Argilosa',
   ];

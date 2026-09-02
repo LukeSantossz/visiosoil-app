@@ -4,7 +4,14 @@ import 'package:visiosoil_app/models/classification_verdict.dart';
 import 'package:visiosoil_app/models/soil_texture_labels.dart';
 
 /// Builds a descending distribution from probabilities, in canonical label
-/// order, so each test reads as the five numbers the spec states.
+/// order, so each test reads as the numbers the spec states.
+///
+/// Four since SPEC 0046, one per class the model emits. The vectors below need
+/// not sum to 1: `fromDistribution` judges the top share and the margin to the
+/// runner-up, and refuses only a value outside [0, 1]. Each was narrowed from
+/// its five-class form by dropping one tail entry, chosen so that the top two
+/// shares — the only ones the factory reads — are the same numbers the case was
+/// written for.
 List<ClassScore> distributionOf(List<double> probabilities) {
   final scores = <ClassScore>[
     for (var i = 0; i < probabilities.length; i++)
@@ -22,13 +29,13 @@ void main() {
     test('is conclusive on a clear leader', () {
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.94, 0.03, 0.01, 0.01, 0.01]),
+          distributionOf([0.94, 0.03, 0.01, 0.01]),
         ),
         ClassificationVerdict.conclusive,
       );
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.60, 0.20, 0.10, 0.06, 0.04]),
+          distributionOf([0.60, 0.20, 0.10, 0.06]),
         ),
         ClassificationVerdict.conclusive,
       );
@@ -38,7 +45,7 @@ void main() {
       // margin 0.05, pair 0.83.
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.44, 0.39, 0.09, 0.05, 0.03]),
+          distributionOf([0.44, 0.39, 0.09, 0.05]),
         ),
         ClassificationVerdict.ambiguous,
       );
@@ -48,7 +55,7 @@ void main() {
         () {
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.48, 0.44, 0.04, 0.02, 0.02]),
+          distributionOf([0.48, 0.44, 0.04, 0.02]),
         ),
         ClassificationVerdict.ambiguous,
       );
@@ -64,7 +71,7 @@ void main() {
       // Alternatives Considered.
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.50, 0.45, 0.02, 0.02, 0.01]),
+          distributionOf([0.50, 0.45, 0.02, 0.02]),
         ),
         ClassificationVerdict.ambiguous,
       );
@@ -74,7 +81,7 @@ void main() {
       // margin 0.01, pair 0.49.
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.25, 0.24, 0.22, 0.15, 0.14]),
+          distributionOf([0.25, 0.24, 0.22, 0.15]),
         ),
         ClassificationVerdict.insufficient,
       );
@@ -86,20 +93,23 @@ void main() {
       // wide to qualify as ambiguous, so neither band accepts it.
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.48, 0.20, 0.14, 0.10, 0.08]),
+          distributionOf([0.48, 0.20, 0.14, 0.10]),
         ),
         ClassificationVerdict.insufficient,
       );
     });
 
     test('does not depend on the caller having sorted the distribution', () {
-      // Same five probabilities, shuffled. `InferenceService` sorts, but this
+      // Same four probabilities, shuffled. `InferenceService` sorts, but this
       // factory is public over any list and roadmap item 15 persists the
       // distribution, where row order is whatever the database returns.
+      //
+      // Four entries since SPEC 0046. The top share and the margin are the ones
+      // this case was written for: Siltosa's 0.09 was folded into Arenosa, so
+      // the verdict under test is unchanged.
       const unsorted = [
-        ClassScore(label: 'Siltosa', probability: 0.09),
         ClassScore(label: 'Argilosa', probability: 0.44),
-        ClassScore(label: 'Arenosa', probability: 0.03),
+        ClassScore(label: 'Arenosa', probability: 0.12),
         ClassScore(label: 'Media', probability: 0.39),
         ClassScore(label: 'Muito Argilosa', probability: 0.05),
       ];
@@ -111,7 +121,7 @@ void main() {
       expect(
         ClassificationVerdict.fromDistribution(unsorted),
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.03, 0.39, 0.09, 0.05, 0.44]),
+          distributionOf([0.03, 0.39, 0.09, 0.44]),
         ),
       );
     });
@@ -199,7 +209,7 @@ void main() {
       );
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.25, 0.24, 0.22, 0.15, 0.14]),
+          distributionOf([0.25, 0.24, 0.22, 0.15]),
         ),
         isNot(ClassificationVerdict.notAnalysed),
       );
@@ -210,7 +220,7 @@ void main() {
     });
 
     test('is pure: the same distribution always yields the same verdict', () {
-      final distribution = distributionOf([0.44, 0.39, 0.09, 0.05, 0.03]);
+      final distribution = distributionOf([0.44, 0.39, 0.09, 0.05]);
       final first = ClassificationVerdict.fromDistribution(distribution);
       for (var i = 0; i < 5; i++) {
         expect(ClassificationVerdict.fromDistribution(distribution), first);
@@ -224,11 +234,13 @@ void main() {
 
       expect(
         ClassificationVerdict.fromDistribution([
+          // Four entries since SPEC 0046, with the runner-up still at 0.20 and
+          // the tail still summing to 0.50, so the margin this case tests is
+          // the same one.
           ClassScore(label: 'Argilosa', probability: topShare),
           ClassScore(label: 'Media', probability: 0.20),
-          ClassScore(label: 'Siltosa', probability: 0.15),
+          ClassScore(label: 'Arenosa', probability: 0.20),
           ClassScore(label: 'Muito Argilosa', probability: 0.10),
-          ClassScore(label: 'Arenosa', probability: 0.05),
         ]),
         ClassificationVerdict.conclusive,
       );
@@ -254,7 +266,7 @@ void main() {
       expect(0.33 + 0.32, ClassificationVerdict.ambiguousPairShareThreshold);
       expect(
         ClassificationVerdict.fromDistribution(
-          distributionOf([0.33, 0.32, 0.13, 0.12, 0.10]),
+          distributionOf([0.33, 0.32, 0.13, 0.12]),
         ),
         ClassificationVerdict.ambiguous,
       );
