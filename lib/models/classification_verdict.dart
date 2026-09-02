@@ -3,7 +3,7 @@ import 'class_score.dart';
 /// What a classification run is entitled to assert, derived from the shape of
 /// the distribution rather than from the top-1 probability alone.
 ///
-/// With five classes, chance is 0.20, so a top-1 of 0.55 means one thing when
+/// With four classes, chance is 0.25, so a top-1 of 0.55 means one thing when
 /// the runner-up holds 0.50 and another when it holds 0.12. A single absolute
 /// threshold cannot separate those; the margin between the first two candidates
 /// is the quantity that does. Recorded as ADR 0011.

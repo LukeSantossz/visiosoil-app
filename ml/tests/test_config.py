@@ -627,3 +627,55 @@ def test_rotation_divisor_is_explained():
     assert "360" in preceding and "180" in preceding, (
         "the divisor is used with no comment explaining why it is 360"
     )
+
+
+def test_config_declares_four_classes_without_siltosa():
+    """The model's class list, pinned to a literal in exactly one place.
+
+    SPEC 0046 dropped Siltosa and SPEC 0043's audit reported this criterion as
+    having no test named after it. Spelled out rather than derived: a test that
+    computed the expected list from the config would assert the config equals
+    itself, and the thing worth catching is a class silently added, removed or
+    reordered — reordering being the dangerous one, since the index is the
+    model's output position.
+    """
+    from src.config import load_config
+
+    assert load_config()["classes"] == [
+        "Arenosa",
+        "Media",
+        "Muito Argilosa",
+        "Argilosa",
+    ]
+
+
+def test_tests_read_the_configured_class_list():
+    """No test module keeps its own copy of the four classes the model emits.
+
+    `V1_EVALUATION_CLASSES` was one, and it stopped being a second opinion the
+    moment SPEC 0046 made the config declare those same four. A copy that
+    nothing compares against the file the training reads is a copy that drifts.
+
+    The five-entry *archive* vocabulary is a different list and is deliberately
+    left alone: `test_manifest.py` ties it to `src.manifest.ARCHIVE_CLASSES`.
+    """
+    from pathlib import Path
+
+    tests_dir = Path(__file__).resolve().parent
+    literal = '["Arenosa", "Media", "Muito Argilosa", "Argilosa"]'
+    offenders = [
+        module.name
+        for module in sorted(tests_dir.glob("*.py"))
+        # This module is the one place the four are pinned, by the test above.
+        if module.name != "test_config.py"
+        and literal in module.read_text(encoding="utf-8")
+    ]
+
+    # The literal alone is enough: the constant this replaced,
+    # `V1_EVALUATION_CLASSES`, was that list, so anything reintroducing it
+    # reintroduces the string. Searching for the old name as well would flag the
+    # sentence in `support.py` that explains why it is gone.
+
+    assert offenders == [], (
+        f"these modules carry their own copy of the model's class list: {offenders}"
+    )

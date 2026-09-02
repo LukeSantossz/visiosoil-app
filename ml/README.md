@@ -26,8 +26,10 @@ Output [1, 5] float32 probabilities
 
 ## Classes
 
-The five Embrapa textural groups, in the order `ml/config.yaml` declares and the
-model emits.
+The five Embrapa textural groups the delivered archive holds. **Four of them are
+the model's classes**, in the order `ml/config.yaml` declares and the model emits;
+the fifth is in the manifest and in no fold. The two lists are
+`src.manifest.ARCHIVE_CLASSES` and `cfg["classes"]` (SPEC 0046).
 
 **The counts below are measured, as of 2026-08-25.** They replace an earlier
 planning estimate of 1,418 images that no run ever confirmed. The images
@@ -50,10 +52,12 @@ more than one photograph.
 **Siltosa is excluded from the first model.** Three sample groups is below the
 five the evaluation protocol needs — one in each of the k = 5 folds' test sides —
 and a per-class figure computed on one test sample is a coin flip presented as a
-measurement. The first model classifies four groups; the product still names
-five, and the application declares the absence. `config.yaml` still lists five
-classes, so generating folds over the real `v1` refuses Siltosa by name until
-roadmap item A4 aligns the class list on both sides.
+measurement. The first model classifies four groups, and since SPEC 0046 both
+`config.yaml` and `SoilTextureLabels.ordered` declare those four. Its rows stay
+in the manifest: a dataset version is a build product of the archive (ADR 0019),
+so a version holding less than what was delivered could not be checked against
+it. Fold creation over the real `v1` therefore succeeds at k = 5, and no Siltosa
+group reaches any fold.
 
 **129 of the 221 files are HEIC**, which neither `tf.io.decode_image` nor the
 Dart `image` package can read. Conversion precedes everything (#196).

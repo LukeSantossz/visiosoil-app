@@ -138,7 +138,7 @@ last-analysis when the records stream fails.
 - The greeting is the static label "Agrônomo" — deliberate, per spec 0029.
 - `SizedBox(height: 100)` as bottom-nav padding is a hard-coded magic number.
 - The confidence chip renders "44% · Baixa" — a bare percentage carrying no
-  context about what it means for a five-class problem.
+  context about what it means for a four-class problem, where chance is 25 %.
 
 ### Capture
 

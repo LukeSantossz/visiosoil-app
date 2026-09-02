@@ -6,7 +6,6 @@ Rescaling layer baked into the model converts [0,1] input to [-1,1].
 
 import math
 
-import tensorflow as tf
 from tensorflow import keras
 
 from .config import OPTIONAL_MODEL_DEFAULTS

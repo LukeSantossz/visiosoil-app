@@ -164,12 +164,21 @@ REAL_DATASET_ROOT = (
     Path(__file__).resolve().parents[1] / "data" / "datasets" / "v1"
 )
 
-#: The classes the v1 protocol evaluates, which since SPEC 0046 is also what
-#: `ml/config.yaml` declares. Siltosa holds three sample groups against the five
-#: that `evaluation.k` needs and is excluded from the first model by ADR 0016,
-#: so it is not in the pool the fold generator partitions — while its rows stay
-#: in the manifest, because a dataset version is a build product of the archive.
-V1_EVALUATION_CLASSES = ["Arenosa", "Media", "Muito Argilosa", "Argilosa"]
+def configured_classes():
+    """The classes the model emits, read from `ml/config.yaml` as production does.
+
+    This was a literal, `V1_EVALUATION_CLASSES`, and it was a legitimate second
+    list while the config declared five and the protocol evaluated four. SPEC
+    0046 made those the same four, at which point the literal was an unasserted
+    duplicate of `cfg["classes"]` — a copy that could drift from the file the
+    training actually reads. SPEC 0048 removes it.
+
+    The four are still pinned to a literal, once, by
+    `test_config_declares_four_classes_without_siltosa`.
+    """
+    from src.config import load_config
+
+    return list(load_config()["classes"])
 
 
 def real_manifest_or_skip(classes=None):

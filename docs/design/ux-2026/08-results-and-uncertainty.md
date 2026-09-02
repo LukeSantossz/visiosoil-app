@@ -9,7 +9,7 @@ improves the experience; this one determines whether the experience is honest.
 full softmax vector is computed inside the isolate and discarded at the moment
 of return.
 
-With five classes, chance is twenty percent. Consider three real possibilities:
+With four classes, chance is twenty-five percent. Consider three real possibilities:
 
 | Distribution | Today's rendering |
 | --- | --- |
@@ -82,7 +82,7 @@ contention: the model narrowed nothing.
 | **Evidência insuficiente** | everything else | Nothing stands out, or something leads without a rival and still holds less than half |
 | **Não analisado** | no score present | Distinct state — no attempt was made or none was possible |
 
-Worked cases, all arithmetically valid over five classes:
+Worked cases, all arithmetically valid over four classes:
 
 | Distribution | Margin | Pair | Verdict |
 | --- | --- | --- | --- |
