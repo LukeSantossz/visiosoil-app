@@ -118,5 +118,5 @@ def test_the_installed_stack_matches_the_requirements_pins():
         pytest.skip(
             "the installed stack is outside ml/requirements.txt, so these "
             "results were obtained under a configuration the project does not "
-            "ship — the fold assignment depends on it: " + "; ".join(divergent)
+            "ship, and the fold assignment depends on it: " + "; ".join(divergent)
         )
