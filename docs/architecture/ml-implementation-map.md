@@ -392,6 +392,12 @@ repeated stratified group k-fold with nested selection —
 reported from a single `train`/`val`/`test` split is not a VisioSoil result, and
 that path no longer exists in `ml/`.
 
+**Which of those criteria a CI run actually checks is audited, not assumed.**
+`ml/tests/test_criteria_coverage.py` ([SPEC 0043](../specs/0043-guard-criteria-covered-where-it-ships.md))
+reads the criterion names out of `docs/specs/` and reports every one whose only
+test is gated on the git-ignored archive, so a criterion verified solely on a
+machine that has the data cannot pass for one the pipeline ships with.
+
 **Acceptance criteria**
 
 - An inventory of whatever exists: counts by class, group, site, device, and
