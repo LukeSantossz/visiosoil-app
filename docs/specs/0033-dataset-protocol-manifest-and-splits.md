@@ -1,6 +1,31 @@
 # SPEC: feat(ml): define the dataset collection protocol, its manifest, and versioned splits
 
 
+> **Superseded in part 2026-09-01: the evaluation design below is replaced by**
+> [SPEC 0042](0042-repeated-group-k-fold-evaluation-protocol.md) **and**
+> [ADR 0020](../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md),
+> which govern it whole — the partition, the nested selection, the repeats, how
+> uncertainty is reported, which contrasts may be run, and the minimum
+> detectable effect recorded beside them. Repeated stratified group k-fold takes
+> the place of the single `train`/`val`/`test` partition this specification
+> designed, because the 77 splittable sample groups leave about twelve in a 0.15
+> test fraction and no experiment can return a verdict at that resolution.
+>
+> **Three passages below will otherwise be read at face value, and no longer
+> hold.** "Splits stay class-stratified and group-aware" still describes one
+> primary split. The floor of three groups per class is now k groups per class.
+> And the target of 67 groups per class is arithmetic derived from the 15 %
+> validation and test fractions, which no longer exist — under k-fold every
+> splittable group is tested once per repeat, so the evaluation set is all 77
+> rather than a fraction of them. Grouping by sample and stratifying by class
+> survive intact; the successor keeps both.
+>
+> What this record decided about the manifest, the admission gate, the immutable
+> version, and the rejection of granulometry and moisture columns is untouched
+> and still governs. Its body is left as approved rather than edited in place,
+> per `spec_method.md`; this banner is what tells a reader which parts to stop
+> trusting.
+>
 > **Revised 2026-08-25**, and this is the second revision — ADR 0014 forced the
 > first, and its own retirement forces this one. See
 > [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
