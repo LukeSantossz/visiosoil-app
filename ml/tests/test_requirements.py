@@ -108,10 +108,17 @@ def test_the_installed_stack_matches_the_requirements_pins():
     pins = parse_pins(REQUIREMENTS.read_text(encoding="utf-8"))
     divergent = []
     for distribution, module_name in PINNED_BY_FOLD_ASSIGNMENT.items():
-        module = importlib.import_module(module_name)
-        version = module.__version__
+        expected = ",".join(f"{op}{bound}" for op, bound in pins[distribution])
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            # Absent is the widest divergence there is, and it has to be
+            # recorded as one rather than raised: an unhandled import error
+            # here reports a broken test, not a stack that does not match.
+            divergent.append(f"{distribution} is not installed; {expected} required")
+            continue
+        version = getattr(module, "__version__", "unknown")
         if not satisfies(version, pins[distribution]):
-            expected = ",".join(f"{op}{bound}" for op, bound in pins[distribution])
             divergent.append(f"{distribution} {version} does not satisfy {expected}")
 
     if divergent:
