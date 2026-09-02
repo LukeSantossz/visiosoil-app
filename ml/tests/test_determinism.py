@@ -215,7 +215,7 @@ class _FakeModel:
         self.saved_to = path
 
 
-def test_train_persists_what_unfreezing_did_beside_the_fold_artifacts(
+def test_train_fold_writes_the_record_for_the_refit_model(
     tmp_path, monkeypatch
 ):
     """Written from the refit model, before that model is saved.
