@@ -53,11 +53,11 @@ def augmentation_config() -> dict:
         "data": {"image_size": 224, "seed": SEED},
         "augmentation": {
             "horizontal_flip": True,
-            "rotation_range": 15,
+            "rotation_degrees": 15,
             "brightness_range": [0.85, 1.15],
             "contrast_range": [0.9, 1.1],
             "zoom_range": [0.95, 1.05],
-            "translation_range": 0.05,
+            "translation_fraction": 0.05,
         },
     }
 

@@ -78,7 +78,11 @@ def build_augmentation_layer(cfg: dict) -> tf.keras.Sequential:
     if aug_cfg.get("vertical_flip", False):
         layers.append(tf.keras.layers.RandomFlip("vertical", seed=seed))
 
-    rotation = aug_cfg.get("rotation_range", 0)
+    # Degrees in the config, turns in the layer. `RandomRotation` takes its
+    # factor as a fraction of a full turn — factor 0.2 rotates within +/- 20 %
+    # of 2*pi — so the divisor is 360 and not the 180 a reader might expect
+    # from a +/- convention. Halving it would double every rotation.
+    rotation = aug_cfg.get("rotation_degrees", 0)
     if rotation > 0:
         layers.append(tf.keras.layers.RandomRotation(rotation / 360.0, seed=seed))
 
@@ -117,7 +121,7 @@ def build_augmentation_layer(cfg: dict) -> tf.keras.Sequential:
             height_factor=(zoom_lower, zoom_upper), seed=seed,
         ))
 
-    translation = aug_cfg.get("translation_range")
+    translation = aug_cfg.get("translation_fraction")
     if translation:
         layers.append(tf.keras.layers.RandomTranslation(
             height_factor=translation,

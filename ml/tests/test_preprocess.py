@@ -35,11 +35,11 @@ def sample_config_mobilenet() -> dict:
         "augmentation": {
             "horizontal_flip": True,
             "vertical_flip": False,
-            "rotation_range": 15,
+            "rotation_degrees": 15,
             "brightness_range": [0.85, 1.15],
             "contrast_range": [0.9, 1.1],
             "zoom_range": [0.95, 1.05],
-            "translation_range": 0.05,
+            "translation_fraction": 0.05,
         },
         "classes": ["A", "B", "C"],
         "training": {"batch_size": 4},
@@ -253,3 +253,35 @@ def test_every_augmentation_layer_is_seeded(sample_config_mobilenet):
         assert getattr(layer, "seed", None) == expected, (
             f"{type(layer).__name__} was built without the configured seed"
         )
+
+
+def test_augmentation_layers_read_the_renamed_keys(sample_config_mobilenet):
+    """The rotation and translation layers come from the renamed scalar keys.
+
+    Both keys default to "no augmentation" when absent, so a reader that still
+    looked for `rotation_range` would build no rotation layer at all and raise
+    nothing — which is why SPEC 0047 refuses the old name at the config
+    boundary as well as asserting the new one here.
+
+    The factor is checked too, not only the layer's presence: 15 degrees is
+    15/360 of a full turn, and a divisor changed to 180 would still produce a
+    `RandomRotation` and halve every rotation silently.
+    """
+    layers = build_augmentation_layer(sample_config_mobilenet).layers
+    by_type = {type(layer).__name__: layer for layer in layers}
+
+    assert "RandomRotation" in by_type, "the rotation layer was not built"
+    assert "RandomTranslation" in by_type, "the translation layer was not built"
+
+    rotation = sample_config_mobilenet["augmentation"]["rotation_degrees"]
+    assert by_type["RandomRotation"].factor == pytest.approx(rotation / 360.0)
+
+    # Absent the renamed keys, neither layer exists. Asserted rather than
+    # assumed, because it is what makes a silent fallback impossible to miss.
+    without = {
+        **sample_config_mobilenet,
+        "augmentation": {"horizontal_flip": True},
+    }
+    reduced = {type(layer).__name__ for layer in build_augmentation_layer(without).layers}
+    assert "RandomRotation" not in reduced
+    assert "RandomTranslation" not in reduced

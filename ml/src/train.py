@@ -32,6 +32,7 @@ from .dataset import (
     verify_images,
 )
 from .model import build_model, fine_tune_report, unfreeze_model
+from .model_paths import CHECKPOINT_FILENAME
 
 # Re-exported: the runtime record is part of the fold's artifact layout, which
 # `src.crossval` owns, and reading one must not reach the training stack. Kept
@@ -268,7 +269,7 @@ def train_fold(
     with open(directory / FINE_TUNE_FILENAME, "w") as handle:
         json.dump(fine_tune_report(model), handle, indent=2)
 
-    model.save(directory / "model.keras")
+    model.save(directory / CHECKPOINT_FILENAME)
     write_fold_predictions(
         arm_dir,
         repeat=repeat,

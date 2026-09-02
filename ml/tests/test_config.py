@@ -12,7 +12,7 @@ from src.config import load_config, resolve_paths
 def valid_config() -> dict:
     """Return a minimal valid config dict."""
     return {
-        "project": {"name": "test", "version": 2},
+        "project": {"name": "test"},
         "classes": ["A", "B", "C"],
         "data": {
             "raw_dir": "data/raw",
@@ -37,7 +37,7 @@ def valid_config() -> dict:
         "augmentation": {
             "horizontal_flip": True,
             "vertical_flip": True,
-            "rotation_range": 40,
+            "rotation_degrees": 40,
         },
         "model": {
             "architecture": "mobilenetv2",
@@ -528,3 +528,102 @@ def test_the_shipped_config_declares_the_protocol_ADR_0020_fixed():
     assert cfg["evaluation"]["power"] == 0.8
     assert "val_split" not in cfg["data"]
     assert "test_split" not in cfg["data"]
+
+
+# --- SPEC 0047: keys that mean what they say -------------------------------
+
+
+def test_scalar_augmentation_keys_carry_no_range_suffix():
+    """The `_range` suffix marks exactly the keys that hold a `[lo, hi]` pair.
+
+    The split was hardcoded in `_RANGED_AUGMENTATION_KEYS` while two scalar keys
+    carried the same suffix, so the name and the validator contradicted each
+    other and the name was the one a reader met first.
+    """
+    from src.config import _RANGED_AUGMENTATION_KEYS, load_config
+
+    aug = load_config()["augmentation"]
+
+    assert "rotation_degrees" in aug
+    assert "translation_fraction" in aug
+    assert "rotation_range" not in aug
+    assert "translation_range" not in aug
+
+    suffixed = {key for key in aug if key.endswith("_range")}
+    assert suffixed == set(_RANGED_AUGMENTATION_KEYS), (
+        f"keys ending in _range are {sorted(suffixed)}, but the validator "
+        f"treats {sorted(_RANGED_AUGMENTATION_KEYS)} as pairs"
+    )
+
+
+@pytest.mark.parametrize(
+    "old_key, new_key, value",
+    [
+        ("rotation_range", "rotation_degrees", 15),
+        ("translation_range", "translation_fraction", 0.05),
+    ],
+)
+def test_an_old_augmentation_key_is_refused_by_name(
+    tmp_path, valid_config, old_key, new_key, value
+):
+    """A renamed key fails loudly rather than defaulting the new one to zero.
+
+    This is the whole reason the rename refuses instead of aliasing: both new
+    keys default to "no augmentation" when absent, so a config carrying the old
+    name would train without the rotation or the translation the operator asked
+    for, and nothing would say so.
+    """
+    from src.config import load_config
+
+    cfg = valid_config
+    cfg["augmentation"] = {old_key: value}
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+
+    with pytest.raises(ValueError) as raised:
+        load_config(str(path))
+
+    message = str(raised.value)
+    assert old_key in message
+    assert new_key in message
+
+
+def test_project_version_is_not_required(tmp_path, valid_config):
+    """`load_config` accepts a config with no `project.version`.
+
+    It was required, read by nothing, and a third thing called "version" beside
+    `data.dataset_version` and the CLIs' `--version`.
+    """
+    from src.config import load_config
+
+    cfg = valid_config
+    cfg.pop("project", None)
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+
+    assert load_config(str(path))["classes"]
+
+
+def test_rotation_divisor_is_explained():
+    """`preprocess.py` says why the divisor is 360 rather than 180.
+
+    The conversion is correct and non-obvious: `RandomRotation` takes a fraction
+    of a full turn, so a reader expecting a +/- convention would read 180 as the
+    right divisor and halve every rotation while fixing nothing.
+    """
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1] / "src" / "preprocess.py"
+    ).read_text(encoding="utf-8")
+
+    divisor_line = next(
+        index
+        for index, line in enumerate(source.splitlines())
+        if "/ 360.0" in line
+    )
+    preceding = "\n".join(source.splitlines()[max(0, divisor_line - 6):divisor_line])
+
+    assert "360" in preceding and "180" in preceding, (
+        "the divisor is used with no comment explaining why it is 360"
+    )

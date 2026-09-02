@@ -9,7 +9,10 @@ from .manifest import validate_version_name
 
 
 _REQUIRED_TOP_KEYS = {
-    "project",
+    # `project` is not here. `project.version` was required, read by nothing,
+    # and a third thing called "version" beside `data.dataset_version` and the
+    # CLIs' `--version` (SPEC 0047). `project.name` survives in config.yaml as
+    # a label; nothing requires it either.
     "classes",
     "data",
     "evaluation",
@@ -60,6 +63,19 @@ _ARCHITECTURE_IMAGE_SIZE = {"mobilenetv2": 224}
 
 # Augmentation keys expressed as a [lower, upper] multiplicative range.
 _RANGED_AUGMENTATION_KEYS = ("brightness_range", "contrast_range", "zoom_range")
+
+#: Augmentation keys renamed by SPEC 0047, old name to new. The `_range` suffix
+#: meant a `[lo, hi]` pair for three keys and a scalar for these two, so the
+#: suffix now marks exactly the keys in `_RANGED_AUGMENTATION_KEYS` above.
+#:
+#: Refused by name rather than accepted as an alias: a config carrying the old
+#: key would otherwise leave the new one absent, and the new one defaults to
+#: "no augmentation" — so the run would train without the rotation the operator
+#: asked for and report nothing.
+_RENAMED_AUGMENTATION_KEYS = {
+    "rotation_range": "rotation_degrees",
+    "translation_range": "translation_fraction",
+}
 
 # Defaults that were previously inline `.get()` calls in the modules that read
 # them, where nothing validated the value and nothing declared the default.
@@ -186,6 +202,19 @@ def _validate(cfg: dict) -> None:
     aug = cfg.get("augmentation", {})
     if not isinstance(aug, dict):
         raise ValueError("'augmentation' must be a mapping")
+
+    renamed = [key for key in _RENAMED_AUGMENTATION_KEYS if key in aug]
+    if renamed:
+        raise ValueError(
+            "; ".join(
+                f"augmentation.{key} was renamed to "
+                f"augmentation.{_RENAMED_AUGMENTATION_KEYS[key]} (SPEC 0047): "
+                f"the _range suffix marks the keys holding a [lower, upper] "
+                f"pair, and this one holds a scalar"
+                for key in renamed
+            )
+        )
+
     for key in _RANGED_AUGMENTATION_KEYS:
         if key not in aug:
             continue
