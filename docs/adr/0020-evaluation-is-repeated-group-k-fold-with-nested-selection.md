@@ -27,7 +27,7 @@ The archive holds 105 sample groups over 221 photographs; four classes and the
 train-only rule of SPEC 0040 D6 leave 77 groups that can be tested. At
 `test_split = 0.15` that is about twelve groups — a 95 % interval near ±28 pp on
 accuracy and a paired minimum detectable effect near 40 pp (planning estimates,
-#203). No experiment the roadmap plans can return a verdict under that
+issue #203). No experiment the roadmap plans can return a verdict under that
 resolution, and E0, the programme's go/no-go, is one of them.
 
 Two published results fix the shape of the answer. Varoquaux (2018, *NeuroImage*
