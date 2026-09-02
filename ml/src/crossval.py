@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+import warnings
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -35,7 +36,7 @@ from .config import load_config, resolve_paths
 from .dataset import (
     FOLD_MANIFEST_FILENAME,
     create_folds_for_config,
-    load_folds,
+    load_folds_for_config,
 )
 from .evaluate import METRICS_FILENAME, arm_metrics
 
@@ -207,6 +208,42 @@ def read_fold_metadata(arm_dir: Path | str, repeat: int, fold: int) -> dict:
     return {key: value for key, value in record.items() if key != "predictions"}
 
 
+def first_runtime(arm_dir: Path | str, fold_manifest: Mapping) -> dict | None:
+    """The runtime the folds of one arm ran under, or ``None`` if none recorded.
+
+    One source for both `src.crossval` and `src.evaluate`, read from the
+    artifacts. `crossval` used to report whichever fold happened to run last
+    while `evaluate` reported the first, so the same run described itself two
+    ways depending on which tool was asked.
+
+    A run whose folds disagree — resumed on another machine, or under another
+    library stack — warns rather than picking one silently, because "these runs
+    are comparable" is exactly what this record is consulted for.
+    """
+    recorded: dict | None = None
+    disagreeing: list[str] = []
+    for repeat in range(fold_manifest["repeats"]):
+        for fold in range(fold_manifest["k"]):
+            found = load_runtime(fold_directory(arm_dir, repeat, fold))
+            if found is None:
+                continue
+            if recorded is None:
+                recorded = found
+            elif found != recorded:
+                disagreeing.append(f"repeat {repeat} fold {fold}")
+
+    if disagreeing:
+        warnings.warn(
+            f"{len(disagreeing)} fold(s) of {Path(arm_dir).name} ran under a "
+            f"different runtime from the first: {', '.join(disagreeing)}. The "
+            "first is reported; folds of one arm that ran under different "
+            "stacks are not comparable with each other",
+            UserWarning,
+            stacklevel=2,
+        )
+    return recorded
+
+
 def load_arm_predictions(
     arm_dir: Path | str, fold_manifest: Mapping
 ) -> tuple[dict[tuple[int, int], list[dict]], dict[tuple[int, int], dict]]:
@@ -252,19 +289,20 @@ def run_arm(
     The per-fold training recipe is unchanged (SPEC 0032): what changes here is
     which data a training sees and how the results are pooled.
     """
-    # Imported here, not at module scope: everything above this function is
-    # readable and testable without the training stack, and the tests that
-    # assert what a result says run on a machine that has none.
-    from .dataset import verify_images
-    from .train import train_fold
-
     cfg = resolve_paths(load_config(config_path))
     splits_dir = cfg["data"]["splits_dir"]
     if not (Path(splits_dir) / FOLD_MANIFEST_FILENAME).exists():
         print(f"No fold manifest at {splits_dir}; generating it.")
         fold_manifest = create_folds_for_config(cfg, splits_dir)
     else:
-        fold_manifest = load_folds(splits_dir)
+        fold_manifest = load_folds_for_config(cfg, splits_dir)
+
+    # Imported after the configuration and the folds have been checked, and not
+    # at module scope: everything above this line is readable and testable
+    # without the training stack, and a run that is going to be refused should
+    # be refused before it spends half a minute importing TensorFlow.
+    from .dataset import verify_images
+    from .train import train_fold
 
     output_dir = Path(cfg["export"]["output_dir"]) / version
     arm_dir = arm_directory(output_dir, arm)
@@ -275,7 +313,6 @@ def run_arm(
     # than twenty-four folds later. `train_fold` verifies when called directly.
     verify_images(_images_by_class(fold_manifest))
 
-    runtime = None
     for repeat in range(fold_manifest["repeats"]):
         for fold in range(fold_manifest["k"]):
             started = time.monotonic()
@@ -283,7 +320,7 @@ def run_arm(
                 f"\n=== {arm}: repeat {repeat + 1}/{fold_manifest['repeats']}, "
                 f"fold {fold + 1}/{fold_manifest['k']} ==="
             )
-            runtime = train_fold(
+            train_fold(
                 cfg,
                 fold_manifest,
                 arm_dir=arm_dir,
@@ -303,7 +340,10 @@ def run_arm(
         predictions=predictions,
         costs=costs,
         shuffled_control=shuffled_control,
-        runtime=runtime,
+        # Read back from the folds rather than kept from the last iteration:
+        # `evaluate` reports what the artifacts say, and two tools describing
+        # one run differently is worse than either description alone.
+        runtime=first_runtime(arm_dir, fold_manifest),
     )
     with open(arm_dir / METRICS_FILENAME, "w") as handle:
         json.dump(metrics, handle, indent=2)

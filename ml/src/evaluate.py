@@ -32,7 +32,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score, precision_recall_fscore_support
 
 from .config import load_config, resolve_paths
-from .dataset import load_folds
+from .dataset import load_folds_for_config
 from .stats import (
     group_level_predictions,
     holm_adjust,
@@ -293,10 +293,26 @@ def evaluate(
 
     Reads what `src.crossval` wrote; it neither trains nor predicts.
     """
-    from .crossval import arm_directory, load_arm_predictions, read_fold_metadata
+    from .crossval import (
+        arm_directory,
+        first_runtime,
+        load_arm_predictions,
+        read_fold_metadata,
+    )
+
+    # Checked before anything is read or written: `--contrast` without
+    # `--contrasts` used to fall through to the metrics path, which reported no
+    # contrast at all and overwrote the arm's metrics.json on the way past.
+    if contrast_name is not None and not contrasts:
+        raise ValueError(
+            f"--contrast {contrast_name!r} names a contrast to compute but "
+            "--contrasts was not given, so nothing would compute it and the "
+            "arm's metrics would be rewritten instead. Pass --contrasts as "
+            "well, or drop --contrast"
+        )
 
     cfg = resolve_paths(load_config(config_path))
-    fold_manifest = load_folds(cfg["data"]["splits_dir"])
+    fold_manifest = load_folds_for_config(cfg, cfg["data"]["splits_dir"])
     evaluation = cfg["evaluation"]
     output_dir = Path(cfg["export"]["output_dir"]) / version
 
@@ -346,7 +362,7 @@ def evaluate(
         shuffled_control=bool(
             read_fold_metadata(arm_dir, 0, 0).get("shuffled_control", False)
         ),
-        runtime=_first_runtime(arm_dir, fold_manifest),
+        runtime=first_runtime(arm_dir, fold_manifest),
     )
     with open(arm_dir / METRICS_FILENAME, "w") as handle:
         json.dump(metrics, handle, indent=2)
@@ -594,18 +610,6 @@ def _apply_holm_within_families(contrasts: list[dict]) -> None:
         for contrast, value in zip(family, adjusted):
             contrast["p_value_holm"] = value
             contrast["family_size"] = len(family)
-
-
-def _first_runtime(arm_dir: Path, fold_manifest: Mapping) -> dict | None:
-    """The runtime recorded by the first fold that has one, or ``None``."""
-    from .crossval import fold_directory, load_runtime
-
-    for repeat in range(fold_manifest["repeats"]):
-        for fold in range(fold_manifest["k"]):
-            recorded = load_runtime(fold_directory(arm_dir, repeat, fold))
-            if recorded is not None:
-                return recorded
-    return None
 
 
 def _print_metrics(metrics: Mapping, path: Path) -> None:

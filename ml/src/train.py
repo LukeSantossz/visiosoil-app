@@ -27,7 +27,7 @@ from .dataset import (
     fold_split,
     inner_folds,
     library_versions,
-    load_folds,
+    load_folds_for_config,
     permute_labels_by_group,
     verify_images,
 )
@@ -417,7 +417,7 @@ def train(
     cfg = resolve_paths(load_config(config_path))
     splits_dir = cfg["data"]["splits_dir"]
     if (Path(splits_dir) / FOLD_MANIFEST_FILENAME).exists():
-        fold_manifest = load_folds(splits_dir)
+        fold_manifest = load_folds_for_config(cfg, splits_dir)
     else:
         print(f"No fold manifest at {splits_dir}; generating it.")
         fold_manifest = create_folds_for_config(cfg, splits_dir)

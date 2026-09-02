@@ -39,6 +39,8 @@ from .manifest import (
     class_images as manifest_class_images,
     dataset_root,
     format_composition,
+    manifest_digest,
+    manifest_path,
     read_manifest_or_none,
     sample_ids_by_image,
     split_composition,
@@ -459,6 +461,79 @@ def load_folds(splits_dir: str, manifest_digest: str | None = None) -> dict:
         verify_split_digest(fold_manifest, manifest_digest)
 
     return fold_manifest
+
+
+def load_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
+    """Load the fold manifest and refuse one that does not describe this run.
+
+    Every production entry point goes through here rather than through
+    :func:`load_folds` directly, because the two checks below are worthless if
+    a caller can skip them — and for one release every caller did.
+
+    Two things are checked, and they fail differently:
+
+    - **Provenance.** The digest of the dataset's own `manifest.csv` must match
+      the one the folds were drawn from, or the run is scoring photographs that
+      are not the ones the partition was built over.
+    - **Agreement.** The class list, seed, k and repeat count must match the
+      active configuration. The class list is the sharp one: it is the model's
+      output order, so a fold manifest drawn under five classes and used under
+      four does not fail — it relabels every result, silently.
+
+    An unreadable dataset manifest is refused rather than skipped. "Could not
+    be checked" and "checked and matched" are different facts, and treating the
+    first as the second is the defect this function exists to close.
+    """
+    data = cfg["data"]
+    root = dataset_root(data["datasets_dir"], data["dataset_version"])
+    path = manifest_path(root)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no manifest at {path}, so the folds in {splits_dir} cannot be "
+            f"checked against the dataset they claim. Check out the dataset "
+            f"version they were drawn from, or regenerate them with: "
+            f"{REGENERATE_FOLDS_COMMAND}"
+        )
+
+    fold_manifest = load_folds(splits_dir, manifest_digest=manifest_digest(root))
+    _require_config_agreement(fold_manifest, cfg, splits_dir)
+    return fold_manifest
+
+
+def _require_config_agreement(
+    fold_manifest: Mapping, cfg: Mapping, splits_dir: str
+) -> None:
+    """Refuse a fold manifest the active configuration no longer describes.
+
+    Every disagreement is reported in one message, because the reader is
+    editing a configuration file and one list is the difference between one
+    correction and four.
+    """
+    expected = (
+        ("classes", fold_manifest["classes"], list(cfg["classes"])),
+        ("data.seed", fold_manifest["seed"], cfg["data"]["seed"]),
+        ("evaluation.k", fold_manifest["k"], cfg["evaluation"]["k"]),
+        (
+            "evaluation.repeats",
+            fold_manifest["repeats"],
+            cfg["evaluation"]["repeats"],
+        ),
+    )
+    disagreements = [
+        f"  - {name}: the folds were drawn under {recorded!r}, the config says "
+        f"{configured!r}"
+        for name, recorded, configured in expected
+        if recorded != configured
+    ]
+    if disagreements:
+        raise ValueError(
+            f"{Path(splits_dir) / FOLD_MANIFEST_FILENAME} does not describe this "
+            f"run:\n"
+            + "\n".join(disagreements)
+            + f"\nThe class list is the model's output order, so using folds "
+            f"drawn under another one relabels every result rather than "
+            f"failing. Regenerate them with: {REGENERATE_FOLDS_COMMAND}"
+        )
 
 
 def fold_split(fold_manifest: Mapping, repeat: int, fold: int) -> dict[str, list[dict]]:
