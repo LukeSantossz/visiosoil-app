@@ -14,6 +14,7 @@ The on-disk layout is::
             model.keras
             config.json
             runtime.json
+            fine_tune.json
             selection_audit.json
             predictions.json
             cost.json
@@ -44,6 +45,7 @@ PREDICTIONS_FILENAME = "predictions.json"
 COST_FILENAME = "cost.json"
 SELECTION_AUDIT_FILENAME = "selection_audit.json"
 RUNTIME_FILENAME = "runtime.json"
+FINE_TUNE_FILENAME = "fine_tune.json"
 
 #: Default arm names. The real arm is named for what it is rather than for the
 #: run, so two experiments comparing the same thing land in the same directory
@@ -189,6 +191,24 @@ def load_runtime(fold_dir: Path | str) -> dict | None:
     and reporting has to run where TensorFlow cannot be installed.
     """
     path = Path(fold_dir) / RUNTIME_FILENAME
+    if not path.exists():
+        return None
+    with open(path) as handle:
+        return json.load(handle)
+
+
+def load_fine_tune(fold_dir: Path | str) -> dict | None:
+    """What unfreezing did to the model that produced ``fold_dir``.
+
+    ``None`` when the directory predates this record. Absent is not the same as
+    a backbone whose BatchNormalization layers stayed in inference mode, and a
+    reader comparing two folds has to be able to tell them apart rather than
+    assuming the safe value — the same reasoning as `load_runtime`.
+
+    It lives here, beside the rest of the artifact layout, so that reading a
+    stored result never reaches the training stack.
+    """
+    path = Path(fold_dir) / FINE_TUNE_FILENAME
     if not path.exists():
         return None
     with open(path) as handle:

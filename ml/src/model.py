@@ -4,6 +4,8 @@ Uses MobileNetV2 pretrained on ImageNet as feature extractor.
 Rescaling layer baked into the model converts [0,1] input to [-1,1].
 """
 
+import math
+
 import tensorflow as tf
 from tensorflow import keras
 
@@ -88,15 +90,7 @@ def unfreeze_model(model: keras.Model, cfg: dict) -> keras.Model:
     unfreeze_layers = cfg["model"].get("unfreeze_layers", 50)
     fine_tune_lr = cfg["training"].get("fine_tune_learning_rate", 1e-5)
 
-    # Find the MobileNetV2 backbone by name pattern
-    backbone = None
-    for layer in model.layers:
-        if hasattr(layer, "layers") and "mobilenetv2" in layer.name.lower():
-            backbone = layer
-            break
-
-    if backbone is None:
-        raise RuntimeError("Could not find MobileNetV2 backbone in model")
+    backbone = _find_backbone(model)
 
     # Unfreeze the backbone
     backbone.trainable = True
@@ -105,6 +99,27 @@ def unfreeze_model(model: keras.Model, cfg: dict) -> keras.Model:
     for layer in backbone.layers[:-unfreeze_layers]:
         layer.trainable = False
 
+    # Return every BatchNormalization layer in the backbone to inference mode,
+    # which is Keras' own remedy for a partially unfrozen pretrained backbone.
+    # A trainable BatchNormalization layer runs in training mode during `fit`
+    # and overwrites the ImageNet moving mean and variance with statistics
+    # estimated from this dataset. Here that dataset is 221 photographs taken on
+    # one rig, one device and one lighting condition
+    # (`docs/ml/collection-protocol.md`), so the statistics it would learn
+    # describe a single capture configuration rather than the population the
+    # model is deployed against.
+    #
+    # Lowering `fine_tune_learning_rate` is not an alternative: the moving
+    # statistics are updated by the forward pass, not by the optimizer, so no
+    # learning rate governs them.
+    #
+    # The backbone only. `build_model` places a BatchNormalization layer in the
+    # classification head, and that one was initialized on this dataset and has
+    # no pretrained statistics to protect.
+    for layer in backbone.layers:
+        if isinstance(layer, keras.layers.BatchNormalization):
+            layer.trainable = False
+
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=fine_tune_lr),
         loss="categorical_crossentropy",
@@ -112,3 +127,55 @@ def unfreeze_model(model: keras.Model, cfg: dict) -> keras.Model:
     )
 
     return model
+
+
+def _find_backbone(model: keras.Model) -> keras.Model:
+    """The MobileNetV2 sub-model inside a model `build_model` produced."""
+    for layer in model.layers:
+        if hasattr(layer, "layers") and "mobilenetv2" in layer.name.lower():
+            return layer
+    raise RuntimeError("Could not find MobileNetV2 backbone in model")
+
+
+def fine_tune_report(model: keras.Model) -> dict:
+    """What unfreezing actually did to this model, for the fold's record.
+
+    Every field is counted off the model rather than restated from the config.
+    The config records the intent; this records the outcome, and the two are
+    only the same while `unfreeze_model` is correct — which is the thing worth
+    being able to see in an artifact rather than only in the code.
+
+    `trainable_batch_norm_layers` is the one that carries a claim: it is zero
+    whenever a fold trained under the fix above, and any other value in a stored
+    artifact says that fold's backbone statistics were overwritten, whatever the
+    code says today.
+
+    `backbone_unfrozen` is False for a fold whose refit ran too few epochs to
+    reach phase two, which is a real outcome of the nested epoch selection and
+    not an error.
+    """
+    backbone = _find_backbone(model)
+    batch_norms = [
+        layer
+        for layer in backbone.layers
+        if isinstance(layer, keras.layers.BatchNormalization)
+    ]
+    # `math.prod` over the declared shape rather than a TensorFlow op: this
+    # runs on a built model outside any graph, and a plain integer product
+    # cannot fail on a variable type a future Keras changes.
+    trainable_parameters = sum(
+        math.prod(weight.shape) for weight in model.trainable_weights
+    )
+    return {
+        "backbone_unfrozen": bool(backbone.trainable),
+        "backbone_layers": len(backbone.layers),
+        "trainable_backbone_layers": sum(
+            1 for layer in backbone.layers if layer.trainable
+        ),
+        "batch_norm_layers": len(batch_norms),
+        "trainable_batch_norm_layers": sum(
+            1 for layer in batch_norms if layer.trainable
+        ),
+        "trainable_parameters": trainable_parameters,
+        "non_trainable_parameters": int(model.count_params()) - trainable_parameters,
+    }
