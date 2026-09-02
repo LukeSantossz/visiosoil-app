@@ -31,12 +31,17 @@ from .dataset import (
     permute_labels_by_group,
     verify_images,
 )
-from .model import build_model, unfreeze_model
+from .model import build_model, fine_tune_report, unfreeze_model
 
 # Re-exported: the runtime record is part of the fold's artifact layout, which
 # `src.crossval` owns, and reading one must not reach the training stack. Kept
 # importable from here because this is the module that writes it.
-from .crossval import RUNTIME_FILENAME, load_runtime  # noqa: F401
+from .crossval import (  # noqa: F401
+    FINE_TUNE_FILENAME,
+    RUNTIME_FILENAME,
+    load_fine_tune,
+    load_runtime,
+)
 
 #: Separates a control run's permutation seed from every fold and repeat seed,
 #: so the permutation cannot coincide with the draw that produced the folds it
@@ -255,6 +260,13 @@ def train_fold(
     started = time.monotonic()
     model, _ = _fit_two_phase(cfg, split["train"], None, total_epochs=selected)
     seconds.append(time.monotonic() - started)
+
+    # Written from the refit model, which is the one whose predictions are
+    # scored. Recorded in the artifact rather than left implicit in the code so
+    # that a later change to `unfreeze_model` is visible in every fold produced
+    # after it, instead of only in a diff nobody reads beside a stored result.
+    with open(directory / FINE_TUNE_FILENAME, "w") as handle:
+        json.dump(fine_tune_report(model), handle, indent=2)
 
     model.save(directory / "model.keras")
     write_fold_predictions(

@@ -8,7 +8,7 @@ import pytest
 # failing to collect. In CI, where `ml/requirements.txt` is installed, it runs.
 tf = pytest.importorskip("tensorflow")
 
-from src.model import build_model, unfreeze_model  # noqa: E402
+from src.model import build_model, fine_tune_report, unfreeze_model  # noqa: E402
 
 
 @pytest.fixture
@@ -125,6 +125,14 @@ def test_unfreeze_model(mobilenetv2_model, mobilenetv2_config):
     np.testing.assert_allclose(np.sum(output), 1.0, atol=1e-5)
 
 
+def _backbone(model):
+    """The MobileNetV2 sub-model, found the way `unfreeze_model` finds it."""
+    for layer in model.layers:
+        if hasattr(layer, "layers") and "mobilenetv2" in layer.name.lower():
+            return layer
+    raise AssertionError("MobileNetV2 backbone not found")
+
+
 def test_unfreeze_model_layers_trainable(mobilenetv2_model, mobilenetv2_config):
     """unfreeze_model sets the last N backbone layers to trainable."""
     model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
@@ -147,3 +155,133 @@ def test_unfreeze_model_layers_trainable(mobilenetv2_model, mobilenetv2_config):
     # Earlier layers should be frozen
     frozen_head = [l for l in backbone.layers[:-unfreeze_layers] if not l.trainable]
     assert len(frozen_head) > 0, "No layers frozen in backbone head"
+
+
+def test_unfreeze_leaves_no_backbone_batch_norm_trainable(
+    mobilenetv2_model, mobilenetv2_config
+):
+    """No BatchNormalization layer inside the backbone is trainable afterwards.
+
+    A trainable BatchNormalization layer runs in training mode during `fit` and
+    overwrites its ImageNet moving statistics with statistics estimated from
+    this dataset, which was photographed on one rig under one lighting
+    condition. The damage is done by the forward pass rather than by the
+    optimizer, so no learning rate governs it.
+    """
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    backbone = _backbone(model)
+
+    batch_norms = [
+        layer
+        for layer in backbone.layers
+        if isinstance(layer, tf.keras.layers.BatchNormalization)
+    ]
+    trainable = [layer.name for layer in batch_norms if layer.trainable]
+    assert trainable == [], (
+        f"{len(trainable)} backbone BatchNormalization layer(s) are trainable "
+        f"after unfreezing: {trainable}"
+    )
+
+
+def test_the_backbone_carries_batch_norm_layers_to_freeze(mobilenetv2_model):
+    """The assertion above is not vacuous.
+
+    If a future Keras stops building MobileNetV2 with BatchNormalization layers,
+    or renames the class, the test that no backbone BatchNormalization layer is
+    trainable would pass over an empty list while checking nothing. This is the
+    companion that fails instead, and it is a test of its own rather than a line
+    inside that one so that the criterion has something named after it.
+    """
+    backbone = _backbone(mobilenetv2_model)
+    batch_norms = [
+        layer
+        for layer in backbone.layers
+        if isinstance(layer, tf.keras.layers.BatchNormalization)
+    ]
+    assert batch_norms, "the backbone carries no BatchNormalization layers"
+
+
+def test_unfreeze_leaves_the_head_batch_norm_trainable(
+    mobilenetv2_model, mobilenetv2_config
+):
+    """The classification head's own BatchNormalization is untouched.
+
+    `build_model` places one after the pooling layer. It has no pretrained
+    statistics to protect — it was initialized on this dataset — so freezing it
+    would be a different change from the one this fix makes, and a fix that
+    reached it would be over-broad.
+    """
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    head_batch_norms = [
+        layer
+        for layer in model.layers
+        if isinstance(layer, tf.keras.layers.BatchNormalization)
+    ]
+    assert head_batch_norms, "the head carries no BatchNormalization layer"
+    assert all(layer.trainable for layer in head_batch_norms)
+
+
+def test_unfreeze_keeps_the_declared_layer_count(
+    mobilenetv2_model, mobilenetv2_config
+):
+    """Freezing the BatchNormalization layers does not change what was unfrozen.
+
+    Every non-BatchNormalization layer in the tail the config names is still
+    trainable, and nothing outside that tail became trainable, so the fix is
+    confined to the layer type it is about.
+    """
+    unfreeze_layers = mobilenetv2_config["model"]["unfreeze_layers"]
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    backbone = _backbone(model)
+
+    tail = backbone.layers[-unfreeze_layers:]
+    head = backbone.layers[:-unfreeze_layers]
+    non_batch_norm_tail = [
+        layer
+        for layer in tail
+        if not isinstance(layer, tf.keras.layers.BatchNormalization)
+    ]
+
+    assert len(non_batch_norm_tail) < len(tail), "no BatchNormalization in the tail"
+    assert [layer.name for layer in non_batch_norm_tail if not layer.trainable] == []
+    assert [layer.name for layer in head if layer.trainable] == []
+
+
+def test_fine_tune_report_counts_the_model_not_the_config(
+    mobilenetv2_model, mobilenetv2_config
+):
+    """The report describes the model, so a change to `unfreeze_model` shows up.
+
+    Counted off the model rather than restated from the config: the config
+    records the intent, and this records the outcome.
+    """
+    before = fine_tune_report(mobilenetv2_model)
+    model = unfreeze_model(mobilenetv2_model, mobilenetv2_config)
+    after = fine_tune_report(model)
+
+    assert after["backbone_unfrozen"] is True
+    assert after["trainable_backbone_layers"] > 0
+    assert after["trainable_batch_norm_layers"] == 0
+    assert after["batch_norm_layers"] == before["batch_norm_layers"] > 0
+    assert after["trainable_parameters"] > before["trainable_parameters"]
+    assert (
+        after["trainable_parameters"] + after["non_trainable_parameters"]
+        == model.count_params()
+    )
+
+
+def test_fine_tune_report_records_a_backbone_that_never_unfroze(mobilenetv2_model):
+    """A fold whose refit never reached phase two is a real outcome, not an error.
+
+    The nested epoch selection can choose fewer epochs than `unfreeze_at_epoch`,
+    in which case `unfreeze_model` is never called and the backbone is still
+    frozen when the fold's predictions are made. The record has to say so, or a
+    reader comparing two folds cannot tell a protected backbone from one that
+    was never fine-tuned at all.
+    """
+    report = fine_tune_report(mobilenetv2_model)
+
+    assert report["backbone_unfrozen"] is False
+    assert report["trainable_backbone_layers"] == 0
+    assert report["trainable_batch_norm_layers"] == 0
+    assert report["batch_norm_layers"] > 0
