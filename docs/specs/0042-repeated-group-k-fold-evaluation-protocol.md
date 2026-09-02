@@ -37,7 +37,7 @@ This supersedes the split section of [SPEC 0033](0033-dataset-protocol-manifest-
   - `ml/tests/` — one test per criterion below; `test_manifest_splits.py` and `test_dataset.py` updated where they assert the single split, with each change recorded.
   - `docs/architecture/ml-implementation-map.md` — the C0/E0 rows cite this protocol; #183's MDE table is replaced by a pointer to `metrics.json`.
 - Does NOT include:
-  - E0 itself, its arms, or its decision rule (SPEC 0043).
+  - E0 itself, its arms, or its decision rule (SPEC 0044).
   - Any change under `lib/`.
   - The patch pipeline (SPEC 0037), the scale recomputation (A0), or the population-predictability probe (A0b).
   - A site-held-out split (no site column is populated).
@@ -85,7 +85,7 @@ This supersedes the split section of [SPEC 0033](0033-dataset-protocol-manifest-
 - **Assumes the four-class splittable pool is 77 groups (20 / 20 / 16 / 21)** as SPEC 0040 D6 and #203 measured. If A0's scale recomputation quarantines photographs, the pool shrinks and the recorded MDE grows; the protocol still holds, the numbers move.
 - **Assumes k = 5 keeps every class at ≥ 3 groups per test fold.** Argilosa at 16 gives 3–4; it is the binding class, and a further loss of Argilosa groups is what would force k = 4.
 - **Repeats are not independent estimates.** Every repeat tests the same 77 groups; the spread across repeats measures training variance, not sampling variance, and the Wilson interval is what carries the latter. Reading the repeat range as a confidence interval would be the same error this spec removes, in a new place.
-- **The paired MDE will stay large.** At 77 groups and typical discordance the recorded MDE is expected near 15–20 pp (planning estimate). This spec makes that visible; it cannot make it small. An E0 arm that beats another by less than the recorded MDE has not been shown to beat it, and SPEC 0043's decision rule is written on that basis.
+- **The paired MDE will stay large.** At 77 groups and typical discordance the recorded MDE is expected near 15–20 pp (planning estimate). This spec makes that visible; it cannot make it small. An E0 arm that beats another by less than the recorded MDE has not been shown to beat it, and SPEC 0044's decision rule is written on that basis.
 - **Cost.** Each deep-learning arm costs 5 × (inner selection + 1 refit) trainings per repeat, 25 refits per arm across repeats, on CPU. The descriptor arms cost seconds per fold. If CPU time becomes the constraint, R is reduced before k, and the reduction is recorded.
 - **Label noise is unverifiable** (ADR 0016) and is inside every fold on both sides. Nothing here separates a label error from a model error; the protocol only stops the model from being tuned on the photographs it is scored on.
 - **Invalidated if** a site column is ever populated with more than a handful of sites — a site-held-out protocol would then be the honest default, and this spec would be superseded rather than amended.
