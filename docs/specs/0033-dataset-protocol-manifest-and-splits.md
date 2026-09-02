@@ -1,6 +1,18 @@
 # SPEC: feat(ml): define the dataset collection protocol, its manifest, and versioned splits
 
 
+> **Superseded in part 2026-09-01: the split design below is replaced by**
+> [SPEC 0042](0042-repeated-group-k-fold-evaluation-protocol.md) **and**
+> [ADR 0020](../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md).
+> Repeated stratified group k-fold with nested selection takes the place of the
+> single `train`/`val`/`test` partition this specification designed, because the
+> 77 splittable sample groups leave about twelve in a 0.15 test fraction and no
+> experiment can return a verdict at that resolution. What this record decided
+> about the manifest, the admission gate, the immutable version, the rejection
+> of granulometry and moisture columns, and the group as the unit of splitting
+> all still governs; the successor keeps every one of them and changes only how
+> the groups are partitioned.
+>
 > **Revised 2026-08-25**, and this is the second revision — ADR 0014 forced the
 > first, and its own retirement forces this one. See
 > [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
