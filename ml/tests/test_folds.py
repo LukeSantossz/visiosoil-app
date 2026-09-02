@@ -770,16 +770,49 @@ def test_siltosa_groups_reach_no_fold(tmp_path):
     """
     manifest, folds = real_folds(tmp_path)
 
+    # A fold manifest keys a group as "<class>::<sample_id>", not as the bare
+    # sample id. Intersecting bare ids with those keys is empty whatever the
+    # truth, so the group ids are built in the manifest's own key space and the
+    # construction is proved below against a class that *is* partitioned.
+    def group_key(texture_class, sample_id):
+        return f"{texture_class}::{sample_id}"
+
     siltosa_groups = {
-        row.sample_id for row in manifest.rows if row.texture_class == "Siltosa"
+        group_key("Siltosa", row.sample_id)
+        for row in manifest.rows
+        if row.texture_class == "Siltosa"
     }
     assert siltosa_groups, "the ingested archive holds no Siltosa row"
 
+    # Anti-vacuity: the same construction over a configured class must find
+    # groups that are present. Without this the test above passes on a typo in
+    # the separator, which is exactly how it was first written.
+    arenosa_groups = {
+        group_key("Arenosa", row.sample_id)
+        for row in manifest.rows
+        if row.texture_class == "Arenosa"
+    }
+    assert arenosa_groups & set(folds["groups"]), (
+        "the group-key construction matches nothing, so the assertion below "
+        "would hold whatever the fold manifest contained"
+    )
+
+    assert not siltosa_groups & set(folds["groups"]), (
+        f"Siltosa group(s) in the fold pool: "
+        f"{sorted(siltosa_groups & set(folds['groups']))}"
+    )
     for repeat in range(REPEATS):
         assigned = set(folds["folds"][str(repeat)])
         leaked = sorted(siltosa_groups & assigned)
         assert not leaked, f"repeat {repeat} assigns Siltosa group(s) {leaked}"
 
+    # Read off the manifest's own records rather than off the key spelling, so
+    # the criterion does not rest on one string format alone.
+    assert not [
+        key
+        for key, group in folds["groups"].items()
+        if group["class"] == "Siltosa"
+    ]
     assert "Siltosa" not in folds["classes"]
 
 
