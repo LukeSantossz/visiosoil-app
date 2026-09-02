@@ -20,8 +20,10 @@ from src.dataset import (
     derive_repeat_seed,
     fold_split,
     inner_folds,
+    library_versions,
     load_folds,
     permute_labels_by_group,
+    rebalance_fold_assignment,
     selection_groups,
 )
 from src.manifest import (
@@ -510,3 +512,246 @@ def test_single_split_path_is_removed():
         "validate_splits_against_config",
     ):
         assert not hasattr(dataset_module, gone), f"{gone} still exists"
+
+
+# --- every class reaches every fold, under any scikit-learn version ---------
+
+
+def test_every_class_reaches_every_fold_test_side(tmp_path):
+    """A fold whose test side lacks a class makes its macro-F1 undefined for it.
+
+    `StratifiedGroupKFold` balances approximately and gives no such guarantee —
+    scikit-learn 1.5.2 drops a class from a fold on this very fixture where
+    1.8.0 does not — so the generator establishes it rather than hoping for it.
+    Asserted on a synthetic version so it runs where the archive is absent.
+    """
+    root = write_version(tmp_path)
+    _, _, folds = generate(tmp_path, root)
+
+    for repeat in range(REPEATS):
+        for fold in range(K):
+            held = {
+                folds["groups"][entry["group"]]["class"]
+                for entry in fold_split(folds, repeat, fold)["test"]
+            }
+            assert held == set(folds["classes"]), (
+                f"repeat {repeat} fold {fold} tests {sorted(held)}, missing "
+                f"{sorted(set(folds['classes']) - held)}"
+            )
+
+
+def test_fold_class_balance_holds_on_a_synthetic_version(tmp_path):
+    """The `folds_are_stratified_and_group_aware` tolerance, checkable in CI.
+
+    The criterion's own test reads the real manifest, which is git-ignored and
+    absent in CI. This asserts the same tolerance on a fixture that is always
+    present, so the balance is checked on the machine that runs the pins.
+    """
+    root = write_version(tmp_path)
+    _, _, folds = generate(tmp_path, root)
+
+    pooled = Counter(record["class"] for record in folds["groups"].values())
+    for repeat in range(REPEATS):
+        assignments = splittable_assignments(folds, repeat)
+        for fold in range(K):
+            held = Counter(
+                folds["groups"][group_id]["class"]
+                for group_id, index in assignments.items()
+                if index == fold
+            )
+            for texture_class, total in pooled.items():
+                assert abs(held[texture_class] - total / K) <= 1
+
+
+# --- the deterministic repair -----------------------------------------------
+
+
+def test_rebalance_moves_a_class_into_the_fold_that_lacks_it():
+    """The repair is what makes the guarantee hold, so it is tested directly.
+
+    Constructed rather than drawn: under the scikit-learn installed here the
+    generator happens not to produce an unbalanced assignment, and a repair that
+    is only exercised by luck of the library version is a repair nobody tested.
+    """
+    labels = {f"A::{i}": 0 for i in range(5)}
+    labels.update({f"B::{i}": 1 for i in range(5)})
+    # Every A group crammed into fold 0; B spread evenly.
+    assignment = {f"A::{i}": 0 for i in range(5)}
+    assignment.update({f"B::{i}": i for i in range(5)})
+
+    repaired = rebalance_fold_assignment(assignment, labels, splits=5)
+
+    for label in (0, 1):
+        held = Counter(
+            repaired[group] for group, value in labels.items() if value == label
+        )
+        assert [held.get(fold, 0) for fold in range(5)] == [1, 1, 1, 1, 1]
+
+
+def test_rebalance_leaves_an_already_balanced_assignment_untouched():
+    """A no-op where nothing is wrong: the seed still decides the assignment."""
+    labels = {f"A::{i}": 0 for i in range(10)}
+    assignment = {f"A::{i}": i % 5 for i in range(10)}
+
+    assert rebalance_fold_assignment(assignment, labels, splits=5) == assignment
+
+
+def test_rebalance_keeps_every_group_in_exactly_one_fold():
+    """A repair that duplicated or dropped a group would break the partition."""
+    labels = {f"A::{i}": 0 for i in range(7)}
+    labels.update({f"B::{i}": 1 for i in range(11)})
+    assignment = {group: 0 for group in labels}
+
+    repaired = rebalance_fold_assignment(assignment, labels, splits=5)
+
+    assert set(repaired) == set(labels)
+    assert all(0 <= fold < 5 for fold in repaired.values())
+    for label in (0, 1):
+        held = Counter(
+            repaired[group] for group, value in labels.items() if value == label
+        )
+        counts = [held.get(fold, 0) for fold in range(5)]
+        assert max(counts) - min(counts) <= 1
+
+
+def test_rebalance_is_deterministic():
+    """Two runs of one input give one output, or the folds are not reproducible."""
+    labels = {f"A::{i}": 0 for i in range(9)}
+    labels.update({f"B::{i}": 1 for i in range(6)})
+    assignment = {group: 2 for group in labels}
+
+    first = rebalance_fold_assignment(assignment, labels, splits=5)
+    second = rebalance_fold_assignment(assignment, labels, splits=5)
+
+    assert first == second
+
+
+def test_rebalance_spreads_a_class_of_exactly_k_groups_one_per_fold():
+    """The binding case: at n = k the only balanced answer is one each."""
+    labels = {f"A::{i}": 0 for i in range(5)}
+    assignment = {f"A::{i}": 0 for i in range(5)}
+
+    repaired = rebalance_fold_assignment(assignment, labels, splits=5)
+
+    assert sorted(repaired.values()) == [0, 1, 2, 3, 4]
+
+
+def test_rebalance_does_not_move_a_group_between_classes():
+    """Only the fold index moves; a group keeps the class it photographs."""
+    labels = {f"A::{i}": 0 for i in range(6)}
+    labels.update({f"B::{i}": 1 for i in range(6)})
+    assignment = {group: 0 for group in labels}
+
+    repaired = rebalance_fold_assignment(assignment, labels, splits=5)
+
+    assert set(repaired) == set(assignment)
+    assert all(isinstance(fold, int) for fold in repaired.values())
+
+
+# --- the library versions the assignment depends on -------------------------
+
+
+def test_the_fold_manifest_records_the_library_versions_it_was_generated_under(
+    tmp_path,
+):
+    """`StratifiedGroupKFold` assigns differently across scikit-learn versions.
+
+    The seed alone therefore does not reproduce a fold set, which is what the
+    spec's Reproducibility section promises; the version is the missing half.
+    """
+    import numpy
+    import sklearn
+
+    root = write_version(tmp_path)
+    _, splits_dir, _ = generate(tmp_path, root)
+
+    written = json.loads(
+        (splits_dir / FOLD_MANIFEST_FILENAME).read_text(encoding="utf-8")
+    )
+    assert written["library_versions"] == {
+        "scikit_learn": sklearn.__version__,
+        "numpy": numpy.__version__,
+    }
+    assert written["library_versions"] == library_versions()
+
+
+def test_loading_a_fold_manifest_from_another_library_version_warns(tmp_path):
+    """A warning and not a refusal: the assignment is read, never recomputed.
+
+    Refusing would make a stored, valid partition unusable after a dependency
+    bump, and regenerating it would move the folds — which is the one thing a
+    reader comparing against an existing result must not do silently.
+    """
+    root = write_version(tmp_path)
+    _, splits_dir, _ = generate(tmp_path, root)
+    path = splits_dir / FOLD_MANIFEST_FILENAME
+    written = json.loads(path.read_text(encoding="utf-8"))
+    written["library_versions"]["scikit_learn"] = "0.0.1-not-installed"
+    path.write_text(json.dumps(written), encoding="utf-8")
+
+    with pytest.warns(UserWarning, match="0.0.1-not-installed"):
+        loaded = load_folds(str(splits_dir))
+
+    assert loaded["folds"] == written["folds"], "the stored assignment is used as is"
+
+
+def test_loading_a_fold_manifest_from_this_library_version_is_silent(tmp_path):
+    """The warning has to mean something, so the matching case must not warn."""
+    import warnings
+
+    root = write_version(tmp_path)
+    _, splits_dir, _ = generate(tmp_path, root)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        load_folds(str(splits_dir))
+
+
+def test_loading_a_fold_manifest_that_records_no_versions_warns(tmp_path):
+    """Absent is not the same as matching, and must not read as it."""
+    root = write_version(tmp_path)
+    _, splits_dir, _ = generate(tmp_path, root)
+    path = splits_dir / FOLD_MANIFEST_FILENAME
+    written = json.loads(path.read_text(encoding="utf-8"))
+    del written["library_versions"]
+    path.write_text(json.dumps(written), encoding="utf-8")
+
+    with pytest.warns(UserWarning, match="records no library versions"):
+        load_folds(str(splits_dir))
+
+
+def test_rebalance_repairs_any_assignment_the_generator_could_produce():
+    """The version-independent argument that the CI failure cannot recur.
+
+    scikit-learn 1.5.2 cannot be installed on this interpreter, so its exact
+    partition is unavailable here. What can be shown is stronger and needs no
+    version: whatever assignment the generator hands over, the repair leaves
+    every class within one group of every other fold, and present in every fold
+    once the class clears k. The class shapes below are the real archive
+    (20/20/16/21) and the synthetic fixture (5 x 8).
+    """
+    import random
+
+    for shape in ((20, 20, 16, 21), (8, 8, 8, 8, 8), (5, 5, 5)):
+        labels = {
+            f"c{index}::{member:03d}": index
+            for index, size in enumerate(shape)
+            for member in range(size)
+        }
+        generator = random.Random(20260901)
+        for _ in range(200):
+            assignment = {group: generator.randrange(K) for group in labels}
+
+            repaired = rebalance_fold_assignment(assignment, labels, splits=K)
+
+            assert set(repaired) == set(labels), "a group was dropped or invented"
+            for index, size in enumerate(shape):
+                counts = Counter(
+                    repaired[group]
+                    for group, label in labels.items()
+                    if label == index
+                )
+                held = [counts.get(fold, 0) for fold in range(K)]
+                assert max(held) - min(held) <= 1, (shape, index, held)
+                if size >= K:
+                    assert min(held) >= 1, (shape, index, held)

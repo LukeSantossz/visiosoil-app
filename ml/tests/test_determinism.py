@@ -338,6 +338,21 @@ def test_seeding_can_opt_out_of_operator_determinism(monkeypatch):
     assert runtime["deterministic_ops"] is False
 
 
+def test_runtime_records_the_library_versions_the_fold_ran_under():
+    """The fold assignment is a function of the scikit-learn version as well as
+    of the seed, so a runtime record that omitted it would claim two runs were
+    comparable on the strength of a matching seed alone.
+    """
+    from src.dataset import library_versions
+
+    recorded = runtime_mode(True)["library_versions"]
+
+    assert recorded["scikit_learn"] == library_versions()["scikit_learn"]
+    assert recorded["numpy"] == library_versions()["numpy"]
+    assert recorded["tensorflow"]
+    assert recorded["keras"]
+
+
 def test_runtime_records_the_device_it_ran_on():
     """A comparison needs the device as well as the flag: two deterministic runs
     on different hardware are still not guaranteed bit-identical to each other.

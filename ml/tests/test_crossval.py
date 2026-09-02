@@ -635,3 +635,14 @@ def test_the_arm_metadata_says_whether_it_was_the_shuffled_control(tmp_path, fol
     assert metadata["shuffled_control"] is True
     assert metadata["arm"] == "shuffled_control"
     assert "predictions" not in metadata
+
+
+def test_the_metrics_name_the_stack_the_folds_were_drawn_under(folds):
+    """A result has to carry what reproduces its partition, not half of it."""
+    from src.dataset import library_versions
+
+    metrics = metrics_for(folds, correct_rate=0.8, seed=61)
+
+    protocol = metrics["protocol"]
+    assert protocol["seed"] == SEED
+    assert protocol["library_versions"] == library_versions()
