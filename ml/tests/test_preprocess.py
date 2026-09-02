@@ -273,8 +273,17 @@ def test_augmentation_layers_read_the_renamed_keys(sample_config_mobilenet):
     assert "RandomRotation" in by_type, "the rotation layer was not built"
     assert "RandomTranslation" in by_type, "the translation layer was not built"
 
+    # Keras normalises a scalar factor into the pair it spans, so the layer
+    # reports (-f, f) rather than f. Both bounds are asserted: the conversion
+    # is what this criterion is about, and reading only one of them would miss
+    # a sign error.
     rotation = sample_config_mobilenet["augmentation"]["rotation_degrees"]
-    assert by_type["RandomRotation"].factor == pytest.approx(rotation / 360.0)
+    turns = rotation / 360.0
+    lower, upper = by_type["RandomRotation"].factor
+    assert (lower, upper) == (pytest.approx(-turns), pytest.approx(turns))
+    # Stated in the unit the config uses, so the assertion reads as the claim:
+    # 15 degrees is a fifteen-degree rotation either way, not thirty.
+    assert upper * 360.0 == pytest.approx(rotation)
 
     # Absent the renamed keys, neither layer exists. Asserted rather than
     # assumed, because it is what makes a silent fallback impossible to miss.
