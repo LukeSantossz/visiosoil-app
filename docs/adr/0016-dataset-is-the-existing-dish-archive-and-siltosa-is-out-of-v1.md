@@ -43,6 +43,29 @@ title and body are left as they were approved; the corrections are here.
   high-frequency band. Their long-side ratios are 1.00 : 0.508 : 0.397, a spread
   of 2.52.
 
+**Amended again 2026-09-01: the dataset is closed.** The project owner states
+that the delivered archive is the whole of it and that the laboratory takes no
+part in the project in any aspect. Three things this record leaves open are
+therefore shut, and none of them is pending:
+
+- **There is no more rig time.** This record's central relief was that producing
+  the dataset had become photography rather than a collection campaign, over
+  material that already existed. That material is not available, so the 105
+  sample groups are a ceiling and not a starting point.
+- **The samples cannot be re-photographed.** Re-spreading the soil between
+  exposures would have been the strongest augmentation available to this
+  project — the granulometry is unchanged while the grain arrangement is a new
+  realisation, which no digital transform produces — and it requires the
+  physical dishes, which are at the laboratory.
+- **New soil cannot be labelled.** The class is the laboratory's own
+  classification, so material collected elsewhere carries no textural group.
+  Anything new can enter as unlabelled data only, which is what makes
+  self-supervised pretraining worth its cost rather than an optimisation.
+
+The decisions above are unaffected: the archive is still the dataset, the dish
+rim still gives scale, Siltosa is still out. What changes is that the
+alternatives this record weighed them against no longer exist.
+
 **One consequence this record should be read against, and does not itself
 resolve.** It excludes Siltosa for holding fewer than 30 samples. Under the
 corrected count **three of the four remaining classes are also below 30** —

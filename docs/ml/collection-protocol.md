@@ -1,5 +1,19 @@
 # Soil Dataset Collection Protocol
 
+> **Withdrawn 2026-09-01.** There will be no further collection and no
+> re-photography: the delivered archive is the whole dataset and the laboratory
+> takes no part in the project in any aspect
+> ([ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md),
+> amended). This document described a collection to be performed, and the
+> paragraph below already recorded that it was not performed this way; what is
+> new is that it will not be performed at all. It is kept because three of its
+> rules outlived it and are cited from elsewhere — the immutable-version rule,
+> the manifest as the authoritative record, and the admission verdicts — and
+> because a protocol deleted is a protocol whose citations stop resolving.
+>
+> Its counts also predate the corrected inventory: it says 194 samples where the
+> archive holds **105 sample groups over 221 photographs**.
+
 > **Superseded for the current dataset, 2026-08-25.** This document describes a
 > collection to be performed. It was not performed this way: 221 photographs of
 > 194 samples were delivered on 2026-08-25, already taken, and
