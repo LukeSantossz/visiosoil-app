@@ -307,6 +307,29 @@ def discard_staged_manifest(staged: Path) -> None:
     staged.unlink(missing_ok=True)
 
 
+#: Every texture class the delivered archive contains.
+#:
+#: Not the same list as ``cfg["classes"]``, and the distinction is the point.
+#: This is what a manifest row *may* say, fixed by what was delivered; the
+#: configured list is what the model *emits*, and ADR 0016 keeps Siltosa out of
+#: the first model while SPEC 0040 ingests every archive photograph including
+#: its three Siltosa sample groups. The two lists were identical by coincidence
+#: until the class list dropped to four, at which point reading a manifest
+#: against the model's classes rejected rows the archive was supposed to hold.
+#:
+#: Declared here rather than derived from ``ingest.ARCHIVE_CLASS_BY_FOLDER``,
+#: whose keys are delivered directory names: this module owns the manifest
+#: contract and must not import the ingester. They cannot drift — a test asserts
+#: the folder map's values are exactly these.
+ARCHIVE_CLASSES = (
+    "Arenosa",
+    "Media",
+    "Siltosa",
+    "Muito Argilosa",
+    "Argilosa",
+)
+
+
 def read_manifest(
     root: str | Path, classes: Sequence[str], *, check_files: bool = False
 ) -> Manifest:

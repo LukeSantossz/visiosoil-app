@@ -41,6 +41,7 @@ from .manifest import (
     format_composition,
     manifest_digest,
     manifest_path,
+    ARCHIVE_CLASSES,
     read_manifest_or_none,
     sample_ids_by_image,
     split_composition,
@@ -374,7 +375,11 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
     data = cfg["data"]
     evaluation = cfg["evaluation"]
     root = dataset_root(data["datasets_dir"], data["dataset_version"])
-    manifest = read_manifest_or_none(root, cfg["classes"])
+    # The archive's vocabulary and not the model's: the manifest holds every
+    # class SPEC 0040 ingested, and reading it against the four classes the
+    # model emits would reject the Siltosa rows ADR 0016 keeps in the version
+    # while excluding from the first model.
+    manifest = read_manifest_or_none(root, ARCHIVE_CLASSES)
 
     if manifest is None:
         raise FileNotFoundError(

@@ -11,10 +11,10 @@ So these tests go through the entry points. `src.evaluate.evaluate` and
 they run wherever the suite runs; `src.train.train` shares the same loader and
 is exercised in CI.
 
-The scenario that makes this urgent is not hypothetical. Dropping Siltosa from
-`config.yaml` takes the class list from five entries to four, and a `splits.json`
-drawn under five would keep assigning label 4 to a model that now has four
-outputs — a silent relabelling of every result.
+The scenario that makes this urgent is not hypothetical, and since SPEC 0046 it
+is not hypothetical at all: `config.yaml` now declares four classes, and a
+`splits.json` drawn under the previous five would keep assigning label 4 to a
+model that has four outputs — a silent relabelling of every result.
 """
 
 import json
@@ -173,8 +173,15 @@ def test_evaluate_refuses_when_the_dataset_the_folds_name_is_not_there(tmp_path)
 # --- the config agreement check, at the entry point -------------------------
 
 
-def test_evaluate_refuses_folds_drawn_under_a_different_class_list(tmp_path):
-    """The A8 scenario: five classes drawn, four configured, labels remapped."""
+def test_a_five_class_fold_manifest_is_refused(tmp_path):
+    """Five classes drawn, four configured, every label after Siltosa remapped.
+
+    Named after SPEC 0046's criterion, and no longer hypothetical: `ml/config.yaml`
+    now declares the four, so a `splits.json` left over from before that change
+    is exactly this case. It is refused rather than reused, which is what makes
+    "regenerate the folds after the class change, not before" a guard instead of
+    an instruction someone has to remember.
+    """
     build(tmp_path)
     config_path = write_config(tmp_path, classes=[c for c in CLASSES if c != "Siltosa"])
 

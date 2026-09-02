@@ -755,3 +755,89 @@ def test_rebalance_repairs_any_assignment_the_generator_could_produce():
                 assert max(held) - min(held) <= 1, (shape, index, held)
                 if size >= K:
                     assert min(held) >= 1, (shape, index, held)
+
+
+# --- SPEC 0046: the archive keeps Siltosa, the folds never see it ----------
+
+
+def test_siltosa_groups_reach_no_fold(tmp_path):
+    """The archive's Siltosa samples stay in the manifest and out of every fold.
+
+    ADR 0019 makes a dataset version a build product of the archive, so the
+    three groups are not deleted; ADR 0016 keeps the class out of the first
+    model, so they are not partitioned. Both halves are asserted here, because
+    asserting only the second would pass over a version that had lost the rows.
+    """
+    manifest, folds = real_folds(tmp_path)
+
+    # A fold manifest keys a group as "<class>::<sample_id>", not as the bare
+    # sample id. Intersecting bare ids with those keys is empty whatever the
+    # truth, so the group ids are built in the manifest's own key space and the
+    # construction is proved below against a class that *is* partitioned.
+    def group_key(texture_class, sample_id):
+        return f"{texture_class}::{sample_id}"
+
+    siltosa_groups = {
+        group_key("Siltosa", row.sample_id)
+        for row in manifest.rows
+        if row.texture_class == "Siltosa"
+    }
+    assert siltosa_groups, "the ingested archive holds no Siltosa row"
+
+    # Anti-vacuity: the same construction over a configured class must find
+    # groups that are present. Without this the test above passes on a typo in
+    # the separator, which is exactly how it was first written.
+    arenosa_groups = {
+        group_key("Arenosa", row.sample_id)
+        for row in manifest.rows
+        if row.texture_class == "Arenosa"
+    }
+    assert arenosa_groups & set(folds["groups"]), (
+        "the group-key construction matches nothing, so the assertion below "
+        "would hold whatever the fold manifest contained"
+    )
+
+    assert not siltosa_groups & set(folds["groups"]), (
+        f"Siltosa group(s) in the fold pool: "
+        f"{sorted(siltosa_groups & set(folds['groups']))}"
+    )
+    for repeat in range(REPEATS):
+        assigned = set(folds["folds"][str(repeat)])
+        leaked = sorted(siltosa_groups & assigned)
+        assert not leaked, f"repeat {repeat} assigns Siltosa group(s) {leaked}"
+
+    # Read off the manifest's own records rather than off the key spelling, so
+    # the criterion does not rest on one string format alone.
+    assert not [
+        key
+        for key, group in folds["groups"].items()
+        if group["class"] == "Siltosa"
+    ]
+    assert "Siltosa" not in folds["classes"]
+
+
+def test_fold_creation_succeeds_at_k_five(tmp_path):
+    """Every configured class holds at least k splittable groups, so k = 5 runs.
+
+    This is the refusal A8 existed to clear: `class {name} has only {count}
+    splittable sample group(s), but k = {k} folds need at least {k}`. With the
+    four-class list it does not fire, and every fold's test side holds one of
+    each — which is the property the refusal was protecting.
+    """
+    _, folds = real_folds(tmp_path)
+
+    assert folds["k"] == K
+    assert sorted(folds["classes"]) == sorted(V1_EVALUATION_CLASSES)
+
+    for repeat in range(REPEATS):
+        by_fold = {}
+        for group_id, index in splittable_assignments(folds, repeat).items():
+            by_fold.setdefault(index, Counter())[
+                folds["groups"][group_id]["class"]
+            ] += 1
+        assert sorted(by_fold) == list(range(K))
+        for index, held in by_fold.items():
+            missing = sorted(set(V1_EVALUATION_CLASSES) - set(held))
+            assert not missing, (
+                f"repeat {repeat} fold {index} holds no {missing}: {dict(held)}"
+            )

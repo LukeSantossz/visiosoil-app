@@ -10,6 +10,11 @@ abstract final class SoilTextureColors {
   /// [SoilTextureLabels.ordered].
   static const Map<String, Color> _colorMap = {
     'Arenosa': AppColors.soilSandy,
+    // Retained although the model no longer emits Siltosa (SPEC 0046). ADR 0016
+    // excludes it from the *first* model, not from the product, and the archive
+    // still holds its three sample groups. [all] takes its entries from
+    // [SoilTextureLabels.ordered], so this key reaches no caller until the
+    // label list carries the class again.
     'Siltosa': AppColors.soilSilt,
     'Media': AppColors.soilMedium,
     'Muito Argilosa': AppColors.soilVeryClay,

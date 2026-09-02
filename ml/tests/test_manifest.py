@@ -32,6 +32,10 @@ from src.manifest import (
     verify_split_digest,
 )
 
+from tests.support import real_manifest_or_skip  # noqa: E402
+
+#: The archive's vocabulary, mirroring `src.manifest.ARCHIVE_CLASSES`. A test
+#: below asserts they agree, so this local copy cannot drift.
 CLASSES = ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"]
 
 # A 1x1 JPEG header is enough wherever a test only needs the file to exist.
@@ -701,3 +705,58 @@ def test_read_manifest_rejects_a_row_inside_the_quarantine_directory(tmp_path):
         read_manifest(root, CLASSES)
 
     assert QUARANTINE_DIRNAME in str(error.value)
+
+
+def test_archive_vocabulary_covers_every_delivered_folder():
+    """`ARCHIVE_CLASSES` and the ingester's folder map cannot drift apart.
+
+    SPEC 0046 declares the archive's vocabulary in `src.manifest` rather than
+    deriving it from `src.ingest.ARCHIVE_CLASS_BY_FOLDER`, because this module
+    owns the manifest contract and must not import the ingester. Declared and
+    not derived means it can go stale, so this is the assertion that stops it.
+    """
+    from src.ingest import ARCHIVE_CLASS_BY_FOLDER
+    from src.manifest import ARCHIVE_CLASSES
+
+    assert set(ARCHIVE_CLASS_BY_FOLDER.values()) == set(ARCHIVE_CLASSES)
+    assert len(ARCHIVE_CLASSES) == len(set(ARCHIVE_CLASSES))
+
+
+def test_archive_vocabulary_is_a_superset_of_the_model_classes():
+    """A config may narrow the archive's classes; it may not invent one.
+
+    The model's list is chosen (ADR 0016 drops Siltosa) and the archive's is
+    delivered. A configured class the archive cannot contain would produce a
+    model output nothing in the dataset can ever train or score.
+    """
+    from src.config import load_config
+    from src.manifest import ARCHIVE_CLASSES
+
+    configured = load_config()["classes"]
+
+    assert set(configured) <= set(ARCHIVE_CLASSES), (
+        f"configured classes are not all in the archive: "
+        f"{sorted(set(configured) - set(ARCHIVE_CLASSES))}"
+    )
+    assert "Siltosa" not in configured, "ADR 0016 keeps Siltosa out of the model"
+
+
+def test_manifest_reading_accepts_a_siltosa_row_under_the_four_class_config():
+    """The archive's rows survive a class list that does not emit them.
+
+    This is the failure SPEC 0046 exists to prevent: reading the manifest
+    against the model's four classes rejects the six Siltosa rows SPEC 0040
+    ingested, and every entry point that reads a manifest fails on a dataset
+    that is exactly as it should be.
+    """
+    from src.config import load_config
+    from src.manifest import ARCHIVE_CLASSES, read_manifest
+
+    manifest = real_manifest_or_skip()
+    classes_present = {row.texture_class for row in manifest.rows}
+
+    assert "Siltosa" in classes_present, "the archive fixture holds no Siltosa"
+    assert "Siltosa" not in load_config()["classes"]
+    # The point restated as a call: the same read, against the same vocabulary,
+    # is what every production entry point now performs.
+    assert read_manifest(manifest.root, ARCHIVE_CLASSES).rows

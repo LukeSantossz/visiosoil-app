@@ -5,11 +5,18 @@ import 'package:visiosoil_app/models/soil_texture_labels.dart';
 
 void main() {
   group('SoilTextureLabels', () {
-    test('declares the five classes in model output order', () {
+    // Named after SPEC 0046's `dart_label_list_matches_the_config_order`. The
+    // literal is spelled out rather than derived so that a silent reordering,
+    // or a class quietly returning, fails here.
+    test('dart label list matches the config order', () {
       expect(
         SoilTextureLabels.ordered,
-        ['Arenosa', 'Media', 'Siltosa', 'Muito Argilosa', 'Argilosa'],
+        ['Arenosa', 'Media', 'Muito Argilosa', 'Argilosa'],
       );
+    });
+
+    test('the label list carries no class the first model does not emit', () {
+      expect(SoilTextureLabels.ordered, isNot(contains('Siltosa')));
     });
 
     // `same` rather than `equals` records the intent, but it is no stronger:
@@ -31,7 +38,7 @@ void main() {
       );
     });
 
-    test('SoilTextureColors covers exactly the label set', () {
+    test('colour map covers exactly the label list', () {
       expect(
         SoilTextureColors.all.map((entry) => entry.key).toSet(),
         SoilTextureLabels.ordered.toSet(),

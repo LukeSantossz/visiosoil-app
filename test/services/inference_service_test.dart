@@ -195,7 +195,7 @@ void main() {
 
   group('InferenceService.resolveTextureLabel', () {
     test('returns the label for a valid index when the class count matches', () {
-      expect(InferenceService.resolveTextureLabel(2, 5), 'Siltosa');
+      expect(InferenceService.resolveTextureLabel(2, 4), 'Muito Argilosa');
     });
 
     test('returns null when the class count mismatches the labels', () {

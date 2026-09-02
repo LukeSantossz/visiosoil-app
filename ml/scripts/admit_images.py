@@ -40,6 +40,7 @@ from src.manifest import (  # noqa: E402
     commit_staged_manifest,
     dataset_root,
     discard_staged_manifest,
+    ARCHIVE_CLASSES,
     read_manifest,
     stage_manifest,
 )
@@ -87,7 +88,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.root
             else dataset_root(data["datasets_dir"], version)
         )
-        manifest = read_manifest(root, cfg["classes"], check_files=True)
+        # The archive's vocabulary: admission reads what the manifest holds,
+        # which includes the classes the model does not emit.
+        manifest = read_manifest(root, ARCHIVE_CLASSES, check_files=True)
     except (FileNotFoundError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 2

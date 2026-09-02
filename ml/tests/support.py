@@ -20,8 +20,14 @@ requires_tensorflow = pytest.mark.skipif(
     reason="TensorFlow is not installed; CI runs these on Python 3.12",
 )
 
-#: The five Embrapa groups, spelled as `ml/config.yaml` spells them. The CLIs
-#: read their class list from that file, so a fixture has to agree with it.
+#: The five Embrapa groups the delivered archive contains — the vocabulary a
+#: manifest row may use, and what a fixture manifest is built from.
+#:
+#: Not the model's class list. Since SPEC 0046 `ml/config.yaml` declares four,
+#: and these two are different questions: this is what the archive holds, that
+#: is what the model emits. Mirrors `src.manifest.ARCHIVE_CLASSES`, and
+#: `test_manifest.py` asserts the two agree so a fixture cannot drift from the
+#: contract it is meant to exercise.
 CLASSES = ["Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa"]
 
 MANIFEST_COLUMNS = (
@@ -158,21 +164,21 @@ REAL_DATASET_ROOT = (
     Path(__file__).resolve().parents[1] / "data" / "datasets" / "v1"
 )
 
-#: The classes the v1 protocol evaluates. Siltosa holds three sample groups and
-#: is excluded from the first model by ADR 0016, so it is not in the pool the
-#: fold generator partitions. `ml/config.yaml` still lists five classes: aligning
-#: it is roadmap item A4, which also has to move the Dart label list, and is not
-#: this spec's work.
+#: The classes the v1 protocol evaluates, which since SPEC 0046 is also what
+#: `ml/config.yaml` declares. Siltosa holds three sample groups against the five
+#: that `evaluation.k` needs and is excluded from the first model by ADR 0016,
+#: so it is not in the pool the fold generator partitions — while its rows stay
+#: in the manifest, because a dataset version is a build product of the archive.
 V1_EVALUATION_CLASSES = ["Arenosa", "Media", "Muito Argilosa", "Argilosa"]
 
 
 def real_manifest_or_skip(classes=None):
     """Return the ingested v1 manifest, skipping the test when it is absent.
 
-    Read against all five declared classes, because `read_manifest` rejects a
-    row whose class is not declared and the archive holds six Siltosa rows.
-    Narrowing to the classes the protocol evaluates is `class_images`' job, at
-    the point the pool is built.
+    Read against the archive's five classes, because `read_manifest` rejects a
+    row whose class is not in the vocabulary it is given and the archive holds
+    six Siltosa rows. Narrowing to the four classes the model emits is
+    `class_images`' job, at the point the pool is built.
     """
     from src.manifest import read_manifest
 

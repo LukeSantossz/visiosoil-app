@@ -87,8 +87,26 @@ def test_fold_composition_is_reported(tmp_path, validate_dataset, capsys):
     assert "test:" in out
     assert "class:" in out
     assert "source_group:" in out
-    for texture_class in CLASSES:
+    # The configured classes and not the archive's five: a composition reports
+    # the pool, and Siltosa is in the manifest but in no fold (SPEC 0046).
+    for texture_class in cfg["classes"]:
         assert texture_class in out
+    assert "Siltosa" not in out
+
+
+def _admit_args(root, tmp_path, *extra):
+    """Admission arguments that isolate the immutability check to `tmp_path`.
+
+    `--splits-dir` defaults to `data.splits_dir`, which is the repository's own
+    `ml/data/splits/`. A test that omits it builds its dataset in `tmp_path` and
+    then asks whether a split *somewhere else entirely* claims that version, so
+    the whole admission suite turns red the moment a developer generates a fold
+    manifest for v1 — which SPEC 0046's own Reproducibility tells them to do.
+
+    The production default is right; it is the test that was reaching outside
+    its fixture.
+    """
+    return ["--root", str(root), "--splits-dir", str(tmp_path / "splits"), *extra]
 
 
 def parse_class_counts(section):
@@ -144,10 +162,13 @@ def test_fold_composition_holds_every_class_in_every_fold(
         # One `test:` per block, so the section cannot run into the next fold.
         assert block.count("test:") == 1, block
         held = parse_class_counts(block.split("test:")[1])
-        for texture_class in CLASSES:
+        for texture_class in cfg["classes"]:
             assert held.get(texture_class, 0) >= 1, (
                 f"{texture_class} is absent from a fold's test side: {held}"
             )
+        assert "Siltosa" not in held, (
+            f"a class the model does not emit reached a test side: {held}"
+        )
 
 
 def test_validator_reports_a_schema_problem_and_exits_nonzero(
@@ -235,16 +256,22 @@ def test_validator_reports_a_class_with_no_photographs(
 
     Left unreported it is worse than thin data: the class list is the model's
     output order, so a class at zero reindexes every label in `splits.json`.
+
+    The class removed is a **configured** one. Removing Siltosa proves nothing
+    since SPEC 0046 — the model does not emit it, so a version holding none of
+    it is valid, and this test passed for that reason rather than for the one
+    it was written for.
     """
+    absent_class = "Arenosa"
     root = write_version(tmp_path)
     manifest = root / "manifest.csv"
     kept = [
         line
         for line in manifest.read_text(encoding="utf-8").splitlines()
-        if ",Siltosa," not in line
+        if f",{absent_class}," not in line
     ]
     manifest.write_text("\n".join(kept) + "\n", encoding="utf-8")
-    for orphan in (root / "images").glob("Siltosa-*"):
+    for orphan in (root / "images").glob(f"{absent_class}-*"):
         orphan.unlink()
 
     code = validate_dataset.main(
@@ -252,7 +279,7 @@ def test_validator_reports_a_class_with_no_photographs(
     )
 
     assert code == 1
-    assert "Siltosa" in capsys.readouterr().err
+    assert absent_class in capsys.readouterr().err
 
 
 def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset):
@@ -261,16 +288,27 @@ def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset
     `src.train` reuses any existing `splits.json` and the file is gitignored, so
     a validator that wrote there by default would silently replace an artefact
     the next training run consumes.
+
+    Asserted as *unchanged* rather than *absent*. Absent was the weaker claim and
+    the wrong one twice over: it held only on a machine where no fold manifest
+    had ever been generated — which SPEC 0046's own workflow tells a developer to
+    do — and it could never fail on the overwrite this docstring names, because a
+    file that is replaced still exists.
     """
     from src.config import load_config, resolve_paths
 
     configured = Path(resolve_paths(load_config())["data"]["splits_dir"])
+    published = configured / "splits.json"
+    before = published.read_bytes() if published.exists() else None
     root = write_version(tmp_path)
 
     code = validate_dataset.main(["--root", str(root)])
 
     assert code == 0
-    assert not (configured / "splits.json").exists()
+    after = published.read_bytes() if published.exists() else None
+    assert after == before, (
+        f"the validator wrote to the configured splits directory {configured}"
+    )
 
 
 def test_validator_reports_a_version_that_cannot_be_folded(
@@ -304,7 +342,7 @@ def test_admit_defaults_to_a_dry_run(tmp_path, admit_images, capsys):
     )
     before = (root / "manifest.csv").read_bytes()
 
-    code = admit_images.main(["--root", str(root)])
+    code = admit_images.main(_admit_args(root, tmp_path))
 
     assert (root / "manifest.csv").read_bytes() == before
     assert not (root / REJECTED_FILENAME).exists()
@@ -321,7 +359,7 @@ def test_admit_writes_the_manifest_and_the_refusal_report(
         tmp_path, {"S1": [("dish", noise_image()), ("paper", flat_image())]}
     )
 
-    code = admit_images.main(["--root", str(root), "--write"])
+    code = admit_images.main(_admit_args(root, tmp_path, "--write"))
 
     reloaded = read_manifest(root, CLASSES)
     assert [row.image for row in reloaded.rows] == ["images/S1_dish.png"]
@@ -341,7 +379,7 @@ def test_admit_exits_zero_when_every_candidate_is_admitted(
         {"S1": [("dish", noise_image()), ("paper", noise_image(seed=11))]},
     )
 
-    code = admit_images.main(["--root", str(root), "--write"])
+    code = admit_images.main(_admit_args(root, tmp_path, "--write"))
 
     assert code == 0
     assert len(read_manifest(root, CLASSES).rows) == 2
@@ -361,7 +399,7 @@ def test_admit_quarantines_a_refused_image(tmp_path, admit_images, validate_data
         },
     )
 
-    admit_images.main(["--root", str(root), "--write"])
+    admit_images.main(_admit_args(root, tmp_path, "--write"))
 
     assert not (root / "images" / "S1_paper.png").exists()
     # The path under quarantine mirrors the path the row declared, rather than
@@ -538,7 +576,7 @@ def test_admit_reports_an_invalid_manifest_without_analyzing(
         encoding="utf-8",
     )
 
-    code = admit_images.main(["--root", str(root), "--write"])
+    code = admit_images.main(_admit_args(root, tmp_path, "--write"))
 
     assert code == 2
     assert "Barro" in capsys.readouterr().err

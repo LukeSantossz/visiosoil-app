@@ -2,10 +2,21 @@ project:
   name: "visiosoil-soil-classifier"
   version: 2
 
+# The classes the model emits, in output order. Four, not five: ADR 0016 keeps
+# Siltosa out of the first model, and SPEC 0042's k = 5 needs at least five
+# splittable sample groups per class where Siltosa has three.
+#
+# This is not the archive's vocabulary. The v1 manifest still holds every
+# Siltosa row SPEC 0040 ingested; `src.manifest.ARCHIVE_CLASSES` is what a
+# manifest may contain, and this is what the model emits. Dropping a class here
+# excludes its groups from the fold pool and leaves the archive's record intact.
+#
+# Output index 2 means Muito Argilosa from SPEC 0046 onward, and meant Siltosa
+# before it. Nothing produced under the five-class list is comparable to
+# anything produced after.
 classes:
   - "Arenosa"
   - "Media"
-  - "Siltosa"
   - "Muito Argilosa"
   - "Argilosa"
 
