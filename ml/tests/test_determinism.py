@@ -24,8 +24,10 @@ from src.dataset import derive_repeat_seed  # noqa: E402
 from src.model import build_model  # noqa: E402
 from src.preprocess import build_augmentation_layer  # noqa: E402
 from src.train import (  # noqa: E402
+    FINE_TUNE_FILENAME,
     RUNTIME_FILENAME,
     control_seed,
+    load_fine_tune,
     load_runtime,
     runtime_mode,
     seed_everything,
@@ -204,6 +206,103 @@ def test_train_persists_the_runtime_beside_the_fold_artifacts(tmp_path, monkeypa
         "device": "CPU",
         "gpu_count": 0,
     }
+
+
+class _FakeModel:
+    """Stands in for the refit model, which this test does not need to train."""
+
+    def save(self, path):
+        self.saved_to = path
+
+
+def test_train_persists_what_unfreezing_did_beside_the_fold_artifacts(
+    tmp_path, monkeypatch
+):
+    """Written from the refit model, before that model is saved.
+
+    The value itself is `fine_tune_report`'s job and is asserted against a real
+    MobileNetV2 in `test_model_output.py`. What is asserted here is the wiring:
+    that a fold writes the record at all, and writes it for the model whose
+    predictions the fold is scored on rather than for an inner-fold model.
+    """
+    # Distinct groups on the two sides, or `assert_selection_is_nested` refuses
+    # the fold before any of this is reached — which is the behaviour it should
+    # have, and not what this test is about.
+    training = [
+        {"path": "a.jpg", "group": "g1", "label": 0, "class": "A"},
+        {"path": "b.jpg", "group": "g2", "label": 1, "class": "B"},
+    ]
+    held_out = [
+        {"path": "c.jpg", "group": "g3", "label": 0, "class": "A"},
+        {"path": "d.jpg", "group": "g4", "label": 1, "class": "B"},
+    ]
+    reported = {"backbone_unfrozen": True, "trainable_batch_norm_layers": 0}
+    refit_models = []
+
+    monkeypatch.setattr(
+        train_module,
+        "seed_everything",
+        lambda seed, deterministic_ops=None: {
+            "deterministic_ops": True,
+            "device": "CPU",
+            "gpu_count": 0,
+        },
+    )
+    monkeypatch.setattr(
+        train_module,
+        "fold_split",
+        lambda *a, **k: {"train": list(training), "test": list(held_out)},
+    )
+    monkeypatch.setattr(
+        train_module,
+        "inner_folds",
+        lambda *a, **k: [{"train": training[:1], "val": training[1:]}],
+    )
+    monkeypatch.setattr(train_module, "verify_images", lambda *a, **k: None)
+
+    def _fit(cfg, train_entries, val_entries, total_epochs=None):
+        model = _FakeModel()
+        if val_entries is None:
+            refit_models.append(model)
+        return model, {"val_accuracy": [0.1, 0.9]}
+
+    monkeypatch.setattr(train_module, "_fit_two_phase", _fit)
+    monkeypatch.setattr(train_module, "_predict", lambda *a, **k: [])
+
+    def _report(model):
+        assert refit_models and model is refit_models[-1], (
+            "the record was taken from a model other than the refit"
+        )
+        assert not hasattr(model, "saved_to"), (
+            "the record was written after the model was saved"
+        )
+        return reported
+
+    monkeypatch.setattr(train_module, "fine_tune_report", _report)
+
+    from src import crossval as crossval_module
+
+    monkeypatch.setattr(crossval_module, "write_fold_predictions", lambda *a, **k: None)
+    monkeypatch.setattr(crossval_module, "write_fold_cost", lambda *a, **k: None)
+
+    arm_dir = tmp_path / "models" / "vtest" / "cnn"
+    train_module.train_fold(
+        _fold_config(tmp_path),
+        {"seed": SEED},
+        arm_dir=arm_dir,
+        arm="cnn",
+        repeat=0,
+        fold=1,
+    )
+
+    fold_dir = arm_dir / "repeat-0" / "fold-1"
+    assert (fold_dir / FINE_TUNE_FILENAME).exists()
+    assert load_fine_tune(fold_dir) == reported
+
+
+def test_load_fine_tune_reports_absence_rather_than_the_safe_value(tmp_path):
+    """A fold produced before this record exists must not read as a clean one."""
+    assert load_fine_tune(tmp_path) is None
 
 
 # --- what the seed has to make reproducible --------------------------------
