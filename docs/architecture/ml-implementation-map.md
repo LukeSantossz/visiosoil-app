@@ -46,21 +46,55 @@ Last updated: 2026-08-25.
 > per-fold spread as uncertainty, ADR 0020 wins.
 >
 > Where this revision and the text below disagree, this revision wins.
+>
+> **Revised 2026-09-02.** This map's identifiers are the project's only roadmap
+> vocabulary ([SPEC 0049](../specs/0049-one-roadmap-vocabulary.md)). The
+> 2026-09-01 method study used a parallel set in which `A1` and `A4` named
+> different work from the items below, and six issues were opened under it. Those
+> names are retired; this table says where each one's work lives now.
+>
+> | Retired name | Work | Now |
+> |---|---|---|
+> | A8 | four-class list alignment | **done** — [SPEC 0046](../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md), #211 |
+> | A0 | recompute the canonical millimetres per pixel | **B2** (#212) |
+> | A0b | capture-population predictability probe | **C0** (#213) |
+> | A1 *(study)* | Python 3.12 environment with the pinned TensorFlow | **B1** (#214) |
+> | A4 *(study)* | scale-normalised greyscale patch pipeline, SPEC 0037 | **A6**, new below |
+> | A9 | on-device patch-batch latency per encoder | **A7**, new below (#215) |
+> | A11 | `spec.json` as the runtime contract | **A4** (#79) |
+> | E0 | four-arm feasibility gate, SPEC 0044 | **C0** (#216) |
+>
+> Three corrections to the 2026-08-25 revision above, which this one supersedes
+> where they disagree:
+>
+> - **The label alignment it calls "A4" was not A4.** It was the class-list work
+>   now named in the table, and it is done. A4 is the `spec.json` runtime
+>   contract, below, and is still open.
+> - **C0's E0 half is no longer issue #197.** That issue is closed; the gate is
+>   specified by [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md) and
+>   tracked as #216.
+> - **Of the blockers it lists, #196 and #179 are closed.** #178 and #180 remain,
+>   and #180 is folded into A6.
 
 ## 1. What we are building
 
 An agronomist photographs soil, the app decides whether the photograph is usable
-before it is analysed, classifies it into one of the five Embrapa textural
-groups with a probability the number actually justifies, says so honestly when it
-cannot decide, and records enough about the analysis that an old result can still
-be interpreted a year later. All of it offline.
+before it is analysed, classifies it into one of the four Embrapa textural groups
+the model emits with a probability the number actually justifies, says so
+honestly when it cannot decide, and records enough about the analysis that an old
+result can still be interpreted a year later. All of it offline.
+
+Four and not five: the delivered archive holds five groups and
+[ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+keeps Siltosa out of the first model, so the archive's vocabulary and the model's
+class list are two different lists ([SPEC 0046](../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)).
 
 Concretely, the end state is:
 
 | Stage | End state |
 |---|---|
 | Capture | The declared protocol is enforced, not merely described. One criteria set (SPEC 0030) governs both what enters the dataset and what the app accepts, so the two populations cannot drift apart **in photographic quality**. They still differ in subject: collection is bench-prepared, air-dried and sieved, deployment is in situ. Shared admission criteria cannot close that, and ADR 0009 records why |
-| Region of interest | The largest centred square after baking EXIF orientation, applied identically in Python and Dart. No aspect-ratio squashing, no segmentation, no detector (ADR 0009) |
+| Region of interest | A grid of fixed-size greyscale patches at a known physical scale, applied identically in Python and Dart ([ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md), SPEC 0037, item A6). No aspect-ratio squashing, no segmentation, no detector (ADR 0009). It was the largest centred square until ADR 0018 |
 | Inference | TFLite in an isolate (ADR 0008), reading labels, input size, normalization, and band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart |
 | Result | A calibrated distribution over all classes plus a status, not a single label. `failed` when the analysis could not run, and the UI derives its verdict bands from top-1 and the top1−top2 margin. `rejectedOod` is a **reserved** status for the "not soil" signal — whether it is produced by a trained negative class or by the quality gate plus a threshold is open, informed by E12 |
 | Persistence | Status, quality flags, model version, and dataset version stored beside the record (schema v5) |
@@ -248,6 +282,40 @@ by explicit action.
 - No network client is added.
 
 ---
+
+### A6 — Scale-normalised greyscale patch pipeline
+
+**Record:** [SPEC 0037](../specs/0037-scale-normalised-greyscale-patch-pipeline.md),
+gate-approved. **Depends on:** B2's scale recomputation (#212).
+**Gate for:** C0's arms that consume patches.
+
+The preprocessing on both sides: the model sees a grid of fixed-size greyscale
+patches at a known physical scale rather than a resized frame
+([ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
+and the same grid is produced in Python for training and in Dart for inference.
+
+The 2026-08-25 revision above said "a new item sits between A4 and B3" without
+naming it; this is that item. The method study called it A4, which collided with
+A4 below — the collision [SPEC 0049](../specs/0049-one-roadmap-vocabulary.md)
+removes.
+
+**Absorbs #180**, the anti-aliasing defect on both downsample paths: the
+resample to canonical scale is the downsample that matters, and fixing it
+anywhere else would be fixing a path this item replaces.
+
+### A7 — On-device patch-batch latency budget
+
+**Record:** none yet; the measurement is a document. **Depends on:** A6 for the
+patch count, and a physical device. **Gate for:** C0's encoder-adoption rule.
+
+What a batch of patches costs per candidate encoder on the reference device —
+mid-range Android, at least 4 GB of RAM. Tracked as #215.
+
+It is here rather than inside C0 because it is an application measurement that
+needs hardware rather than an experiment over the dataset, and because
+[SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
+it as one of four separately auditable conditions. **Human-owned**: no agent can
+run it.
 
 ## 4. Lane B — training pipeline
 
@@ -476,22 +544,36 @@ Not scheduled.
 ## 6. Order of execution
 
 ```
-A1 (0030) ── done ──┬─ their item 6, the capture gate
-                    └─ B2 ── dataset collection (human, weeks)
-                                                     │
-B1 (0032) ──────────── B2 ───────────────────────────┤
-                                                     │
-their item 1 ── A4 ─┬─ B3                            │
-                    └─ A5                            │
-                                                     ▼
-                                          C0 ── GATE ── C1 ── C2 ── C3 ── release
+A1 (0030) ── done ──── their item 6, the capture gate
+
+B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
+                    │                          │
+B2 (0033/0040) ─────┴─ B2 scale (#212) ── A6 ──┤
+                                               │
+                       C0 probe (#213)  ───────┤
+                       A7 latency (#215) ──────┤
+                                               ▼
+                                    C0 ── GATE ── C1 ── C2 ── C3 ── release
+
+their item 1 ── A4 ─┬─ B3
+                    └─ A5
 ```
 
-Recommended immediate order for this workstream: **B1 → B2 → A4 → B3 → A5**,
-with collection starting the moment B2 lands. B1 first because it is the only
-item with no external dependency at all and E0 cannot be interpreted without it.
-B2 next because it starts a human process that no amount of code shortens. A4
-waits on the UI/UX terminal's item 1, which makes the label list single-source.
+**There is no collection step.** ADR 0016 closed the dataset at the delivered
+archive and SPEC 0041 withdrew the collection premise, so the weeks of human
+process that used to sit on this critical path are gone. The archive is ingested
+as `v1` (SPEC 0040) and folds generate at k = 5 (SPEC 0046).
+
+Recommended immediate order for this workstream: **B1's environment and B2's
+scale recomputation in parallel, then A6, then C0's probe, then the C0 gate** —
+issues #214 and #212, then SPEC 0037, then #213, then #216. The two first because
+neither depends on anything and both block everything after them: nothing can be
+trained without an environment, and the patch pipeline cannot be built without
+the scale it normalises to. A7 (#215) runs whenever a device is available; it is
+not on the path until the gate's decision rule reads it.
+
+A4 waits on the UI/UX terminal's item 1, which makes the label list
+single-source. It is off the critical path to the gate.
 
 ## 7. Decisions required from you
 

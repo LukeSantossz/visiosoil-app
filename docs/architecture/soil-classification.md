@@ -305,7 +305,7 @@ Class gaps are visible from §4.2. Scenario gaps are the ones no counter exposes
 
 The two total gaps deserve naming. There is no "not soil" class anywhere in
 `config.yaml`, so a photograph of a wall is guaranteed to be assigned one of the
-five textural classes. And there is no out-of-distribution example set, so no
+four textural classes the model emits. And there is no out-of-distribution example set, so no
 rejection threshold can be calibrated against anything.
 
 ---
@@ -979,8 +979,9 @@ class ClassificationResult {
 }
 ```
 
-- **Possible classes:** the five Embrapa textural groups, ordered as declared in
-  `spec.json`. A sixth, negative class would never appear in `distribution` —
+- **Possible classes:** the four Embrapa textural groups the model emits, ordered
+  as declared in `spec.json`. The archive holds five; ADR 0016 keeps Siltosa out
+  of the first model and SPEC 0046 makes the two lists separate. A sixth, negative class would never appear in `distribution` —
   when it wins, the status is `rejectedOod`. This is the signal
   `06-capture-experience.md` §3 correctly reports as absent today, and it is
   this terminal's job to supply it.
