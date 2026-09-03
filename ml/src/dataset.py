@@ -980,13 +980,34 @@ def build_dataset(
 
     ds = tf.data.Dataset.from_tensor_slices((paths, labels))
 
-    if shuffle:
-        ds = ds.shuffle(buffer_size=len(paths), seed=cfg["data"]["seed"])
-
     ds = ds.map(
         lambda p, l: _parse_image(p, l, cfg),
         num_parallel_calls=tf.data.AUTOTUNE,
     )
+
+    # Decode once per fit rather than once per epoch (SPEC 0050). Measured at
+    # 5.47 s per epoch over one fold's 179 photographs, and it did not fall on
+    # repeat, which is about nine hours of redundant decoding per arm at
+    # k = 5, R = 5.
+    #
+    # The position is forced from both sides. It is **after** the decode, which
+    # is the deterministic, expensive, repeated work and a pure function of the
+    # path. It is **before** the augmentation, which must draw again every
+    # epoch: a cache below it would freeze one set of augmented images for the
+    # whole fit while the config still declared augmentation.
+    ds = ds.cache()
+
+    # Shuffled **after** the cache, and not before it as this pipeline used to
+    # be. `cache()` records the order of what passes through it, so a shuffle
+    # upstream would have its first epoch's order replayed by every epoch after
+    # — a shuffle that looks configured, appears to work in epoch one, and is
+    # inert from epoch two.
+    #
+    # This is what makes the change alter results: for a given seed, a
+    # photograph lands in a different batch than it did before. Reproducibility
+    # is unaffected. No trained result existed when this landed.
+    if shuffle:
+        ds = ds.shuffle(buffer_size=len(paths), seed=cfg["data"]["seed"])
 
     if augment:
         aug_layer = build_augmentation_layer(cfg)
