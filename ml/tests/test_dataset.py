@@ -11,6 +11,7 @@ import json
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -266,3 +267,161 @@ def test_verify_rejects_a_format_the_training_decoder_cannot_read(tmp_path):
 
     with pytest.raises(ValueError, match="sample.png"):
         verify_images({"Arenosa": [str(mislabelled)]})
+
+
+# --- SPEC 0050: decode once per fit, not once per epoch --------------------
+
+
+@pytest.fixture
+def cache_entries(tmp_path):
+    """Three distinct solid-colour JPEGs, so a decode is observable per entry."""
+    from PIL import Image
+
+    entries = []
+    for index, colour in enumerate([(200, 30, 30), (30, 200, 30), (30, 30, 200)]):
+        path = tmp_path / f"s{index}.jpg"
+        Image.new("RGB", (64, 64), colour).save(path, "JPEG", quality=95)
+        entries.append({"path": str(path), "label": index % 2, "class": f"C{index % 2}"})
+    return entries
+
+
+@pytest.fixture
+def cache_config():
+    return {
+        "classes": ["C0", "C1"],
+        "data": {"image_size": 32, "seed": 7},
+        "preprocessing": {"normalization": "mobilenet_v2", "bake_into_model": True},
+        "augmentation": {"horizontal_flip": True, "rotation_degrees": 25},
+        "training": {"batch_size": 1},
+    }
+
+
+def _epoch(ds):
+    return [images.numpy().copy() for images, _ in ds]
+
+
+@requires_tensorflow
+def test_decode_happens_once_per_fit(cache_entries, cache_config, monkeypatch):
+    """The decode map runs once per entry across two epochs, not once per epoch.
+
+    Counted at the decode itself rather than timed: a wall-clock assertion would
+    be flaky on a loaded machine and would not say *why* it was faster.
+    """
+    import tensorflow as tf
+    from src import dataset as dataset_module
+
+    # Counted with a `tf.Variable` inside the graph, not with a Python list:
+    # `tf.data.map` traces its function once and then runs the traced graph, so
+    # a Python-side counter records one call however many elements pass through.
+    counter = tf.Variable(0, dtype=tf.int64)
+    original = dataset_module._parse_image
+
+    def counting(path, label, cfg):
+        counter.assign_add(1)
+        return original(path, label, cfg)
+
+    monkeypatch.setattr(dataset_module, "_parse_image", counting)
+
+    ds = dataset_module.build_dataset(cache_entries, cache_config)
+    _epoch(ds)
+    after_first = int(counter.numpy())
+    _epoch(ds)
+    after_second = int(counter.numpy())
+
+    assert after_first == len(cache_entries), (
+        f"{after_first} decode(s) for {len(cache_entries)} entries in epoch one"
+    )
+    assert after_second == after_first, (
+        f"epoch two decoded {after_second - after_first} image(s) again; the "
+        "cache is missing, or sits after the augmentation"
+    )
+
+
+@requires_tensorflow
+def test_augmentation_still_draws_each_epoch(cache_entries, cache_config):
+    """Caching the decode must not freeze the augmentation to one draw.
+
+    This is the failure a cache placed after the augmentation would produce, and
+    it is silent: the config still declares augmentation and the first epoch
+    still looks right.
+    """
+    from src.dataset import build_dataset
+
+    ds = build_dataset(cache_entries, cache_config, augment=True)
+    first, second = _epoch(ds), _epoch(ds)
+
+    assert any(
+        not np.array_equal(a, b) for a, b in zip(first, second)
+    ), "two epochs produced identical pixels; the augmentation is frozen"
+
+
+@requires_tensorflow
+def test_shuffle_order_differs_between_epochs(cache_config):
+    """Caching must not freeze the shuffle to the first epoch's order.
+
+    A cache upstream of `shuffle` replays one order forever, which looks
+    configured and is inert from epoch two onward.
+    """
+    from PIL import Image
+    import tempfile
+    from pathlib import Path
+    from src.dataset import build_dataset
+
+    root = Path(tempfile.mkdtemp())
+    entries = []
+    for index in range(12):
+        path = root / f"g{index}.jpg"
+        Image.new("RGB", (64, 64), (index * 20 % 256, 10, 10)).save(path, "JPEG")
+        entries.append({"path": str(path), "label": index % 2, "class": f"C{index % 2}"})
+
+    ds = build_dataset(entries, cache_config, shuffle=True)
+    orders = [[float(img.numpy().mean()) for img, _ in ds] for _ in range(2)]
+
+    assert orders[0] != orders[1], "the shuffle replayed one order; cache is upstream of it"
+
+
+@requires_tensorflow
+def test_unshuffled_order_matches_the_entries(cache_entries, cache_config):
+    """Without shuffling, the cache reorders nothing."""
+    from src.dataset import build_dataset
+
+    ds = build_dataset(cache_entries, cache_config)
+    assert _means(ds) == _means(ds), "an unshuffled dataset changed order between epochs"
+
+
+def _means(ds):
+    return [round(float(images.numpy().mean()), 4) for images, _ in ds]
+
+
+@requires_tensorflow
+def test_labels_stay_with_their_images(cache_entries, cache_config):
+    """Reordering moved batches; it must not have separated a label from its image."""
+    from src.dataset import build_dataset
+
+    expected = {}
+    ds = build_dataset(cache_entries, cache_config)
+    for images, labels in ds:
+        expected[round(float(images.numpy().mean()), 4)] = labels.numpy().argmax()
+
+    shuffled = build_dataset(cache_entries, cache_config, shuffle=True)
+    for images, labels in shuffled:
+        key = round(float(images.numpy().mean()), 4)
+        assert expected[key] == labels.numpy().argmax(), (
+            "an image is paired with a different label after shuffling"
+        )
+
+
+@requires_tensorflow
+def test_the_pipeline_yields_the_same_multiset(cache_entries, cache_config):
+    """Shuffling moved batches and lost nothing.
+
+    The reordering this spec introduces changes *which* batch an image lands in.
+    It must not change *what* the epoch contains.
+    """
+    from src.dataset import build_dataset
+
+    plain = sorted(_means(build_dataset(cache_entries, cache_config)))
+    shuffled = sorted(_means(build_dataset(cache_entries, cache_config, shuffle=True)))
+
+    assert plain == shuffled
+    assert len(plain) == len(cache_entries)
