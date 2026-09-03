@@ -299,6 +299,16 @@ change. A variable count is an application condition, not a training one.
   to training only, so the splittable pool stays at 77 groups and SPEC 0042's
   minimum detectable effect does not move. The fold manifest is git-ignored and
   is regenerated; the numbers in it do not change.
+
+  **Measured after implementing, over `v1`:** 221 photographs, 11 refused, 204
+  partitioned. The splittable pool is 77 groups, as claimed. What the claim did
+  not say is that **five sample groups lose every photograph they had** —
+  `116515_4`, `116520_1`, `116528_1`, `119026_2`, `119026_9` — so the training
+  side holds 20 restricted groups where it held 25. All five are train-only, no
+  fold's test side changes, and every configured class keeps a group in every
+  fold, which is why this is recorded here rather than sent back to the Spec
+  Gate. It is stated because "eleven photographs leave" reads as eleven of many
+  from groups that survive, and for five groups it is the whole group.
 - **Assumption: the dish region is the circle the scale reader already fitted.**
   It is, on the dataset side, and that is why the region needs no second
   operator here. The application has no dish and must find the region itself,
