@@ -135,6 +135,9 @@ is the one the code implements.
   - `docs/architecture/ml-implementation-map.md` and
     `docs/architecture/ml-handoff.md` — B2's scale half is done, and the number
     the other terminals plan against is now measured over the whole archive.
+  - `ml/README.md` — **added during implementation.** It lists every command a
+    dataset version is built and checked with, so leaving the new one out would
+    make a record stale rather than keep this change small.
 - Does NOT include:
   - The normalisation itself — resampling any image to the canonical scale is
     SPEC 0037, work item A6.
