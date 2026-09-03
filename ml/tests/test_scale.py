@@ -9,6 +9,7 @@ record against the version it was taken over; SPEC 0043 requires that no
 criterion be covered only by those, and none is.
 """
 
+import importlib.util
 import json
 import math
 import subprocess
@@ -28,6 +29,7 @@ from src.scale import (
     read_dish_scale,
     summarise,
 )
+from tests.support import write_image_version
 
 ML_ROOT = Path(__file__).resolve().parents[1]
 RECORD_PATH = ML_ROOT / "measurements" / "dish-scale-v1.json"
@@ -37,6 +39,15 @@ real_only = pytest.mark.skipif(
     not (REAL_VERSION / "manifest.csv").is_file(),
     reason="the ingested version is not present; its images are not tracked",
 )
+
+
+def _load_script(name: str):
+    """Import a file under `scripts/` that is not part of a package."""
+    path = ML_ROOT / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 # --- fixture builders: deterministic, no randomness ------------------------
@@ -282,9 +293,36 @@ def test_the_record_was_taken_over_the_manifest_on_disk():
     assert _record()["manifest_digest"] == manifest.digest
 
 
+def test_the_measurement_reproduces_from_the_recorded_command(tmp_path):
+    """Two runs of the command over one version write the same bytes.
+
+    Over a rendered version rather than the archive, so the criterion is checked
+    wherever the suite runs. A reproducibility claim that could only be checked
+    on the one machine holding the images would be the weakest kind of evidence
+    for the one property the record exists to carry.
+    """
+    root = write_image_version(
+        tmp_path,
+        {
+            "sample-1": [("dish", _dish(outer_radius=300.0))],
+            "sample-2": [("dish", _dish(outer_radius=250.0))],
+        },
+    )
+    measure_scale = _load_script("measure_scale")
+
+    first, second = tmp_path / "first.json", tmp_path / "second.json"
+    assert measure_scale.main(["--root", str(root), "--out", str(first)]) == 0
+    assert measure_scale.main(["--root", str(root), "--out", str(second)]) == 0
+
+    assert first.read_bytes() == second.read_bytes()
+    written = json.loads(first.read_text(encoding="utf-8"))
+    assert len(written["photographs"]) == 2
+    assert written["canonical_mm_per_px"] > 0.0
+
+
 @real_only
-def test_the_measurement_reproduces_from_the_recorded_command():
-    """Re-reading one photograph reproduces the value the record carries."""
+def test_re_reading_an_archive_photograph_gives_the_recorded_value():
+    """The record carries what the reader produces, not a rounded copy of it."""
     record = _record()
     row = next(
         entry for entry in record["photographs"] if entry["mm_per_px"] is not None
