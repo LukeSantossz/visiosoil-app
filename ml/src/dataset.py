@@ -42,6 +42,7 @@ if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
     import tensorflow as tf
 
 from .manifest import (
+    Manifest,
     FOLD_COMPOSITION_AXES,
     IMAGE_SUFFIXES,
     check_class_coverage,
@@ -397,7 +398,9 @@ def create_folds(
     return fold_manifest
 
 
-def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
+def create_folds_for_config(
+    cfg: Mapping, splits_dir: str, manifest: Manifest | None = None
+) -> dict:
     """Generate the fold manifest for ``cfg``, from the dataset's own manifest.
 
     The manifest is required rather than preferred. The folder scan that
@@ -406,22 +409,36 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
     declared ids the group would be inferred from a filename pattern, and a
     pattern that happens to fit is the worst case, because nothing reports that
     it was used.
+
+    Args:
+        cfg: The configuration, which names the version, the classes and the
+            evaluation parameters.
+        splits_dir: Where the fold manifest is written.
+        manifest: The parsed manifest, for a caller that already holds one — or
+            that reads a version the config does not name, which is what
+            `validate_dataset.py --root` does. Given, no version is re-read.
+            **The only supported way to partition a version other than the
+            configured one**: the filtering, the restriction and the refusal
+            record below all live here, and a caller that reached for
+            `create_folds` to get a different root would silently get none of
+            them.
     """
     data = cfg["data"]
     evaluation = cfg["evaluation"]
-    root = dataset_root(data["datasets_dir"], data["dataset_version"])
-    # The archive's vocabulary and not the model's: the manifest holds every
-    # class SPEC 0040 ingested, and reading it against the four classes the
-    # model emits would reject the Siltosa rows ADR 0016 keeps in the version
-    # while excluding from the first model.
-    manifest = read_manifest_or_none(root, ARCHIVE_CLASSES)
-
     if manifest is None:
-        raise FileNotFoundError(
-            f"no manifest at {root}. The evaluation protocol groups by the "
-            "declared sample_id, so a dataset version without a manifest "
-            "cannot be partitioned into folds"
-        )
+        root = dataset_root(data["datasets_dir"], data["dataset_version"])
+        # The archive's vocabulary and not the model's: the manifest holds every
+        # class SPEC 0040 ingested, and reading it against the four classes the
+        # model emits would reject the Siltosa rows ADR 0016 keeps in the version
+        # while excluding from the first model.
+        manifest = read_manifest_or_none(root, ARCHIVE_CLASSES)
+
+        if manifest is None:
+            raise FileNotFoundError(
+                f"no manifest at {root}. The evaluation protocol groups by the "
+                "declared sample_id, so a dataset version without a manifest "
+                "cannot be partitioned into folds"
+            )
 
     absent = check_class_coverage(manifest, cfg["classes"])
     if absent:
@@ -437,7 +454,9 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
     # photographs that do not exist for training. SPEC 0053's eleven coarse
     # archive photographs leave here and nowhere else.
     _, refused = drop_refused_photographs(
-        [{"path": path} for paths in images.values() for path in paths], cfg
+        [{"path": path} for paths in images.values() for path in paths],
+        cfg,
+        scale=photograph_scale_of(manifest),
     )
     if refused:
         print(
@@ -1041,7 +1060,22 @@ def photograph_scale(cfg: Mapping) -> dict[str, dict[str, float]]:
     # The archive's vocabulary and not the model's, for the reason
     # `create_folds_for_config` gives: the manifest holds the Siltosa rows
     # ADR 0016 keeps in the version and excludes from the first model.
-    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    measured = photograph_scale_of(read_manifest(root, ARCHIVE_CLASSES))
+    _SCALE_BY_MANIFEST[key] = measured
+    return measured
+
+
+def photograph_scale_of(manifest: Manifest) -> dict[str, dict[str, float]]:
+    """The same mapping, for a caller that already holds the manifest.
+
+    `validate_dataset.py --root` reads a version the config does not name, so
+    reaching the measurement through the config would hand it the configured
+    version's scales for another version's photographs: every path a miss, or
+    worse, a hit on a path that happens to match.
+
+    Raises:
+        ValueError: If any row has not been measured.
+    """
     unmeasured = check_scale_columns(manifest)
     if unmeasured:
         raise ValueError(
@@ -1050,15 +1084,13 @@ def photograph_scale(cfg: Mapping) -> dict[str, dict[str, float]]:
             + "\n  - ".join(unmeasured)
         )
 
-    measured = {
+    return {
         # Exactly the join `class_images` performs. Anything else here — a
         # `resolve()`, a `str(Path(...))` round trip — produces a key an entry's
         # `path` does not match, and the miss would look like a missing row.
         str(manifest.root / row.image): dict(row.scale)
         for row in manifest.rows
     }
-    _SCALE_BY_MANIFEST[key] = measured
-    return measured
 
 
 def photograph_patch_counts(split_entries: list[dict], cfg: Mapping) -> list[int]:
@@ -1086,7 +1118,9 @@ def photograph_patch_counts(split_entries: list[dict], cfg: Mapping) -> list[int
 
 
 def drop_refused_photographs(
-    split_entries: list[dict], cfg: Mapping
+    split_entries: list[dict],
+    cfg: Mapping,
+    scale: Mapping[str, Mapping[str, float]] | None = None,
 ) -> tuple[list[dict], dict[str, str]]:
     """The entries the patch grid accepts, and why it refuses the rest.
 
@@ -1102,12 +1136,18 @@ def drop_refused_photographs(
     fold manifest and a dataset version disagreeing about which images exist,
     which no filter should absorb.
 
+    Args:
+        split_entries: The entries to filter.
+        cfg: The configuration, read for the canonical scale and the geometry.
+        scale: The measurement, for a caller partitioning a version the config
+            does not name. Omitted, it is read from the configured version.
+
     Returns:
         The accepted entries in their original order, and a mapping of each
         refused entry's path to the refusal, which names a
         :class:`patches.PatchRefusal`.
     """
-    scale = photograph_scale(cfg)
+    scale = photograph_scale(cfg) if scale is None else scale
     accepted: list[dict] = []
     refused: dict[str, str] = {}
     for entry in split_entries:
