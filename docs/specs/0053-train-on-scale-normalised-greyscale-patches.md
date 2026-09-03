@@ -143,8 +143,17 @@ not done here.
 - Includes:
   - `ml/src/patches.py` (new) — resample to canonical, greyscale, grid geometry,
     patch extraction, and the named refusals for too-coarse and too-small.
-  - `ml/src/dataset.py` — one tensor per patch, carrying the index of the
-    photograph it came from; grouping stays on `sample_id`.
+  - `ml/src/dataset.py` — one tensor per patch; grouping stays on `sample_id`.
+    The photograph a patch came from is carried by **entry order plus a patch
+    count per entry**, not by a third component in the tensor: `model.fit`
+    consumes a two-tuple, so an index alongside the patch and its label would
+    not be a dataset Keras can fit. `photograph_patch_counts` is that count, it
+    opens no image, and it is what `train.py` slices predictions back by.
+  - `ml/src/dataset.py` — **one named place a refused photograph may leave a
+    split**, `drop_refused_photographs`, returning the entries the grid accepts
+    and why it refuses the rest. Every other entry point raises instead: a
+    pipeline that skipped a photograph on its own would shorten an epoch by an
+    amount nothing records.
   - `ml/src/train.py` — average a photograph's patch distributions back into one
     photograph distribution before predictions are written.
   - `ml/src/config.py` — accept MobileNetV2's published input sizes, and the new
@@ -271,7 +280,10 @@ change. A variable count is an application condition, not a training one.
   is not a new constraint — ADR 0012's release path runs through B3, which is
   also unimplemented — but it is now load-bearing and is stated so nobody reads a
   green training run as a shippable model.
-- **Eleven photographs leave training**, the ones coarser than the canonical.
+- **Eleven photographs leave training**, the ones coarser than the canonical,
+  and they leave it at one named call rather than by being skipped. `train.py`
+  calls `drop_refused_photographs` when it assembles a fold's sides and reports
+  what it dropped; nothing else filters.
   All eleven are in the transported population, which SPEC 0040 D6 already holds
   to training only, so the splittable pool stays at 77 groups and SPEC 0042's
   minimum detectable effect does not move. The fold manifest is git-ignored and
