@@ -290,7 +290,11 @@ def cache_config():
     return {
         "classes": ["C0", "C1"],
         "data": {"image_size": 32, "seed": 7},
-        "preprocessing": {"normalization": "mobilenet_v2", "bake_into_model": True},
+        "preprocessing": {
+            "normalization": "mobilenet_v2",
+            "bake_into_model": True,
+            "canonical_mm_per_px": 0.1292,
+        },
         "augmentation": {"horizontal_flip": True, "rotation_degrees": 25},
         "training": {"batch_size": 1},
     }

@@ -33,6 +33,7 @@ def valid_config() -> dict:
         "preprocessing": {
             "normalization": "mobilenet_v2",
             "bake_into_model": True,
+            "canonical_mm_per_px": 0.1292,
         },
         "augmentation": {
             "horizontal_flip": True,
@@ -133,6 +134,7 @@ def test_imagenet_normalization_is_rejected(valid_config):
     pipeline implements exactly one preprocessing contract.
     """
     valid_config["preprocessing"] = {
+        "canonical_mm_per_px": 0.1292,
         "normalization": "imagenet",
         "mean": [0.485, 0.456, 0.406],
         "std": [0.229, 0.224, 0.225],
@@ -213,9 +215,23 @@ def test_class_weights_validation(valid_config):
 # --- SPEC 0032: validations that stop a silently degraded run --------------
 
 
-def test_image_size_must_match_the_architecture(valid_config):
-    """MobileNetV2 pretrained weights expect 224; other sizes degrade silently."""
-    valid_config["data"]["image_size"] = 128
+@pytest.mark.parametrize("size", [96, 128, 160, 192, 224])
+def test_config_accepts_the_published_input_sizes(valid_config, size):
+    """MobileNetV2 publishes ImageNet weights at five sizes, not one.
+
+    Widened by SPEC 0053, which needs 160: the patch side in millimetres is
+    `image_size x canonical_mm_per_px`, so the input size decides how much soil
+    a patch covers and 224 is no longer the only answer.
+    """
+    valid_config["data"]["image_size"] = size
+    path = _write_config(valid_config)
+
+    assert load_config(path)["data"]["image_size"] == size
+
+
+def test_image_size_must_be_one_the_architecture_publishes(valid_config):
+    """An unpublished size loads the weights into a graph they never saw."""
+    valid_config["data"]["image_size"] = 200
     path = _write_config(valid_config)
     with pytest.raises(ValueError, match="image_size"):
         load_config(path)

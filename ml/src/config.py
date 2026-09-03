@@ -43,11 +43,15 @@ _REQUIRED_EVALUATION_KEYS = {"k", "repeats", "inner_k", "alpha", "power", "contr
 # secondary is a second family with no correction applied to it.
 _VALID_CONTRAST_FAMILIES = {"primary", "secondary"}
 
-_REQUIRED_PREPROCESSING_KEYS = {
-    "normalization",
-    "canonical_mm_per_px",
-    "patch_stride_fraction",
-    "min_patches",
+_REQUIRED_PREPROCESSING_KEYS = {"normalization", "canonical_mm_per_px"}
+
+#: Optional preprocessing keys and what they mean when absent. The canonical
+#: scale is **not** here on purpose: it is a measured contract value, and a
+#: default for it would let a config train at a scale nobody chose. These two
+#: are geometry knobs whose defaults are the ones ADR 0018 argues for.
+_OPTIONAL_PREPROCESSING_DEFAULTS = {
+    "patch_stride_fraction": 0.5,
+    "min_patches": 9,
 }
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
@@ -193,6 +197,9 @@ def _validate(cfg: dict) -> None:
             "Rescaling(2.0, -1.0) into the graph unconditionally, so that is "
             "the only preprocessing contract the pipeline implements"
         )
+
+    for key, default in _OPTIONAL_PREPROCESSING_DEFAULTS.items():
+        pre.setdefault(key, default)
 
     canonical = pre["canonical_mm_per_px"]
     if not isinstance(canonical, (int, float)) or isinstance(canonical, bool):
