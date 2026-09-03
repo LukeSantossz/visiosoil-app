@@ -7,6 +7,14 @@ outer fold is made on inner folds of that fold's own training side. There is no
 single ``train``/``val``/``test`` partition here and no code path that produces
 one.
 
+What the pipeline yields is a **patch**, not a photograph (SPEC 0053). Each
+photograph is resampled to the canonical millimetres per pixel the manifest was
+measured against and cut into a grid of greyscale squares inside its dish, and
+every one of those is an element. A photograph is still the unit of a
+prediction — ``train.py`` averages its patches' distributions back into one —
+and it is still the unit of a fold, because grouping is on ``sample_id`` and
+patches never leave the photograph they were cut from.
+
 TensorFlow, and the preprocessing layer built on it, are imported on first use
 rather than at module import. Validating a dataset — the manifest, the folds,
 and their provenance — has to be possible for a collector who has not installed
@@ -27,6 +35,7 @@ from typing import TYPE_CHECKING, Collection, Mapping
 
 import numpy as np
 import sklearn
+from PIL import Image
 from sklearn.model_selection import StratifiedGroupKFold
 
 if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
@@ -36,17 +45,26 @@ from .manifest import (
     FOLD_COMPOSITION_AXES,
     IMAGE_SUFFIXES,
     check_class_coverage,
+    check_scale_columns,
     class_images as manifest_class_images,
     dataset_root,
     format_composition,
     manifest_digest,
     manifest_path,
     ARCHIVE_CLASSES,
+    read_manifest,
     read_manifest_or_none,
     sample_ids_by_image,
     split_composition,
     train_only_sample_ids,
     verify_split_digest,
+)
+from .patches import (
+    PatchGeometry,
+    PatchRefusal,
+    cut_patches,
+    patch_geometry,
+    resample_to_canonical,
 )
 
 
@@ -123,13 +141,20 @@ def verify_images(class_images: dict[str, list[str]]) -> None:
     for class_name in sorted(class_images):
         for path in class_images[class_name]:
             try:
-                # Decode through the SAME path `_parse_image` uses at training
-                # time. Verifying with a different decoder is worse than not
-                # verifying at all: it reports success for files that will fail
-                # mid-epoch. Pillow was used here first and reads `.webp`, which
-                # `scan_dataset` admits and `tf.io.decode_image` cannot read, so
-                # every `.webp` in a dataset passed verification and then broke
-                # training.
+                # Verifying with a different decoder than training uses is
+                # worse than not verifying at all: it reports success for files
+                # that will fail mid-epoch. Pillow was used here first and
+                # reads `.webp`, which `scan_dataset` admits and
+                # `tf.io.decode_image` cannot read, so every `.webp` in a
+                # dataset passed verification and then broke training.
+                #
+                # SPEC 0053 moved training's own decode to Pillow, so this is
+                # now the stricter of the two: `tf.io.decode_image` reads a
+                # subset of what Pillow reads, and a file it rejects is refused
+                # here even though the patch grid could have cut it. Strict in
+                # the safe direction, and left alone rather than loosened,
+                # because which decoder the dataset contract admits is a
+                # decision of its own and not this spec's.
                 raw = tf.io.read_file(path)
                 image = tf.io.decode_image(raw, channels=3, expand_animations=False)
                 image.shape.assert_has_rank(3)
@@ -943,16 +968,263 @@ def _entries_for(fold_manifest: Mapping, group_ids: list[str]) -> list[dict]:
     return entries
 
 
-def _parse_image(path: str, label: int, cfg: dict) -> tuple[tf.Tensor, tf.Tensor]:
-    """Load and preprocess a single image."""
-    from .preprocess import preprocess
+#: Every photograph's dish measurement, keyed by the manifest it was read from.
+#: An arm builds a dataset and asks for its patch counts on every side of every
+#: fold of every repeat, so at k = 5 and R = 5 this is asked for well over a
+#: hundred times — of a file that cannot have changed in between. Keyed by the
+#: digest as well as the root, so a second manifest — another version, or a
+#: test's — is a new entry rather than a stale hit.
+_SCALE_BY_MANIFEST: dict[tuple[str, str], dict[str, dict[str, float]]] = {}
 
+
+def photograph_scale(cfg: Mapping) -> dict[str, dict[str, float]]:
+    """What the dish-rim reader measured for each photograph of this version.
+
+    Keyed by the resolved image path, which is the string
+    :func:`manifest.class_images` puts in a fold manifest's entries, so a caller
+    joins on the path it already holds instead of re-deriving one.
+
+    Returns:
+        Path to the four :data:`manifest.SCALE_COLUMNS` values.
+
+    Raises:
+        FileNotFoundError: If the dataset version holds no manifest.
+        ValueError: If any row has not been measured. Every unmeasured row is
+            named in one message, and the message names the command that fixes
+            all of them, because the remedy is one run of ``measure_scale.py``
+            over the version rather than a repair per photograph.
+    """
+    data = cfg["data"]
+    root = dataset_root(data["datasets_dir"], data["dataset_version"])
+    path = manifest_path(root)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no manifest at {path}. The patch grid is cut around the dish the "
+            f"manifest measured, so a version without one cannot be trained on"
+        )
+
+    key = (str(root), manifest_digest(root))
+    memoised = _SCALE_BY_MANIFEST.get(key)
+    if memoised is not None:
+        return memoised
+
+    # The archive's vocabulary and not the model's, for the reason
+    # `create_folds_for_config` gives: the manifest holds the Siltosa rows
+    # ADR 0016 keeps in the version and excludes from the first model.
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    unmeasured = check_scale_columns(manifest)
+    if unmeasured:
+        raise ValueError(
+            f"{len(unmeasured)} photograph(s) in {manifest.version} carry no "
+            f"measured scale, so no patch can be cut from them:\n  - "
+            + "\n  - ".join(unmeasured)
+        )
+
+    measured = {
+        # Exactly the join `class_images` performs. Anything else here — a
+        # `resolve()`, a `str(Path(...))` round trip — produces a key an entry's
+        # `path` does not match, and the miss would look like a missing row.
+        str(manifest.root / row.image): dict(row.scale)
+        for row in manifest.rows
+    }
+    _SCALE_BY_MANIFEST[key] = measured
+    return measured
+
+
+def photograph_patch_counts(split_entries: list[dict], cfg: Mapping) -> list[int]:
+    """How many patches each entry yields, in entry order.
+
+    Arithmetic over the measured dish and nothing else: it opens no image.
+    ``train.py`` needs these to slice a model's patch-level output back into one
+    distribution per photograph (SPEC 0053), and paying a decode of the whole
+    fold for a number the manifest already implies would put a second pass over
+    the data into every epoch's bookkeeping.
+
+    The count agrees with what :func:`build_dataset` yields for the same
+    entries, including when it refuses: both reach the geometry through
+    :func:`_patch_geometry_of`, so a photograph refused here is refused there.
+
+    Raises:
+        ValueError: If a photograph is coarser than the canonical, if its dish
+            is too small for the patch floor, or if it is not in the manifest.
+    """
+    scale = photograph_scale(cfg)
+    return [
+        _patch_geometry_of(entry["path"], _measurement_of(entry, scale), cfg).count
+        for entry in split_entries
+    ]
+
+
+def drop_refused_photographs(
+    split_entries: list[dict], cfg: Mapping
+) -> tuple[list[dict], dict[str, str]]:
+    """The entries the patch grid accepts, and why it refuses the rest.
+
+    The one place a refused photograph may leave a split. :func:`build_dataset`
+    and :func:`photograph_patch_counts` raise instead, and deliberately: a
+    pipeline that skipped a photograph on its own would shorten an epoch by an
+    amount nothing records, and SPEC 0053's eleven archive photographs coarser
+    than the canonical would leave training with nobody told. Dropping them is a
+    decision the caller assembling a training side takes, out loud, with the
+    refusals in hand to report.
+
+    A photograph the manifest does not hold is **not** refused here. That is a
+    fold manifest and a dataset version disagreeing about which images exist,
+    which no filter should absorb.
+
+    Returns:
+        The accepted entries in their original order, and a mapping of each
+        refused entry's path to the refusal, which names a
+        :class:`patches.PatchRefusal`.
+    """
+    scale = photograph_scale(cfg)
+    accepted: list[dict] = []
+    refused: dict[str, str] = {}
+    for entry in split_entries:
+        measurement = _measurement_of(entry, scale)
+        try:
+            _patch_geometry_of(entry["path"], measurement, cfg)
+        except ValueError as refusal:
+            refused[entry["path"]] = str(refusal)
+        else:
+            accepted.append(entry)
+    return accepted, refused
+
+
+def _measurement_of(
+    entry: Mapping, scale: Mapping[str, Mapping[str, float]]
+) -> Mapping[str, float]:
+    """The dish measurement of one entry's photograph."""
+    measurement = scale.get(entry["path"])
+    if measurement is None:
+        raise ValueError(
+            f"{entry['path']} is not in the dataset manifest the scale was read "
+            f"from, so no dish was measured for it. The fold manifest and the "
+            f"dataset version disagree about which photographs exist; "
+            f"regenerate the folds with: {REGENERATE_FOLDS_COMMAND}"
+        )
+    return measurement
+
+
+def _canonical_region(
+    path: str, measurement: Mapping[str, float], cfg: Mapping
+) -> tuple[float, float, float]:
+    """The dish's centre and diameter after the resample, in canonical pixels.
+
+    The manifest measures the dish in the photograph's own pixels and
+    `resample_to_canonical` scales the photograph by `measured / canonical`, so
+    the circle has to travel by the same ratio. A grid cut around an unscaled
+    centre still produces patches — of the wrong soil, or of the bench — which
+    is why this is arithmetic in one place rather than at each call site.
+
+    The too-coarse refusal is repeated here rather than left to
+    `resample_to_canonical` so that :func:`photograph_patch_counts` reaches the
+    same verdict as :func:`build_dataset` without opening a file. It is one
+    comparison, and the name it raises comes from the enum that owns it.
+
+    Returns:
+        ``(centre_y, centre_x, diameter)``, all in canonical pixels.
+    """
+    canonical = cfg["preprocessing"]["canonical_mm_per_px"]
+    measured = measurement["mm_per_px"]
+    if measured > canonical:
+        raise ValueError(
+            f"{path}: {PatchRefusal.TOO_COARSE.value}: the photograph measures "
+            f"{measured:.4f} mm/px and the canonical is {canonical:.4f}, so "
+            f"reaching it would upsample by {measured / canonical:.2f}x"
+        )
+
+    ratio = measured / canonical
+    return (
+        measurement["disc_centre_y_px"] * ratio,
+        measurement["disc_centre_x_px"] * ratio,
+        measurement["disc_diameter_px"] * ratio,
+    )
+
+
+def _patch_geometry_of(
+    path: str, measurement: Mapping[str, float], cfg: Mapping
+) -> PatchGeometry:
+    """The grid one photograph carries, named by the photograph when refused."""
+    _, _, diameter = _canonical_region(path, measurement, cfg)
+    try:
+        return patch_geometry(
+            region_diameter_px=diameter,
+            input_size=cfg["data"]["image_size"],
+            canonical_mm_per_px=cfg["preprocessing"]["canonical_mm_per_px"],
+            min_patches=cfg["preprocessing"]["min_patches"],
+            stride_fraction=cfg["preprocessing"]["patch_stride_fraction"],
+        )
+    except ValueError as refusal:
+        # `patch_geometry` knows the geometry and not the file. An operator
+        # reading a refusal over 221 photographs needs to be told which one.
+        raise ValueError(f"{path}: {refusal}") from refusal
+
+
+def _photograph_patches(
+    entry: Mapping, measurement: Mapping[str, float], cfg: Mapping
+) -> list[np.ndarray]:
+    """Decode one photograph once and cut its whole grid from it.
+
+    Resample first, cut second. The other order would cut a grid in the
+    photograph's own pixels — a patch covering 5.5 mm of soil in the finest
+    archive photograph and 21 mm in the coarsest — which is the mixture ADR 0018
+    exists to remove.
+    """
+    canonical = cfg["preprocessing"]["canonical_mm_per_px"]
+    centre_y, centre_x, diameter = _canonical_region(entry["path"], measurement, cfg)
+
+    with Image.open(entry["path"]) as handle:
+        # `convert` reads the file, so the decode happens while the handle is
+        # open and nothing downstream depends on it staying open.
+        photograph = handle.convert("RGB")
+    resampled, _ = resample_to_canonical(
+        photograph, measurement["mm_per_px"], canonical
+    )
+
+    try:
+        return cut_patches(
+            resampled,
+            centre_y=centre_y,
+            centre_x=centre_x,
+            region_diameter_px=diameter,
+            input_size=cfg["data"]["image_size"],
+            canonical_mm_per_px=canonical,
+            min_patches=cfg["preprocessing"]["min_patches"],
+            stride_fraction=cfg["preprocessing"]["patch_stride_fraction"],
+        )
+    except ValueError as refusal:
+        raise ValueError(f"{entry['path']}: {refusal}") from refusal
+
+
+def _patch_stream(split_entries: list[dict], cfg: Mapping) -> tf.data.Dataset:
+    """One **uint8** patch per element, in entry order, decoding once each.
+
+    Cut in Python rather than in the graph: the grid needs Pillow's resample and
+    a circle the manifest measured, neither of which is a tensor operation, and
+    `from_generator` keeps one photograph's decode paying for all of its patches
+    instead of re-reading the file per patch.
+    """
     tf = _tensorflow()
-    raw = tf.io.read_file(path)
-    image = tf.io.decode_image(raw, channels=3, expand_animations=False)
-    image.set_shape([None, None, 3])
-    image = preprocess(image, cfg)
-    return image, tf.one_hot(label, len(cfg["classes"]))
+    scale = photograph_scale(cfg)
+    input_size = cfg["data"]["image_size"]
+    class_count = len(cfg["classes"])
+
+    def patches():
+        for entry in split_entries:
+            label = np.zeros(class_count, dtype=np.float32)
+            label[entry["label"]] = 1.0
+            measurement = _measurement_of(entry, scale)
+            for patch in _photograph_patches(entry, measurement, cfg):
+                yield patch, label
+
+    return tf.data.Dataset.from_generator(
+        patches,
+        output_signature=(
+            tf.TensorSpec(shape=(input_size, input_size, 3), dtype=tf.uint8),
+            tf.TensorSpec(shape=(class_count,), dtype=tf.float32),
+        ),
+    )
 
 
 def build_dataset(
@@ -961,7 +1233,14 @@ def build_dataset(
     augment: bool = False,
     shuffle: bool = False,
 ) -> tf.data.Dataset:
-    """Build a tf.data.Dataset from split manifest entries.
+    """Build a tf.data.Dataset of patches from split manifest entries.
+
+    One tensor per **patch** and not per photograph (SPEC 0053): each entry's
+    photograph is resampled to the canonical scale and cut into the grid
+    :func:`photograph_patch_counts` reports for it. A photograph is still the
+    unit of a prediction — ``train.py`` averages a photograph's patch
+    distributions back into one — so grouping, folds and class weights are
+    untouched by this.
 
     Args:
         split_entries: List of {"path", "label", "class"} dicts.
@@ -970,31 +1249,47 @@ def build_dataset(
         shuffle: Whether to shuffle the dataset.
 
     Returns:
-        Batched tf.data.Dataset yielding (images, one_hot_labels).
+        Batched tf.data.Dataset yielding (patches, one_hot_labels).
+
+    Raises:
+        ValueError: If any entry's photograph is refused by the patch grid.
+            Refusals are raised here, before a tensor exists, rather than from
+            inside the generator where tf.data would surface them mid-epoch
+            wrapped in an operation error. See :func:`drop_refused_photographs`
+            for the one place a refused photograph may be dropped instead.
     """
-    from .preprocess import build_augmentation_layer
+    from .preprocess import build_augmentation_layer, normalize_mobilenet_v2
 
     tf = _tensorflow()
-    paths = [e["path"] for e in split_entries]
-    labels = [e["label"] for e in split_entries]
 
-    ds = tf.data.Dataset.from_tensor_slices((paths, labels))
+    # Computed whether or not the shuffle needs it, because it is also the gate:
+    # it reaches every entry's geometry without decoding anything, so a coarse
+    # photograph fails the build in a second rather than partway through epoch
+    # one. It is the same count `train.py` slices predictions by.
+    counts = photograph_patch_counts(split_entries, cfg)
 
-    ds = ds.map(
-        lambda p, l: _parse_image(p, l, cfg),
-        num_parallel_calls=tf.data.AUTOTUNE,
-    )
+    normalization = cfg["preprocessing"]["normalization"]
+    if normalization != "mobilenet_v2":
+        # `preprocess.preprocess` is not on this path — it resizes, and a patch
+        # is already `data.image_size` across, so resizing it would resample the
+        # soil a second time at a scale nobody measured. Its normalization
+        # contract still holds, refused by the same name rather than skipped.
+        raise ValueError(f"Unknown normalization: {normalization}")
+
+    ds = _patch_stream(split_entries, cfg)
 
     # Decode once per fit rather than once per epoch (SPEC 0050). Measured at
     # 5.47 s per epoch over one fold's 179 photographs, and it did not fall on
     # repeat, which is about nine hours of redundant decoding per arm at
-    # k = 5, R = 5.
+    # k = 5, R = 5. The patch grid made that decode more expensive, not less:
+    # it now carries a resample and 25 crops.
     #
-    # The position is forced from both sides. It is **after** the decode, which
-    # is the deterministic, expensive, repeated work and a pure function of the
-    # path. It is **before** the augmentation, which must draw again every
-    # epoch: a cache below it would freeze one set of augmented images for the
-    # whole fit while the config still declared augmentation.
+    # The position is forced from both sides. It is **after** the decode and the
+    # cut, which are deterministic, expensive, repeated, and a pure function of
+    # the photograph and its measured scale. It is **before** the augmentation,
+    # which must draw again every epoch: a cache below it would freeze one set
+    # of augmented patches for the whole fit while the config still declared
+    # augmentation.
     ds = ds.cache()
 
     # Shuffled **after** the cache, and not before it as this pipeline used to
@@ -1003,11 +1298,21 @@ def build_dataset(
     # — a shuffle that looks configured, appears to work in epoch one, and is
     # inert from epoch two.
     #
-    # This is what makes the change alter results: for a given seed, a
-    # photograph lands in a different batch than it did before. Reproducibility
-    # is unaffected. No trained result existed when this landed.
+    # The buffer is sized in **patches**. Sizing it by photographs would shuffle
+    # a twenty-fifth of an epoch: a buffer of size B can never emit an element
+    # earlier than B - 1 positions before where it arrived, so whole
+    # photographs would stay contiguous and the batches would be nearly sorted.
     if shuffle:
-        ds = ds.shuffle(buffer_size=len(paths), seed=cfg["data"]["seed"])
+        ds = ds.shuffle(buffer_size=sum(counts), seed=cfg["data"]["seed"])
+
+    # Normalised **after** the cache and the shuffle, which is why the stream
+    # above is uint8. Both of those hold their contents in memory: a fold's
+    # training side is roughly 4500 patches, so float32 is about 1.7 GB in the
+    # cache and as much again in the buffer, against 340 MB each as uint8.
+    ds = ds.map(
+        lambda patch, label: (normalize_mobilenet_v2(patch), label),
+        num_parallel_calls=tf.data.AUTOTUNE,
+    )
 
     if augment:
         aug_layer = build_augmentation_layer(cfg)
