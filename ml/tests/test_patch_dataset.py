@@ -733,3 +733,68 @@ def test_the_pipeline_yields_the_same_multiset(dish_version, dish_entries):
 
     assert plain == shuffled
     assert len(plain) == len(dish_entries) * PATCHES_PER_PHOTOGRAPH
+
+
+# --- a refused photograph never enters a fold ------------------------------
+
+
+def _partitionable_version(tmp_path, coarse=()):
+    """Four sample groups per class, those in `coarse` photographed too coarsely."""
+    photographs = []
+    for index in range(8):
+        texture_class = "Arenosa" if index < 4 else "Media"
+        photographs.append(
+            {
+                "image": _photograph(SOIL_LEVELS[index % len(SOIL_LEVELS)], seed=index),
+                "class": texture_class,
+                "sample_id": f"sample-{index}",
+                # A coarse one measures above the canonical, so reaching it
+                # could only invent grain that was never photographed.
+                "mm_per_px": CANONICAL * 2.0 if index in coarse else MEASURED,
+            }
+        )
+    return _write_measured_version(tmp_path, photographs)
+
+
+def test_a_photograph_the_patch_grid_refuses_never_enters_a_fold(tmp_path):
+    """The fold manifest is the record of what a run trained on.
+
+    Filtering when a fold's sides are assembled instead would leave the record
+    naming photographs no run can use, and every later reader — the composition
+    report, the audit, `evaluate.py` — would be counting images that were never
+    scored.
+    """
+    root = _partitionable_version(tmp_path, coarse=(7,))
+    coarse = _path(root, 7)
+
+    fold_manifest = create_folds_for_config(_config(root), str(tmp_path / "splits"))
+
+    listed = {
+        image
+        for record in fold_manifest["groups"].values()
+        for image in record["images"]
+    }
+    assert coarse not in listed
+    assert len(listed) == 7
+
+
+def test_the_fold_manifest_records_what_the_patch_grid_refused(tmp_path):
+    """Named and counted, because a photograph that vanishes silently is a
+    dataset shrinking without anyone knowing which images went."""
+    root = _partitionable_version(tmp_path, coarse=(7,))
+
+    fold_manifest = create_folds_for_config(_config(root), str(tmp_path / "splits"))
+
+    refused = fold_manifest["refused"]
+    assert list(refused) == [_path(root, 7)]
+    assert PatchRefusal.TOO_COARSE.value in refused[_path(root, 7)]
+    assert fold_manifest["counts"]["refused_photographs"] == 1
+
+
+def test_a_version_the_patch_grid_accepts_records_no_refusal(tmp_path):
+    root = _partitionable_version(tmp_path)
+
+    fold_manifest = create_folds_for_config(_config(root), str(tmp_path / "splits"))
+
+    assert fold_manifest["refused"] == {}
+    assert fold_manifest["counts"]["refused_photographs"] == 0
