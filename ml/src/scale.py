@@ -196,7 +196,6 @@ def read_dish_scale(image: Image.Image) -> ScaleReading:
     fine, fine_scale = _luma_at(baked, REFINE_SIDE_PX)
     lift = fine_scale / coarse_scale
     centre_y, centre_x = centre[0] * lift, centre[1] * lift
-    height, width = fine.shape
     search_from = min_radius * lift * 0.7
     search_to = min(max_radius * lift * 1.25, _farthest_corner(fine, centre_y, centre_x))
     if search_to <= search_from + RAY_STEP_PX * 4:
@@ -225,6 +224,9 @@ def read_dish_scale(image: Image.Image) -> ScaleReading:
             rim_dispersion=rim.dispersion,
             ray_coverage=rim.coverage,
         )
+
+    if rim.radius <= 0.0:
+        return _refused(ScaleRefusal.NO_CIRCLE_FOUND, ray_coverage=rim.coverage)
 
     diameter_px = 2.0 * rim.radius / fine_scale
     return ScaleReading(
