@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-08-25.
+Last updated: 2026-09-03.
 
 > **Revised 2026-08-25.** The lane structure below is sound and its premise is
 > not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
@@ -75,6 +75,20 @@ Last updated: 2026-08-25.
 >   tracked as #216.
 > - **Of the blockers it lists, #196 and #179 are closed.** #178 and #180 remain,
 >   and #180 is folded into A6.
+>
+> **Revised 2026-09-03.** Two items on the recommended order below are done, and
+> nothing about the lanes changes. B1's environment landed as
+> [SPEC 0051](../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214) and
+> B2's scale recomputation as
+> [SPEC 0052](../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md)
+> (#212), which built the dish-rim reader SPEC 0037 specified and nobody had
+> written, read all 221 photographs without a single refusal, and **confirmed the
+> canonical at 0.1292 mm/px** against the 0.130 that had been measured over 42 %
+> of the archive. **A6 is the next item.** Two figures elsewhere in the records
+> move with it: the archive's scale spread is 4.83× rather than 2.6×, and the
+> eleven photographs the canonical refuses are all in the transported population,
+> which is already train-only, so the 77-group splittable pool and the minimum
+> detectable effect SPEC 0042 records are untouched.
 
 ## 1. What we are building
 
@@ -286,7 +300,11 @@ by explicit action.
 ### A6 — Scale-normalised greyscale patch pipeline
 
 **Record:** [SPEC 0037](../specs/0037-scale-normalised-greyscale-patch-pipeline.md),
-gate-approved. **Depends on:** B2's scale recomputation (#212).
+gate-approved. **Depends on:** B2's scale recomputation (#212) — **satisfied
+2026-09-03** by [SPEC 0052](../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
+which lands the dish-rim reader and confirms the canonical at 0.1292 mm/px over
+all 221 photographs. A6 inherits the reader rather than writing one, and its
+patch geometry is unchanged.
 **Gate for:** C0's arms that consume patches.
 
 The preprocessing on both sides: the model sees a grid of fixed-size greyscale
@@ -557,7 +575,7 @@ A1 (0030) ── done ──── their item 6, the capture gate
 
 B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
-B2 (0033/0040) ─────┴─ B2 scale (#212) ── A6 ──┤
+B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 ──┤
                                                │
                        C0 probe (#213)  ───────┤
                        A7 latency (#215) ──────┤
@@ -578,7 +596,10 @@ scale recomputation in parallel, then A6, then C0's probe, then the C0 gate** �
 issues #214 and #212, then SPEC 0037, then #213, then #216. The two first because
 neither depends on anything and both block everything after them: nothing can be
 trained without an environment, and the patch pipeline cannot be built without
-the scale it normalises to. A7 (#215) runs whenever a device is available; it is
+the scale it normalises to. **Both are now done** — B1's environment by SPEC 0051
+and B2's scale by SPEC 0052 — so **A6 is the next item**, and it starts with a
+reader that already exists and a canonical value that has been measured over the
+whole archive rather than assumed. A7 (#215) runs whenever a device is available; it is
 not on the path until the gate's decision rule reads it.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list

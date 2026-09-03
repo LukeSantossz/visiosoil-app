@@ -68,12 +68,24 @@ archive JPEGs: p5 is 0.130 mm/px, p50 is 0.100, and the single coarsest is 0.174
 **The value ships as 0.130 mm/px**, which upsamples nothing at or above the fifth
 percentile and refuses the tail below it.
 
-**It is provisional on #196.** The distribution above was measured over the 92
-readable JPEGs; the 129 HEIC files could not be opened and are 58 % of the set.
-The canonical value is **recomputed after conversion, before any training run**,
-and if the fifth percentile moves, so does the patch size and the patch count.
-Shipping a contract value derived from 42 % of the data without saying so would
-be the quiet kind of error this specification exists to avoid.
+~~**It is provisional on #196.**~~ **Recomputed and confirmed, 2026-09-03**, by
+[SPEC 0052](0052-read-the-dish-rim-and-recompute-the-canonical-scale.md) (#212),
+over all 221 photographs of `v1` with a committed reader and a committed record.
+Every photograph read; none was quarantined. The canonical comes out at
+**0.1292 mm/px**, six parts in a thousand from the 0.130 above, so the value
+ships as measured and the geometry below stands: the patch side moves by that
+same fraction, to 20.7 mm at 160 px, and the patch counts step in whole squares
+and do not move at all.
+
+The paragraph this replaces read that the value was provisional because the
+distribution had been measured over the 92 readable JPEGs while the 129 HEIC
+files, 58 % of the set, could not be opened. That is why the recomputation was
+required and it is what SPEC 0052 did. Two of its numbers move with it: the
+archive's scale spread is **4.83×**, not the 2.6× measured without the HEIC
+session, and the eleven photographs coarser than the canonical — the tail this
+value refuses rather than upsamples — are all in the transported population,
+which SPEC 0040 D6 already holds to training, so the splittable pool does not
+shrink.
 
 Setting it at the median instead would have discarded half the archive, in a
 dataset where one class already holds three samples.
@@ -235,7 +247,9 @@ criterion refuses legitimate work.
   asserts the report, because silently losing photographs is how a dataset shrinks
   without anyone noticing which ones went.
 - The canonical scale is recomputed after #196 converts the HEIC files, and the
-  recomputation is recorded even when the value does not move.
+  recomputation is recorded even when the value does not move. **Done**, by
+  [SPEC 0052](0052-read-the-dish-rim-and-recompute-the-canonical-scale.md): the
+  record is `ml/measurements/dish-scale-v1.json` and the value is confirmed.
 
 **Normalisation**
 
