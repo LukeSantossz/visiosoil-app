@@ -43,7 +43,12 @@ _REQUIRED_EVALUATION_KEYS = {"k", "repeats", "inner_k", "alpha", "power", "contr
 # secondary is a second family with no correction applied to it.
 _VALID_CONTRAST_FAMILIES = {"primary", "secondary"}
 
-_REQUIRED_PREPROCESSING_KEYS = {"normalization"}
+_REQUIRED_PREPROCESSING_KEYS = {
+    "normalization",
+    "canonical_mm_per_px",
+    "patch_stride_fraction",
+    "min_patches",
+}
 _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
 _VALID_ARCHITECTURES = {"mobilenetv2"}
@@ -59,7 +64,13 @@ _VALID_QUANTIZATIONS = {"dynamic_range", "float16", "none"}
 
 # Input size the pretrained weights of each architecture were trained at. Any
 # other size loads without error and silently degrades transfer learning.
-_ARCHITECTURE_IMAGE_SIZE = {"mobilenetv2": 224}
+#: The input sizes each architecture publishes pretrained weights at. Any
+#: other size loads the weights into a graph they were never trained for,
+#: which costs the transfer this pipeline exists to use. Widened from a
+#: single 224 by SPEC 0053, which needs 160: the patch side in millimetres
+#: is `input_size x canonical_mm_per_px`, so the input size is now a
+#: physical decision rather than a default.
+_ARCHITECTURE_IMAGE_SIZE = {"mobilenetv2": (96, 128, 160, 192, 224)}
 
 # Augmentation keys expressed as a [lower, upper] multiplicative range.
 _RANGED_AUGMENTATION_KEYS = ("brightness_range", "contrast_range", "zoom_range")
@@ -183,6 +194,34 @@ def _validate(cfg: dict) -> None:
             "the only preprocessing contract the pipeline implements"
         )
 
+    canonical = pre["canonical_mm_per_px"]
+    if not isinstance(canonical, (int, float)) or isinstance(canonical, bool):
+        raise ValueError("preprocessing.canonical_mm_per_px must be a number")
+    if canonical <= 0.0:
+        raise ValueError(
+            "preprocessing.canonical_mm_per_px must be positive, got "
+            f"{canonical}: it is the scale every photograph is resampled to, "
+            "and it is measured rather than chosen (SPEC 0052)"
+        )
+
+    stride = pre["patch_stride_fraction"]
+    if not isinstance(stride, (int, float)) or isinstance(stride, bool):
+        raise ValueError("preprocessing.patch_stride_fraction must be a number")
+    if not 0.0 < stride <= 1.0:
+        raise ValueError(
+            "preprocessing.patch_stride_fraction must be in (0, 1], got "
+            f"{stride}: 1.0 is a non-overlapping grid and anything above it "
+            "would leave gaps of soil the model never sees"
+        )
+
+    minimum = pre["min_patches"]
+    if not isinstance(minimum, int) or isinstance(minimum, bool):
+        raise ValueError("preprocessing.min_patches must be an integer")
+    if minimum < 1:
+        raise ValueError(
+            f"preprocessing.min_patches must be at least 1, got {minimum}"
+        )
+
     # bake_into_model is optional, defaults to False
     if "bake_into_model" in pre:
         if not isinstance(pre["bake_into_model"], bool):
@@ -265,11 +304,13 @@ def _validate(cfg: dict) -> None:
     if not (0 <= model["dropout"] < 1):
         raise ValueError("dropout must be between 0 and 1")
 
-    expected_size = _ARCHITECTURE_IMAGE_SIZE.get(model["architecture"])
-    if expected_size is not None and data["image_size"] != expected_size:
+    published = _ARCHITECTURE_IMAGE_SIZE.get(model["architecture"])
+    if published is not None and data["image_size"] not in published:
         raise ValueError(
-            f"data.image_size must be {expected_size} for architecture "
-            f"{model['architecture']}, got {data['image_size']}"
+            f"data.image_size must be one of {list(published)} for architecture "
+            f"{model['architecture']}, got {data['image_size']}: those are the "
+            "sizes it publishes ImageNet weights at, and an unpublished size "
+            "loads them into a graph they were never trained for"
         )
 
     if "freeze_backbone" in model and not isinstance(model["freeze_backbone"], bool):

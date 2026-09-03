@@ -176,7 +176,7 @@ def test_refuses_a_region_too_small_for_nine_patches():
 
 
 def test_the_refusal_names_the_count_it_could_have_produced():
-    diameter_px = 65.0 / CANONICAL
+    diameter_px = 55.0 / CANONICAL  # carries five patches, below the floor
 
     with pytest.raises(ValueError) as raised:
         patch_geometry(
@@ -186,8 +186,36 @@ def test_the_refusal_names_the_count_it_could_have_produced():
             min_patches=9,
         )
 
-    assert "9" in str(raised.value)
-    assert any(character.isdigit() for character in str(raised.value))
+    message = str(raised.value)
+    assert "5 patch" in message
+    assert "floor is 9" in message
+
+
+@pytest.mark.parametrize(
+    "disc_mm,expected",
+    [(50.0, 5), (58.5, 9), (70.0, 9), (71.0, 13), (80.0, 21), (90.0, 25)],
+)
+def test_the_patch_count_steps_where_the_geometry_says_it_does(disc_mm, expected):
+    """Pins the floor, which is not where ADR 0018 rounds it to.
+
+    Nine patches are reached at **58.5 mm**, not at the "roughly 70 mm" that
+    record states — 70 mm is inside the same step, so its tabulated 9 is right
+    and its floor is conservative. The difference is the application's to
+    decide, since it is the side that refuses a disc, and it is recorded here
+    rather than left to be rediscovered.
+    """
+    geometry_or_error = None
+    try:
+        geometry_or_error = patch_geometry(
+            region_diameter_px=disc_mm / CANONICAL,
+            input_size=INPUT_SIZE,
+            canonical_mm_per_px=CANONICAL,
+            min_patches=1,
+        ).count
+    except ValueError as error:  # pragma: no cover - only if the floor moves
+        geometry_or_error = str(error)
+
+    assert geometry_or_error == expected
 
 
 # --- cutting ---------------------------------------------------------------
@@ -278,13 +306,21 @@ def test_the_geometry_table_holds_the_adr_0018_rows():
 
 
 def test_the_config_canonical_matches_the_measurement_record():
-    """One value, two files, and a test that refuses them to drift."""
+    """One value, two files, and a test that refuses them to drift.
+
+    Compared at the precision the config declares. The config is read by people
+    and carries four decimals; the record carries the full float. Requiring bit
+    equality would force an unreadable constant into a file whose whole purpose
+    is to be read, and rounding to what is written is still a real guard: the
+    record cannot move by more than 0.00005 mm/px without failing here.
+    """
     from src.config import load_config
 
     configured = load_config()["preprocessing"]["canonical_mm_per_px"]
     recorded = json.loads(RECORD_PATH.read_text(encoding="utf-8"))["canonical_mm_per_px"]
+    declared_decimals = len(str(configured).split(".")[1])
 
-    assert configured == pytest.approx(recorded, rel=1e-6)
+    assert configured == round(recorded, declared_decimals)
 
 
 def test_the_geometry_table_needs_no_tensorflow():

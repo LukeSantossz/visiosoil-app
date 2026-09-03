@@ -50,6 +50,20 @@ table — computed at the canonical 0.1292 mm/px and an input of 160 px:
 So the criterion and the table agree with each other and the prose is the odd
 one out. The prose is what gets corrected.
 
+**One consequence found by implementing it, recorded rather than acted on.**
+Under the corrected inset the count reaches nine at a disc of **58.5 mm**, not at
+the "roughly 70 mm" ADR 0018 states. Both are consistent — 70 mm sits inside the
+same step, so its tabulated 9 is right — but the floor that record gives is
+conservative by 11 mm. Whether the application refuses at 70 mm for margin or at
+58.5 mm because that is where the evidence runs out is **the application's
+decision and is not taken here**, since the dataset side never meets a disc other
+than 90 mm. The step table is pinned by a test so the choice is made against a
+measurement:
+
+| Disc | 50 mm | 58.5 mm | 70 mm | 71 mm | 80 mm | 88 mm | 90 mm |
+|---|---|---|---|---|---|---|---|
+| Patches | 5 | **9** | 9 | 13 | 21 | 25 | 25 |
+
 **A photograph is still the unit of a prediction.** The model scores patches;
 `train.py` averages a photograph's patch distributions back into one photograph
 distribution before writing `predictions.json`, so `evaluate.py`, the fold

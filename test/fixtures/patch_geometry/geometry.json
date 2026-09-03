@@ -1,0 +1,33 @@
+{
+  "spec": "0053",
+  "dish_diameter_mm": 90.0,
+  "canonical_mm_per_px": 0.1292,
+  "input_size": 160,
+  "min_patches": 9,
+  "rows": [
+    {
+      "disc_mm": 70.0,
+      "diameter_px": 541.7957,
+      "patch_count": 9,
+      "patch_mm": 20.672,
+      "stride_px": 80.0,
+      "inset_px": 113.1371
+    },
+    {
+      "disc_mm": 80.0,
+      "diameter_px": 619.195,
+      "patch_count": 21,
+      "patch_mm": 20.672,
+      "stride_px": 80.0,
+      "inset_px": 113.1371
+    },
+    {
+      "disc_mm": 90.0,
+      "diameter_px": 696.5944,
+      "patch_count": 25,
+      "patch_mm": 20.672,
+      "stride_px": 80.0,
+      "inset_px": 113.1371
+    }
+  ]
+}
