@@ -130,8 +130,8 @@ ImageNet weights load unchanged.
   millimetres-per-pixel; greyscale conversion; locating the soil region; the
   overlapping patch grid and its inset; batching the patches through the
   interpreter; the mean aggregation and the normalised dispersion metric; the
-  `disc_diameter_px` manifest column; widening `_ARCHITECTURE_IMAGE_SIZE`; the
-  shared geometry fixture table.
+  measured scale columns in the manifest; widening `_ARCHITECTURE_IMAGE_SIZE`;
+  the shared geometry fixture table.
 - Does NOT include: reading `spec.json` or separating the failure causes, which
   is SPEC 0035 and lands first; the verdict bands and the result surface, which
   the UI/UX terminal owns; converting the archive's HEIC files and building the
@@ -148,7 +148,7 @@ each boundary above was drawn for a stated reason rather than by convenience.
 canonical scale; greyscale conversion via the shared luma; a patch grid over the
 disc; the change from a one-tensor-per-path mapping to a flat-map in
 `ml/src/dataset.py`; widening `_ARCHITECTURE_IMAGE_SIZE` in `ml/src/config.py`
-to MobileNetV2's published set; a `disc_diameter_px` column in
+to MobileNetV2's published set; the measured scale columns in
 `ml/src/manifest.py`.
 
 **In scope, Dart:** a scale reader over the A4 sheet and the homography
@@ -253,8 +253,11 @@ criterion refuses legitimate work.
   and **never a default scale**. A test asserts that no code path substitutes
   one.
 - The measured scale of every archive photograph is recorded in the manifest as
-  `disc_diameter_px`, the validator refuses a missing or non-positive value, and
-  it reports the spread per dataset version.
+  `mm_per_px`, `disc_diameter_px`, `disc_centre_x_px` and `disc_centre_y_px` —
+  four columns and not the one this spec first named, because the grid is laid
+  out from the region's centre and a diameter alone locates nothing. SPEC 0053
+  carries the correction. The validator refuses a non-positive value and reports
+  the spread per dataset version.
 - A photograph whose rim cannot be fitted is **quarantined and reported by name**,
   in the same shape as an admission refusal — never dropped silently. A test
   asserts the report, because silently losing photographs is how a dataset shrinks

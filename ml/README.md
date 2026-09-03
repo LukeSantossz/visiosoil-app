@@ -177,6 +177,7 @@ python scripts/admit_images.py --version v1      # report; add --write to apply
 python scripts/validate_dataset.py --version v1  # report only, folds discarded
 python scripts/validate_dataset.py --version v1 --splits-dir data/splits  # write them
 python scripts/measure_scale.py --version v1     # the dish rim, per photograph
+python scripts/measure_scale.py --version v1 --from-record measurements/dish-scale-v1.json
 ```
 
 `measure_scale.py` reads the 90 mm dish rim of every photograph and writes
@@ -190,6 +191,15 @@ committed while the dataset version it describes is not — see
 [SPEC 0052](../docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
 which measured it at **0.1292 mm/px** over all 221 photographs of `v1` with no
 photograph refused.
+
+The same run writes four columns back into the manifest — `mm_per_px`,
+`disc_diameter_px`, `disc_centre_x_px` and `disc_centre_y_px` — because the patch
+grid of [SPEC 0053](../docs/specs/0053-train-on-scale-normalised-greyscale-patches.md)
+is laid out from the dish centre and a diameter alone locates nothing. Reading
+the archive takes about seven minutes and the manifest is a build product
+(ADR 0019), so after a re-ingest use `--from-record`: it fills those columns from
+the committed record without opening a photograph, and refuses a record whose
+manifest digest is not the one on disk.
 
 The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
 formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is still readable by the fold

@@ -50,6 +50,25 @@ table — computed at the canonical 0.1292 mm/px and an input of 160 px:
 So the criterion and the table agree with each other and the prose is the odd
 one out. The prose is what gets corrected.
 
+**The manifest carries four measured columns, not the one SPEC 0037 names,
+and that is a second correction found by implementing it.** SPEC 0037 records
+the measurement as a `disc_diameter_px` column. A diameter locates nothing: the
+grid is laid out from the region's **centre**, and neither SPEC 0037 nor
+ADR 0018 says where that centre comes from on the dataset side. The scale reader
+already fits it — `ScaleReading` carries `centre_x_px` and `centre_y_px` — so
+the gap is in the record, not in the code. The manifest therefore carries
+`mm_per_px`, `disc_diameter_px`, `disc_centre_x_px` and `disc_centre_y_px`, and
+the same four are added to the committed measurement record.
+
+**The measurement record, not the manifest, is where a measurement survives.**
+The manifest is a build product (ADR 0019) and is rebuilt whenever the version
+is; the record under `ml/measurements/` is committed. Recording the scale only
+in the manifest would mean paying the seven-minute reader run again after every
+re-ingest, for a measurement that did not change. So `measure_scale.py` gains
+`--from-record`, which fills the manifest's four columns from the committed
+record without opening a photograph, and refuses a record whose manifest digest
+is not the one on disk.
+
 **One consequence found by implementing it, recorded rather than acted on.**
 Under the corrected inset the count reaches nine at a disc of **58.5 mm**, not at
 the "roughly 70 mm" ADR 0018 states. Both are consistent — 70 mm sits inside the
@@ -120,9 +139,14 @@ not done here.
     `preprocessing.canonical_mm_per_px`, `preprocessing.patch_stride_fraction`
     and `preprocessing.min_patches` keys, validated on load.
   - `ml/config.yaml` — those three values.
-  - `ml/src/manifest.py` — a `disc_diameter_px` column, refused when missing or
-    non-positive, reported per dataset version.
-  - `ml/scripts/measure_scale.py` — write that column into the manifest.
+  - `ml/src/manifest.py` — the four measured scale columns, optional in the
+    schema and checked at the point of use, with a non-positive scale or
+    diameter refused by name and the spread reported per dataset version.
+  - `ml/scripts/measure_scale.py` — write those columns into the manifest, carry
+    the dish centre in the committed record, and fill the manifest from that
+    record with `--from-record` rather than re-reading the archive.
+  - `ml/scripts/validate_dataset.py` — report the measured spread, an unmeasured
+    version, and how many photographs are coarser than the canonical.
   - `test/fixtures/patch_geometry/geometry.json` (new, committed) plus the script
     under `ml/scripts/` that regenerates it — the dimensions, canonical scales
     and resulting patch counts both languages will assert against.
@@ -184,9 +208,18 @@ not done here.
 - a_prediction_is_written_per_photograph_not_per_patch: `predictions.json` holds
   one row per photograph, its distribution the mean over that photograph's
   patches, so the file's shape is unchanged.
-- the_manifest_carries_the_measured_disc_diameter: `disc_diameter_px` is a
-  required column, a missing or non-positive value is refused by name, and the
-  validator reports its spread per dataset version.
+- the_manifest_carries_the_measured_disc_geometry: the four scale columns are
+  written by `measure_scale.py`, a non-positive scale or diameter is refused by
+  name, a version that reaches the patch grid unmeasured is reported by name
+  with the command that fixes it, and the validator reports the spread per
+  dataset version.
+- the_record_carries_the_centre_of_every_dish: the committed measurement record
+  holds `disc_centre_x_px` and `disc_centre_y_px` for every photograph that got
+  a scale, so a rebuilt manifest can be refilled without reading an image.
+- the_manifest_is_filled_from_the_record_without_reading_an_image:
+  `--from-record` writes the four columns from the committed record, opens no
+  photograph, and refuses a record whose manifest digest is not the one on
+  disk.
 
 ## Reproducibility
 
