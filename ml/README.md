@@ -88,7 +88,7 @@ launcher's registry — pyenv-win, a `uv`-managed interpreter, a plain
 directory install — give its path instead:
 
 ```powershell
-& "$env:USERPROFILE\.localin\python3.12.exe" -m venv .venv
+& "$env:USERPROFILE/.local/bin/python3.12.exe" -m venv .venv
 ```
 
 **macOS / Linux:**
