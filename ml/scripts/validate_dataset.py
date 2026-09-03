@@ -5,13 +5,19 @@ fixing a spreadsheet: one list of faults is the difference between one correctio
 cycle and eight. Needs no TensorFlow, so a dataset can be checked on the machine
 that holds it rather than on the machine that trains.
 
+It also reports what the dish-rim reader measured (SPEC 0052): how far apart the
+version's apparent scales are, and how many photographs are too coarse to reach
+the canonical and therefore leave training (SPEC 0053).
+
 Run from the `ml/` directory:
 
     python scripts/validate_dataset.py                 # the configured version
     python scripts/validate_dataset.py --version v2
     python scripts/validate_dataset.py --root path/to/v1 --splits-dir /tmp/splits
 
-Exit codes: 0 the version is usable, 1 it is not.
+Exit codes: 0 the version is usable, 1 it is not. A version nobody has measured
+yet is reported as unmeasured and still exits 0: measuring is the next step of
+the pipeline, not a fault in the version.
 """
 
 from __future__ import annotations
@@ -27,17 +33,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.config import load_config, resolve_paths  # noqa: E402
 from src.dataset import create_folds, format_fold_composition  # noqa: E402
 from src.manifest import (  # noqa: E402
+    Manifest,
     ManifestError,
     check_class_coverage,
+    check_scale_columns,
     check_setting_pairing,
     class_images,
     dataset_root,
     ARCHIVE_CLASSES,
     read_manifest,
     sample_ids_by_image,
+    scale_spread,
     train_only_sample_ids,
     verify_directory,
 )
+from src.patches import PatchRefusal  # noqa: E402
+
+#: How many photographs a partly measured version names before the rest are
+#: counted. A gap the dish-rim reader left is usually a handful, and a cap only
+#: keeps a pathological one from pushing the fold composition off the screen.
+_UNMEASURED_NAMED = 10
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -134,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"{len(manifest.rows)} photograph(s) in {manifest.version}")
         print(f"manifest digest {manifest.digest}")
+        _report_scale(manifest, cfg["preprocessing"]["canonical_mm_per_px"])
         print(
             f"{folds['counts']['splittable_groups']} splittable sample group(s), "
             f"{folds['counts']['train_only_groups']} restricted to training, "
@@ -143,6 +159,69 @@ def main(argv: list[str] | None = None) -> int:
         if args.splits_dir:
             print(f"splits.json written to {splits_dir}")
     return 0
+
+
+def _report_scale(manifest: Manifest, canonical_mm_per_px: float) -> None:
+    """Report what the dish-rim reader measured over this version.
+
+    Three facts, because a reader who has not read SPEC 0053 needs all three to
+    know what the version will train on: how far apart its apparent scales are,
+    which is the whole reason the patch pipeline resamples at all (ADR 0017);
+    how many photographs are coarser than the canonical and therefore leave
+    training; and how many rows carry no measurement yet.
+
+    An unmeasured version is a step of the pipeline rather than a fault in it,
+    so it is reported and the exit code does not move. Ingestion writes the
+    manifest and `scripts/measure_scale.py` reads it, so a validator that failed
+    an unmeasured version would refuse exactly the state the measuring step
+    exists to consume — the same reason `manifest.py` keeps the columns optional
+    at parse time. It is reported rather than passed over, because silence about
+    a measurement never taken reads as one that is fine.
+    """
+    total = len(manifest.rows)
+    spread = scale_spread(manifest)
+    if spread:
+        measured = int(spread["count"])
+        print(
+            f"scale measured on {measured} of {total} photograph(s): "
+            f"{spread['minimum']:.4f} to {spread['maximum']:.4f} mm/px, "
+            f"a spread of {spread['spread']:.2f}x"
+        )
+        # Strictly coarser, which is what `patches.resample_to_canonical`
+        # refuses: a photograph at the canonical needs no resampling, and one
+        # above it could only reach the canonical by inventing grain that was
+        # never photographed. An unmeasured row reads as 0.0 and is counted by
+        # the clause below instead, never here.
+        coarse = sum(
+            1
+            for row in manifest.rows
+            if row.scale.get("mm_per_px", 0.0) > canonical_mm_per_px
+        )
+        print(
+            f"{coarse} of {measured} measured photograph(s) are coarser than the "
+            f"canonical {canonical_mm_per_px:.4f} mm/px and leave training "
+            f"({PatchRefusal.TOO_COARSE.value})"
+        )
+
+    unmeasured = check_scale_columns(manifest)
+    if unmeasured:
+        print(
+            f"{len(unmeasured)} of {total} photograph(s) carry no measured scale, "
+            "so no patch grid can be cut on this version yet"
+        )
+        # Two states, two reports. A version nobody has measured gets one
+        # exemplar, because every row names the same version-wide remedy and
+        # printing it 221 times buries the count above it. A version that *was*
+        # measured and has gaps gets the gaps by name: those are the photographs
+        # the dish-rim reader refused, and which ones they are is the whole
+        # information a collector needs to act.
+        if len(unmeasured) == total:
+            print(f"  e.g. {unmeasured[0]}")
+        else:
+            for problem in unmeasured[:_UNMEASURED_NAMED]:
+                print(f"  - {problem}")
+            if len(unmeasured) > _UNMEASURED_NAMED:
+                print(f"  - ... and {len(unmeasured) - _UNMEASURED_NAMED} more")
 
 
 @contextmanager
