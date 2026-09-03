@@ -575,7 +575,7 @@ A1 (0030) ── done ──── their item 6, the capture gate
 
 B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
-B2 (0033/0040) ─────┴─ B2 scale (0052) ─ A6 ──┤
+B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 ──┤
                                                │
                        C0 probe (#213)  ───────┤
                        A7 latency (#215) ──────┤
