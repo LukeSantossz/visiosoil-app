@@ -83,9 +83,9 @@ Last updated: 2026-09-03.
 > [SPEC 0052](../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md)
 > (#212), which built the dish-rim reader SPEC 0037 specified and nobody had
 > written, read all 221 photographs without a single refusal, and **confirmed the
-> canonical at 0.1313 mm/px** against the 0.130 that had been measured over 42 %
+> canonical at 0.1292 mm/px** against the 0.130 that had been measured over 42 %
 > of the archive. **A6 is the next item.** Two figures elsewhere in the records
-> move with it: the archive's scale spread is 4.75× rather than 2.6×, and the
+> move with it: the archive's scale spread is 4.83× rather than 2.6×, and the
 > eleven photographs the canonical refuses are all in the transported population,
 > which is already train-only, so the 77-group splittable pool and the minimum
 > detectable effect SPEC 0042 records are untouched.
@@ -302,7 +302,7 @@ by explicit action.
 **Record:** [SPEC 0037](../specs/0037-scale-normalised-greyscale-patch-pipeline.md),
 gate-approved. **Depends on:** B2's scale recomputation (#212) — **satisfied
 2026-09-03** by [SPEC 0052](../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
-which lands the dish-rim reader and confirms the canonical at 0.1313 mm/px over
+which lands the dish-rim reader and confirms the canonical at 0.1292 mm/px over
 all 221 photographs. A6 inherits the reader rather than writing one, and its
 patch geometry is unchanged.
 **Gate for:** C0's arms that consume patches.

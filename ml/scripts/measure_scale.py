@@ -33,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.config import load_config, resolve_paths  # noqa: E402
 from src.manifest import (  # noqa: E402
     ARCHIVE_CLASSES,
-    ManifestError,
     dataset_root,
     manifest_digest,
     read_manifest,
@@ -61,16 +60,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = resolve_paths(load_config(args.config))
-    version = args.version or config["data"]["dataset_version"]
-    root = (
-        Path(args.root)
-        if args.root
-        else Path(dataset_root(config["data"]["datasets_dir"], version))
-    )
+    if args.root:
+        # The version labels the record and names the file it is written to, so
+        # taking it from the config while the data comes from `--root` would
+        # write a measurement of one version over another version's record,
+        # under that version's name. The directory measured is the version.
+        root = Path(args.root)
+        version = args.version or root.name
+    else:
+        version = args.version or config["data"]["dataset_version"]
+        root = Path(dataset_root(config["data"]["datasets_dir"], version))
 
     try:
         manifest = read_manifest(root, ARCHIVE_CLASSES)
-    except (ManifestError, FileNotFoundError) as error:
+    except (ValueError, FileNotFoundError) as error:
+        # `ValueError` rather than `ManifestError`, which is one of its
+        # subclasses: `validate_version_name` raises the base class, so a root
+        # that is not named `vN` escaped this clause as a traceback.
         print(f"cannot read the manifest at {root}: {error}", file=sys.stderr)
         return 1
 

@@ -39,6 +39,18 @@ corrected centre, and its radius is the reading. A least-squares fit over 720
 points also gives the residual the refusal is judged on, which the median of
 per-ray radii did not.
 
+**Each ray takes the outermost qualifying edge, by the same rule that chose
+the seed, and that is the second correction implementation forced.** The first
+version refined each ray to the *strongest* edge inside the window. It is the
+wrong rule, and it defeats this specification's central decision at the last
+step: on a full dish the soil boundary sits about five per cent inside the rim,
+which is inside the ±6 % window and far stronger, so every ray snapped to it. The
+reader returned a clean circle at the soil radius — five per cent too small,
+with no refusal, a residual of 0.0005 and full ray coverage, because a wrong
+circle fitted well is still fitted well. It was found by an adversarial read of
+the diff, not by the suite, which pinned the soil at 0.73 of the rim in the one
+test whose name describes this case and so never put the soil inside the window.
+
 **The reader reports its own residual and refuses rather than guessing.** The
 median absolute residual about the fitted circle, divided by its radius, is
 returned with every reading, together with the fraction of rays that found the
@@ -161,10 +173,19 @@ is the one the code implements.
 
 - reads_the_rim_of_a_synthetic_dish_within_one_percent: given a rendered dish of
   known radius on a plain background, the reader returns a radius within 1 % of
-  the rendered one.
-- measures_the_outer_circle_not_the_inner_one: given a rendered dish whose inner
-  filled disc is materially smaller than its outer rim, the reader returns the
-  outer radius, not the inner one.
+  the rendered one, **at six frame sizes and radii rather than one**. Widened
+  during implementation: the single case originally written passed while the
+  reader was five per cent wrong at four of the other five.
+- measures_the_outer_circle_not_the_inner_one: given a rendered dish, the reader
+  returns the outer radius and not the inner one, **at five fill levels from a
+  soil disc at 0.95 of the rim down to 0.73**. Widened during implementation: the
+  single fill originally written, 0.73, is outside the window the per-ray
+  refinement searches, so it could not see the reader snapping to the soil
+  boundary on a dish filled the way every archive photograph is.
+- reads_the_same_scale_under_reflection: the four dihedral views of one archive
+  photograph read millimetres per pixel within 1 % of each other. Added during
+  implementation: it is the strongest property available without a ground truth,
+  and it is what exposed the criterion above being satisfied vacuously.
 - refuses_when_no_circle_is_present: given an image with no circular structure,
   the reader returns a refusal naming `no_circle_found` and no scale.
 - refuses_when_the_rim_is_inconsistent: given a dish rendered at a tilt, so its
@@ -175,7 +196,10 @@ is the one the code implements.
   test asserts this over every refusal cause.
 - reports_dispersion_and_ray_coverage_with_every_reading: a successful reading
   carries the residual of the fitted circle and the fraction of rays that found
-  the rim, so a later reader can judge the measurement without re-running it.
+  the rim, so a later reader can judge the measurement without re-running it. A
+  refusal raised by the diagnostic pass carries **neither**, because those
+  numbers come from a different fit at a different quantile and routinely sit
+  well inside the thresholds the refusal says were not met.
 - is_deterministic_across_runs: reading one image twice returns bit-identical
   values. There is no sampling and no seed.
 - the_record_names_the_dataset_version_and_the_manifest_digest: the committed
@@ -215,30 +239,29 @@ Measured on this machine over dataset version `v1`, manifest digest
 **221 photographs read, 0 refusals**.
 
 The residual of the fitted circle, which is what a wrong fit would inflate, stays
-far below the refusal threshold of 0.06 on every photograph: median 0.0102, 95th
-percentile 0.0187, maximum 0.0259. Ray coverage is 0.990 at the 5th percentile
-and 0.740 at its minimum, against a floor of 0.70 — the margin there is thin and
-is named in the risks below.
+far below the refusal threshold of 0.06 on every photograph: median 0.0057, 95th
+percentile 0.0157, maximum 0.0236. Ray coverage is 0.999 at the 5th percentile
+and 0.924 at its minimum, against a floor of 0.70.
 
 **Millimetres per pixel, overall and per capture population:**
 
 | Population | n | min | p5 | p50 | p95 | max | spread |
 |---|---|---|---|---|---|---|---|
-| A — JPEG export, 1536 × 2048, EXIF kept | 44 | 0.0723 | 0.0736 | 0.0866 | 0.0986 | 0.1099 | 1.52× |
-| B — transported JPEG, ~1600 × 900, EXIF lost | 48 | 0.1131 | 0.1153 | 0.1239 | 0.1510 | 0.1667 | 1.47× |
-| C — native HEIC session, 3024 × 4032 | 129 | 0.0351 | 0.0374 | 0.0446 | 0.0580 | 0.0647 | 1.84× |
-| **All** | **221** | **0.0351** | **0.0376** | **0.0550** | **0.1313** | **0.1667** | **4.75×** |
+| A — JPEG export, 1536 × 2048, EXIF kept | 44 | 0.0686 | 0.0724 | 0.0852 | 0.0978 | 0.1085 | 1.58× |
+| B — transported JPEG, ~1600 × 900, EXIF lost | 48 | 0.1112 | 0.1121 | 0.1215 | 0.1487 | 0.1653 | 1.49× |
+| C — native HEIC session, 3024 × 4032 | 129 | 0.0342 | 0.0362 | 0.0427 | 0.0556 | 0.0620 | 1.81× |
+| **All** | **221** | **0.0342** | **0.0367** | **0.0526** | **0.1292** | **0.1653** | **4.83×** |
 
-**The canonical is 0.1313 mm/px, and SPEC 0037's 0.130 mm/px is confirmed rather
+**The canonical is 0.1292 mm/px, and SPEC 0037's 0.130 mm/px is confirmed rather
 than amended.** Adding the 129 finest photographs to a percentile computed
-without them moved it by one per cent, and the reason is arithmetic rather than
-luck: the coarse tail is entirely population B, and the 11th coarsest of 221 sits
-almost exactly where the 5th coarsest of 92 sat. The patch geometry SPEC 0037
-derives from the canonical moves by that same one per cent — a 21.0 mm patch at
-160 px rather than 20.8 — and the patch counts, which step in whole squares, do
-not move at all: nine at 70 mm, twenty-one at 80, twenty-five at 90.
+without them moved it by six parts in a thousand, and the reason is arithmetic
+rather than luck: the coarse tail is entirely population B, and the 11th coarsest
+of 221 sits almost exactly where the 5th coarsest of 92 sat. The patch geometry
+SPEC 0037 derives from the canonical moves by that same fraction — a 20.7 mm
+patch at 160 px rather than 20.8 — and the patch counts, which step in whole
+squares, do not move at all: nine at 70 mm, twenty-one at 80, twenty-five at 90.
 
-**The archive's scale spread is 4.75×, not the 2.6× ADR 0016 recorded.** That
+**The archive's scale spread is 4.83×, not the 2.6× ADR 0016 recorded.** That
 record measured the 92 readable JPEGs; the HEIC session is finer than every one
 of them, so the range could only widen once it was included.
 
@@ -254,16 +277,25 @@ names, measured and found not to bind.
 **Two independent corroborations, because a scale reader that is wrong in a
 consistent way looks right.** First, populations A and C are the same dish
 photographed by the same iPhone 11 and exported at long-side ratio 1.97; their
-median millimetres per pixel differ by a factor of 1.943, which is that ratio
+median millimetres per pixel differ by a factor of 1.995, which is that ratio
 recovered from the pixels rather than from the file header. Second, over the same
 92 photographs the 2026-08-25 measurement covered, this reader gives a range of
-0.0723 to 0.1667 mm/px against that measurement's 0.0670 to 0.1745 — the two
-agree on the extremes to within 5 to 7 %. Their medians differ more, 0.1142
+0.0686 to 0.1653 mm/px against that measurement's 0.0670 to 0.1745 — the two
+agree on the extremes to within 2 to 5 %. Their medians differ more, 0.1113
 against 0.100, and the reason is that the A-plus-B distribution is bimodal with
 44 and 48 members: its median falls in the gap between two populations, where a
 few photographs move it a long way. The median of a bimodal sample is not a
 statistic worth reconciling, and the canonical is a tail percentile rather than a
 median.
+
+**A third corroboration was added after the reflection defect, because it is the
+one that found it.** A mirrored photograph is the same dish at the same scale, so
+the four dihedral views of one photograph must read the same millimetres per
+pixel. Under the strongest-edge refinement they disagreed by up to 2.6 % while
+reporting full ray coverage and a residual under 0.02; under the outermost-edge
+rule the two photographs tested agree to within 1 %, which is what
+`test_an_archive_photograph_reads_the_same_scale_under_reflection` now asserts.
+It is the best available stand-in for a ground truth this project does not have.
 
 ## Risks and Assumptions
 
@@ -279,13 +311,27 @@ median.
   nothing else around it. It would not hold on a cluttered background, and the
   dispersion refusal is the guard rather than the fix.
 - **Risk: the refusal thresholds are set above a measured maximum, not
-  calibrated.** The dispersion threshold has a margin of more than two against
-  the worst photograph in the archive; the ray-coverage floor has a margin of
-  0.04 against the worst, which is thin enough that a re-ingestion could push one
-  photograph across it. Neither is tested against a real failure, and their only
-  calibration is that they admit every photograph a human reading the images
-  agrees is a dish. That is stated rather than hidden, and it is the same
-  position SPEC 0030's uncalibrated criteria ship in.
+  calibrated.** The residual threshold has a margin of more than two against the
+  worst photograph in the archive, and the ray-coverage floor a margin of 0.22.
+  Neither is tested against a real failure, and their only calibration is that
+  they admit every photograph a human reading the images agrees is a dish. That
+  is stated rather than hidden, and it is the same position SPEC 0030's
+  uncalibrated criteria ship in.
+- **Risk, found by review and recorded rather than closed: a wrong circle,
+  fitted well, is invisible to every number this reader reports.** That is how
+  the strongest-edge refinement shipped green — residual 0.0005, coverage 1.00,
+  radius five per cent wrong. The residual measures whether the points lie on a
+  circle, never whether it is the right circle, and no threshold can be made to.
+  What guards it is the reflection property and the two population corroborations
+  above, all three of which are consequences of the geometry rather than
+  properties of the fit.
+- **Risk: a dish filling more than about a third of the frame is refused rather
+  than measured.** `MAX_RADIUS_FRACTION = 0.52` advertises more than the operator
+  delivers: past roughly 0.45 of the shorter side most rays leave the frame, the
+  median-over-rays profile falls under `MIN_PROFILE_EDGE`, and the photograph
+  takes the refusal path. No archive photograph comes near it — the largest fills
+  0.36 — so this is a limit of the stated envelope rather than a live failure,
+  and it refuses rather than guessing.
 - **Risk: the committed record can drift from the dataset it describes.** It
   names the manifest digest so drift is detectable, but nothing recomputes it
   automatically, and a dataset version `v2` would need its own record and its own

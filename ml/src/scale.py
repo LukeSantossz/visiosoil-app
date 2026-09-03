@@ -123,20 +123,15 @@ class ScaleReading:
     disc_diameter_px: Optional[float]
     centre_x_px: Optional[float]
     centre_y_px: Optional[float]
-    #: Median absolute deviation of the per-ray rim radii, over the radius.
+    #: Median absolute residual about the fitted circle, over its radius.
+    #: Zero on every refusal: no circle was measured, so there is nothing to
+    #: report, and a plausible-looking number there would read as a pass.
     rim_dispersion: float
-    #: The share of rays that found the rim.
+    #: The share of rays that found the rim. Zero on a refusal, for the same
+    #: reason — except the one refusal that *is* a measurement, an inconsistent
+    #: rim found by the main pass, which carries what it measured.
     ray_coverage: float
     refusal: Optional[ScaleRefusal] = None
-
-
-@dataclass(frozen=True)
-class CanonicalScale:
-    """The contract value, with the population it was taken over."""
-
-    mm_per_px: float
-    count: int
-    percentile: float
 
 
 @dataclass(frozen=True)
@@ -197,7 +192,7 @@ def read_dish_scale(image: Image.Image) -> ScaleReading:
     lift = fine_scale / coarse_scale
     centre_y, centre_x = centre[0] * lift, centre[1] * lift
     search_from = min_radius * lift * 0.7
-    search_to = min(max_radius * lift * 1.25, _farthest_corner(fine, centre_y, centre_x))
+    search_to = max_radius * lift * 1.25
     if search_to <= search_from + RAY_STEP_PX * 4:
         return _refused(ScaleRefusal.NO_CIRCLE_FOUND)
 
@@ -376,8 +371,13 @@ def _hough_centre(
             np.add.at(accumulator, (candidate_y[inside], candidate_x[inside]), 1.0)
 
     smoothed = _convolve3(accumulator, np.ones((3, 3)))
-    flat = int(np.argmax(smoothed))
-    return float(flat // width), float(flat % width)
+    # The maximum is a plateau, not a point: a ring votes equally for a patch of
+    # centres. `argmax` would return that patch's lowest flat index, which is
+    # its top-left corner, so the error would be negative in both coordinates
+    # every time rather than averaging out. The centroid is the centre.
+    peak = smoothed.max()
+    rows, columns = np.nonzero(smoothed >= peak)
+    return float(rows.mean()), float(columns.mean())
 
 
 def _radial_samples(
@@ -435,6 +435,13 @@ def _fit_edge(
     """
     radii, samples = _radial_samples(plane, centre_y, centre_x, search_from, search_to)
     derivative = np.abs(np.gradient(samples, axis=0))
+    # A radius every ray leaves the frame at carries no evidence either way.
+    # Dropping it before the percentile keeps a NaN out of the seed rather than
+    # relying on the search band never reaching that far.
+    sampled = ~np.all(np.isnan(derivative), axis=1)
+    if not sampled.any():
+        return None
+    radii, derivative = radii[sampled], derivative[sampled]
     profile = np.nanpercentile(derivative, quantile, axis=1)
     peak = float(np.nanmax(profile)) if np.any(np.isfinite(profile)) else 0.0
     if not np.isfinite(peak) or peak < MIN_PROFILE_EDGE:
@@ -447,17 +454,24 @@ def _fit_edge(
 
     band = np.abs(radii - seed_radius) <= RIM_REFINE_BAND * seed_radius
     banded_radii = radii[band]
-    # A ray that leaves the frame samples NaN; -inf keeps it out of the maximum
-    # without turning the whole column into NaN.
+    # A ray that leaves the frame samples NaN; -inf keeps it out of the
+    # comparison without turning the whole column into NaN.
     banded = np.where(np.isnan(derivative[band]), -np.inf, derivative[band])
-    strength = banded.max(axis=0)
-    found = strength >= RAY_STRENGTH_FRACTION * peak
+    qualifies = banded >= RAY_STRENGTH_FRACTION * peak
+    found = qualifies.any(axis=0)
     coverage = float(found.mean())
     if found.sum() < 3:
         return None
 
+    # The **outermost** qualifying edge on each ray, by the same rule that chose
+    # the seed. Taking the strongest instead reads whichever concentric edge is
+    # sharpest, and on a full dish the soil boundary sits about five per cent
+    # inside the rim — inside this band, and far stronger. That returns a clean
+    # circle at the wrong radius, which no dispersion or coverage figure can
+    # see, and it is exactly the silent error this module exists to prevent.
     angles = np.linspace(0.0, 2.0 * np.pi, RAY_COUNT, endpoint=False)[found]
-    per_ray = banded_radii[banded.argmax(axis=0)][found]
+    outermost_index = qualifies.shape[0] - 1 - np.argmax(qualifies[::-1], axis=0)
+    per_ray = banded_radii[outermost_index][found]
     ys = centre_y + per_ray * np.sin(angles)
     xs = centre_x + per_ray * np.cos(angles)
     fitted_y, fitted_x, fitted_radius = _fit_circle(ys, xs)
@@ -491,11 +505,12 @@ def _diagnose(
     )
     if partial is None:
         return _refused(ScaleRefusal.NO_CIRCLE_FOUND)
-    return _refused(
-        ScaleRefusal.INCONSISTENT_RIM,
-        rim_dispersion=partial.dispersion,
-        ray_coverage=partial.coverage,
-    )
+    # Deliberately without `partial`'s dispersion and coverage. They belong to a
+    # different fit, at a different quantile and often at the uncorrected
+    # centre, and they are routinely well inside the thresholds this refusal
+    # says were not met — a refusal carrying numbers that look like a pass is
+    # worse than one carrying none.
+    return _refused(ScaleRefusal.INCONSISTENT_RIM)
 
 
 def _fit_circle(ys: np.ndarray, xs: np.ndarray) -> tuple[float, float, float]:
@@ -511,23 +526,6 @@ def _fit_circle(ys: np.ndarray, xs: np.ndarray) -> tuple[float, float, float]:
     centre_x, centre_y, offset = solution
     radius = float(np.sqrt(max(offset + centre_x**2 + centre_y**2, 0.0)))
     return float(centre_y), float(centre_x), radius
-
-
-def _farthest_corner(plane: np.ndarray, centre_y: float, centre_x: float) -> float:
-    """Return the distance from the centre to the farthest frame corner.
-
-    The search band is bounded by the frame's reach rather than by the largest
-    circle that fits inside it. A dish photographed close fills the shorter
-    side, and stopping at the nearest edge would end the search before the
-    profile falls away from the rim — which reads as a rim at the band's edge
-    rather than as the rim.
-    """
-    height, width = plane.shape
-    return max(
-        float(np.hypot(centre_y - corner_y, centre_x - corner_x))
-        for corner_y in (0.0, float(height - 1))
-        for corner_x in (0.0, float(width - 1))
-    )
 
 
 def _distribution(readings: Sequence[float]) -> ScaleDistribution:

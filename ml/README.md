@@ -188,7 +188,7 @@ those readings, and it is a contract value: a model trained at one canonical
 scale cannot be served at another (ADR 0017). That is why this record is
 committed while the dataset version it describes is not — see
 [SPEC 0052](../docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
-which measured it at **0.1313 mm/px** over all 221 photographs of `v1` with no
+which measured it at **0.1292 mm/px** over all 221 photographs of `v1` with no
 photograph refused.
 
 The older folder-scan layout — images in `data/raw/<ClassName>/`, supported

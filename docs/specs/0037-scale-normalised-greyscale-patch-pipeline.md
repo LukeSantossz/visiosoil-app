@@ -72,16 +72,16 @@ percentile and refuses the tail below it.
 [SPEC 0052](0052-read-the-dish-rim-and-recompute-the-canonical-scale.md) (#212),
 over all 221 photographs of `v1` with a committed reader and a committed record.
 Every photograph read; none was quarantined. The canonical comes out at
-**0.1313 mm/px**, one per cent from the 0.130 above, so the value ships as
-measured and the geometry below stands: the patch side moves by that same one per
-cent, to 21.0 mm at 160 px, and the patch counts step in whole squares and do not
-move at all.
+**0.1292 mm/px**, six parts in a thousand from the 0.130 above, so the value
+ships as measured and the geometry below stands: the patch side moves by that
+same fraction, to 20.7 mm at 160 px, and the patch counts step in whole squares
+and do not move at all.
 
 The paragraph this replaces read that the value was provisional because the
 distribution had been measured over the 92 readable JPEGs while the 129 HEIC
 files, 58 % of the set, could not be opened. That is why the recomputation was
 required and it is what SPEC 0052 did. Two of its numbers move with it: the
-archive's scale spread is **4.75×**, not the 2.6× measured without the HEIC
+archive's scale spread is **4.83×**, not the 2.6× measured without the HEIC
 session, and the eleven photographs coarser than the canonical — the tail this
 value refuses rather than upsamples — are all in the transported population,
 which SPEC 0040 D6 already holds to training, so the splittable pool does not

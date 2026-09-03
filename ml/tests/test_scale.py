@@ -11,7 +11,6 @@ criterion be covered only by those, and none is.
 
 import importlib.util
 import json
-import math
 import subprocess
 import sys
 from pathlib import Path
@@ -23,7 +22,6 @@ from PIL import Image
 from src.manifest import ARCHIVE_CLASSES, read_manifest, train_only_sample_ids
 from src.scale import (
     DISH_DIAMETER_MM,
-    CanonicalScale,
     ScaleRefusal,
     canonical_mm_per_px,
     read_dish_scale,
@@ -118,17 +116,37 @@ def _tilted_dish(
 # --- the reader ------------------------------------------------------------
 
 
-def test_reads_the_rim_of_a_synthetic_dish_within_one_percent():
-    reading = read_dish_scale(_dish(outer_radius=300.0))
+@pytest.mark.parametrize(
+    "side,outer_radius",
+    [(900, 300.0), (800, 250.0), (700, 230.0), (640, 168.0), (640, 224.0), (1200, 400.0)],
+)
+def test_reads_the_rim_of_a_synthetic_dish_within_one_percent(side, outer_radius):
+    """Across frame sizes, because one geometry proves only that one geometry.
+
+    The single case this test used to carry passed while the reader was five
+    per cent wrong at four of the five sizes added here.
+    """
+    reading = read_dish_scale(_dish(side=side, outer_radius=outer_radius))
 
     assert reading.refusal is None
-    assert reading.disc_diameter_px == pytest.approx(600.0, rel=0.01)
-    assert reading.mm_per_px == pytest.approx(DISH_DIAMETER_MM / 600.0, rel=0.01)
+    assert reading.disc_diameter_px == pytest.approx(2.0 * outer_radius, rel=0.01)
+    assert reading.mm_per_px == pytest.approx(
+        DISH_DIAMETER_MM / (2.0 * outer_radius), rel=0.01
+    )
 
 
-def test_measures_the_outer_circle_not_the_inner_one():
-    """The soil disc is the strongest edge; the rim is the reference."""
-    reading = read_dish_scale(_dish(outer_radius=300.0, inner_radius=220.0))
+@pytest.mark.parametrize("inner_radius", [285.0, 282.0, 270.0, 250.0, 220.0])
+def test_measures_the_outer_circle_not_the_inner_one(inner_radius):
+    """The soil disc is the strongest edge; the rim is the reference.
+
+    Parametrised over how full the dish is, and the full end is the case that
+    matters. This test used to pin the soil at 0.73 of the rim, far outside the
+    band the per-ray refinement searches, so it could not see the reader
+    snapping to the soil boundary on a dish filled the way every archive
+    photograph is — a clean circle five per cent too small, reported with no
+    refusal and a dispersion of 0.0005.
+    """
+    reading = read_dish_scale(_dish(outer_radius=300.0, inner_radius=inner_radius))
 
     assert reading.refusal is None
     assert reading.disc_diameter_px == pytest.approx(600.0, rel=0.01)
@@ -154,6 +172,21 @@ def test_never_substitutes_a_default_scale():
     for reading in refused:
         assert reading.mm_per_px is None
         assert reading.disc_diameter_px is None
+
+
+def test_a_refusal_from_the_diagnostic_pass_reports_no_metrics():
+    """Its numbers come from another fit, and they routinely look like a pass.
+
+    The diagnostic pass re-fits at a different quantile, often at the centre the
+    vote proposed rather than the one the fit corrected. Attaching its
+    dispersion and coverage to the refusal produced a record saying the rim was
+    inconsistent beside a dispersion of 0.0023 against a limit of 0.06.
+    """
+    reading = read_dish_scale(_tilted_dish(aspect=1.25))
+
+    assert reading.refusal is ScaleRefusal.INCONSISTENT_RIM
+    assert reading.rim_dispersion == 0.0
+    assert reading.ray_coverage == 0.0
 
 
 def test_reports_dispersion_and_ray_coverage_with_every_reading():
@@ -268,7 +301,26 @@ def test_the_record_reports_each_population_separately():
             assert key in population
 
 
-def test_quarantine_is_reported_by_name_and_per_population():
+def test_quarantine_names_every_photograph_that_got_no_scale():
+    """Asserted on rows that hold a refusal, since the record holds none.
+
+    Over the committed record both sides of the equality are empty, so this
+    property has to be exercised on data that has something to lose.
+    """
+    rows = [
+        {"image": "a.jpg", "population": "A", "mm_per_px": 0.08},
+        {"image": "b.jpg", "population": "A", "mm_per_px": None},
+        {"image": "c.jpg", "population": "B", "mm_per_px": None},
+    ]
+
+    summary = summarise(rows).as_dict()
+
+    assert set(summary["quarantined_images"]) == {"b.jpg", "c.jpg"}
+    assert summary["quarantined"] == {"A": 1, "B": 1}
+    assert sum(summary["quarantined"].values()) == len(summary["quarantined_images"])
+
+
+def test_the_record_states_a_quarantine_count_for_every_population():
     record = _record()
 
     named = {row["image"] for row in record["photographs"] if row["mm_per_px"] is None}
@@ -318,6 +370,32 @@ def test_the_measurement_reproduces_from_the_recorded_command(tmp_path):
     written = json.loads(first.read_text(encoding="utf-8"))
     assert len(written["photographs"]) == 2
     assert written["canonical_mm_per_px"] > 0.0
+
+
+@real_only
+@pytest.mark.parametrize("image_name", ["IMG_8231.png", "IMG_8100.png"])
+def test_an_archive_photograph_reads_the_same_scale_under_reflection(image_name):
+    """A mirrored photograph is the same dish at the same scale.
+
+    The strongest property available without a ground truth, and the one that
+    caught the reader measuring the soil boundary instead of the rim: the four
+    dihedral views of one photograph disagreed by up to 2.6 % while every
+    reading reported full ray coverage and a dispersion under 0.02.
+    """
+    path = next(REAL_VERSION.glob(f"images/*/{image_name}"))
+    original = Image.open(path)
+    views = [
+        original,
+        original.transpose(Image.FLIP_LEFT_RIGHT),
+        original.transpose(Image.FLIP_TOP_BOTTOM),
+        original.transpose(Image.ROTATE_180),
+    ]
+
+    readings = [read_dish_scale(view).mm_per_px for view in views]
+
+    assert all(reading is not None for reading in readings)
+    spread = max(readings) / min(readings) - 1.0
+    assert spread < 0.01, f"{image_name} reads {spread:.2%} apart across reflections"
 
 
 @real_only
@@ -374,11 +452,3 @@ def test_the_reader_is_pure_arithmetic_and_needs_no_tensorflow():
     )
 
     assert completed.returncode == 0, completed.stderr
-
-
-def test_the_canonical_scale_is_a_value_object_naming_its_population():
-    canonical = CanonicalScale(mm_per_px=0.1298, count=221, percentile=95.0)
-
-    assert canonical.mm_per_px == pytest.approx(0.1298)
-    assert canonical.count == 221
-    assert math.isclose(canonical.percentile, 95.0)
