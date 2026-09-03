@@ -375,38 +375,64 @@ def test_shuffle_order_differs_between_epochs(cache_config):
         entries.append({"path": str(path), "label": index % 2, "class": f"C{index % 2}"})
 
     ds = build_dataset(entries, cache_config, shuffle=True)
-    orders = [[float(img.numpy().mean()) for img, _ in ds] for _ in range(2)]
+    orders = [[_signature(img) for img, _ in ds] for _ in range(2)]
 
+    assert len(set(orders[0])) == len(entries), (
+        "the twelve fixture images are not distinguishable, so this asserts nothing"
+    )
     assert orders[0] != orders[1], "the shuffle replayed one order; cache is upstream of it"
+
+
+def _signature(images):
+    """A per-channel signature, because a global mean collides here.
+
+    The three fixture images are (200,30,30), (30,200,30) and (30,30,200): they
+    differ only in *which* channel is bright, so their global means are all
+    86.67 and a mean-keyed assertion compares an image to itself. Every test
+    below that identifies an image asserts these signatures are distinct, so
+    the collision cannot come back silently.
+    """
+    array = images.numpy()
+    return tuple(
+        round(float(array[..., channel].mean()), 4)
+        for channel in range(array.shape[-1])
+    )
+
+
+def _read(ds):
+    return [(_signature(img), int(lbl.numpy().argmax())) for img, lbl in ds]
 
 
 @requires_tensorflow
 def test_unshuffled_order_matches_the_entries(cache_entries, cache_config):
-    """Without shuffling, the cache reorders nothing."""
+    """Without shuffling, the dataset yields the entries in the order given.
+
+    Asserted against `cache_entries`, not against a second iteration of the same
+    dataset: comparing a pipeline to itself proves it is stable, which a frozen
+    cache also is.
+    """
     from src.dataset import build_dataset
 
-    ds = build_dataset(cache_entries, cache_config)
-    assert _means(ds) == _means(ds), "an unshuffled dataset changed order between epochs"
+    seen = _read(build_dataset(cache_entries, cache_config))
 
-
-def _means(ds):
-    return [round(float(images.numpy().mean()), 4) for images, _ in ds]
+    assert [label for _, label in seen] == [e["label"] for e in cache_entries]
+    assert len({signature for signature, _ in seen}) == len(cache_entries), (
+        "the fixture images are not distinguishable, so this asserts nothing"
+    )
 
 
 @requires_tensorflow
 def test_labels_stay_with_their_images(cache_entries, cache_config):
-    """Reordering moved batches; it must not have separated a label from its image."""
+    """Reordering moved batches; it must not separate a label from its image."""
     from src.dataset import build_dataset
 
-    expected = {}
-    ds = build_dataset(cache_entries, cache_config)
-    for images, labels in ds:
-        expected[round(float(images.numpy().mean()), 4)] = labels.numpy().argmax()
+    expected = dict(_read(build_dataset(cache_entries, cache_config)))
+    assert len(expected) == len(cache_entries), (
+        "two fixture images share a signature, so this asserts nothing"
+    )
 
-    shuffled = build_dataset(cache_entries, cache_config, shuffle=True)
-    for images, labels in shuffled:
-        key = round(float(images.numpy().mean()), 4)
-        assert expected[key] == labels.numpy().argmax(), (
+    for signature, label in _read(build_dataset(cache_entries, cache_config, shuffle=True)):
+        assert expected[signature] == label, (
             "an image is paired with a different label after shuffling"
         )
 
@@ -420,8 +446,12 @@ def test_the_pipeline_yields_the_same_multiset(cache_entries, cache_config):
     """
     from src.dataset import build_dataset
 
-    plain = sorted(_means(build_dataset(cache_entries, cache_config)))
-    shuffled = sorted(_means(build_dataset(cache_entries, cache_config, shuffle=True)))
+    plain = sorted(s for s, _ in _read(build_dataset(cache_entries, cache_config)))
+    shuffled = sorted(
+        s for s, _ in _read(build_dataset(cache_entries, cache_config, shuffle=True))
+    )
 
     assert plain == shuffled
-    assert len(plain) == len(cache_entries)
+    assert len(set(plain)) == len(cache_entries), (
+        "the signatures collide, so an equal multiset proves nothing"
+    )
