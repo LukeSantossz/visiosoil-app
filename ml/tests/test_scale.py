@@ -1,0 +1,307 @@
+"""Acceptance criteria for the dish-rim scale reader (SPEC 0052).
+
+Each test name matches an acceptance criterion in
+`docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md`.
+
+The fixtures are rendered circles, so most of the suite runs without the
+archive. The dataset-gated tests at the end assert the committed measurement
+record against the version it was taken over; SPEC 0043 requires that no
+criterion be covered only by those, and none is.
+"""
+
+import json
+import math
+from pathlib import Path
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from src.manifest import ARCHIVE_CLASSES, read_manifest, train_only_sample_ids
+from src.scale import (
+    DISH_DIAMETER_MM,
+    CanonicalScale,
+    ScaleRefusal,
+    canonical_mm_per_px,
+    read_dish_scale,
+    summarise,
+)
+
+ML_ROOT = Path(__file__).resolve().parents[1]
+RECORD_PATH = ML_ROOT / "measurements" / "dish-scale-v1.json"
+REAL_VERSION = ML_ROOT / "data" / "datasets" / "v1"
+
+real_only = pytest.mark.skipif(
+    not (REAL_VERSION / "manifest.csv").is_file(),
+    reason="the ingested version is not present; its images are not tracked",
+)
+
+
+# --- fixture builders: deterministic, no randomness ------------------------
+
+
+def _dish(
+    side: int = 900,
+    outer_radius: float = 300.0,
+    inner_radius: float | None = None,
+    centre: tuple[float, float] | None = None,
+    background: int = 235,
+    rim: int = 205,
+    soil: int = 70,
+) -> Image.Image:
+    """Render a dish: a filled soil disc inside a bright glass annulus.
+
+    `inner_radius` defaults to a full dish, where the soil meets the wall. A
+    smaller value renders the under-filled dish that made the soil disc
+    unusable as a reference.
+    """
+    if inner_radius is None:
+        inner_radius = outer_radius * 0.94
+    cy, cx = centre if centre is not None else (side / 2.0, side / 2.0)
+    ys, xs = np.mgrid[0:side, 0:side]
+    radius = np.hypot(ys - cy, xs - cx)
+    plane = np.full((side, side), background, dtype=np.float64)
+    plane[radius <= outer_radius] = rim
+    plane[radius <= inner_radius] = soil
+    return Image.fromarray(
+        np.dstack([plane, plane, plane]).astype(np.uint8), mode="RGB"
+    )
+
+
+def _blank(side: int = 900, value: int = 235) -> Image.Image:
+    plane = np.full((side, side, 3), value, dtype=np.uint8)
+    return Image.fromarray(plane, mode="RGB")
+
+
+def _lobed(side: int = 900, radius: float = 300.0, amplitude: float = 0.20) -> Image.Image:
+    """A closed blob whose boundary departs from a circle by `amplitude`."""
+    cy = cx = side / 2.0
+    ys, xs = np.mgrid[0:side, 0:side]
+    angle = np.arctan2(ys - cy, xs - cx)
+    limit = radius * (1.0 + amplitude * np.cos(3.0 * angle))
+    inside = np.hypot(ys - cy, xs - cx) <= limit
+    plane = np.where(inside, 70, 235).astype(np.uint8)
+    return Image.fromarray(np.dstack([plane, plane, plane]), mode="RGB")
+
+
+# --- the reader ------------------------------------------------------------
+
+
+def test_reads_the_rim_of_a_synthetic_dish_within_one_percent():
+    reading = read_dish_scale(_dish(outer_radius=300.0))
+
+    assert reading.refusal is None
+    assert reading.disc_diameter_px == pytest.approx(600.0, rel=0.01)
+    assert reading.mm_per_px == pytest.approx(DISH_DIAMETER_MM / 600.0, rel=0.01)
+
+
+def test_measures_the_outer_circle_not_the_inner_one():
+    """The soil disc is the strongest edge; the rim is the reference."""
+    reading = read_dish_scale(_dish(outer_radius=300.0, inner_radius=220.0))
+
+    assert reading.refusal is None
+    assert reading.disc_diameter_px == pytest.approx(600.0, rel=0.01)
+
+
+def test_refuses_when_no_circle_is_present():
+    reading = read_dish_scale(_blank())
+
+    assert reading.refusal is ScaleRefusal.NO_CIRCLE_FOUND
+
+
+def test_refuses_when_the_rim_is_inconsistent():
+    reading = read_dish_scale(_lobed(amplitude=0.20))
+
+    assert reading.refusal is ScaleRefusal.INCONSISTENT_RIM
+
+
+def test_never_substitutes_a_default_scale():
+    """Every refusal carries no number at all, on every cause."""
+    refused = [read_dish_scale(_blank()), read_dish_scale(_lobed(amplitude=0.20))]
+
+    assert {reading.refusal for reading in refused} == set(ScaleRefusal)
+    for reading in refused:
+        assert reading.mm_per_px is None
+        assert reading.disc_diameter_px is None
+
+
+def test_reports_dispersion_and_ray_coverage_with_every_reading():
+    reading = read_dish_scale(_dish())
+
+    assert reading.refusal is None
+    assert 0.0 <= reading.rim_dispersion < 0.05
+    assert 0.5 < reading.ray_coverage <= 1.0
+
+
+def test_is_deterministic_across_runs():
+    image = _dish(outer_radius=271.0, centre=(410.0, 480.0))
+
+    first = read_dish_scale(image)
+    second = read_dish_scale(image)
+
+    assert first == second
+
+
+def test_reads_an_off_centre_dish():
+    """The Hough centre is the robust stage; nothing assumes a centred dish."""
+    reading = read_dish_scale(_dish(outer_radius=250.0, centre=(390.0, 520.0)))
+
+    assert reading.refusal is None
+    assert reading.disc_diameter_px == pytest.approx(500.0, rel=0.01)
+
+
+# --- the canonical value ---------------------------------------------------
+
+
+def test_the_canonical_is_the_ninety_fifth_percentile_of_the_readings():
+    readings = [0.01 * index for index in range(1, 101)]
+
+    assert canonical_mm_per_px(readings) == pytest.approx(
+        float(np.percentile(readings, 95))
+    )
+
+
+def test_the_canonical_refuses_an_empty_population():
+    with pytest.raises(ValueError, match="no reading"):
+        canonical_mm_per_px([])
+
+
+def test_the_summary_reports_each_population_separately():
+    rows = [
+        {"population": "A", "mm_per_px": 0.08},
+        {"population": "A", "mm_per_px": 0.09},
+        {"population": "B", "mm_per_px": 0.13},
+    ]
+
+    summary = summarise(rows)
+
+    assert set(summary.populations) == {"A", "B"}
+    assert summary.populations["A"].count == 2
+    assert summary.populations["B"].maximum == pytest.approx(0.13)
+    assert summary.overall.count == 3
+
+
+def test_the_summary_states_a_population_with_no_reading_as_zero():
+    """A quarantine count is stated even when it is zero, never omitted."""
+    rows = [
+        {"population": "A", "mm_per_px": 0.08},
+        {"population": "B", "mm_per_px": None, "refusal": "no_circle_found"},
+    ]
+
+    summary = summarise(rows)
+
+    assert summary.quarantined["A"] == 0
+    assert summary.quarantined["B"] == 1
+
+
+# --- the committed record --------------------------------------------------
+
+
+def _record() -> dict:
+    return json.loads(RECORD_PATH.read_text(encoding="utf-8"))
+
+
+def test_the_record_names_the_dataset_version_and_the_manifest_digest():
+    record = _record()
+
+    assert record["dataset_version"] == "v1"
+    assert len(record["manifest_digest"]) == 64
+    assert record["dish_diameter_mm"] == DISH_DIAMETER_MM
+
+
+def test_the_record_holds_one_row_per_photograph():
+    photographs = _record()["photographs"]
+
+    assert len(photographs) == 221
+    assert len({row["image"] for row in photographs}) == 221
+    assert {row["population"] for row in photographs} == {"A", "B", "C"}
+
+
+def test_the_canonical_in_the_record_is_recomputed_from_its_own_rows():
+    record = _record()
+    readings = [
+        row["mm_per_px"] for row in record["photographs"] if row["mm_per_px"] is not None
+    ]
+
+    assert record["canonical_mm_per_px"] == pytest.approx(
+        canonical_mm_per_px(readings)
+    )
+
+
+def test_the_record_reports_each_population_separately():
+    summary = _record()["summary"]
+
+    assert set(summary["populations"]) == {"A", "B", "C"}
+    for population in summary["populations"].values():
+        for key in ("count", "minimum", "p5", "p50", "p95", "maximum"):
+            assert key in population
+
+
+def test_quarantine_is_reported_by_name_and_per_population():
+    record = _record()
+
+    named = {row["image"] for row in record["photographs"] if row["mm_per_px"] is None}
+    assert named == set(record["summary"]["quarantined_images"])
+    assert set(record["summary"]["quarantined"]) == {"A", "B", "C"}
+
+
+def test_the_recorded_canonical_confirms_the_value_spec_0037_ships():
+    """SPEC 0037 ships 0.130 mm/px; this is the recomputation it asked for."""
+    assert _record()["canonical_mm_per_px"] == pytest.approx(0.130, abs=0.001)
+
+
+@real_only
+def test_the_record_was_taken_over_the_manifest_on_disk():
+    manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
+
+    assert _record()["manifest_digest"] == manifest.digest
+
+
+@real_only
+def test_the_measurement_reproduces_from_the_recorded_command():
+    """Re-reading one photograph reproduces the value the record carries."""
+    record = _record()
+    row = next(
+        entry for entry in record["photographs"] if entry["mm_per_px"] is not None
+    )
+    image = Image.open(REAL_VERSION / row["image"])
+
+    reading = read_dish_scale(image)
+
+    assert reading.mm_per_px == pytest.approx(row["mm_per_px"], rel=1e-12)
+
+
+@real_only
+def test_every_photograph_coarser_than_the_canonical_is_already_train_only():
+    """The pool SPEC 0042 measures is untouched, so its MDE does not move."""
+    record = _record()
+    manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
+    train_only = train_only_sample_ids(manifest)
+    canonical = record["canonical_mm_per_px"]
+    by_image = {row.image: row.sample_id for row in manifest.rows}
+
+    coarse = [
+        entry
+        for entry in record["photographs"]
+        if entry["mm_per_px"] is not None and entry["mm_per_px"] > canonical
+    ]
+
+    assert coarse, "the canonical is a percentile; something must sit above it"
+    assert all(by_image[entry["image"]] in train_only for entry in coarse)
+
+
+def test_the_reader_is_pure_arithmetic_and_needs_no_tensorflow():
+    """The measurement runs anywhere the manifest does; nothing imports TF."""
+    import sys
+
+    import src.scale  # noqa: F401  - imported for its side effects only
+
+    assert "tensorflow" not in sys.modules
+
+
+def test_the_canonical_scale_is_a_value_object_naming_its_population():
+    canonical = CanonicalScale(mm_per_px=0.1298, count=221, percentile=95.0)
+
+    assert canonical.mm_per_px == pytest.approx(0.1298)
+    assert canonical.count == 221
+    assert math.isclose(canonical.percentile, 95.0)
