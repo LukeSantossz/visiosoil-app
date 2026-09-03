@@ -71,15 +71,35 @@ scan rather than authored.
 
 **Python 3.12.** Not `python`, whatever that resolves to: `tensorflow==2.21.0`
 has no wheel for every interpreter, and on a machine whose default is newer the
-install succeeds partially and `src.train` cannot be imported at all. If
-`python --version` is not 3.12, name the interpreter explicitly in step 1.
+install succeeds partially and `src.train` cannot be imported at all. Check with
+`python --version` first; if it is not 3.12, name the interpreter explicitly.
 
 ### 1. Create virtual environment
+
+**Windows.** `python3.12` is usually not on `PATH`; the launcher is:
+
+```powershell
+cd ml
+py -3.12 -m venv .venv
+```
+
+`py -0` lists the interpreters it knows about. If 3.12 is installed outside the
+launcher's registry — pyenv-win, a `uv`-managed interpreter, a plain
+directory install — give its path instead:
+
+```powershell
+& "$env:USERPROFILE\.localin\python3.12.exe" -m venv .venv
+```
+
+**macOS / Linux:**
 
 ```bash
 cd ml
 python3.12 -m venv .venv
 ```
+
+Whichever route, step 4 is what confirms it worked; the interpreter's name is
+not the check.
 
 ### 2. Activate the virtual environment
 
