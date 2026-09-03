@@ -11,6 +11,8 @@ criterion be covered only by those, and none is.
 
 import json
 import math
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -314,12 +316,26 @@ def test_every_photograph_coarser_than_the_canonical_is_already_train_only():
 
 
 def test_the_reader_is_pure_arithmetic_and_needs_no_tensorflow():
-    """The measurement runs anywhere the manifest does; nothing imports TF."""
-    import sys
+    """The measurement runs anywhere the manifest does; nothing imports TF.
 
-    import src.scale  # noqa: F401  - imported for its side effects only
+    In a subprocess, because `sys.modules` is the whole session's and another
+    module in this suite has already imported TensorFlow by the time this runs.
+    Asserting against the shared table would test the run order, not the import.
+    """
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import src.scale, sys; "
+            "assert 'tensorflow' not in sys.modules, 'scale imported tensorflow'",
+        ],
+        cwd=ML_ROOT,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
 
-    assert "tensorflow" not in sys.modules
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_the_canonical_scale_is_a_value_object_naming_its_population():
