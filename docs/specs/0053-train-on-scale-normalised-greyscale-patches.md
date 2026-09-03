@@ -92,6 +92,18 @@ meaning they have today. Patches are how the model reads a photograph, not a new
 unit of evidence — they are not independent, and counting them as samples would
 inflate every interval by a factor of five.
 
+**`config.yaml` carries the canonical unrounded, and that is a third thing
+implementing it settled.** The file is written to be read and every other value
+in it is a round number, so the canonical was first written as 0.1292. That is
+finer than the percentile it stands for, and the photograph whose reading *is*
+the percentile then reads as coarser than the scale derived from it: twelve
+photographs leave training where the measurement says eleven, and the twelfth is
+the one that defined the value. Rounding up to 0.1293 also refuses exactly
+eleven, but it puts a second number into records that all quote 0.1292. So the
+config carries 0.12920342774728033, the acceptance criterion below is bit
+equality rather than a tolerance, and a test measures the cost of the rounding
+that was rejected rather than restating the argument.
+
 **The canonical value lives in `config.yaml` and is asserted against the
 measurement record**, in the shape `test/standards/class_list_test.dart` already
 uses for the class list. Training reads the config; the record is the evidence;
@@ -196,7 +208,12 @@ not done here.
   script reproduces `geometry.json` byte for byte.
 - the_config_canonical_matches_the_measurement_record: `config.yaml`'s
   `canonical_mm_per_px` equals the canonical in
-  `ml/measurements/dish-scale-v1.json`. A test refuses a drift.
+  `ml/measurements/dish-scale-v1.json` exactly, with no tolerance, and a test
+  refuses a drift.
+- rounding_the_canonical_would_refuse_a_twelfth_photograph: a test measures what
+  rounding the constant for readability would cost — eleven photographs leave
+  training at the measured value and twelve at the rounded one — so the
+  unrounded constant is justified by a number rather than by an argument.
 - config_accepts_the_published_input_sizes: 96, 128, 160, 192 and 224 are
   accepted for `mobilenetv2` and any other size is refused with a message saying
   why an unpublished size is not allowed.
