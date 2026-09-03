@@ -59,7 +59,15 @@ cd ml
 .venv/Scripts/python -m pytest tests/ -q                       # 434 passed, 0 skipped
 ```
 
-Measured on this machine, Python 3.12.13, `tensorflow==2.21.0`, no GPU: the whole suite is **434 passed, 0 skipped in 275 s**. The wall-clock cost of one fold is recorded in the pull request, measured after SPEC 0050's cache landed; before it, one fold had not finished its inner fits after an hour.
+Measured on this machine, Python 3.12.13, `tensorflow==2.21.0`, no GPU, after SPEC 0050's cache landed. The whole suite is **434 passed, 0 skipped in 275 s**.
+
+**One fold, repeat 0 fold 0 of `v1`, arm `cnn`** — the first training this repository has ever completed. Its `cost.json` records five trainings, four inner selection fits and the refit:
+
+```
+213.1  109.2  124.5  297.0  186.6   seconds
+```
+
+**930.4 s, or 15.5 minutes per fold.** At 25 folds that is **6.5 hours per arm**, which is the number the matrix design rests on: a fold uses 4 % of a GitHub-hosted job's six-hour ceiling, so the per-fold split has a margin of roughly twenty-three times rather than a narrow fit. Before the cache, one fold had not finished its four inner fits after an hour.
 
 ## Risks and Assumptions
 
