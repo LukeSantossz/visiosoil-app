@@ -1,5 +1,6 @@
 {
   "spec": "0052",
+  "command": "python scripts/measure_scale.py --version v1",
   "dataset_version": "v1",
   "manifest_digest": "231ce9684f741d702d16c80e72f6f65f906d2d9bf9f4ce584097b2827da0de85",
   "dish_diameter_mm": 90.0,

@@ -57,6 +57,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _producing_command(args: argparse.Namespace, version: str) -> str:
+    """Return the invocation that reproduces this record, run from `ml/`.
+
+    Normalised rather than `sys.argv`: the record has to reproduce byte for
+    byte, and the interpreter path and flag order a person happened to type are
+    not part of what produced the numbers. It names the version because that is
+    what selects the data, and the root only when one was given.
+    """
+    parts = ["python", "scripts/measure_scale.py"]
+    if args.root:
+        parts += ["--root", str(args.root)]
+    parts += ["--version", version]
+    return " ".join(parts)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = resolve_paths(load_config(args.config))
@@ -106,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
 
     record = {
         "spec": "0052",
+        "command": _producing_command(args, version),
         "dataset_version": version,
         "manifest_digest": manifest_digest(root),
         "dish_diameter_mm": DISH_DIAMETER_MM,

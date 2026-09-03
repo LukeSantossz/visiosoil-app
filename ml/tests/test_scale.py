@@ -265,6 +265,13 @@ def _record() -> dict:
     return json.loads(RECORD_PATH.read_text(encoding="utf-8"))
 
 
+def test_the_record_names_the_command_that_produced_it():
+    """Self-describing, so reproducing it needs nothing but the record."""
+    record = _record()
+
+    assert record["command"] == "python scripts/measure_scale.py --version v1"
+
+
 def test_the_record_names_the_dataset_version_and_the_manifest_digest():
     record = _record()
 
@@ -370,6 +377,7 @@ def test_the_measurement_reproduces_from_the_recorded_command(tmp_path):
     written = json.loads(first.read_text(encoding="utf-8"))
     assert len(written["photographs"]) == 2
     assert written["canonical_mm_per_px"] > 0.0
+    assert written["command"].startswith("python scripts/measure_scale.py --root ")
 
 
 @real_only

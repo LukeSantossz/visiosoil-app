@@ -146,7 +146,11 @@ is the one the code implements.
     canonical value is confirmed rather than amended.
   - `docs/architecture/ml-implementation-map.md` and
     `docs/architecture/ml-handoff.md` — B2's scale half is done, and the number
-    the other terminals plan against is now measured over the whole archive.
+    the other terminals plan against is now measured over the whole archive. The
+    handoff's order of work and open-defect table are rewritten as well, on R3's
+    finding: they still opened with converting the HEIC session and ran E0 as an
+    issue that is closed, so another terminal following them would have queued
+    work behind finished dependencies.
   - `ml/README.md` — **added during implementation.** It lists every command a
     dataset version is built and checked with, so leaving the new one out would
     make a record stale rather than keep this change small.
@@ -205,6 +209,11 @@ is the one the code implements.
 - the_record_names_the_dataset_version_and_the_manifest_digest: the committed
   measurement record carries both, so a record taken over different data is
   recognisable as such.
+- the_record_names_the_command_that_produced_it: the record carries the
+  normalised invocation that reproduces it, so reproducing a measurement needs
+  the record and nothing else. Added during implementation, on R3's finding: the
+  command was written down in the spec and the README, which is where a reader
+  who already has both would look, and the record is what a later reader has.
 - the_record_holds_one_row_per_photograph: the committed record holds exactly as
   many photograph entries as the manifest holds rows, each keyed by the
   manifest's image path and carrying its capture population.
