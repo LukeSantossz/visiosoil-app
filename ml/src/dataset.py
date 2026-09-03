@@ -282,6 +282,7 @@ def create_folds(
     dataset_version: str | None = None,
     manifest_digest: str | None = None,
     train_only_samples: Collection[str] | None = None,
+    refused: Mapping[str, str] | None = None,
 ) -> dict:
     """Assign every splittable sample group a fold index, once per repeat.
 
@@ -310,6 +311,9 @@ def create_folds(
             can be shown to belong to the data it claims.
         train_only_samples: Sample ids that may train and never be scored. See
             ``manifest.TRAIN_ONLY_SOURCE_GROUPS`` and SPEC 0040 D6.
+        refused: Photographs the patch grid cannot cut, path to the reason,
+            recorded so the manifest says which images left and why rather than
+            being one short of the version it names.
 
     Returns:
         The fold manifest, which is also written to
@@ -369,6 +373,11 @@ def create_folds(
         # reproduces this partition. See `library_versions`.
         "library_versions": library_versions(),
         "train_only_samples": sorted(set(train_only_samples or ())),
+        # Recorded rather than merely absent. A photograph the patch grid
+        # refuses is one the model never sees, and a manifest that listed 221
+        # photographs for a version of 221 while training on 210 would be
+        # describing a run that did not happen.
+        "refused": dict(refused or {}),
         "groups": groups,
         "folds": assignments,
         "counts": {
@@ -376,6 +385,7 @@ def create_folds(
             "splittable_groups": len(splittable),
             "train_only_groups": len(groups) - len(splittable),
             "photographs": sum(len(r["images"]) for r in groups.values()),
+            "refused_photographs": len(refused or {}),
         },
     }
 
@@ -420,6 +430,25 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
             + "\n  - ".join(absent)
         )
 
+    images = manifest_class_images(manifest, cfg["classes"])
+    # Refused before the partition rather than after it. A photograph the patch
+    # grid cannot cut is one no fold can score, so leaving it in would stratify
+    # over images that never reach the model and put a group's whole weight on
+    # photographs that do not exist for training. SPEC 0053's eleven coarse
+    # archive photographs leave here and nowhere else.
+    _, refused = drop_refused_photographs(
+        [{"path": path} for paths in images.values() for path in paths], cfg
+    )
+    if refused:
+        print(
+            f"{len(refused)} photograph(s) are refused by the patch grid and are "
+            f"in no fold; the first is {next(iter(refused.values()))}"
+        )
+        images = {
+            texture_class: [path for path in paths if path not in refused]
+            for texture_class, paths in images.items()
+        }
+
     restricted = train_only_sample_ids(manifest)
     if restricted:
         print(
@@ -429,7 +458,7 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
         )
 
     return create_folds(
-        manifest_class_images(manifest, cfg["classes"]),
+        images,
         k=evaluation["k"],
         repeats=evaluation["repeats"],
         seed=data["seed"],
@@ -438,6 +467,7 @@ def create_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
         train_only_samples=restricted,
+        refused=refused,
     )
 
 
