@@ -77,7 +77,13 @@ preprocessing:
   #
   # A photograph coarser than this is refused rather than upsampled: reaching
   # the canonical from below would invent grain that was never photographed.
-  canonical_mm_per_px: 0.1292
+  #
+  # Written unrounded, which is not the house style for a file people read. A
+  # rounded 0.1292 is *finer* than the percentile it claims to be, so it also
+  # refuses the photograph whose reading defines that percentile: twelve
+  # photographs leave training where the measurement says eleven. The full float
+  # is the only value that trains on the archive the record describes.
+  canonical_mm_per_px: 0.12920342774728033
   # The grid strides by half a patch, so patches overlap by 50 %. A
   # non-overlapping grid holds nine patches on a 90 mm dish and steps between
   # perfect squares as the disc grows; this one gives 25 and varies smoothly.
