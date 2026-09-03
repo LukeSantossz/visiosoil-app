@@ -69,11 +69,16 @@ scan rather than authored.
 
 ## Setup
 
+**Python 3.12.** Not `python`, whatever that resolves to: `tensorflow==2.21.0`
+has no wheel for every interpreter, and on a machine whose default is newer the
+install succeeds partially and `src.train` cannot be imported at all. If
+`python --version` is not 3.12, name the interpreter explicitly in step 1.
+
 ### 1. Create virtual environment
 
 ```bash
 cd ml
-python -m venv .venv
+python3.12 -m venv .venv
 ```
 
 ### 2. Activate the virtual environment
@@ -98,6 +103,46 @@ pip install -r requirements.txt
 ```
 
 Key dependencies: `tensorflow==2.21.0`, `tf-keras==2.21.0`, `keras==3.14.0`. See `requirements.txt` for the full list.
+
+### 4. Confirm the environment is the pinned one
+
+```bash
+python -m pytest tests/test_requirements.py -q
+```
+
+**It must pass, not skip.** That check reports the installed versions against
+`requirements.txt` and skips loudly when they diverge, so a skip means the
+environment is not the one any recorded result was produced under. With the
+pinned stack the whole suite runs with nothing gated out:
+
+```
+434 passed, 0 skipped
+```
+
+On an interpreter without TensorFlow the suite still runs — the protocol, the
+loader, the pooling and the reporting are all importable without it — and
+reports 16 skips instead.
+
+### Which environment a result comes from
+
+**A published result comes from CI.** `.github/workflows/train.yml` is dispatched
+by hand and runs one job per fold, each naming the same runner image and the
+same `requirements.txt`, so two results are comparable because they were
+produced in one declared environment rather than because two laptops agreed.
+One arm is 25 folds; an arm does not fit a single job's six-hour ceiling and a
+fold does.
+
+**A local run is for iteration.** It produces the same numbers — the run is
+seeded, `enable_op_determinism` is on, and each fold's `runtime.json` records
+the library versions and the device — but it is named by a machine nobody else
+has. Nothing prevents publishing one; the record asks you not to, and
+`runtime.json` is what lets a reader tell afterwards.
+
+**Regenerate the fold manifest under the pinned stack** before any run, if it
+was drawn elsewhere. `StratifiedGroupKFold` partitions differently across
+scikit-learn versions, so a manifest drawn outside the pins is one CI cannot
+reproduce. `load_folds` warns when the versions it was drawn under differ from
+the ones reading it; the warning names both.
 
 ## Dataset
 

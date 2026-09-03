@@ -1,0 +1,135 @@
+name: train
+
+# Dispatched by hand, never on push. One arm is 25 folds and hours of CPU; a
+# job that ran on every commit would be a bill rather than a pipeline.
+#
+# One job per fold, because an arm does not fit a GitHub-hosted runner's
+# six-hour ceiling and a fold does, comfortably (SPEC 0051). Splitting also
+# means a fold that fails is re-runnable on its own instead of costing the
+# whole arm.
+on:
+  workflow_dispatch:
+    inputs:
+      arm:
+        description: "Experimental arm to train"
+        required: false
+        default: "cnn"
+      version:
+        description: "Dataset version"
+        required: false
+        default: "v1"
+      shuffled_control:
+        description: "Permute texture_class within each fold's training side"
+        type: boolean
+        required: false
+        default: false
+      repeat:
+        description: "Single repeat index. Leave blank to run every fold."
+        required: false
+        default: ""
+      fold:
+        description: "Single fold index. Leave blank to run every fold."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # The matrix is derived from `ml/config.yaml` rather than written here.
+  # k and repeats are the protocol's (ADR 0020) and live in one place; a second
+  # copy in this file would be the parallel list that goes stale silently.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      label: ${{ steps.build.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "pyyaml>=6.0,<7.0"
+      - id: build
+        env:
+          REPEAT: ${{ inputs.repeat }}
+          FOLD: ${{ inputs.fold }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, yaml
+
+          with open("ml/config.yaml") as handle:
+              evaluation = yaml.safe_load(handle)["evaluation"]
+
+          repeat, fold = os.environ.get("REPEAT", ""), os.environ.get("FOLD", "")
+          if repeat and fold:
+              jobs = [{"repeat": int(repeat), "fold": int(fold)}]
+              label = f"repeat {repeat} fold {fold}"
+          elif repeat or fold:
+              raise SystemExit(
+                  "give both repeat and fold, or neither. One without the other "
+                  "would silently run a whole arm when a single fold was meant"
+              )
+          else:
+              jobs = [
+                  {"repeat": r, "fold": f}
+                  for r in range(evaluation["repeats"])
+                  for f in range(evaluation["k"])
+              ]
+              label = f"{len(jobs)} fold(s), k={evaluation['k']} R={evaluation['repeats']}"
+
+          print(f"matrix={json.dumps({'include': jobs})}")
+          print(f"label={label}")
+          PY
+
+  train:
+    needs: plan
+    runs-on: ubuntu-latest
+    # Least privilege, matching `ml-tests`: this installs and runs the whole ML
+    # dependency tree and needs no GitHub credentials.
+    permissions:
+      contents: read
+    strategy:
+      # One failed fold must not cancel the other 24. Each is a separate result
+      # and is re-runnable on its own.
+      fail-fast: false
+      # The ceiling is the runner limit, not a throughput choice: 25 concurrent
+      # jobs would exceed most plans' concurrency and queue anyway.
+      max-parallel: 5
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+      - name: Install the pinned ML stack
+        working-directory: ml
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Confirm the environment is the pinned one
+        working-directory: ml
+        # Fails rather than skips when the stack has drifted, so a result can
+        # never be produced under versions the record does not name.
+        run: python -m pytest tests/test_requirements.py -q
+      - name: Train the fold
+        working-directory: ml
+        run: |
+          python -m src.train \
+            --version "${{ inputs.version }}" \
+            --arm "${{ inputs.arm }}" \
+            --repeat "${{ matrix.repeat }}" \
+            --fold "${{ matrix.fold }}" \
+            ${{ inputs.shuffled_control && '--shuffled-control' || '' }}
+      - name: Upload the fold's artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.arm }}-${{ inputs.version }}-r${{ matrix.repeat }}-f${{ matrix.fold }}
+          path: ml/models/${{ inputs.version }}/**/repeat-${{ matrix.repeat }}/fold-${{ matrix.fold }}/
+          if-no-files-found: error
