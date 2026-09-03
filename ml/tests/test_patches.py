@@ -367,3 +367,63 @@ def test_patch_geometry_is_a_value_object_with_its_offsets():
     assert isinstance(geometry, PatchGeometry)
     assert len(geometry.offsets) == geometry.count
     assert geometry.offsets == tuple(sorted(geometry.offsets))
+
+
+# --- the manifest carries what the grid needs ------------------------------
+
+
+def test_the_manifest_carries_the_measured_disc_geometry(tmp_path):
+    """A diameter with no centre locates nothing, so all four are carried."""
+    from dataclasses import replace
+
+    from src.manifest import SCALE_COLUMNS, read_manifest, write_manifest
+    from tests.support import CLASSES, write_image_version
+
+    root = write_image_version(tmp_path, {"s-1": [("dish", _dish(400, 150.0))]})
+    manifest = read_manifest(root, CLASSES)
+    measured = [
+        replace(
+            row,
+            scale={
+                "mm_per_px": 0.1,
+                "disc_diameter_px": 300.0,
+                "disc_centre_x_px": 200.0,
+                "disc_centre_y_px": 200.0,
+            },
+        )
+        for row in manifest.rows
+    ]
+    write_manifest(root, measured)
+
+    reread = read_manifest(root, CLASSES)
+
+    assert set(SCALE_COLUMNS) == set(reread.rows[0].scale)
+    assert reread.rows[0].scale["disc_diameter_px"] == pytest.approx(300.0)
+
+
+def test_a_non_positive_diameter_is_refused_by_name(tmp_path):
+    from src.manifest import ManifestError, read_manifest
+    from tests.support import CLASSES, write_image_version
+
+    root = write_image_version(tmp_path, {"s-1": [("dish", _dish(400, 150.0))]})
+    path = root / "manifest.csv"
+    text = path.read_text(encoding="utf-8").rstrip("\n").split("\n")
+    text[0] += ",disc_diameter_px"
+    text[1] += ",0"
+    path.write_text("\n".join(text) + "\n", encoding="utf-8")
+
+    with pytest.raises(ManifestError, match="must be positive"):
+        read_manifest(root, CLASSES)
+
+
+def test_a_version_without_a_measured_scale_is_reported_by_name(tmp_path):
+    """Checked where it is needed, not at parse time: ingest precedes measure."""
+    from src.manifest import check_scale_columns, read_manifest
+    from tests.support import CLASSES, write_image_version
+
+    root = write_image_version(tmp_path, {"s-1": [("dish", _dish(400, 150.0))]})
+
+    problems = check_scale_columns(read_manifest(root, CLASSES))
+
+    assert len(problems) == 1
+    assert "measure_scale.py" in problems[0]

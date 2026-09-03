@@ -18,6 +18,7 @@ from src.manifest import (
     QUALITY_VERDICT_COLUMN,
     REJECTED_FILENAME,
     REQUIRED_COLUMNS,
+    SCALE_COLUMNS,
     read_manifest,
     write_manifest,
 )
@@ -241,5 +242,6 @@ def test_write_manifest_preserves_the_schema_column_order(tmp_path, ok_image):
         QUALITY_FLAGS_COLUMN,
         *METRIC_COLUMNS,
         *PROVENANCE_COLUMNS,
+        *SCALE_COLUMNS,
     ]
     assert header.split(",") == expected
