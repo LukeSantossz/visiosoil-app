@@ -322,9 +322,18 @@ run it.
 ### B1 — Deterministic and fail-loud training
 
 **Record:** SPEC, spec-lite. Closes #80, #25, #81; the config-validation half of
-#29; #28.
+#29; #28. The environment half is
+[SPEC 0051](../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214).
 **Depends on:** nothing.
 **Blocks:** B2, C0.
+
+**The environment, added 2026-09-02.** Determinism was specified before anywhere
+could run a fit, which made it a property nothing could exercise. A training now
+has two homes: a local Python 3.12 environment for iteration, documented in
+`ml/README.md` and checked by `ml/tests/test_requirements.py` passing rather than
+skipping; and `.github/workflows/train.yml`, dispatched by hand, one job per
+fold, which is where a **published** result comes from. An arm is 25 folds and
+does not fit one runner's six-hour ceiling; a fold does.
 
 Four corrections that share one purpose: an experiment whose result cannot be
 reproduced or whose inputs were silently dropped is not evidence.
