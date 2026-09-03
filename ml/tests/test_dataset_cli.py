@@ -6,19 +6,26 @@ usable, so it has to report every problem in one pass rather than the first one.
 collector's own manifest, so it does nothing destructive without being told to.
 """
 
+import csv
 import importlib.util
 import json
+import math
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from src.config import load_config
 from src.manifest import (
     QUARANTINE_DIRNAME,
     REJECTED_FILENAME,
+    SCALE_COLUMNS,
     read_manifest,
     verify_directory,
 )
+from src.patches import PatchRefusal, resample_to_canonical
+from src.scale import DISH_DIAMETER_MM
 from tests.support import (
     CLASSES,
     flat_image,
@@ -330,6 +337,249 @@ def test_validator_reports_a_version_that_cannot_be_folded(
     assert code == 1
     assert "splittable sample group" in err
     assert str(load_config()["evaluation"]["k"]) in err
+
+
+# --- validate_dataset.py: the measured scale (SPEC 0053) ----------------------
+
+
+def canonical_mm_per_px():
+    """What training resamples to, read from `config.yaml` as production does."""
+    return load_config()["preprocessing"]["canonical_mm_per_px"]
+
+
+def scale_cells(mm_per_px):
+    """The four dish-rim columns a reading of ``mm_per_px`` would have produced.
+
+    Nothing on this path decodes an image, so the numbers only have to be
+    consistent with each other: the diameter follows from the dish being 90 mm
+    and the centre is the middle of a notional 2000 px frame.
+    """
+    return {
+        "mm_per_px": mm_per_px,
+        "disc_diameter_px": DISH_DIAMETER_MM / mm_per_px,
+        "disc_centre_x_px": 1000.0,
+        "disc_centre_y_px": 1000.0,
+    }
+
+
+def write_scale_columns(root, readings):
+    """Add the SPEC 0052 measurement to a fixture manifest, row by row.
+
+    ``readings`` holds one entry per manifest row, in manifest order: a
+    millimetres-per-pixel value, a mapping written into the scale columns
+    verbatim, or ``None`` for a row the dish-rim reader gave no scale — which is
+    every row of a version that has been ingested and not yet measured.
+    """
+    path = root / "manifest.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(readings) == len(rows), "one reading per manifest row"
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(rows[0]) + list(SCALE_COLUMNS),
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for row, reading in zip(rows, readings):
+            if isinstance(reading, Mapping):
+                row.update(reading)
+            elif reading is not None:
+                row.update(scale_cells(reading))
+            writer.writerow(row)
+
+
+def measured_version(tmp_path, readings_for):
+    """A fixture version whose rows carry the scale ``readings_for`` builds.
+
+    ``readings_for`` is called with the row count, because the count is a
+    property of the fixture and a test that hardcoded it would break the day
+    `write_version` changed.
+    """
+    root = write_version(tmp_path)
+    count = len(read_manifest(root, CLASSES).rows)
+    write_scale_columns(root, readings_for(count))
+    return root, count
+
+
+def test_validator_reports_the_measured_scale_spread(
+    tmp_path, validate_dataset, capsys
+):
+    """The spread is the evidence SPEC 0053 rests on, so the tool states it.
+
+    A reader has to be able to see that the archive photographs the same soil at
+    apparent sizes differing by nearly five to one without opening a notebook:
+    that ratio is the entire reason the patch pipeline resamples (ADR 0017).
+    """
+    root, count = measured_version(
+        tmp_path, lambda rows: [0.04] * (rows - 1) + [0.16]
+    )
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert f"scale measured on {count} of {count}" in out
+    assert "0.0400" in out
+    assert "0.1600" in out
+    assert "4.00x" in out
+
+
+def test_validator_reports_an_unmeasured_version_without_failing_it(
+    tmp_path, validate_dataset, capsys
+):
+    """Ingested but not yet measured is a step of the pipeline, not corruption.
+
+    `measure_scale.py` reads a manifest that already validates, so a validator
+    that failed an unmeasured version would refuse exactly the state the
+    measuring step exists to consume. It is still reported, and with the command
+    that fixes it: silence about a measurement never taken reads as one that is
+    fine.
+    """
+    root = write_version(tmp_path)
+    count = len(read_manifest(root, CLASSES).rows)
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert f"{count} of {count} photograph(s) carry no measured scale" in out
+    assert "scripts/measure_scale.py --version v1" in out
+    # One remedy line, not one per row: the command is version-wide, and eighty
+    # copies of it would bury the count above them.
+    assert out.count("scripts/measure_scale.py") == 1
+
+
+def test_validator_names_the_photographs_a_measured_version_missed(
+    tmp_path, validate_dataset, capsys
+):
+    """A gap in a measured version is the dish-rim reader refusing a photograph.
+
+    Which ones is the whole information a collector can act on, so they are
+    named rather than counted. The spread is still reported beside them, because
+    a run that measured most of a version must not read as one that measured
+    none.
+    """
+    gap = 3
+    root, count = measured_version(
+        tmp_path, lambda rows: [None] * gap + [0.04] * (rows - gap - 1) + [0.16]
+    )
+    missed = [row.image for row in read_manifest(root, CLASSES).rows[:gap]]
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert f"scale measured on {count - gap} of {count}" in out
+    assert f"{gap} of {count} photograph(s) carry no measured scale" in out
+    for image in missed:
+        assert image in out
+
+
+def test_a_gap_larger_than_the_cap_is_counted_rather_than_listed(
+    tmp_path, validate_dataset, capsys
+):
+    """Naming a gap must not push the fold composition off the screen."""
+    named = validate_dataset._UNMEASURED_NAMED
+    gap = named + 2
+    root, _ = measured_version(
+        tmp_path, lambda rows: [None] * gap + [0.05] * (rows - gap)
+    )
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert out.count("scripts/measure_scale.py") == named
+    assert f"and {gap - named} more" in out
+
+
+def test_validator_counts_the_photographs_too_coarse_to_normalise(
+    tmp_path, validate_dataset, capsys
+):
+    """The photographs that leave training are counted where a reader will see it.
+
+    Counted against `config.yaml`'s canonical, which is the value training
+    reads, so the number describes the population a run will actually see rather
+    than one a spec quoted.
+    """
+    canonical = canonical_mm_per_px()
+    coarse = 3
+    root, count = measured_version(
+        tmp_path,
+        lambda rows: [canonical * 2.0] * coarse + [canonical / 2.0] * (rows - coarse),
+    )
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert f"{coarse} of {count} measured photograph(s) are coarser" in out
+    assert PatchRefusal.TOO_COARSE.value in out
+
+
+def test_the_coarse_count_is_the_one_the_patch_pipeline_refuses(
+    tmp_path, validate_dataset, capsys
+):
+    """A photograph exactly at the canonical trains; a hair coarser does not.
+
+    The validator compares the scales itself, so the boundary is pinned here to
+    `patches.resample_to_canonical`, which is what actually refuses the
+    photograph. An inclusive comparison in either place would report a count no
+    training run produces.
+    """
+    canonical = canonical_mm_per_px()
+    just_coarser = math.nextafter(canonical, math.inf)
+    root, count = measured_version(
+        tmp_path,
+        lambda rows: [canonical, just_coarser] + [canonical / 2.0] * (rows - 2),
+    )
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 0
+    assert f"1 of {count} measured photograph(s) are coarser" in capsys.readouterr().out
+
+    frame = Image.new("RGB", (8, 8))
+    resample_to_canonical(frame, canonical, canonical)
+    with pytest.raises(ValueError, match=PatchRefusal.TOO_COARSE.value):
+        resample_to_canonical(frame, just_coarser, canonical)
+
+
+def test_validator_refuses_a_non_positive_disc_diameter_by_name(
+    tmp_path, validate_dataset, capsys
+):
+    """A diameter of zero would divide by zero in the patch geometry.
+
+    Refused at the manifest, which is where a measurement that cannot be one has
+    to stop, and reported through the tool a collector actually runs rather than
+    only through the parser.
+    """
+    root, _ = measured_version(
+        tmp_path,
+        lambda rows: [{**scale_cells(0.05), "disc_diameter_px": 0.0}]
+        + [0.05] * (rows - 1),
+    )
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
+    )
+
+    assert code == 1
+    assert "disc_diameter_px" in capsys.readouterr().err
 
 
 # --- admit_images.py ----------------------------------------------------------
