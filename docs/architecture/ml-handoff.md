@@ -1,7 +1,7 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-08-25.
+Last updated: 2026-09-03.
 
 **Where the authority lives.** The tracked backlog is issues #178–#197. The
 decisions are ADRs 0008–0018. The plan is
@@ -20,7 +20,7 @@ described. Five decisions followed in one day.
 | **The dataset exists** | 221 photographs of **194 samples**: soil in a Petri dish, top-down, pale background. The laboratory number is in the filename, so grouping needs no extra record |
 | **It is not a fixed rig** | Scale spans 5.73–14.93 px/mm, a factor of 2.6. At least two cameras. ADR 0014 is **Retired**; [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md) replaces it |
 | **Siltosa holds 3 samples** | Below the floor of 30. **The first model classifies four classes** and the app declares the fifth absent |
-| **Scale is measured, not assumed** | Dish rim in the dataset, A4 sheet in the app, both by classical operators. No reference found is a **refusal**. [ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md) |
+| **Scale is measured, not assumed** | Dish rim in the dataset, A4 sheet in the app, both by classical operators. No reference found is a **refusal**. [ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md). **The dataset half is built and run**, [SPEC 0052](../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md): all 221 photographs read, none refused, canonical **0.1313 mm/px**, spread **4.75×** rather than the 2.6× measured before the HEIC session was readable |
 | **The model sees greyscale patches** | Patches of ~21 mm at 160 px, overlapping by half, inset from the region boundary — 25 for a 90 mm dish, 9 at the refusal floor of ~70 mm. Their disagreement is an image-quality criterion, **not** a confidence. [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) |
 | **The background gap largely closed itself** | A patch cut from inside the soil region is soil and nothing else, so dish-versus-paper stops mattering at the level the model sees. #192 drops to conditional, and the study's "severe" background rating is wrong |
 
@@ -108,7 +108,8 @@ cannot know whether anything is retryable.
 1. **#196** convert HEIC — everything downstream silently runs on 42 % otherwise
 2. **#178, #179, #180** — anything that biases E0, which is the gate
 3. **#197 run E0** — four arms, four classes, verdict committed either way
-4. **SPEC 0035**, then SPEC 0037 (the scale and patch pipeline), then #185
+4. **SPEC 0035**, then SPEC 0037 (the scale and patch pipeline, whose scale half
+   SPEC 0052 has now measured), then #185
 5. Everything else sits behind E0
 
 ## Limitations that travel with every number
