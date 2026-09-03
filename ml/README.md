@@ -176,7 +176,20 @@ TensorFlow installed.
 python scripts/admit_images.py --version v1      # report; add --write to apply
 python scripts/validate_dataset.py --version v1  # report only, folds discarded
 python scripts/validate_dataset.py --version v1 --splits-dir data/splits  # write them
+python scripts/measure_scale.py --version v1     # the dish rim, per photograph
 ```
+
+`measure_scale.py` reads the 90 mm dish rim of every photograph and writes
+`measurements/dish-scale-v1.json` — millimetres per pixel per photograph with its
+capture population, the distribution overall and per population, every photograph
+that received no scale, and the dataset version and manifest digest it was taken
+over. The canonical scale the pipeline normalises to is the 95th percentile of
+those readings, and it is a contract value: a model trained at one canonical
+scale cannot be served at another (ADR 0017). That is why this record is
+committed while the dataset version it describes is not — see
+[SPEC 0052](../docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
+which measured it at **0.1313 mm/px** over all 221 photographs of `v1` with no
+photograph refused.
 
 The older folder-scan layout — images in `data/raw/<ClassName>/`, supported
 formats `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp` — is still readable by the fold
