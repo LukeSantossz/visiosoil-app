@@ -21,6 +21,7 @@ from src.manifest import (
     QUARANTINE_DIRNAME,
     REJECTED_FILENAME,
     SCALE_COLUMNS,
+    class_images,
     read_manifest,
     verify_directory,
 )
@@ -56,12 +57,91 @@ def admit_images():
     return load_script("admit_images")
 
 
+# --- the SPEC 0052 measurement a fixture version carries ----------------------
+#
+# Every test about folds needs one. Since SPEC 0053 the partition is a function
+# of the measurement — a photograph the patch grid refuses is in no fold — so
+# `create_folds_for_config` refuses to partition a version nobody has measured,
+# and a fold test built on `write_version` alone would be exercising that
+# refusal instead of what it means to exercise.
+
+#: A scale the patch grid accepts: well below the canonical, so nothing is
+#: refused for coarseness, and a 90 mm dish still clears the nine-patch floor
+#: after the resample. The default for a fixture that is not about the scale.
+FINE_MM_PER_PX = 0.05
+
+
+def canonical_mm_per_px():
+    """What training resamples to, read from `config.yaml` as production does."""
+    return load_config()["preprocessing"]["canonical_mm_per_px"]
+
+
+def scale_cells(mm_per_px):
+    """The four dish-rim columns a reading of ``mm_per_px`` would have produced.
+
+    Nothing on this path decodes an image, so the numbers only have to be
+    consistent with each other: the diameter follows from the dish being 90 mm
+    and the centre is the middle of a notional 2000 px frame.
+    """
+    return {
+        "mm_per_px": mm_per_px,
+        "disc_diameter_px": DISH_DIAMETER_MM / mm_per_px,
+        "disc_centre_x_px": 1000.0,
+        "disc_centre_y_px": 1000.0,
+    }
+
+
+def write_scale_columns(root, readings):
+    """Add the SPEC 0052 measurement to a fixture manifest, row by row.
+
+    ``readings`` holds one entry per manifest row, in manifest order: a
+    millimetres-per-pixel value, a mapping written into the scale columns
+    verbatim, or ``None`` for a row the dish-rim reader gave no scale — which is
+    every row of a version that has been ingested and not yet measured.
+    """
+    path = root / "manifest.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(readings) == len(rows), "one reading per manifest row"
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(rows[0]) + list(SCALE_COLUMNS),
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for row, reading in zip(rows, readings):
+            if isinstance(reading, Mapping):
+                row.update(reading)
+            elif reading is not None:
+                row.update(scale_cells(reading))
+            writer.writerow(row)
+
+
+def measured_version(tmp_path, readings_for=None, **kwargs):
+    """A fixture dataset version carrying the dish-rim measurement.
+
+    ``readings_for`` is called with the manifest row count and returns one entry
+    per row; omitted, every photograph is measured at a scale the patch grid
+    accepts. The count is passed rather than assumed because it is a property of
+    the fixture, and a test that hardcoded it would break the day
+    `write_version` changed. Any other keyword goes to `write_version`.
+    """
+    root = write_version(tmp_path, **kwargs)
+    count = len(read_manifest(root, CLASSES).rows)
+    write_scale_columns(
+        root, readings_for(count) if readings_for else [FINE_MM_PER_PX] * count
+    )
+    return root, count
+
+
 # --- validate_dataset.py ------------------------------------------------------
 
 
 def test_validator_accepts_a_clean_version(tmp_path, validate_dataset, capsys):
     """A version that satisfies the protocol exits zero."""
-    root = write_version(tmp_path)
+    root, _ = measured_version(tmp_path)
 
     code = validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
@@ -78,7 +158,7 @@ def test_fold_composition_is_reported(tmp_path, validate_dataset, capsys):
     every fold, the transported population only ever on the training side —
     without running a test.
     """
-    root = write_version(tmp_path)
+    root, _ = measured_version(tmp_path)
 
     code = validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
@@ -151,7 +231,7 @@ def test_fold_composition_holds_every_class_in_every_fold(
     tmp_path, validate_dataset, capsys
 ):
     """A fold missing a class would be visible here before a run wasted a day."""
-    root = write_version(tmp_path)
+    root, _ = measured_version(tmp_path)
 
     validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
@@ -307,7 +387,7 @@ def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset
     configured = Path(resolve_paths(load_config())["data"]["splits_dir"])
     published = configured / "splits.json"
     before = published.read_bytes() if published.exists() else None
-    root = write_version(tmp_path)
+    root, _ = measured_version(tmp_path)
 
     code = validate_dataset.main(["--root", str(root)])
 
@@ -327,7 +407,7 @@ def test_validator_reports_a_version_that_cannot_be_folded(
     is what has to speak. The floor is k, which is what the protocol needs to
     put a group of every class in every fold's test side.
     """
-    root = write_version(tmp_path, samples_per_class=2)
+    root, _ = measured_version(tmp_path, samples_per_class=2)
 
     code = validate_dataset.main(
         ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
@@ -340,67 +420,6 @@ def test_validator_reports_a_version_that_cannot_be_folded(
 
 
 # --- validate_dataset.py: the measured scale (SPEC 0053) ----------------------
-
-
-def canonical_mm_per_px():
-    """What training resamples to, read from `config.yaml` as production does."""
-    return load_config()["preprocessing"]["canonical_mm_per_px"]
-
-
-def scale_cells(mm_per_px):
-    """The four dish-rim columns a reading of ``mm_per_px`` would have produced.
-
-    Nothing on this path decodes an image, so the numbers only have to be
-    consistent with each other: the diameter follows from the dish being 90 mm
-    and the centre is the middle of a notional 2000 px frame.
-    """
-    return {
-        "mm_per_px": mm_per_px,
-        "disc_diameter_px": DISH_DIAMETER_MM / mm_per_px,
-        "disc_centre_x_px": 1000.0,
-        "disc_centre_y_px": 1000.0,
-    }
-
-
-def write_scale_columns(root, readings):
-    """Add the SPEC 0052 measurement to a fixture manifest, row by row.
-
-    ``readings`` holds one entry per manifest row, in manifest order: a
-    millimetres-per-pixel value, a mapping written into the scale columns
-    verbatim, or ``None`` for a row the dish-rim reader gave no scale — which is
-    every row of a version that has been ingested and not yet measured.
-    """
-    path = root / "manifest.csv"
-    with path.open(encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    assert len(readings) == len(rows), "one reading per manifest row"
-
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=list(rows[0]) + list(SCALE_COLUMNS),
-            lineterminator="\n",
-        )
-        writer.writeheader()
-        for row, reading in zip(rows, readings):
-            if isinstance(reading, Mapping):
-                row.update(reading)
-            elif reading is not None:
-                row.update(scale_cells(reading))
-            writer.writerow(row)
-
-
-def measured_version(tmp_path, readings_for):
-    """A fixture version whose rows carry the scale ``readings_for`` builds.
-
-    ``readings_for`` is called with the row count, because the count is a
-    property of the fixture and a test that hardcoded it would break the day
-    `write_version` changed.
-    """
-    root = write_version(tmp_path)
-    count = len(read_manifest(root, CLASSES).rows)
-    write_scale_columns(root, readings_for(count))
-    return root, count
 
 
 def test_validator_reports_the_measured_scale_spread(
@@ -442,9 +461,7 @@ def test_validator_reports_an_unmeasured_version_without_failing_it(
     root = write_version(tmp_path)
     count = len(read_manifest(root, CLASSES).rows)
 
-    code = validate_dataset.main(
-        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
-    )
+    code = validate_dataset.main(["--root", str(root)])
 
     assert code == 0
     out = capsys.readouterr().out
@@ -453,6 +470,53 @@ def test_validator_reports_an_unmeasured_version_without_failing_it(
     # One remedy line, not one per row: the command is version-wide, and eighty
     # copies of it would bury the count above them.
     assert out.count("scripts/measure_scale.py") == 1
+
+
+def test_an_unmeasured_version_gets_no_fold_composition(
+    tmp_path, validate_dataset, capsys
+):
+    """A composition printed now would not be the one training draws.
+
+    Since SPEC 0053 the partition is a function of the measurement — a
+    photograph the patch grid refuses is in no fold — so the composition is not
+    merely unavailable, it is unknowable until the version is measured. Named as
+    absent, because a validator that printed a plausible one would be reporting
+    a partition nothing will use.
+    """
+    root = write_version(tmp_path)
+
+    code = validate_dataset.main(["--root", str(root)])
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "no fold composition" in out
+    assert "repeat 0 fold 0" not in out
+
+
+def test_asking_an_unmeasured_version_to_publish_splits_fails(
+    tmp_path, validate_dataset, capsys
+):
+    """The exit code follows what was asked for, not what the version is.
+
+    Without `--splits-dir` this command is a report, and the report is complete.
+    With it the command was asked to produce `splits.json` — the artefact
+    `src.crossval` reuses and `admit_images.py` treats as freezing the version —
+    and it cannot produce an honest one. Exiting 0 having written nothing is
+    indistinguishable, to a shell script chaining a training run onto this, from
+    having written it.
+    """
+    root = write_version(tmp_path)
+    splits_dir = tmp_path / "splits"
+
+    code = validate_dataset.main(
+        ["--root", str(root), "--splits-dir", str(splits_dir)]
+    )
+
+    assert code == 1
+    assert not (splits_dir / "splits.json").exists()
+    err = capsys.readouterr().err
+    assert "no measured scale" in err
+    assert "splits.json" in err
 
 
 def test_validator_names_the_photographs_a_measured_version_missed(
@@ -471,9 +535,9 @@ def test_validator_names_the_photographs_a_measured_version_missed(
     )
     missed = [row.image for row in read_manifest(root, CLASSES).rows[:gap]]
 
-    code = validate_dataset.main(
-        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
-    )
+    # No `--splits-dir`: a gap is still an unmeasured version as far as the
+    # partition is concerned, and this test is about what the report says.
+    code = validate_dataset.main(["--root", str(root)])
 
     assert code == 0
     out = capsys.readouterr().out
@@ -490,12 +554,10 @@ def test_a_gap_larger_than_the_cap_is_counted_rather_than_listed(
     named = validate_dataset._UNMEASURED_NAMED
     gap = named + 2
     root, _ = measured_version(
-        tmp_path, lambda rows: [None] * gap + [0.05] * (rows - gap)
+        tmp_path, lambda rows: [None] * gap + [FINE_MM_PER_PX] * (rows - gap)
     )
 
-    code = validate_dataset.main(
-        ["--root", str(root), "--splits-dir", str(tmp_path / "splits")]
-    )
+    code = validate_dataset.main(["--root", str(root)])
 
     assert code == 0
     out = capsys.readouterr().out
@@ -666,7 +728,10 @@ def test_admit_refuses_to_rewrite_a_version_an_existing_split_claims(
     tmp_path, admit_images, validate_dataset, capsys
 ):
     """Rewriting a manifest a split was generated from destroys its provenance."""
-    root = write_version(tmp_path)
+    # Measured, because the validator only publishes a split for a version whose
+    # scale is known: the guard under test is admission's, and it needs a split
+    # to exist before it can refuse.
+    root, _ = measured_version(tmp_path)
     splits_dir = tmp_path / "splits"
     validate_dataset.main(["--root", str(root), "--splits-dir", str(splits_dir)])
     before = (root / "manifest.csv").read_bytes()
@@ -690,7 +755,7 @@ def test_admit_refuses_when_a_split_claims_the_version_with_a_stale_digest(
     digest of the same version is the one already unverifiable, and rewriting
     again makes that permanent instead of telling the operator to move to vN+1.
     """
-    root = write_version(tmp_path)
+    root, _ = measured_version(tmp_path)
     splits_dir = tmp_path / "splits"
     validate_dataset.main(["--root", str(root), "--splits-dir", str(splits_dir)])
     splits = splits_dir / "splits.json"
@@ -830,3 +895,60 @@ def test_admit_reports_an_invalid_manifest_without_analyzing(
 
     assert code == 2
     assert "Barro" in capsys.readouterr().err
+
+
+def test_the_validator_keeps_a_refused_photograph_out_of_the_folds(
+    tmp_path, validate_dataset
+):
+    """The tool that writes the partition applies the filter that shapes it.
+
+    The validator is what a collector runs to produce `splits.json`, so a filter
+    that only ran on the training entry point would leave the two producing
+    different partitions from the same version — and the one actually written to
+    disk would be the unfiltered one.
+    """
+    root = write_version(tmp_path)
+    manifest = read_manifest(root, CLASSES)
+    # The pool, not the manifest. `class_images` keeps only the classes the model
+    # emits, so the archive's fifth class is in the version and in no fold
+    # (SPEC 0046): a coarse Siltosa row would be filtered out before the patch
+    # grid ever saw it, and the refusal under test would never happen.
+    pooled = {
+        path
+        for paths in class_images(manifest, load_config()["classes"]).values()
+        for path in paths
+    }
+    coarse = next(
+        row.image for row in manifest.rows if str(manifest.root / row.image) in pooled
+    )
+    write_scale_columns(
+        root,
+        [
+            canonical_mm_per_px() * 2.0 if row.image == coarse else FINE_MM_PER_PX
+            for row in manifest.rows
+        ],
+    )
+    splits_dir = tmp_path / "splits"
+
+    assert (
+        validate_dataset.main(["--root", str(root), "--splits-dir", str(splits_dir)])
+        == 0
+    )
+
+    fold_manifest = json.loads(
+        (splits_dir / "splits.json").read_text(encoding="utf-8")
+    )
+    listed = {
+        image
+        for record in fold_manifest["groups"].values()
+        for image in record["images"]
+    }
+    assert fold_manifest["counts"]["refused_photographs"] == 1
+    assert len(fold_manifest["refused"]) == 1
+    refused = next(iter(fold_manifest["refused"]))
+    assert Path(refused).name == Path(coarse).name
+    assert refused not in listed
+    # Derived from the pool rather than from the manifest row count: the pool is
+    # already four classes of the archive's five, so the answer is one short of
+    # the pool and not one short of the version.
+    assert len(listed) == len(pooled) - 1
