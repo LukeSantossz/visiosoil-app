@@ -171,12 +171,25 @@ The consequence for framing: **the patch grid covers the found region, not a
 fixed fraction of the frame**, so a user who spreads a smaller disc gets fewer
 patches rather than patches of background.
 
-**The grid is inset from the region boundary by one patch half-width.** Without
-the inset, edge patches straddle the boundary and carry glass rim, bench or
-paper into a tensor that is supposed to be soil — which would reintroduce, at
-the edges only, exactly the background difference the patch decision otherwise
-removes. This was missing from the first draft of this specification and is the
-correction that makes the next paragraph true.
+~~**The grid is inset from the region boundary by one patch half-width.**~~
+**Corrected 2026-09-03 to one patch half-diagonal**, by
+[SPEC 0053](0053-train-on-scale-normalised-greyscale-patches.md), which
+implements this grid. Without the inset, edge patches straddle the boundary and
+carry glass rim, bench or paper into a tensor that is supposed to be soil —
+which would reintroduce, at the edges only, exactly the background difference
+the patch decision otherwise removes. That reasoning is unchanged; the distance
+was wrong.
+
+**Half a width is not enough, and this specification already said so twice in
+ways that contradicted it.** A square inset from a circle by half its width
+still puts its four corners outside the circle, so the acceptance criterion
+below — *no patch contains a pixel outside the located region* — cannot hold
+under it. Nor does the count: at the canonical scale and a 160 px input, a
+half-width inset yields 21, 25 and 37 patches for discs of 70, 80 and 90 mm,
+against the 9, 21 and 25 that ADR 0018 tabulates and that the table in this
+document repeats. **The half-diagonal reproduces both.** The criterion and the
+two tables agreed with each other all along; the prose was the one statement out
+of step, and it is the one that changes.
 
 **Patches make the dish-versus-paper background difference nearly disappear, and
 that is worth stating because the earlier records assume otherwise.** A patch cut
@@ -270,8 +283,11 @@ criterion refuses legitimate work.
   dark-region fit on the application side, and a region holding **fewer than nine
   patches** is refused rather than padded with background. A test asserts the
   refusal at the boundary.
-- The grid is inset from the region boundary by one patch half-width, and a test
-  asserts that no patch contains a pixel outside the located region.
+- The grid is inset from the region boundary by one patch **half-diagonal**, and
+  a test asserts that no patch contains a pixel outside the located region.
+  Corrected from half-width, above: a half-width inset fails this very criterion
+  by the corners, and yields 37 patches on a 90 mm disc rather than the 25 this
+  specification and ADR 0018 both tabulate.
 - The patch side in millimetres is `input_size × canonical_mm_per_px`, the grid
   strides by half that, and it covers the located region. A test asserts the
   counts in the table above against the geometry rather than against constants. At 160 px and 0.130 mm/px that is a 20.8 mm patch and
