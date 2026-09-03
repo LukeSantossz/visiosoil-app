@@ -151,9 +151,12 @@ not done here.
     opens no image, and it is what `train.py` slices predictions back by.
   - `ml/src/dataset.py` — **one named place a refused photograph may leave a
     split**, `drop_refused_photographs`, returning the entries the grid accepts
-    and why it refuses the rest. Every other entry point raises instead: a
-    pipeline that skipped a photograph on its own would shorten an epoch by an
-    amount nothing records.
+    and why it refuses the rest, called once by `create_folds_for_config` before
+    the partition is drawn. Every other entry point raises instead: a pipeline
+    that skipped a photograph on its own would shorten an epoch by an amount
+    nothing records.
+  - The fold manifest gains a `refused` map and a `refused_photographs` count,
+    so a partition names the photographs that are not in it.
   - `ml/src/train.py` — average a photograph's patch distributions back into one
     photograph distribution before predictions are written.
   - `ml/src/config.py` — accept MobileNetV2's published input sizes, and the new
@@ -231,6 +234,10 @@ not done here.
 - patches_of_one_photograph_never_span_two_folds: grouping is unchanged, on
   `sample_id`, and a test asserts no patch of a photograph appears on both sides
   of a fold.
+- a_photograph_the_patch_grid_refuses_never_enters_a_fold: a version holding a
+  photograph coarser than the canonical partitions without it, and the fold
+  manifest records it by name with its refusal rather than being one short of
+  the version it names.
 - a_prediction_is_written_per_photograph_not_per_patch: `predictions.json` holds
   one row per photograph, its distribution the mean over that photograph's
   patches, so the file's shape is unchanged.
@@ -281,9 +288,13 @@ change. A variable count is an application condition, not a training one.
   also unimplemented — but it is now load-bearing and is stated so nobody reads a
   green training run as a shippable model.
 - **Eleven photographs leave training**, the ones coarser than the canonical,
-  and they leave it at one named call rather than by being skipped. `train.py`
-  calls `drop_refused_photographs` when it assembles a fold's sides and reports
-  what it dropped; nothing else filters.
+  and they leave it **before the partition is drawn**, not when a fold's sides
+  are assembled. `create_folds_for_config` filters them through
+  `drop_refused_photographs` and the fold manifest records each one by name with
+  its refusal, so the record of what a run trained on cannot list photographs no
+  run can use. Filtering later would stratify over images that never reach the
+  model; leaving it to each caller would make the filter something a caller can
+  forget.
   All eleven are in the transported population, which SPEC 0040 D6 already holds
   to training only, so the splittable pool stays at 77 groups and SPEC 0042's
   minimum detectable effect does not move. The fold manifest is git-ignored and
