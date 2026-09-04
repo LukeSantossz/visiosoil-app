@@ -30,7 +30,11 @@ data:
   # on. See docs/specs/0033-dataset-protocol-manifest-and-splits.md.
   datasets_dir: "data/datasets"
   dataset_version: "v1"
-  image_size: 224
+  # 160, not 224: the patch side in millimetres is `image_size x
+  # canonical_mm_per_px`, so at 0.1292 this is a 20.7 mm patch and a 90 mm dish
+  # yields 25 of them (ADR 0018). MobileNetV2 publishes ImageNet weights at 96,
+  # 128, 160, 192 and 224, and `load_config` refuses any other value.
+  image_size: 160
   seed: 42
 
 # The evaluation protocol: repeated stratified group k-fold with nested
@@ -65,6 +69,29 @@ evaluation:
 preprocessing:
   normalization: "mobilenet_v2"
   bake_into_model: true
+  # The scale every photograph is resampled to before a patch is cut, in
+  # millimetres per pixel. Measured, not chosen: it is the 95th percentile of
+  # the dish-rim readings over all 221 photographs of v1, and
+  # `ml/tests/test_patches.py` refuses this value to drift from
+  # `ml/measurements/dish-scale-v1.json`. See SPEC 0052 and ADR 0017.
+  #
+  # A photograph coarser than this is refused rather than upsampled: reaching
+  # the canonical from below would invent grain that was never photographed.
+  #
+  # Written unrounded, which is not the house style for a file people read. A
+  # rounded 0.1292 is *finer* than the percentile it claims to be, so it also
+  # refuses the photograph whose reading defines that percentile: twelve
+  # photographs leave training where the measurement says eleven. The full float
+  # is the only value that trains on the archive the record describes.
+  canonical_mm_per_px: 0.12920342774728033
+  # The grid strides by half a patch, so patches overlap by 50 %. A
+  # non-overlapping grid holds nine patches on a 90 mm dish and steps between
+  # perfect squares as the disc grows; this one gives 25 and varies smoothly.
+  patch_stride_fraction: 0.5
+  # Below this the region is refused. The floor is on the dispersion measure,
+  # not the classification: a mean over four patches is usable, an entropy over
+  # four is too coarse to warn with (ADR 0018).
+  min_patches: 9
 
 augmentation:
   horizontal_flip: true

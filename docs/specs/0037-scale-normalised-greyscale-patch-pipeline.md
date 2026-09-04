@@ -130,8 +130,8 @@ ImageNet weights load unchanged.
   millimetres-per-pixel; greyscale conversion; locating the soil region; the
   overlapping patch grid and its inset; batching the patches through the
   interpreter; the mean aggregation and the normalised dispersion metric; the
-  `disc_diameter_px` manifest column; widening `_ARCHITECTURE_IMAGE_SIZE`; the
-  shared geometry fixture table.
+  measured scale columns in the manifest; widening `_ARCHITECTURE_IMAGE_SIZE`;
+  the shared geometry fixture table.
 - Does NOT include: reading `spec.json` or separating the failure causes, which
   is SPEC 0035 and lands first; the verdict bands and the result surface, which
   the UI/UX terminal owns; converting the archive's HEIC files and building the
@@ -148,7 +148,7 @@ each boundary above was drawn for a stated reason rather than by convenience.
 canonical scale; greyscale conversion via the shared luma; a patch grid over the
 disc; the change from a one-tensor-per-path mapping to a flat-map in
 `ml/src/dataset.py`; widening `_ARCHITECTURE_IMAGE_SIZE` in `ml/src/config.py`
-to MobileNetV2's published set; a `disc_diameter_px` column in
+to MobileNetV2's published set; the measured scale columns in
 `ml/src/manifest.py`.
 
 **In scope, Dart:** a scale reader over the A4 sheet and the homography
@@ -171,12 +171,25 @@ The consequence for framing: **the patch grid covers the found region, not a
 fixed fraction of the frame**, so a user who spreads a smaller disc gets fewer
 patches rather than patches of background.
 
-**The grid is inset from the region boundary by one patch half-width.** Without
-the inset, edge patches straddle the boundary and carry glass rim, bench or
-paper into a tensor that is supposed to be soil — which would reintroduce, at
-the edges only, exactly the background difference the patch decision otherwise
-removes. This was missing from the first draft of this specification and is the
-correction that makes the next paragraph true.
+~~**The grid is inset from the region boundary by one patch half-width.**~~
+**Corrected 2026-09-03 to one patch half-diagonal**, by
+[SPEC 0053](0053-train-on-scale-normalised-greyscale-patches.md), which
+implements this grid. Without the inset, edge patches straddle the boundary and
+carry glass rim, bench or paper into a tensor that is supposed to be soil —
+which would reintroduce, at the edges only, exactly the background difference
+the patch decision otherwise removes. That reasoning is unchanged; the distance
+was wrong.
+
+**Half a width is not enough, and this specification already said so twice in
+ways that contradicted it.** A square inset from a circle by half its width
+still puts its four corners outside the circle, so the acceptance criterion
+below — *no patch contains a pixel outside the located region* — cannot hold
+under it. Nor does the count: at the canonical scale and a 160 px input, a
+half-width inset yields 21, 25 and 37 patches for discs of 70, 80 and 90 mm,
+against the 9, 21 and 25 that ADR 0018 tabulates and that the table in this
+document repeats. **The half-diagonal reproduces both.** The criterion and the
+two tables agreed with each other all along; the prose was the one statement out
+of step, and it is the one that changes.
 
 **Patches make the dish-versus-paper background difference nearly disappear, and
 that is worth stating because the earlier records assume otherwise.** A patch cut
@@ -240,8 +253,11 @@ criterion refuses legitimate work.
   and **never a default scale**. A test asserts that no code path substitutes
   one.
 - The measured scale of every archive photograph is recorded in the manifest as
-  `disc_diameter_px`, the validator refuses a missing or non-positive value, and
-  it reports the spread per dataset version.
+  `mm_per_px`, `disc_diameter_px`, `disc_centre_x_px` and `disc_centre_y_px` —
+  four columns and not the one this spec first named, because the grid is laid
+  out from the region's centre and a diameter alone locates nothing. SPEC 0053
+  carries the correction. The validator refuses a non-positive value and reports
+  the spread per dataset version.
 - A photograph whose rim cannot be fitted is **quarantined and reported by name**,
   in the same shape as an admission refusal — never dropped silently. A test
   asserts the report, because silently losing photographs is how a dataset shrinks
@@ -270,8 +286,11 @@ criterion refuses legitimate work.
   dark-region fit on the application side, and a region holding **fewer than nine
   patches** is refused rather than padded with background. A test asserts the
   refusal at the boundary.
-- The grid is inset from the region boundary by one patch half-width, and a test
-  asserts that no patch contains a pixel outside the located region.
+- The grid is inset from the region boundary by one patch **half-diagonal**, and
+  a test asserts that no patch contains a pixel outside the located region.
+  Corrected from half-width, above: a half-width inset fails this very criterion
+  by the corners, and yields 37 patches on a 90 mm disc rather than the 25 this
+  specification and ADR 0018 both tabulate.
 - The patch side in millimetres is `input_size × canonical_mm_per_px`, the grid
   strides by half that, and it covers the located region. A test asserts the
   counts in the table above against the geometry rather than against constants. At 160 px and 0.130 mm/px that is a 20.8 mm patch and

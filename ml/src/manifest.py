@@ -20,7 +20,7 @@ import io
 import os
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Mapping, Sequence
@@ -64,6 +64,32 @@ METRIC_COLUMNS = (
     "color_cast_score",
     "specular_fraction",
     "roi_side_px",
+)
+
+#: What the dish-rim reader measured, written by `scripts/measure_scale.py`
+#: (SPEC 0052) and consumed by the patch grid (SPEC 0053). Four columns and not
+#: the one `disc_diameter_px` SPEC 0037 names: cutting a grid needs the region's
+#: **centre** as well as its size, and neither record said so. A diameter with
+#: no centre locates nothing.
+#:
+#: Optional in the schema and checked at the point of use, in the same shape as
+#: the quality metrics above. A version is ingested before it is measured, so a
+#: parse-time requirement would make every manifest invalid between the two
+#: steps; `check_scale_columns` is what refuses a version that reaches training
+#: without them.
+SCALE_COLUMNS = (
+    "mm_per_px",
+    "disc_diameter_px",
+    "disc_centre_x_px",
+    "disc_centre_y_px",
+    # The frame those coordinates are expressed in, which is the photograph
+    # **after** `exif_transpose` and is not the stored size `source_width` and
+    # `source_height` record: 42 of the archive's 221 photographs carry an
+    # orientation tag, and for those the two differ by a transposition. A
+    # consumer that laid a grid out from the centre above against the stored
+    # size would cut a different part of the photograph.
+    "frame_width_px",
+    "frame_height_px",
 )
 
 QUALITY_VERDICT_COLUMN = "quality_verdict"
@@ -174,6 +200,9 @@ class ManifestRow:
     source_width: int = 0
     source_height: int = 0
     sample_id_source: str = ""
+    #: What the dish-rim reader measured for this photograph, empty until
+    #: `scripts/measure_scale.py` has run over the version.
+    scale: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -238,6 +267,7 @@ WRITE_COLUMNS = (
     QUALITY_FLAGS_COLUMN,
     *METRIC_COLUMNS,
     *PROVENANCE_COLUMNS,
+    *SCALE_COLUMNS,
 )
 
 
@@ -261,30 +291,41 @@ def stage_manifest(root: str | Path, rows: Sequence[ManifestRow]) -> Path:
     any machine.
     """
     path = manifest_path(root).with_name(MANIFEST_FILENAME + STAGED_SUFFIX)
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(WRITE_COLUMNS)
-        for row in rows:
-            writer.writerow(
-                [
-                    row.sample_id,
-                    row.texture_class,
-                    row.image,
-                    row.setting,
-                    row.site,
-                    row.device,
-                    row.captured_at,
-                    row.quality_verdict,
-                    FLAG_SEPARATOR.join(row.quality_flags),
-                    *(_format_metric(row.metrics.get(column)) for column in METRIC_COLUMNS),
-                    row.source_format,
-                    row.source_group,
-                    row.source_width or "",
-                    row.source_height or "",
-                    row.sample_id_source,
-                ]
-            )
+    path.write_bytes(render_manifest(rows))
     return path
+
+
+def render_manifest(rows: Sequence[ManifestRow]) -> bytes:
+    """Return the exact bytes a manifest of ``rows`` is written as.
+
+    Separate from writing it so a digest can be taken over content that is not
+    on disk, which is what :func:`unmeasured_digest` needs.
+    """
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(WRITE_COLUMNS)
+    for row in rows:
+        writer.writerow(
+            [
+                row.sample_id,
+                row.texture_class,
+                row.image,
+                row.setting,
+                row.site,
+                row.device,
+                row.captured_at,
+                row.quality_verdict,
+                FLAG_SEPARATOR.join(row.quality_flags),
+                *(_format_metric(row.metrics.get(column)) for column in METRIC_COLUMNS),
+                row.source_format,
+                row.source_group,
+                row.source_width or "",
+                row.source_height or "",
+                row.sample_id_source,
+                *(_format_metric(row.scale.get(column)) for column in SCALE_COLUMNS),
+            ]
+        )
+    return buffer.getvalue().encode("utf-8")
 
 
 def commit_staged_manifest(staged: Path, root: str | Path) -> Path:
@@ -744,6 +785,7 @@ def _parse_rows(
     accepted_classes = ", ".join(classes)
     accepted_settings = ", ".join(VALID_SETTINGS)
     metric_columns = [column for column in METRIC_COLUMNS if column in columns]
+    scale_columns = [column for column in SCALE_COLUMNS if column in columns]
 
     rows: list[ManifestRow] = []
     problems: list[str] = []
@@ -804,6 +846,9 @@ def _parse_rows(
         provenance, provenance_problems = _parse_provenance(raw, number)
         problems.extend(provenance_problems)
 
+        scale, scale_problems = _parse_scale(raw, scale_columns, number)
+        problems.extend(scale_problems)
+
         rows.append(
             ManifestRow(
                 sample_id=values["sample_id"],
@@ -816,6 +861,7 @@ def _parse_rows(
                 quality_verdict=(raw.get(QUALITY_VERDICT_COLUMN) or "").strip(),
                 quality_flags=_parse_flags(raw.get(QUALITY_FLAGS_COLUMN)),
                 metrics=metrics,
+                scale=scale,
                 **provenance,
             )
         )
@@ -909,6 +955,85 @@ def _parse_metrics(
         except ValueError:
             problems.append(f"row {number}: {column} {value!r} is not a number")
     return metrics, problems
+
+
+def _parse_scale(
+    raw: Mapping[str, str], scale_columns: Sequence[str], number: int
+) -> tuple[dict[str, float], list[str]]:
+    """Read the measured scale, refusing a value that cannot be one.
+
+    A non-positive diameter or scale is refused rather than carried: it would
+    divide by zero in the patch geometry, or resample an image to nothing, and
+    a manifest is where that has to stop.
+    """
+    scale: dict[str, float] = {}
+    problems: list[str] = []
+    for column in scale_columns:
+        value = (raw.get(column) or "").strip()
+        if not value:
+            continue
+        try:
+            number_value = float(value)
+        except ValueError:
+            problems.append(f"row {number}: {column} {value!r} is not a number")
+            continue
+        if column in {"mm_per_px", "disc_diameter_px"} and number_value <= 0.0:
+            problems.append(
+                f"row {number}: {column} is {number_value}, and a measured "
+                "scale or diameter must be positive"
+            )
+            continue
+        scale[column] = number_value
+    return scale, problems
+
+
+def unmeasured_digest(root: str | Path) -> str:
+    """Return the digest this version's manifest has before it is measured.
+
+    `measure_scale.py` writes its result back into the manifest, the way
+    `admit_images.py --write` already writes the quality metrics, so the file
+    bytes change the moment the measurement lands. A digest over those bytes
+    answers "has this been measured yet", and the question a measurement record
+    has to answer is "which data was measured". Blanking the scale columns
+    separates the two: it is the same rows, before the run wrote its own output
+    into them, so it is stable across that write and across a re-ingest.
+    """
+    manifest = read_manifest(Path(root), ARCHIVE_CLASSES)
+    blanked = [replace(row, scale={}) for row in manifest.rows]
+    return hashlib.sha256(render_manifest(blanked)).hexdigest()
+
+
+def check_scale_columns(manifest: Manifest) -> list[str]:
+    """Report every row the dish-rim reader has not measured.
+
+    Called where the measurement is needed — the patch grid — rather than at
+    parse time, because a version is ingested before it is measured and a
+    parse-time rule would make every manifest invalid in between.
+    """
+    problems: list[str] = []
+    for row in manifest.rows:
+        missing = [column for column in SCALE_COLUMNS if column not in row.scale]
+        if missing:
+            problems.append(
+                f"{row.image}: no measured scale ({', '.join(missing)}). Run "
+                f"`python scripts/measure_scale.py --version {manifest.version}`"
+            )
+    return problems
+
+
+def scale_spread(manifest: Manifest) -> dict[str, float]:
+    """Report the measured scale's spread over a version, for the validator."""
+    readings = [
+        row.scale["mm_per_px"] for row in manifest.rows if "mm_per_px" in row.scale
+    ]
+    if not readings:
+        return {}
+    return {
+        "count": float(len(readings)),
+        "minimum": min(readings),
+        "maximum": max(readings),
+        "spread": max(readings) / min(readings),
+    }
 
 
 def _parse_provenance(

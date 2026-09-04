@@ -64,7 +64,11 @@ def write_config(tmp_path, *, classes=CLASSES, seed=SEED, k=K, repeats=REPEATS):
             "power": 0.8,
             "contrasts": [],
         },
-        "preprocessing": {"normalization": "mobilenet_v2", "bake_into_model": True},
+        "preprocessing": {
+            "normalization": "mobilenet_v2",
+            "bake_into_model": True,
+            "canonical_mm_per_px": 0.1292,
+        },
         "model": {"architecture": "mobilenetv2", "dropout": 0.5},
         "training": {"epochs": 5, "batch_size": 8, "learning_rate": 0.001},
         "export": {"quantization": "none", "output_dir": str(tmp_path / "models")},

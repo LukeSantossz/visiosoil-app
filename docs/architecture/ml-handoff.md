@@ -98,7 +98,7 @@ what remains open.
 |---|---|
 | #194 | The out-of-distribution score, **built for v1** — with Siltosa excluded it is the only guard against a confident wrong answer on silty soil |
 | #178 | The training path does not pass `sample_ids`; grouping falls back to a filename regex that happens to match this archive |
-| #180 | Neither downsample path anti-aliases; folded into A6 |
+| #180 | Neither downsample path anti-aliases; folded into A6 and closed by SPEC 0053's resample to the canonical scale |
 | #185 | `Interpreter.fromBuffer` leaks the model on every classification |
 | #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field |
 | #26, #29, #30, #188 | Checkpoint selection, export parity on real data, path resolution, calibration metrics |
@@ -112,20 +112,26 @@ ran E0 as issue #197. #196 and #179 are closed, #197 is closed, and two more
 items have landed since, so following it would have queued work behind finished
 dependencies. The map's §6 is the authority; this is its short form.
 
-1. **A6, SPEC 0037** — the scale-normalised greyscale patch pipeline. Next, and
-   it now starts from a dish-rim reader that exists and a canonical scale
-   measured over the whole archive rather than 42 % of it (SPEC 0052).
-2. **#178 and #180** — the two remaining defects that would bias E0. #180 is
-   folded into A6.
-3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way.
-4. **SPEC 0035**, then #185.
-5. Everything else sits behind the C0 gate.
+1. **#178** — the remaining defect that would bias E0. #180 was folded into A6
+   and is closed by the resample it introduced.
+2. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
+   committed either way. It is now the first thing on the critical path.
+3. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
+   and neither blocks the gate.
+4. Everything else sits behind the C0 gate.
 
 Done since this file was last rewritten: #196 (HEIC converted, SPEC 0040), #179
 (BatchNorm, SPEC 0045), the four-class list (SPEC 0046), the evaluation protocol
-(ADR 0020, SPEC 0042), the training environment (SPEC 0051) and the canonical
-scale (SPEC 0052).
+(ADR 0020, SPEC 0042), the training environment (SPEC 0051), the canonical scale
+(SPEC 0052) and **A6's Python half (SPEC 0053)** — training now scores a grid of
+scale-normalised greyscale patches and averages them back into one prediction per
+photograph.
+
+**A6 opened a train/serve skew and has not closed it.** Training sees canonical
+greyscale patches; `InferenceService` still resizes the whole frame to 224 and
+keeps colour. That is deliberate — the Dart half needs SPEC 0035 — and it means
+**no model may be released between SPEC 0053 and SPEC 0035**. A green training
+run is not a shippable model until that closes.
 
 ## Limitations that travel with every number
 

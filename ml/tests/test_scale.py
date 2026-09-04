@@ -19,7 +19,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from src.manifest import ARCHIVE_CLASSES, read_manifest, train_only_sample_ids
+from src.manifest import (
+    ARCHIVE_CLASSES,
+    read_manifest,
+    train_only_sample_ids,
+    unmeasured_digest,
+)
 from src.scale import (
     DISH_DIAMETER_MM,
     ScaleRefusal,
@@ -27,7 +32,7 @@ from src.scale import (
     read_dish_scale,
     summarise,
 )
-from tests.support import write_image_version
+from tests.support import CLASSES, write_image_version
 
 ML_ROOT = Path(__file__).resolve().parents[1]
 RECORD_PATH = ML_ROOT / "measurements" / "dish-scale-v1.json"
@@ -347,9 +352,12 @@ def test_the_recorded_canonical_confirms_the_value_spec_0037_ships():
 
 @real_only
 def test_the_record_was_taken_over_the_manifest_on_disk():
-    manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
+    """Against the version's identity, which is its manifest before measuring.
 
-    assert _record()["manifest_digest"] == manifest.digest
+    Not the file digest: the run writes its own result into those columns, so
+    the file digest stops matching the moment the measurement lands.
+    """
+    assert _record()["manifest_digest"] == unmeasured_digest(REAL_VERSION)
 
 
 def test_the_measurement_reproduces_from_the_recorded_command(tmp_path):
@@ -460,3 +468,157 @@ def test_the_reader_is_pure_arithmetic_and_needs_no_tensorflow():
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+# --- the record is what fills the manifest ---------------------------------
+
+
+def test_the_record_carries_the_centre_of_every_dish(tmp_path):
+    """A diameter with no centre locates nothing, so the record carries both.
+
+    The manifest is a build product (ADR 0019) and the record is committed, so
+    the record is the only place a measurement survives a re-ingest. Leaving the
+    centre out of it would mean the seven-minute reader run is the only way back
+    to a grid position, every time the version is rebuilt.
+    """
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    out = tmp_path / "record.json"
+
+    assert measure_scale.main(["--root", str(root), "--out", str(out)]) == 0
+
+    row = json.loads(out.read_text(encoding="utf-8"))["photographs"][0]
+    assert row["disc_centre_x_px"] == pytest.approx(450.0, abs=2.0)
+    assert row["disc_centre_y_px"] == pytest.approx(450.0, abs=2.0)
+
+
+def test_the_committed_record_carries_the_centre_of_every_photograph():
+    photographs = _record()["photographs"]
+
+    assert all("disc_centre_x_px" in row for row in photographs)
+    assert all(
+        row["disc_centre_y_px"] is not None
+        for row in photographs
+        if row["mm_per_px"] is not None
+    )
+
+
+def test_the_manifest_is_filled_from_the_record_without_reading_an_image(
+    tmp_path, monkeypatch
+):
+    """Re-ingesting a version drops the columns; refilling them is arithmetic.
+
+    The measurement costs seven minutes over the archive and the manifest is
+    rebuilt whenever the version is, so the second and every later fill reads
+    the committed record instead of the photographs.
+    """
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    assert measure_scale.main(["--root", str(root), "--out", str(record)]) == 0
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("--from-record must not open a photograph")
+
+    monkeypatch.setattr(measure_scale.Image, "open", refuse)
+    assert (
+        measure_scale.main(
+            ["--root", str(root), "--from-record", str(record)]
+        )
+        == 0
+    )
+
+    from src.manifest import SCALE_COLUMNS
+    from tests.support import CLASSES
+
+    row = read_manifest(root, CLASSES).rows[0]
+    assert set(SCALE_COLUMNS) == set(row.scale)
+    assert row.scale["disc_diameter_px"] == pytest.approx(600.0, abs=4.0)
+
+
+def test_a_record_taken_over_another_manifest_is_refused(tmp_path):
+    """The digest is what proves the rows describe these photographs."""
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    other = write_image_version(
+        tmp_path / "other", {"sample-2": [("dish", _dish(outer_radius=250.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    assert measure_scale.main(["--root", str(other), "--out", str(record)]) == 0
+
+    assert (
+        measure_scale.main(["--root", str(root), "--from-record", str(record)])
+        == 1
+    )
+
+
+def test_the_recorded_digest_ignores_the_measurement_it_writes(tmp_path):
+    """The digest says which data was measured, not whether it has been.
+
+    `measure_scale.py` writes its result into the manifest, the way
+    `admit_images.py --write` already writes the quality metrics, so the file
+    bytes change and a digest over them would stop describing the version the
+    moment the measurement landed. Including a run's own output in the identity
+    of its input is what makes `--from-record` impossible after a re-ingest.
+    """
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    out = tmp_path / "record.json"
+    before = unmeasured_digest(root)
+
+    assert measure_scale.main(["--root", str(root), "--out", str(out)]) == 0
+
+    assert unmeasured_digest(root) == before
+    record = json.loads(out.read_text(encoding="utf-8"))
+    assert record["manifest_digest"] == before
+    assert read_manifest(root, CLASSES).rows[0].scale
+
+
+def test_a_record_that_does_not_describe_every_photograph_is_refused(tmp_path):
+    """A record with the right digest and missing rows must not blank a manifest.
+
+    `--from-record` writes what it read straight into the manifest, so a record
+    covering only some photographs would quietly replace a measurement with
+    nothing for the rest — leaving a version that reads as ingested but never
+    measured, which is a state nobody caused on purpose.
+    """
+    root = write_image_version(
+        tmp_path,
+        {
+            "sample-1": [("dish", _dish(outer_radius=300.0))],
+            "sample-2": [("dish", _dish(outer_radius=250.0))],
+        },
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    assert measure_scale.main(["--root", str(root), "--out", str(record)]) == 0
+
+    written = json.loads(record.read_text(encoding="utf-8"))
+    written["photographs"] = written["photographs"][:1]
+    record.write_text(json.dumps(written), encoding="utf-8")
+
+    assert (
+        measure_scale.main(["--root", str(root), "--from-record", str(record)]) == 1
+    )
+
+
+def test_a_record_that_is_not_an_object_is_refused_rather_than_raising(tmp_path):
+    """A JSON array reaches `record.get` and raises `AttributeError`."""
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    record.write_text("[1, 2, 3]", encoding="utf-8")
+
+    assert (
+        measure_scale.main(["--root", str(root), "--from-record", str(record)]) == 1
+    )

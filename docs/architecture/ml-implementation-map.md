@@ -321,6 +321,35 @@ removes.
 resample to canonical scale is the downsample that matters, and fixing it
 anywhere else would be fixing a path this item replaces.
 
+**The Python half is done, 2026-09-03**, as
+[SPEC 0053](../specs/0053-train-on-scale-normalised-greyscale-patches.md).
+Training resamples every photograph to the canonical 0.12920342774728033 mm/px,
+cuts a grid of 160 px greyscale patches inset by a patch half-diagonal, scores
+each patch, and averages a photograph's patch distributions back into one
+prediction, so the photograph stays the unit of every number SPEC 0042 defines.
+Over `v1` that is 25 patches per photograph, 204 photographs partitioned of 221,
+and a splittable pool of 77 groups — unchanged, so SPEC 0042's minimum detectable
+effect does not move.
+
+Four things the implementation settled that the records did not say:
+
+- **The manifest carries four measured columns, not one.** A grid is laid out
+  from the dish's centre, and `disc_diameter_px` alone locates nothing.
+- **The canonical is written unrounded.** Rounded to four decimals it is finer
+  than the percentile it stands for and refuses the photograph that defines it.
+- **A refused photograph leaves before the partition is drawn**, in
+  `create_folds_for_config`, and the fold manifest records it by name. Five
+  train-only sample groups lose every photograph they had.
+- **The inset is a patch half-diagonal**, correcting SPEC 0037's prose, which is
+  the only reading that reproduces ADR 0018's table.
+
+**What remains of A6 is the Dart half**, which depends on A4 (SPEC 0035) and is
+unchanged: the A4 sheet reader, the homography, locating the soil region on
+paper, batching the patches through the interpreter, the mean aggregation and the
+dispersion metric. **Until it lands, training and inference disagree**, which is
+a train/serve skew SPEC 0053 opens deliberately and states: no model may be
+released between them.
+
 ### A7 — On-device patch-batch latency budget
 
 **Record:** none yet; the measurement is a document. **Depends on:** A6 for the
@@ -575,7 +604,7 @@ A1 (0030) ── done ──── their item 6, the capture gate
 
 B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
-B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 ──┤
+B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 python (0053) ── done ──┤
                                                │
                        C0 probe (#213)  ───────┤
                        A7 latency (#215) ──────┤
@@ -596,11 +625,13 @@ scale recomputation in parallel, then A6, then C0's probe, then the C0 gate** �
 issues #214 and #212, then SPEC 0037, then #213, then #216. The two first because
 neither depends on anything and both block everything after them: nothing can be
 trained without an environment, and the patch pipeline cannot be built without
-the scale it normalises to. **Both are now done** — B1's environment by SPEC 0051
-and B2's scale by SPEC 0052 — so **A6 is the next item**, and it starts with a
-reader that already exists and a canonical value that has been measured over the
-whole archive rather than assumed. A7 (#215) runs whenever a device is available; it is
-not on the path until the gate's decision rule reads it.
+the scale it normalises to. **All three are now done** — B1's environment by SPEC 0051, B2's scale by
+SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
+the C0 gate (#216) are the next items**, and they run over a pipeline that
+resamples to a measured canonical rather than to an assumed one. A7 (#215) runs
+whenever a device is available; it is not on the path until the gate's decision
+rule reads it. A6's Dart half stays behind A4 and is a release blocker rather
+than a gate blocker.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list
 single-source. It is off the critical path to the gate.

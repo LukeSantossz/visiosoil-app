@@ -29,6 +29,7 @@ from .dataset import (
     library_versions,
     load_folds_for_config,
     permute_labels_by_group,
+    photograph_patch_counts,
     verify_images,
 )
 from .model import build_model, fine_tune_report, unfreeze_model
@@ -402,18 +403,59 @@ def _predict(model, test_entries, cfg) -> list[dict]:
     The distribution and not the argmax: a group's prediction is the argmax of
     the mean of its photographs' distributions, and that cannot be recovered
     from per-photograph labels.
+
+    One row per photograph, still — but the model no longer produces one. Since
+    SPEC 0053 it scores a grid of patches, so `build_dataset` yields several
+    rows per photograph and each photograph's block is averaged back into one
+    distribution here. That keeps the shape and the meaning `evaluate.py`, the
+    fold manifest and SPEC 0042's contrasts already read.
+
+    The mean rather than a vote over the patches: SPEC 0053's Alternatives
+    Considered rejects treating a patch as a unit of evidence, since patches of
+    one photograph share lighting, preparation and soil. A vote would also throw
+    away the confidence the distribution carries, which is the thing the group
+    level then takes its own mean of.
     """
+    counts = photograph_patch_counts(test_entries, cfg)
     dataset = build_dataset(test_entries, cfg, augment=False, shuffle=False)
-    probabilities = model.predict(dataset, verbose=0)
-    return [
-        {
-            "path": entry["path"],
-            "group": entry["group"],
-            "label": int(entry["label"]),
-            "probabilities": [float(value) for value in row],
-        }
-        for entry, row in zip(test_entries, probabilities)
-    ]
+    probabilities = np.asarray(model.predict(dataset, verbose=0))
+
+    # Verified, not trusted. The slicing below is only right while the rows are
+    # the patches these counts describe, in the order `build_dataset` emitted
+    # them, and every way of being wrong here is silent: a short count list
+    # drops the last photographs, an empty block averages to NaN, and a
+    # disagreeing total shifts every block after the first onto a neighbour's
+    # patches. All three produce a file of the right shape under the right
+    # labels, which is a wrong result that reads as a right one.
+    if len(counts) != len(test_entries) or any(count <= 0 for count in counts):
+        raise ValueError(
+            f"the patch grid reported {list(counts)} for {len(test_entries)} "
+            "photograph(s); each needs a block of at least one row, or a "
+            "prediction is written from another photograph's patches"
+        )
+    total = sum(counts)
+    if len(probabilities) != total:
+        raise ValueError(
+            f"the model returned {len(probabilities)} row(s) for "
+            f"{len(test_entries)} photograph(s) whose patch grid holds {total}; "
+            "the dataset and the patch geometry disagree, and a mean taken over "
+            "the wrong rows would mislabel every prediction in the fold"
+        )
+
+    records = []
+    start = 0
+    for entry, count in zip(test_entries, counts, strict=True):
+        block = probabilities[start : start + count]
+        start += count
+        records.append(
+            {
+                "path": entry["path"],
+                "group": entry["group"],
+                "label": int(entry["label"]),
+                "probabilities": [float(value) for value in block.mean(axis=0)],
+            }
+        )
+    return records
 
 
 def train(

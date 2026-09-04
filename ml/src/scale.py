@@ -132,6 +132,14 @@ class ScaleReading:
     #: rim found by the main pass, which carries what it measured.
     ray_coverage: float
     refusal: Optional[ScaleRefusal] = None
+    #: The photograph's size **after** `exif_transpose`, which is the frame every
+    #: coordinate above is expressed in. Recorded because a stored size is not
+    #: it: 42 of the archive's 221 photographs carry an orientation tag, and for
+    #: those the two differ by a transposition. A consumer that laid a grid out
+    #: from this centre against the stored size would cut a different part of
+    #: the photograph.
+    frame_width_px: int = 0
+    frame_height_px: int = 0
 
 
 @dataclass(frozen=True)
@@ -231,6 +239,8 @@ def read_dish_scale(image: Image.Image) -> ScaleReading:
         centre_y_px=rim.centre_y / fine_scale,
         rim_dispersion=rim.dispersion,
         ray_coverage=rim.coverage,
+        frame_width_px=baked.width,
+        frame_height_px=baked.height,
     )
 
 
