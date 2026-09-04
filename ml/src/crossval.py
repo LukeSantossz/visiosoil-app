@@ -112,6 +112,27 @@ def fold_trainer_for(arm: str):
         ) from None
 
 
+def require_control_matches_arm(arm: str, shuffled_control: bool) -> None:
+    """Refuse an arm name and a control flag that disagree.
+
+    The two travel independently into both entry points, and either mismatch
+    writes a result the artifacts cannot correct. Unpermuted labels under
+    `shuffled_control` is a control that is not one, and every primary contrast
+    is read against it. Permuted labels under a real arm's name is that arm
+    recorded as having scored what chance scores.
+
+    SPEC 0044 warns about the first in prose — "`--shuffled-control` and not
+    `--arm shuffled_control`" — and prose is not a guard.
+    """
+    if (arm == SHUFFLED_CONTROL_ARM) != bool(shuffled_control):
+        raise ValueError(
+            f"arm {arm!r} and shuffled_control={bool(shuffled_control)} "
+            f"disagree: only {SHUFFLED_CONTROL_ARM!r} permutes its labels, and "
+            f"it always does. Run the control with --shuffled-control and let "
+            f"the arm name follow from it"
+        )
+
+
 def arm_directory(output_dir: Path | str, arm: str) -> Path:
     """Where one arm's folds and metrics live."""
     return Path(output_dir) / arm
@@ -382,6 +403,7 @@ def run_arm(
 
     # Resolved before the first fold, so an arm nothing implements is refused in
     # a second rather than after the images have been verified.
+    require_control_matches_arm(arm, shuffled_control)
     train_fold = fold_trainer_for(arm)
 
     output_dir = Path(cfg["export"]["output_dir"]) / version

@@ -399,6 +399,22 @@ class _FeatureStore:
             self._sidecar = self._read_sidecar()
             _require_store_agreement(self._sidecar_path, self._sidecar, declared)
         else:
+            # Entries without a sidecar are entries whose provenance nothing
+            # establishes — a store whose identity was deleted, or one a run
+            # died before describing. Adopting them writes a sidecar claiming
+            # this run's geometry over embeddings computed under some other one,
+            # and `read` would then check only the row count, which a changed
+            # canonical scale need not alter. The arm would train on embeddings
+            # of soil it is no longer looking at, which is the exact failure the
+            # store exists to refuse.
+            orphans = sorted(self._directory.glob("*.npy"))
+            if orphans:
+                raise ValueError(
+                    f"{self._directory} holds {len(orphans)} cached "
+                    f"embedding(s) and no {CACHE_SIDECAR_FILENAME}, so nothing "
+                    f"says what geometry they were computed under. Delete the "
+                    f"directory and let the arm recompute them"
+                )
             self._sidecar = declared
             _write_json_atomically(self._sidecar_path, declared)
 

@@ -35,15 +35,18 @@ def descriptor_features(
     carries the signal" is the diagnostic this arm exists to give — an arm that
     wins on ``first_order`` alone learned brightness, not texture.
     """
-    from ..dataset import photograph_scale
-
     # Imported here rather than at module scope: `_photograph_patches` is where
     # the resample, the EXIF transpose and the grid live, and reaching them
     # through `dataset` keeps one implementation of the cut rather than a second
     # that could drift from it.
-    from ..dataset import _photograph_patches
+    from ..dataset import _measurement_of, _photograph_patches, photograph_scale
 
-    measurement = photograph_scale(cfg)[entry["path"]]
+    # Through `_measurement_of` rather than by indexing the mapping: a path the
+    # manifest does not hold is a fold manifest and a dataset version
+    # disagreeing about which photographs exist, and that helper says so and
+    # names the command that fixes it. Direct indexing raises a bare `KeyError`
+    # carrying a path and no explanation.
+    measurement = _measurement_of(entry, photograph_scale(cfg))
     patches = _photograph_patches(entry, measurement, cfg)
     return np.stack([describe_patch(patch, groups=groups) for patch in patches])
 

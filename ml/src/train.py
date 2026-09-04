@@ -467,7 +467,20 @@ def train(
     shuffled_control: bool = False,
 ) -> dict:
     """Train one outer fold from the command line."""
-    from .crossval import arm_directory
+    from .crossval import (
+        arm_directory,
+        fold_trainer_for,
+        require_control_matches_arm,
+    )
+
+    # Through the dispatch, like `run_arm`. This entry point took the arm name
+    # for the directory and ran the incumbent whatever the name said, so
+    # `--arm descriptors` wrote a CNN's checkpoint and fine-tune report into
+    # `models/<version>/descriptors/`, which every contrast downstream then read
+    # as the descriptor arm's. It is the entry point CI dispatches one job per
+    # fold to, so it is the path a published result comes from.
+    require_control_matches_arm(arm, shuffled_control)
+    fold_trainer = fold_trainer_for(arm)
 
     cfg = resolve_paths(load_config(config_path))
     splits_dir = cfg["data"]["splits_dir"]
@@ -478,7 +491,7 @@ def train(
         fold_manifest = create_folds_for_config(cfg, splits_dir)
 
     arm_dir = arm_directory(Path(cfg["export"]["output_dir"]) / version, arm)
-    return train_fold(
+    return fold_trainer(
         cfg,
         fold_manifest,
         arm_dir=arm_dir,
