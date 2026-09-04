@@ -710,3 +710,43 @@ def test_the_metrics_name_the_stack_the_folds_were_drawn_under(folds):
     protocol = metrics["protocol"]
     assert protocol["seed"] == SEED
     assert protocol["library_versions"] == library_versions()
+
+
+# --- the arm dispatch (SPEC 0054) -------------------------------------------
+
+
+def test_an_unimplemented_arm_name_is_refused_by_name():
+    """Naming an arm nothing implements must not quietly run the incumbent.
+
+    The arm name is what a result is filed under and contrasted by, so a
+    misspelled one that fell back to the default would produce a directory whose
+    name says one method and whose numbers came from another.
+    """
+    from src.crossval import ARM_TRAINERS, fold_trainer_for
+
+    with pytest.raises(ValueError) as raised:
+        fold_trainer_for("descriptor")
+
+    message = str(raised.value)
+    assert "descriptor" in message
+    assert all(arm in message for arm in ARM_TRAINERS)
+
+
+def test_every_arm_name_resolves_to_a_trainer():
+    from src.crossval import ARM_TRAINERS, fold_trainer_for
+
+    for arm in ARM_TRAINERS:
+        assert callable(fold_trainer_for(arm))
+
+
+def test_the_control_runs_the_incumbents_code_path():
+    """One control, on the most capable arm, held against every other arm.
+
+    SPEC 0044 registers three primary contrasts and one control, not one control
+    per arm: the control shows what the class priors and the capture artefacts
+    alone permit, and the strongest arm is the strongest floor to hold the
+    others against.
+    """
+    from src.crossval import DEFAULT_ARM, SHUFFLED_CONTROL_ARM, fold_trainer_for
+
+    assert fold_trainer_for(SHUFFLED_CONTROL_ARM) is fold_trainer_for(DEFAULT_ARM)
