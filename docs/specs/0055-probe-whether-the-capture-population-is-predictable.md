@@ -19,7 +19,16 @@ rule is fixed here before it runs.** It reuses `ml/src/descriptors.py` and
 `ml/src/arms/probe.py` unchanged: same features, same regularised linear
 classifier, same nested selection, same aggregation of patch distributions into
 one prediction per photograph. Only the **label** changes, from texture class to
-`source_group`. Nothing new is trained and nothing new is written.
+`source_group`.
+
+**No new feature extractor and no new model type is introduced**, which is the
+claim that matters and is not the same as "nothing is trained". The probe does
+train: the existing linear probe is fitted once per inner fold and refitted per
+outer fold, 25 outer folds in all, and it writes a fold manifest, per-fold
+artifacts and a report — all under `models/<version>/population_probe/`, which no
+arm reads. Corrected 2026-09-04 from "nothing new is trained and nothing new is
+written", which was false as written and would have made the record disagree with
+the twenty-eight minutes the probe actually costs.
 
 **The probe draws its own partition, and that is a correction to what #213
 proposed.** The issue says the probe runs "under the SPEC 0042 folds". It

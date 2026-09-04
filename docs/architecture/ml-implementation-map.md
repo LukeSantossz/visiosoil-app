@@ -636,9 +636,9 @@ B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
 B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 python (0053) ── done ──┤
                                                │
-                       C0 probe (#213)  ───────┤
-                       A7 latency (#215) ──────┤
-                                               ▼
+                       C0 probe (#213) ── D6 ADR ──┤
+                       A7 latency (#215) ───────────┤
+                                                    ▼
                                     C0 ── GATE ── C1 ── C2 ── C3 ── release
 
 their item 1 ── A4 ─┬─ B3

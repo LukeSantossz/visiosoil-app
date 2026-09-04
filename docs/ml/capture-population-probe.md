@@ -128,7 +128,7 @@ to remove it.
 | Manifest digest | `49cc469f8923f5f41e5cdba5c6413712a40559479d7092ccdc0efd3e13af59f9` |
 | Photographs | 204 (221 ingested, 11 refused by the patch grid, 6 outside the model's class list) |
 | Sample groups | 97 — `A` 14, `B` 20, `C` 63 |
-| Features | `ml/src/descriptors.py`, all four groups, 26 dimensions |
+| Features | `ml/src/arms/descriptors.py`, which cuts the patches and calls `ml/src/descriptors.py` — all four groups, 26 dimensions |
 | Classifier | `arms.probe`, L2 logistic regression, `C` selected on the inner folds over `(0.01, 0.1, 1, 10, 100)` |
 | Folds | k = 5, R = 5, grouped on `sample_id`, stratified on capture population |
 | Repeat seeds | 42, 1042, 2042, 3042, 4042 (from `data.seed` via `derive_repeat_seed`) |
