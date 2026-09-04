@@ -135,7 +135,7 @@ def probe_partition(
     cfg: Mapping,
     manifest: Manifest,
     splits_dir: str,
-    refused: Collection[str],
+    refused: Mapping[str, str],
     *,
     classes: Collection[str],
 ) -> dict:
@@ -148,6 +148,13 @@ def probe_partition(
     E0 folds, and honouring it here would make the probe unable to ask its own
     question. D6 is untouched — this partition is the probe's and is written to
     its own directory.
+
+    Args:
+        refused: The patch grid's refusals, path to the reason, as
+            :func:`probe_refusals` returns them. Passed to `create_folds` as
+            well as filtered out, so the probe's fold manifest records which
+            photographs left and why instead of being eleven short of the
+            version it names.
     """
     evaluation = cfg["evaluation"]
     return create_folds(
@@ -159,6 +166,7 @@ def probe_partition(
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
+        refused=refused,
     )
 
 
