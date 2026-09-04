@@ -54,6 +54,63 @@ FINE_TUNE_FILENAME = "fine_tune.json"
 DEFAULT_ARM = "cnn"
 SHUFFLED_CONTROL_ARM = "shuffled_control"
 
+#: The classical-descriptor arm and the frozen-encoder arm SPEC 0044 compares
+#: against the incumbent, added by SPEC 0054.
+DESCRIPTOR_ARM = "descriptors"
+ENCODER_PROBE_ARM = "encoder_probe"
+
+
+def _cnn_fold_trainer():
+    from .train import train_fold
+
+    return train_fold
+
+
+def _descriptor_fold_trainer():
+    from .arms.descriptors import descriptor_fold
+
+    return descriptor_fold
+
+
+def _encoder_probe_fold_trainer():
+    from .arms.encoder import encoder_probe_fold
+
+    return encoder_probe_fold
+
+
+#: Arm name to the fold trainer that implements it. Behind thunks because each
+#: import pulls in a different stack — the incumbent needs TensorFlow, the
+#: descriptor arm does not — and naming one arm should not pay for the others.
+#:
+#: The control resolves to the incumbent's trainer on purpose. SPEC 0044
+#: registers three primary contrasts against **one** control, not one control
+#: per arm: the control reports what the class priors and the capture artefacts
+#: alone permit, and the most capable arm is the strongest floor to hold every
+#: other arm against.
+ARM_TRAINERS = {
+    DEFAULT_ARM: _cnn_fold_trainer,
+    SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
+    DESCRIPTOR_ARM: _descriptor_fold_trainer,
+    ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
+}
+
+
+def fold_trainer_for(arm: str):
+    """The fold trainer one arm name runs, or a refusal naming the arms.
+
+    Refused rather than defaulted. The arm name is what a result is filed under
+    and contrasted by, so a misspelling that fell back to the incumbent would
+    produce a directory whose name says one method and whose numbers came from
+    another — and nothing downstream could tell.
+    """
+    try:
+        return ARM_TRAINERS[arm]()
+    except KeyError:
+        raise ValueError(
+            f"no arm named {arm!r} is implemented; the arms are "
+            f"{', '.join(sorted(ARM_TRAINERS))}"
+        ) from None
+
 
 def arm_directory(output_dir: Path | str, arm: str) -> Path:
     """Where one arm's folds and metrics live."""
@@ -322,7 +379,10 @@ def run_arm(
     # without the training stack, and a run that is going to be refused should
     # be refused before it spends half a minute importing TensorFlow.
     from .dataset import verify_images
-    from .train import train_fold
+
+    # Resolved before the first fold, so an arm nothing implements is refused in
+    # a second rather than after the images have been verified.
+    train_fold = fold_trainer_for(arm)
 
     output_dir = Path(cfg["export"]["output_dir"]) / version
     arm_dir = arm_directory(output_dir, arm)
