@@ -580,3 +580,45 @@ def test_the_recorded_digest_ignores_the_measurement_it_writes(tmp_path):
     record = json.loads(out.read_text(encoding="utf-8"))
     assert record["manifest_digest"] == before
     assert read_manifest(root, CLASSES).rows[0].scale
+
+
+def test_a_record_that_does_not_describe_every_photograph_is_refused(tmp_path):
+    """A record with the right digest and missing rows must not blank a manifest.
+
+    `--from-record` writes what it read straight into the manifest, so a record
+    covering only some photographs would quietly replace a measurement with
+    nothing for the rest — leaving a version that reads as ingested but never
+    measured, which is a state nobody caused on purpose.
+    """
+    root = write_image_version(
+        tmp_path,
+        {
+            "sample-1": [("dish", _dish(outer_radius=300.0))],
+            "sample-2": [("dish", _dish(outer_radius=250.0))],
+        },
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    assert measure_scale.main(["--root", str(root), "--out", str(record)]) == 0
+
+    written = json.loads(record.read_text(encoding="utf-8"))
+    written["photographs"] = written["photographs"][:1]
+    record.write_text(json.dumps(written), encoding="utf-8")
+
+    assert (
+        measure_scale.main(["--root", str(root), "--from-record", str(record)]) == 1
+    )
+
+
+def test_a_record_that_is_not_an_object_is_refused_rather_than_raising(tmp_path):
+    """A JSON array reaches `record.get` and raises `AttributeError`."""
+    root = write_image_version(
+        tmp_path, {"sample-1": [("dish", _dish(outer_radius=300.0))]}
+    )
+    measure_scale = _load_script("measure_scale")
+    record = tmp_path / "record.json"
+    record.write_text("[1, 2, 3]", encoding="utf-8")
+
+    assert (
+        measure_scale.main(["--root", str(root), "--from-record", str(record)]) == 1
+    )

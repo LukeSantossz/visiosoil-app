@@ -45,6 +45,11 @@ DISC_DIAMETER_PX = 96.0
 INPUT_SIZE = 16
 PATCHES_PER_PHOTOGRAPH = 9
 
+#: A dish centre this close to the left edge leaves the grid hanging off the
+#: photograph: the grid needs 16 canonical pixels either side of the centre,
+#: which is 32 of the photograph's own at this fixture's measured scale.
+EDGE_CENTRE_PX = 20.0
+
 #: Soil levels far enough apart that a patch's mean names the photograph it was
 #: cut from, whatever the texture noise does. See :func:`_photograph_of`.
 SOIL_LEVELS = (60, 110, 160)
@@ -97,11 +102,21 @@ def _write_measured_version(tmp_path, photographs, version="v1"):
                 site="Fazenda Um",
                 device="Pixel 8",
                 captured_at="2026-08-12",
+                # The frame size is what `ingest` records and what the frame
+                # check reads, so a fixture that omitted it would exercise the
+                # check against nothing.
+                source_width=photograph["image"].width,
+                source_height=photograph["image"].height,
                 scale={
                     "mm_per_px": photograph.get("mm_per_px", MEASURED),
                     "disc_diameter_px": photograph.get("diameter", DISC_DIAMETER_PX),
-                    "disc_centre_x_px": CENTRE_PX,
-                    "disc_centre_y_px": CENTRE_PX,
+                    "disc_centre_x_px": photograph.get("centre_x", CENTRE_PX),
+                    "disc_centre_y_px": photograph.get("centre_y", CENTRE_PX),
+                    # The frame the measurement is expressed in, which for an
+                    # upright fixture is the stored size and for a rotated one
+                    # is not.
+                    "frame_width_px": float(photograph["image"].width),
+                    "frame_height_px": float(photograph["image"].height),
                 },
             )
         )
@@ -196,7 +211,14 @@ def dish_entries(dish_version):
 
 
 def test_photograph_scale_maps_every_resolved_path_to_its_measurement(dish_version):
-    """Keyed by the path a fold entry carries, so a caller joins on what it has."""
+    """Keyed by the path a fold entry carries, so a caller joins on what it has.
+
+    The dish and the frame it was measured in. The frame is part of the
+    measurement rather than of the file: deciding whether the grid fits inside
+    the photograph is the one question the geometry cannot answer from the dish
+    alone, and the answer depends on the orientation the reader measured in, not
+    on the orientation the file is stored at.
+    """
     scale = photograph_scale(_config(dish_version))
 
     assert set(scale) == {_path(dish_version, index) for index in range(3)}
@@ -798,3 +820,129 @@ def test_a_version_the_patch_grid_accepts_records_no_refusal(tmp_path):
 
     assert fold_manifest["refused"] == {}
     assert fold_manifest["counts"]["refused_photographs"] == 0
+
+
+# --- a dish photographed too near the edge -----------------------------------
+
+
+def _version_with_a_dish_against_the_edge(tmp_path):
+    """Eight groups, one of them photographed with its dish against the edge."""
+    photographs = []
+    for index in range(8):
+        photographs.append(
+            {
+                "image": _photograph(SOIL_LEVELS[index % len(SOIL_LEVELS)], seed=index),
+                "class": "Arenosa" if index < 4 else "Media",
+                "sample_id": f"sample-{index}",
+                # The dish is the right size everywhere; on the last photograph
+                # it simply is not wholly in the frame.
+                "centre_x": EDGE_CENTRE_PX if index == 7 else CENTRE_PX,
+            }
+        )
+    return _write_measured_version(tmp_path, photographs)
+
+
+def test_a_grid_that_leaves_the_frame_is_refused_before_a_tensor_exists(tmp_path):
+    """`cut_patches` catching it is too late: that is mid-epoch, inside tf.data.
+
+    The count and the filter reach the geometry without decoding anything, so
+    they have to reach this verdict too — otherwise a photograph passes every
+    check the pipeline makes and then fails on the epoch that first reads it.
+    """
+    root = _version_with_a_dish_against_the_edge(tmp_path)
+    cfg = _config(root)
+    entries = _entries(root, ["Arenosa"] * 4 + ["Media"] * 4)
+
+    with pytest.raises(ValueError, match=PatchRefusal.OUTSIDE_FRAME.value):
+        photograph_patch_counts(entries, cfg)
+
+    accepted, refused = drop_refused_photographs(entries, cfg)
+
+    assert len(accepted) == 7
+    assert list(refused) == [_path(root, 7)]
+    assert PatchRefusal.OUTSIDE_FRAME.value in refused[_path(root, 7)]
+
+
+def test_the_frame_check_agrees_with_what_cutting_actually_does(tmp_path):
+    """The two must not drift, so they share the arithmetic rather than repeat it.
+
+    A check that rounded differently from the cut would either refuse a
+    photograph that cuts cleanly or admit one that does not, and both are worse
+    than no check.
+    """
+    import src.dataset as dataset_module
+
+    root = _write_measured_version(
+        tmp_path,
+        [
+            {
+                "image": _photograph(SOIL_LEVELS[0], seed=1),
+                "class": "Arenosa",
+                "centre_x": offset,
+            }
+            for offset in (CENTRE_PX, EDGE_CENTRE_PX)
+        ],
+    )
+    cfg = _config(root)
+
+    for index in (0, 1):
+        entry = _entries(root, ["Arenosa", "Arenosa"])[index]
+        _, refused = drop_refused_photographs([entry], cfg)
+        cut_failed = False
+        try:
+            dataset_module._photograph_patches(
+                entry, photograph_scale(cfg)[entry["path"]], cfg
+            )
+        except ValueError:
+            cut_failed = True
+
+        assert bool(refused) == cut_failed
+
+
+# --- the orientation the reader measured in ----------------------------------
+
+
+def test_a_rotated_photograph_is_cut_where_the_reader_measured(tmp_path):
+    """The dish measurement and the patch grid must share one coordinate system.
+
+    `src/scale.py` measures after `ImageOps.exif_transpose`, so for a photograph
+    carrying an orientation tag the recorded centre and diameter are in the
+    **transposed** frame. A cutter that opens the file without transposing it
+    reads those numbers against different axes and cuts a different part of the
+    photograph — or, where the coordinates happen to land inside, cuts the wrong
+    soil and reports nothing at all.
+
+    42 of the archive's 221 photographs carry such a tag.
+    """
+    import src.dataset as dataset_module
+
+    upright = _photograph(SOIL_LEVELS[0], seed=3, marker=(0, 8))
+
+    # The same picture, stored rotated with the tag that undoes the rotation.
+    rotated = upright.transpose(Image.ROTATE_90)
+    exif = rotated.getexif()
+    exif[274] = 6  # Orientation: rotate 90 degrees clockwise to display.
+
+    plain_root = _write_measured_version(
+        tmp_path / "plain", [{"image": upright, "class": "Arenosa"}]
+    )
+    rotated_root = tmp_path / "rotated" / "datasets" / "v1"
+    (rotated_root / "images").mkdir(parents=True)
+    rotated.save(rotated_root / "images" / "photograph_0.png", exif=exif)
+    (rotated_root / "manifest.csv").write_bytes(
+        (plain_root / "manifest.csv").read_bytes()
+    )
+
+    entry = {"path": _path(plain_root, 0), "label": 0, "class": "Arenosa"}
+    plain_cfg = _config(plain_root)
+    measurement = photograph_scale(plain_cfg)[entry["path"]]
+    expected = dataset_module._photograph_patches(entry, measurement, plain_cfg)
+
+    rotated_entry = {"path": _path(rotated_root, 0), "label": 0, "class": "Arenosa"}
+    actual = dataset_module._photograph_patches(
+        rotated_entry, measurement, _config(rotated_root)
+    )
+
+    assert len(actual) == len(expected)
+    for cut, reference in zip(actual, expected):
+        assert np.array_equal(cut, reference)

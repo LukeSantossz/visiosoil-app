@@ -422,6 +422,8 @@ def test_the_manifest_carries_the_measured_disc_geometry(tmp_path):
                 "disc_diameter_px": 300.0,
                 "disc_centre_x_px": 200.0,
                 "disc_centre_y_px": 200.0,
+                "frame_width_px": 400.0,
+                "frame_height_px": 400.0,
             },
         )
         for row in manifest.rows
@@ -460,3 +462,53 @@ def test_a_version_without_a_measured_scale_is_reported_by_name(tmp_path):
 
     assert len(problems) == 1
     assert "measure_scale.py" in problems[0]
+
+
+# --- a grid that leaves the photograph ---------------------------------------
+
+
+def test_a_grid_that_leaves_the_frame_is_refused_by_name():
+    """The dish can be wide enough for a grid and still hang off the frame.
+
+    `patch_geometry` measures the dish against the patch, never against the
+    photograph, so a dish near an edge passes every geometric check and then
+    fails inside `cut_patches` — historically with an unnamed `ValueError`,
+    which in the input pipeline surfaces mid-epoch wrapped by tf.data.
+    """
+    diameter = 700.0
+    geometry = patch_geometry(
+        region_diameter_px=diameter,
+        input_size=INPUT_SIZE,
+        canonical_mm_per_px=CANONICAL,
+    )
+    assert geometry.count == 25
+
+    frame = Image.new("RGB", (800, 800), (128, 128, 128))
+
+    with pytest.raises(ValueError, match=PatchRefusal.OUTSIDE_FRAME.value):
+        cut_patches(
+            frame,
+            centre_y=400.0,
+            centre_x=120.0,
+            region_diameter_px=diameter,
+            input_size=INPUT_SIZE,
+            canonical_mm_per_px=CANONICAL,
+        )
+
+
+def test_the_geometry_table_is_generated_at_the_configured_stride():
+    """The fixture is the contract both languages assert their grid against.
+
+    Generating it at the default stride while the pipeline reads the configured
+    one would let the two disagree the moment the configuration changed, and
+    this table is exactly the artefact that exists to stop that.
+    """
+    from src.config import load_config
+
+    table = json.loads(GEOMETRY_PATH.read_text(encoding="utf-8"))
+    configured = load_config()["preprocessing"]["patch_stride_fraction"]
+
+    assert table["patch_stride_fraction"] == configured
+    assert table["rows"][0]["stride_px"] == pytest.approx(
+        table["input_size"] * configured
+    )

@@ -695,3 +695,20 @@ def test_tests_read_the_configured_class_list():
     assert offenders == [], (
         f"these modules carry their own copy of the model's class list: {offenders}"
     )
+
+
+@pytest.mark.parametrize("literal", [float("nan"), float("inf"), float("-inf")])
+def test_a_canonical_scale_that_is_not_a_finite_number_is_refused(
+    valid_config, literal
+):
+    """`.nan` and `.inf` are floats to YAML, and both slip past a `<= 0` guard.
+
+    A NaN canonical is the dangerous one: `measured > canonical` is False for
+    every photograph, so nothing is ever refused as too coarse and the resample
+    silently becomes a no-op that later fails inside Pillow, mid-epoch.
+    """
+    valid_config["preprocessing"]["canonical_mm_per_px"] = literal
+    path = _write_config(valid_config)
+
+    with pytest.raises(ValueError, match="finite"):
+        load_config(path)

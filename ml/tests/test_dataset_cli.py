@@ -77,17 +77,20 @@ def canonical_mm_per_px():
 
 
 def scale_cells(mm_per_px):
-    """The four dish-rim columns a reading of ``mm_per_px`` would have produced.
+    """The dish-rim columns a reading of ``mm_per_px`` would have produced.
 
     Nothing on this path decodes an image, so the numbers only have to be
-    consistent with each other: the diameter follows from the dish being 90 mm
-    and the centre is the middle of a notional 2000 px frame.
+    consistent with each other: the diameter follows from the dish being 90 mm,
+    the centre is the middle of a notional 2000 px frame, and that frame is the
+    one the reading is expressed in.
     """
     return {
         "mm_per_px": mm_per_px,
         "disc_diameter_px": DISH_DIAMETER_MM / mm_per_px,
         "disc_centre_x_px": 1000.0,
         "disc_centre_y_px": 1000.0,
+        "frame_width_px": 2000.0,
+        "frame_height_px": 2000.0,
     }
 
 
