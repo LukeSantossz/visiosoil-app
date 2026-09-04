@@ -32,6 +32,29 @@ greyscale comes from the BT.601 luma `ml/src/image_quality.py` already defines
 and a committed golden already pins, replicated to three channels so MobileNetV2's
 ImageNet weights load unchanged.
 
+The inset places the grid inside the **dish**; whether the dish is inside the
+**photograph** is a second question, and a dish near a frame edge answers the
+first and fails the second. That is a third refusal, reached without decoding
+the file because the measurement records the frame it was taken in.
+
+**The grid is cut in the orientation the dish was measured in, and that is not
+the orientation the file is stored at.** `ml/src/scale.py` applies
+`ImageOps.exif_transpose` before it measures, so a recorded centre and diameter
+are coordinates in the **displayed** frame. **42 of the archive's 221
+photographs carry an orientation tag**, and for those the stored and displayed
+frames differ by a transposition. A cutter that opened the file without
+transposing it reads those coordinates against different axes: on 31 of the 42
+the grid then falls outside the stored frame and is refused, and on the
+remaining 11 it lands inside and **cuts the wrong soil, reporting nothing**. The
+silent case is why this is stated here rather than left to the code — a refusal
+is a defect that announces itself, and this one did not.
+
+Two consequences follow, and both are recorded rather than inferred. The patch
+path applies the same transpose the reader applies. And the measurement carries
+`frame_width_px` and `frame_height_px`, the size of the photograph **after** the
+transpose, because the manifest's `source_width` and `source_height` are the
+size it is stored at and cannot answer a question asked in the other frame.
+
 **The inset is a patch half-diagonal, not a half-width, and that is a correction
 to SPEC 0037's prose rather than a choice.** SPEC 0037 says the grid is "inset
 from the region boundary by one patch half-width", and it also requires that
@@ -142,7 +165,8 @@ not done here.
 
 - Includes:
   - `ml/src/patches.py` (new) — resample to canonical, greyscale, grid geometry,
-    patch extraction, and the named refusals for too-coarse and too-small.
+    patch extraction, and three named refusals: too-coarse, too-small, and a
+    region the photograph does not wholly contain.
   - `ml/src/dataset.py` — one tensor per patch; grouping stays on `sample_id`.
     The photograph a patch came from is carried by **entry order plus a patch
     count per entry**, not by a third component in the tensor: `model.fit`
@@ -163,9 +187,11 @@ not done here.
     `preprocessing.canonical_mm_per_px`, `preprocessing.patch_stride_fraction`
     and `preprocessing.min_patches` keys, validated on load.
   - `ml/config.yaml` — those three values.
-  - `ml/src/manifest.py` — the four measured scale columns, optional in the
-    schema and checked at the point of use, with a non-positive scale or
-    diameter refused by name and the spread reported per dataset version.
+  - `ml/src/manifest.py` — the six measured scale columns — the dish's scale,
+    diameter and centre, plus the frame those coordinates are expressed in —
+    optional in the schema and checked at the point of use, with a non-positive
+    scale or diameter refused by name and the spread reported per dataset
+    version.
   - `ml/scripts/measure_scale.py` — write those columns into the manifest, carry
     the dish centre in the committed record, and fill the manifest from that
     record with `--from-record` rather than re-reading the archive.
@@ -203,6 +229,28 @@ not done here.
 - refuses_a_region_too_small_for_nine_patches: a region below the floor is
   refused rather than padded with background, and the refusal names the count it
   could produce.
+- a_rotated_photograph_is_cut_where_the_reader_measured: a photograph carrying an
+  EXIF orientation tag yields the same patches as the same photograph stored
+  upright, because the patch path applies the transpose the dish-rim reader
+  applied. A test asserts the two are byte-identical, and it fails against a path
+  that omits the transpose.
+- refuses_a_grid_that_leaves_the_photograph: a dish wide enough for a grid but
+  photographed too near an edge is refused by name, and refused **before a tensor
+  exists** — by `photograph_patch_counts` and `drop_refused_photographs`, which
+  reach the verdict from the frame the measurement records rather than by
+  decoding the file. The cutter and those callers share one bounds test, so they
+  cannot disagree about a patch that lands one pixel over the edge.
+- a_canonical_that_is_not_a_finite_number_is_refused: `load_config` refuses
+  `.nan` and `.inf`, which YAML parses as floats and a `<= 0` guard admits. A NaN
+  canonical makes `measured > canonical` false for every photograph, so nothing
+  is ever refused as too coarse and the resample becomes a silent no-op.
+- the_committed_geometry_table_is_generated_at_the_configured_stride: the fixture
+  both languages assert against is produced at `preprocessing.patch_stride_fraction`
+  and records it, so the table and the pipeline cannot diverge when that value
+  changes.
+- a_record_that_does_not_describe_every_photograph_is_refused: `--from-record`
+  refuses a record whose root is not an object, and refuses one that covers only
+  some of the version's photographs rather than blanking the rest.
 - patches_are_greyscale_through_the_shared_luma: the patch pipeline and the
   quality analyzer call one luma definition, asserted by a test, and the tensor
   carries three identical channels.
