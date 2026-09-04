@@ -82,6 +82,14 @@ SCALE_COLUMNS = (
     "disc_diameter_px",
     "disc_centre_x_px",
     "disc_centre_y_px",
+    # The frame those coordinates are expressed in, which is the photograph
+    # **after** `exif_transpose` and is not the stored size `source_width` and
+    # `source_height` record: 42 of the archive's 221 photographs carry an
+    # orientation tag, and for those the two differ by a transposition. A
+    # consumer that laid a grid out from the centre above against the stored
+    # size would cut a different part of the photograph.
+    "frame_width_px",
+    "frame_height_px",
 )
 
 QUALITY_VERDICT_COLUMN = "quality_verdict"

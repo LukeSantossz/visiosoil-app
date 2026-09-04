@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Collection, Mapping
 
 import numpy as np
 import sklearn
-from PIL import Image
+from PIL import Image, ImageOps
 from sklearn.model_selection import StratifiedGroupKFold
 
 if TYPE_CHECKING:  # Annotations only; the runtime import is in _tensorflow().
@@ -65,6 +65,7 @@ from .patches import (
     PatchRefusal,
     cut_patches,
     patch_geometry,
+    require_grid_inside_frame,
     resample_to_canonical,
 )
 
@@ -1215,20 +1216,56 @@ def _canonical_region(
 def _patch_geometry_of(
     path: str, measurement: Mapping[str, float], cfg: Mapping
 ) -> PatchGeometry:
-    """The grid one photograph carries, named by the photograph when refused."""
-    _, _, diameter = _canonical_region(path, measurement, cfg)
+    """The grid one photograph carries, named by the photograph when refused.
+
+    Both refusals are reached here, without decoding: the dish too small for the
+    patch floor, and the grid too near an edge to fit in the photograph. The
+    second matters because `cut_patches` would otherwise be the first to notice,
+    and by then the pipeline is inside a `tf.data` generator, partway through an
+    epoch, wrapping the refusal in an operation error.
+    """
+    centre_y, centre_x, diameter = _canonical_region(path, measurement, cfg)
     try:
-        return patch_geometry(
+        geometry = patch_geometry(
             region_diameter_px=diameter,
             input_size=cfg["data"]["image_size"],
             canonical_mm_per_px=cfg["preprocessing"]["canonical_mm_per_px"],
             min_patches=cfg["preprocessing"]["min_patches"],
             stride_fraction=cfg["preprocessing"]["patch_stride_fraction"],
         )
+        height, width = _canonical_frame(measurement, cfg)
+        if height and width:
+            require_grid_inside_frame(geometry, centre_y, centre_x, height, width)
     except ValueError as refusal:
         # `patch_geometry` knows the geometry and not the file. An operator
         # reading a refusal over 221 photographs needs to be told which one.
         raise ValueError(f"{path}: {refusal}") from refusal
+    return geometry
+
+
+def _canonical_frame(
+    measurement: Mapping[str, float], cfg: Mapping
+) -> tuple[int, int]:
+    """The photograph's size after resampling, or zeroes when it is unrecorded.
+
+    From `frame_width_px` and `frame_height_px`, which the dish-rim reader
+    recorded, and not from the manifest's `source_width` and `source_height`,
+    which are the size the file is **stored** at. The two differ by a
+    transposition on every photograph carrying an orientation tag, and the
+    measurement's coordinates are in the displayed frame.
+
+    The same rounding `Image.resize` is given in `resample_to_canonical`, so the
+    check runs against the frame the cutter will actually see rather than an
+    unrounded ideal of it.
+    """
+    width = measurement.get("frame_width_px", 0.0)
+    height = measurement.get("frame_height_px", 0.0)
+    if not width or not height:
+        return 0, 0
+    ratio = measurement["mm_per_px"] / cfg["preprocessing"]["canonical_mm_per_px"]
+    if ratio == 1.0:
+        return int(height), int(width)
+    return max(1, round(height * ratio)), max(1, round(width * ratio))
 
 
 def _photograph_patches(
@@ -1245,9 +1282,18 @@ def _photograph_patches(
     centre_y, centre_x, diameter = _canonical_region(entry["path"], measurement, cfg)
 
     with Image.open(entry["path"]) as handle:
+        # `exif_transpose` before anything else, and for one reason: it is what
+        # `scale.read_dish_scale` does before it measures. The centre and the
+        # diameter in the manifest are therefore in the **displayed**
+        # orientation, and cutting from the stored one reads those numbers
+        # against different axes. 42 of the archive's 221 photographs carry an
+        # orientation tag, and where the transposed coordinates happen to land
+        # inside the stored frame the grid cuts the wrong soil and nothing
+        # reports it.
+        #
         # `convert` reads the file, so the decode happens while the handle is
         # open and nothing downstream depends on it staying open.
-        photograph = handle.convert("RGB")
+        photograph = ImageOps.exif_transpose(handle).convert("RGB")
     resampled, _ = resample_to_canonical(
         photograph, measurement["mm_per_px"], canonical
     )

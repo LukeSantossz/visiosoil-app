@@ -100,6 +100,8 @@ def _scale_of(reading) -> dict[str, float]:
         "disc_diameter_px": reading.disc_diameter_px,
         "disc_centre_x_px": reading.centre_x_px,
         "disc_centre_y_px": reading.centre_y_px,
+        "frame_width_px": float(reading.frame_width_px),
+        "frame_height_px": float(reading.frame_height_px),
     }
 
 
@@ -110,6 +112,16 @@ def _fill_from_record(root: Path, record_path: Path) -> int:
         manifest = read_manifest(root, ARCHIVE_CLASSES)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
         print(f"cannot fill {root} from {record_path}: {error}", file=sys.stderr)
+        return 1
+
+    if not isinstance(record, dict):
+        # A JSON array or scalar reaches `record.get` below and raises
+        # `AttributeError`, which is a traceback rather than an exit code.
+        print(
+            f"{record_path} is not a measurement record: its root is a "
+            f"{type(record).__name__}, not an object",
+            file=sys.stderr,
+        )
         return 1
 
     digest = unmeasured_digest(root)
@@ -124,10 +136,30 @@ def _fill_from_record(root: Path, record_path: Path) -> int:
         )
         return 1
 
-    recorded = {row["image"]: row for row in record.get("photographs", [])}
+    recorded = {
+        row["image"]: row
+        for row in record.get("photographs", [])
+        if isinstance(row, dict) and "image" in row
+    }
+
+    # Checked before anything is written, not row by row while writing. This
+    # function replaces the manifest's scale columns wholesale, so a record that
+    # covers only some photographs would blank the rest — leaving a version that
+    # reads as ingested and never measured, which is a state nobody caused on
+    # purpose and which no error would have announced.
+    missing = [row.image for row in manifest.rows if row.image not in recorded]
+    if missing:
+        print(
+            f"{record_path} describes {len(recorded)} photograph(s) and "
+            f"{manifest.version} holds {len(manifest.rows)}; {len(missing)} are "
+            f"not in the record, the first being {missing[0]}",
+            file=sys.stderr,
+        )
+        return 1
+
     filled = []
     for row in manifest.rows:
-        measurement = recorded.get(row.image, {})
+        measurement = recorded[row.image]
         filled.append(
             replace(
                 row,
@@ -187,6 +219,8 @@ def main(argv: list[str] | None = None) -> int:
                 "disc_diameter_px": reading.disc_diameter_px,
                 "disc_centre_x_px": reading.centre_x_px,
                 "disc_centre_y_px": reading.centre_y_px,
+                "frame_width_px": reading.frame_width_px or None,
+                "frame_height_px": reading.frame_height_px or None,
                 "rim_dispersion": reading.rim_dispersion,
                 "ray_coverage": reading.ray_coverage,
                 "refusal": None if reading.refusal is None else reading.refusal.value,
