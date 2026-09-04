@@ -20,7 +20,6 @@ from src.population_probe import (
     POPULATION_PROBE_ARM,
     population_images,
     probe_verdict,
-    relabel_by_population,
 )
 
 ML_ROOT = Path(__file__).resolve().parents[1]
@@ -124,7 +123,7 @@ def test_the_population_comes_from_the_manifest_and_is_never_inferred(tmp_path):
     for row in manifest.rows:
         assert row.source_group, "the fixture must carry a capture population"
 
-    images = population_images(manifest, refused=())
+    images = population_images(manifest, refused=(), classes=ARCHIVE_CLASSES)
 
     assert set(images) == {row.source_group for row in manifest.rows}
     assert sum(len(paths) for paths in images.values()) == len(manifest.rows)
@@ -140,7 +139,7 @@ def test_a_photograph_without_a_population_is_refused_by_name(tmp_path):
     blanked = replace(manifest, rows=[replace(manifest.rows[0], source_group="")])
 
     with pytest.raises(ValueError, match="source_group"):
-        population_images(blanked, refused=())
+        population_images(blanked, refused=(), classes=ARCHIVE_CLASSES)
 
 
 def test_a_refused_photograph_is_not_probed_either(tmp_path):
@@ -149,7 +148,9 @@ def test_a_refused_photograph_is_not_probed_either(tmp_path):
     manifest = read_manifest(root, ARCHIVE_CLASSES)
     victim = str(manifest.root / manifest.rows[0].image)
 
-    images = population_images(manifest, refused=(victim,))
+    images = population_images(
+        manifest, refused=(victim,), classes=ARCHIVE_CLASSES
+    )
 
     assert victim not in {path for paths in images.values() for path in paths}
     assert sum(len(paths) for paths in images.values()) == len(manifest.rows) - 1
@@ -158,26 +159,26 @@ def test_a_refused_photograph_is_not_probed_either(tmp_path):
 # --- the label is the population --------------------------------------------
 
 
-def test_relabelling_replaces_the_texture_class_with_the_population():
-    entries = [
-        {"path": "a.png", "label": 0, "class": "Arenosa", "group": "g1"},
-        {"path": "b.png", "label": 3, "class": "Argilosa", "group": "g2"},
-    ]
-    populations = {"a.png": "C", "b.png": "B"}
+def test_the_partition_labels_a_group_by_its_capture_population(tmp_path):
+    """`create_folds` takes the population as the key, so it is the label.
 
-    relabelled = relabel_by_population(entries, populations, ["A", "B", "C"])
+    Nothing relabels the entries afterwards, and nothing should: a second
+    labelling step that agreed with this one would be redundant and one that
+    disagreed would be silent.
+    """
+    from src.config import load_config, resolve_paths
+    from src.population_probe import probe_partition
 
-    assert [entry["label"] for entry in relabelled] == [2, 1]
-    assert [entry["class"] for entry in relabelled] == ["C", "B"]
-    assert [entry["group"] for entry in relabelled] == ["g1", "g2"]
-    assert entries[0]["label"] == 0, "the caller's entries must not be mutated"
+    cfg = resolve_paths(load_config())
+    root = _version_with_populations(tmp_path, cycle=("A", "B"))
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
 
+    partition = probe_partition(
+        cfg, manifest, str(tmp_path / "splits"), refused=(), classes=ARCHIVE_CLASSES
+    )
 
-def test_a_photograph_with_no_recorded_population_cannot_be_relabelled():
-    entries = [{"path": "a.png", "label": 0, "class": "Arenosa", "group": "g1"}]
-
-    with pytest.raises(ValueError, match="a.png"):
-        relabel_by_population(entries, {}, ["A", "B", "C"])
+    labels = {group["class"]: group["label"] for group in partition["groups"].values()}
+    assert labels == {"A": 0, "B": 1}
 
 
 # --- what the probe is, and is not ------------------------------------------
@@ -236,7 +237,9 @@ def test_the_probe_partition_makes_every_population_splittable(tmp_path):
     cfg = resolve_paths(load_config())
     manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
 
-    fold_manifest = probe_partition(cfg, manifest, str(tmp_path), refused=())
+    fold_manifest = probe_partition(
+        cfg, manifest, str(tmp_path), refused=(), classes=cfg["classes"]
+    )
 
     assert fold_manifest["counts"]["train_only_groups"] == 0
     scored = set()
@@ -321,3 +324,83 @@ def test_the_report_states_the_reading_rule_it_applied(tmp_path):
     assert report["verdict"]["predictable"] is True
     assert "Wilson" in report["reading_rule"]
     assert "0.649" in report["reading_rule"] or "prior" in report["reading_rule"]
+
+
+# --- the probe sees what the arms see, and nothing else ----------------------
+
+
+def test_a_class_the_model_never_emits_is_not_probed(tmp_path):
+    """The archive holds five groups and the model emits four (ADR 0016).
+
+    `create_folds_for_config` partitions `manifest_class_images(manifest,
+    cfg["classes"])`, so no Siltosa photograph is in any arm's fold. A probe
+    over the archive vocabulary would score three sample groups the arms never
+    see, and would then be answering a question about a larger set than the one
+    it exists to describe.
+    """
+    root = _version_with_populations(tmp_path)
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    emitted = [name for name in ARCHIVE_CLASSES if name != "Siltosa"]
+    unseen = {
+        str(manifest.root / row.image)
+        for row in manifest.rows
+        if row.texture_class == "Siltosa"
+    }
+    assert unseen, "the fixture must hold a class the model does not emit"
+
+    images = population_images(manifest, refused=(), classes=emitted)
+
+    probed = {path for paths in images.values() for path in paths}
+    assert probed.isdisjoint(unseen)
+    assert len(probed) == len(manifest.rows) - len(unseen)
+
+
+def test_the_prior_is_the_share_of_groups_not_of_photographs():
+    """The accuracy's unit is the group, so the prior's must be too.
+
+    Here `A` holds five photographs in one group and `B` holds two groups of one.
+    Counting photographs makes `A` the majority at 5/7; counting groups — which
+    is what the pooled accuracy is over — makes `B` the majority at 2/3.
+    Comparing a group-level accuracy against a photograph-level prior compares
+    two different quantities, and SPEC 0055 fixed the group-level one.
+    """
+    from src.population_probe import majority_prior
+
+    fold_manifest = {
+        "groups": {
+            "A::s1": {"class": "A", "images": ["a1", "a2", "a3", "a4", "a5"]},
+            "B::s2": {"class": "B", "images": ["b1"]},
+            "B::s3": {"class": "B", "images": ["b2"]},
+        }
+    }
+
+    assert majority_prior(fold_manifest) == pytest.approx(2 / 3)
+
+
+@real_only
+def test_the_probe_scores_the_same_sample_groups_the_arms_do(tmp_path):
+    """Asserted over the real archive, because that is where the two diverged.
+
+    The arms' partition and the probe's must cover one set of sample groups.
+    They differ in what they stratify on and in which groups are splittable —
+    that is the whole design — and in nothing else.
+    """
+    from src.config import load_config, resolve_paths
+    from src.dataset import create_folds_for_config
+    from src.population_probe import probe_partition, probe_refusals
+
+    cfg = resolve_paths(load_config())
+    manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
+
+    arms = create_folds_for_config(cfg, str(tmp_path / "arms"), manifest=manifest)
+    probe = probe_partition(
+        cfg,
+        manifest,
+        str(tmp_path / "probe"),
+        probe_refusals(cfg, manifest, cfg["classes"]),
+        classes=cfg["classes"],
+    )
+
+    assert {group["sample_id"] for group in probe["groups"].values()} == {
+        group["sample_id"] for group in arms["groups"].values()
+    }
