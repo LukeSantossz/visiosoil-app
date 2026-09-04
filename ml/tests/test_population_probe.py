@@ -107,8 +107,15 @@ def _version_with_populations(tmp_path, cycle=("A", "B", "C")):
         fields = list(rows[0])
     if "source_group" not in fields:
         fields.append("source_group")
-    for index, row in enumerate(rows):
-        row["source_group"] = cycle[index % len(cycle)]
+    # Per sample and not per row: a physical sample was photographed in one
+    # session, so a fixture that cycled by row would make every sample span two
+    # capture populations — which `population_images` now refuses, and rightly.
+    assigned: dict[str, str] = {}
+    for row in rows:
+        sample = row["sample_id"]
+        if sample not in assigned:
+            assigned[sample] = cycle[len(assigned) % len(cycle)]
+        row["source_group"] = assigned[sample]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
@@ -154,6 +161,60 @@ def test_a_refused_photograph_is_not_probed_either(tmp_path):
 
     assert victim not in {path for paths in images.values() for path in paths}
     assert sum(len(paths) for paths in images.values()) == len(manifest.rows) - 1
+
+
+# --- the guards that stand between the probe and a silent wrong answer -------
+
+
+def test_a_sample_group_in_two_populations_is_refused(tmp_path):
+    """One physical sample keyed under two populations is group leakage.
+
+    `create_folds` groups on the key it is given, so a `sample_id` whose rows
+    carry two `source_group` values becomes two fold groups for one physical
+    sample — and its photographs can then land on opposite sides of a split,
+    which is the leak the whole protocol is built to prevent. The real archive
+    has no such sample and a dataset-gated test says so, but that test skips
+    wherever the archive is absent, which includes CI. The code refuses it.
+    """
+    from dataclasses import replace
+
+    root = _version_with_populations(tmp_path)
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    first = manifest.rows[0]
+    twin = next(row for row in manifest.rows[1:] if row.sample_id == first.sample_id)
+    split = replace(
+        manifest,
+        rows=[
+            replace(row, source_group="Z") if row is twin else row
+            for row in manifest.rows
+        ],
+    )
+
+    with pytest.raises(ValueError, match=first.sample_id):
+        population_images(split, refused=(), classes=ARCHIVE_CLASSES)
+
+
+def test_a_population_whose_every_photograph_is_refused_is_not_dropped(tmp_path):
+    """A population that vanishes must stop the probe, not shrink it.
+
+    If the patch grid refuses every photograph of one population, that
+    population never reaches a fold, never appears in `populations`, and is
+    therefore not even reported as `null` by `population_recall` — the report
+    would read as a complete answer over the populations that happened to
+    survive. The verdict is about which populations are separable, so losing one
+    silently is losing the question.
+    """
+    root = _version_with_populations(tmp_path, cycle=("A", "B"))
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    all_of_b = [
+        str(manifest.root / row.image)
+        for row in manifest.rows
+        if row.source_group == "B"
+    ]
+    assert all_of_b, "the fixture must hold the population being wiped out"
+
+    with pytest.raises(ValueError, match="B"):
+        population_images(manifest, refused=all_of_b, classes=ARCHIVE_CLASSES)
 
 
 # --- the label is the population --------------------------------------------
