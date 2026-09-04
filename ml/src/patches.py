@@ -55,6 +55,11 @@ class PatchRefusal(str, Enum):
 
     TOO_COARSE = "too_coarse_to_normalise"
     REGION_TOO_SMALL = "region_too_small_for_the_patch_floor"
+    #: The region fits a grid and the grid does not fit the photograph. Separate
+    #: from `REGION_TOO_SMALL` because the region is the right size and it is
+    #: the framing that is wrong: the remedy is to re-photograph the dish
+    #: centred, not to use a bigger dish.
+    OUTSIDE_FRAME = "region_not_wholly_photographed"
 
 
 @dataclass(frozen=True)
@@ -164,6 +169,42 @@ def patch_geometry(
     )
 
 
+def require_grid_inside_frame(
+    geometry: PatchGeometry,
+    centre_y: float,
+    centre_x: float,
+    frame_height: int,
+    frame_width: int,
+) -> None:
+    """Refuse a grid whose patches leave a frame of this size.
+
+    Shared by :func:`cut_patches`, which knows the frame because it decoded it,
+    and by the callers that must reach the same verdict without decoding
+    anything. The rounding is the cutter's own, so the two cannot disagree about
+    a patch that lands one pixel over the edge.
+
+    Raises:
+        ValueError: naming `PatchRefusal.OUTSIDE_FRAME`, with the offending
+            offset and the frame it fell out of.
+    """
+    half = geometry.patch_px / 2.0
+    for dy, dx in geometry.offsets:
+        top = int(round(centre_y + dy - half))
+        left = int(round(centre_x + dx - half))
+        if (
+            top < 0
+            or left < 0
+            or top + geometry.patch_px > frame_height
+            or left + geometry.patch_px > frame_width
+        ):
+            raise ValueError(
+                f"{PatchRefusal.OUTSIDE_FRAME.value}: a patch at offset "
+                f"({dy:.1f}, {dx:.1f}) falls outside the "
+                f"{frame_width}x{frame_height} frame, so the region is not "
+                f"wholly photographed"
+            )
+
+
 def cut_patches(
     image: Image.Image,
     centre_y: float,
@@ -193,16 +234,13 @@ def cut_patches(
     grey = np.rint(luma).clip(0.0, 255.0).astype(np.uint8)
 
     height, width = grey.shape
+    require_grid_inside_frame(geometry, centre_y, centre_x, height, width)
+
     half = input_size / 2.0
     patches: list[np.ndarray] = []
     for dy, dx in geometry.offsets:
         top = int(round(centre_y + dy - half))
         left = int(round(centre_x + dx - half))
-        if top < 0 or left < 0 or top + input_size > height or left + input_size > width:
-            raise ValueError(
-                f"a patch at offset ({dy:.1f}, {dx:.1f}) falls outside the "
-                f"{width}x{height} frame; the region is not wholly photographed"
-            )
         window = grey[top : top + input_size, left : left + input_size]
         patches.append(np.repeat(window[:, :, None], 3, axis=2))
 

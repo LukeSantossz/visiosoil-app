@@ -4,6 +4,7 @@
   "canonical_mm_per_px": 0.12920342774728033,
   "input_size": 160,
   "min_patches": 9,
+  "patch_stride_fraction": 0.5,
   "rows": [
     {
       "disc_mm": 70.0,

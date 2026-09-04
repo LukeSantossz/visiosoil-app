@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     canonical = float(config["preprocessing"]["canonical_mm_per_px"])
     input_size = int(config["data"]["image_size"])
     min_patches = int(config["preprocessing"]["min_patches"])
+    stride_fraction = float(config["preprocessing"]["patch_stride_fraction"])
 
     rows = []
     for disc_mm in DISC_DIAMETERS_MM:
@@ -59,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
             input_size=input_size,
             canonical_mm_per_px=canonical,
             min_patches=min_patches,
+            stride_fraction=stride_fraction,
         )
         rows.append(
             {
@@ -77,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
         "canonical_mm_per_px": canonical,
         "input_size": input_size,
         "min_patches": min_patches,
+        # Serialised, not just applied. The table is what the Dart half will
+        # assert its grid against, and a reader cannot check a count without
+        # the stride it was computed at.
+        "patch_stride_fraction": stride_fraction,
         "rows": rows,
     }
 

@@ -1,5 +1,6 @@
 """Configuration loader and validator for the ML pipeline."""
 
+import math
 import os
 from pathlib import Path
 
@@ -204,11 +205,16 @@ def _validate(cfg: dict) -> None:
     canonical = pre["canonical_mm_per_px"]
     if not isinstance(canonical, (int, float)) or isinstance(canonical, bool):
         raise ValueError("preprocessing.canonical_mm_per_px must be a number")
-    if canonical <= 0.0:
+    if not math.isfinite(canonical) or canonical <= 0.0:
+        # `isfinite` first, because `<= 0.0` is False for a NaN and lets it
+        # through. YAML parses `.nan` and `.inf` as floats, and a NaN canonical
+        # is the quiet one: `measured > canonical` is False for every
+        # photograph, so nothing is ever refused as too coarse and the resample
+        # becomes a no-op that fails inside Pillow partway through a fit.
         raise ValueError(
-            "preprocessing.canonical_mm_per_px must be positive, got "
-            f"{canonical}: it is the scale every photograph is resampled to, "
-            "and it is measured rather than chosen (SPEC 0052)"
+            "preprocessing.canonical_mm_per_px must be a positive finite "
+            f"number, got {canonical}: it is the scale every photograph is "
+            "resampled to, and it is measured rather than chosen (SPEC 0052)"
         )
 
     stride = pre["patch_stride_fraction"]
