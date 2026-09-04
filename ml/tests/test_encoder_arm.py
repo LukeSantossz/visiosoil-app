@@ -809,3 +809,52 @@ def test_the_arm_embeds_a_photographs_grid_and_caches_it(
 
     assert refused.calls == 0
     np.testing.assert_array_equal(reread, features)
+
+
+def test_a_cache_directory_without_its_sidecar_is_refused(tmp_path):
+    """Entries whose provenance nothing establishes must not be adopted.
+
+    A directory holding `.npy` entries and no `index.json` is a store whose
+    identity was lost — deleted, or never written by a run that died. Treating
+    it as empty writes a fresh sidecar claiming this run's geometry over
+    embeddings computed under some other one, and `read` then checks only the
+    row count, which a changed canonical scale need not alter. The entries would
+    be served as this version's.
+    """
+    from src.arms.encoder import (
+        _FeatureStore,
+        CACHE_SIDECAR_FILENAME,
+        feature_cache_directory,
+    )
+
+    geometry = {
+        "image_size": 16,
+        "canonical_mm_per_px": 0.5,
+        "patch_stride_fraction": 0.5,
+    }
+    directory = feature_cache_directory(tmp_path)
+    directory.mkdir(parents=True, exist_ok=True)
+    np.save(directory / ("0" * 64 + ".npy"), np.zeros((9, 4), dtype=np.float32))
+    assert not (directory / CACHE_SIDECAR_FILENAME).exists()
+
+    with pytest.raises(ValueError, match="index.json"):
+        _FeatureStore(tmp_path, digest="abc", geometry=geometry)
+
+
+def test_an_empty_cache_directory_is_initialised_rather_than_refused(tmp_path):
+    """The refusal is about orphaned entries, not about a directory existing."""
+    from src.arms.encoder import _FeatureStore, feature_cache_directory
+
+    feature_cache_directory(tmp_path).mkdir(parents=True, exist_ok=True)
+
+    store = _FeatureStore(
+        tmp_path,
+        digest="abc",
+        geometry={
+            "image_size": 16,
+            "canonical_mm_per_px": 0.5,
+            "patch_stride_fraction": 0.5,
+        },
+    )
+
+    assert store is not None

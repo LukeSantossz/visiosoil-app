@@ -747,3 +747,32 @@ def test_every_registered_contrast_names_an_arm_that_exists():
     named = {arm for contrast in contrasts for arm in contrast["arms"]}
 
     assert named <= set(ARM_TRAINERS)
+
+
+def test_the_registered_contrasts_are_exactly_the_four_e0_names():
+    """Counting families is not enough to pin a pre-registration.
+
+    Three differently-named `cnn` against `shuffled_control` entries would
+    satisfy a count of three primaries while leaving two of the three real arms
+    uncontrasted, and the gate would return a verdict on one arm believing it
+    had read three.
+    """
+    registered = {
+        (contrast["name"], tuple(contrast["arms"]), contrast["family"])
+        for contrast in load_config()["evaluation"]["contrasts"]
+    }
+
+    assert registered == {
+        ("cnn_vs_control", ("cnn", "shuffled_control"), "primary"),
+        ("descriptors_vs_control", ("descriptors", "shuffled_control"), "primary"),
+        (
+            "encoder_probe_vs_control",
+            ("encoder_probe", "shuffled_control"),
+            "primary",
+        ),
+        (
+            "encoder_probe_vs_descriptors",
+            ("encoder_probe", "descriptors"),
+            "secondary",
+        ),
+    }

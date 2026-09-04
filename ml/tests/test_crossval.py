@@ -750,3 +750,80 @@ def test_the_control_runs_the_incumbents_code_path():
     from src.crossval import DEFAULT_ARM, SHUFFLED_CONTROL_ARM, fold_trainer_for
 
     assert fold_trainer_for(SHUFFLED_CONTROL_ARM) is fold_trainer_for(DEFAULT_ARM)
+
+
+# --- the arm a run actually trains (R3, PR #227) -----------------------------
+
+
+def test_the_single_fold_entry_point_runs_the_arms_own_method(monkeypatch, tmp_path):
+    """`train.train` is the entry point CI uses, one job per fold.
+
+    It took the arm name for the directory and called the incumbent's trainer
+    whatever the name said, so `--arm descriptors` would have written a CNN's
+    `model.keras` and `fine_tune.json` into `models/v1/descriptors/`. Every
+    contrast downstream reads that directory as the descriptor arm's.
+    """
+    import src.train as train_module
+
+    called = {}
+
+    def fake_descriptor_fold(cfg, fold_manifest, **kwargs):
+        called["arm"] = kwargs["arm"]
+        return {"fake": True}
+
+    def fake_cnn_fold(cfg, fold_manifest, **kwargs):  # pragma: no cover
+        raise AssertionError("the incumbent must not run for another arm")
+
+    monkeypatch.setattr(
+        "src.crossval.ARM_TRAINERS",
+        {
+            "descriptors": lambda: fake_descriptor_fold,
+            "cnn": lambda: fake_cnn_fold,
+            "shuffled_control": lambda: fake_cnn_fold,
+        },
+    )
+    monkeypatch.setattr(train_module, "resolve_paths", lambda cfg: cfg)
+    monkeypatch.setattr(
+        train_module,
+        "load_config",
+        lambda path=None: {
+            "data": {"splits_dir": str(tmp_path)},
+            "export": {"output_dir": str(tmp_path)},
+        },
+    )
+    monkeypatch.setattr(
+        train_module, "load_folds_for_config", lambda cfg, splits_dir: {"k": 1}
+    )
+    (tmp_path / "splits.json").write_text("{}", encoding="utf-8")
+
+    train_module.train("v1", 0, 0, "descriptors")
+
+    assert called["arm"] == "descriptors"
+
+
+@pytest.mark.parametrize(
+    "arm,shuffled_control",
+    [("cnn", True), ("descriptors", True), ("shuffled_control", False)],
+)
+def test_an_arm_name_and_a_control_flag_that_disagree_are_refused(
+    arm, shuffled_control
+):
+    """The control's whole meaning is that its labels were permuted.
+
+    The two are passed independently, so a run could file unpermuted results
+    under `shuffled_control` — a control that is not one — or permuted results
+    under a real arm's name, and nothing in the artifacts would say so.
+    """
+    from src.crossval import require_control_matches_arm
+
+    with pytest.raises(ValueError, match="shuffled_control"):
+        require_control_matches_arm(arm, shuffled_control)
+
+
+@pytest.mark.parametrize(
+    "arm,shuffled_control", [("cnn", False), ("shuffled_control", True)]
+)
+def test_a_consistent_arm_and_control_pair_is_accepted(arm, shuffled_control):
+    from src.crossval import require_control_matches_arm
+
+    require_control_matches_arm(arm, shuffled_control)
