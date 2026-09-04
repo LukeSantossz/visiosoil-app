@@ -34,7 +34,12 @@ from pathlib import Path
 from typing import Collection, Mapping, Sequence
 
 from .arms.descriptors import descriptor_features
-from .dataset import create_folds, sample_ids_by_image
+from .dataset import (
+    create_folds,
+    drop_refused_photographs,
+    photograph_scale_of,
+    sample_ids_by_image,
+)
 from .manifest import Manifest
 from .stats import wilson_interval
 
@@ -55,7 +60,7 @@ INTERVAL_CONFIDENCE = 0.95
 
 
 def population_images(
-    manifest: Manifest, refused: Collection[str]
+    manifest: Manifest, refused: Collection[str], *, classes: Collection[str]
 ) -> dict[str, list[str]]:
     """Resolved image paths grouped by capture population.
 
@@ -67,11 +72,23 @@ def population_images(
         manifest: The dataset version's manifest.
         refused: Paths the patch grid cannot cut. Excluded, because the probe
             reads the patches the arms see and the arms never see these.
+        classes: The classes the model emits, which is `cfg["classes"]` and not
+            :data:`manifest.ARCHIVE_CLASSES`. Required rather than defaulted:
+            the archive holds five groups and the model emits four (ADR 0016),
+            `create_folds_for_config` partitions the four, and a probe over the
+            five would score sample groups no arm ever sees — answering a
+            question about a larger set than the one it exists to describe. The
+            two lists are the standing confusion in this codebase, so the caller
+            names which one it means.
 
     Raises:
         ValueError: If any row carries no ``source_group``. Inferring one from
             the pixel dimensions is how a diagnostic becomes a guess about the
-            very thing it is diagnosing, so it is refused instead.
+            very thing it is diagnosing, so it is refused instead. Checked over
+            the whole manifest and not only over ``classes``: ingest writes the
+            column for every row and `train_only_sample_ids` reads it for the
+            arms too, so a blank one is a broken ingest rather than a row this
+            probe happens not to want.
     """
     unrecorded = [row.image for row in manifest.rows if not row.source_group]
     if unrecorded:
@@ -83,8 +100,11 @@ def population_images(
         )
 
     excluded = set(refused)
+    emitted = set(classes)
     grouped: dict[str, list[str]] = {}
     for row in manifest.rows:
+        if row.texture_class not in emitted:
+            continue
         path = str(manifest.root / row.image)
         if path in excluded:
             continue
@@ -92,11 +112,32 @@ def population_images(
     return {population: sorted(paths) for population, paths in sorted(grouped.items())}
 
 
+def probe_refusals(
+    cfg: Mapping, manifest: Manifest, classes: Collection[str]
+) -> dict[str, str]:
+    """The photographs the patch grid refuses, over the set the arms train on.
+
+    The same call `create_folds_for_config` makes, including the scale: read
+    from the manifest in hand rather than through the configured version, so a
+    probe of a version the config does not name is measured against its own
+    dish-rim readings instead of another version's.
+    """
+    images = population_images(manifest, refused=(), classes=classes)
+    _, refused = drop_refused_photographs(
+        [{"path": path} for paths in images.values() for path in paths],
+        cfg,
+        scale=photograph_scale_of(manifest),
+    )
+    return refused
+
+
 def probe_partition(
     cfg: Mapping,
     manifest: Manifest,
     splits_dir: str,
     refused: Collection[str],
+    *,
+    classes: Collection[str],
 ) -> dict:
     """Draw the probe's own partition, with every population splittable.
 
@@ -110,7 +151,7 @@ def probe_partition(
     """
     evaluation = cfg["evaluation"]
     return create_folds(
-        population_images(manifest, refused),
+        population_images(manifest, refused, classes=classes),
         k=evaluation["k"],
         repeats=evaluation["repeats"],
         seed=cfg["data"]["seed"],
@@ -119,34 +160,6 @@ def probe_partition(
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
     )
-
-
-def relabel_by_population(
-    entries: Sequence[Mapping],
-    populations: Mapping[str, str],
-    ordered: Sequence[str],
-) -> list[dict]:
-    """Return the entries with the population as their label.
-
-    A copy rather than a mutation: the caller's entries are the fold manifest's
-    and are read again for the texture arms.
-
-    Raises:
-        ValueError: If an entry's photograph has no recorded population.
-    """
-    index = {population: position for position, population in enumerate(ordered)}
-    relabelled = []
-    for entry in entries:
-        population = populations.get(entry["path"])
-        if population is None:
-            raise ValueError(
-                f"{entry['path']} has no recorded capture population, so it "
-                f"cannot be probed for one"
-            )
-        relabelled.append(
-            {**entry, "label": index[population], "class": population}
-        )
-    return relabelled
 
 
 def probe_verdict(*, correct: int, total: int, prior: float) -> dict:
@@ -201,12 +214,25 @@ def probe_verdict(*, correct: int, total: int, prior: float) -> dict:
     }
 
 
-def majority_prior(images: Mapping[str, Sequence[str]]) -> float:
-    """The share the largest population would score by always being answered."""
-    sizes = [len(paths) for paths in images.values()]
+def majority_prior(fold_manifest: Mapping) -> float:
+    """The share the largest population would score by always being answered.
+
+    Counted over **sample groups** and not over photographs, because the group
+    is the unit of the accuracy this prior is compared against (ADR 0020). The
+    two differ whenever the populations photograph their samples at different
+    rates, which this archive does: a photograph-level prior read against a
+    group-level accuracy compares two quantities, and can even name a different
+    population the majority.
+
+    Read from the fold manifest rather than from the images, so the prior and
+    the accuracy are counted over one partition by construction.
+    """
+    sizes: dict[str, int] = {}
+    for group in fold_manifest["groups"].values():
+        sizes[group["class"]] = sizes.get(group["class"], 0) + 1
     if not sizes:
-        raise ValueError("no population holds a photograph")
-    return max(sizes) / sum(sizes)
+        raise ValueError("no population holds a sample group")
+    return max(sizes.values()) / sum(sizes.values())
 
 
 def population_recall(

@@ -32,11 +32,7 @@ from src.crossval import (  # noqa: E402
     FOLD_MANIFEST_FILENAME,
     load_arm_predictions,
 )
-from src.dataset import (  # noqa: E402
-    drop_refused_photographs,
-    fold_split,
-    library_versions,
-)
+from src.dataset import library_versions  # noqa: E402
 from src.manifest import ARCHIVE_CLASSES, dataset_root, read_manifest  # noqa: E402
 from src.population_probe import (  # noqa: E402
     POPULATION_PROBE_ARM,
@@ -45,7 +41,7 @@ from src.population_probe import (  # noqa: E402
     probe_directory,
     probe_featuriser,
     probe_partition,
-    relabel_by_population,
+    probe_refusals,
     write_probe_report,
 )
 
@@ -69,21 +65,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cannot probe {version}: {error}", file=sys.stderr)
         return 1
 
-    # The patches the arms see, which excludes the ones the grid refuses. A
+    # The patches the arms see, and only those. Two restrictions, and the probe
+    # is unreadable without either: the classes the model emits — four, not the
+    # archive's five (ADR 0016) — and the photographs the patch grid can cut. A
     # probe over a different set of photographs would answer a question about
     # that set.
-    entries = [
-        {"path": path}
-        for paths in population_images(manifest, refused=()).values()
-        for path in paths
-    ]
-    _, refused = drop_refused_photographs(entries, cfg)
-    images = population_images(manifest, refused=refused)
+    classes = cfg["classes"]
+    refused = probe_refusals(cfg, manifest, classes)
+    images = population_images(manifest, refused=refused, classes=classes)
     populations = sorted(images)
-    prior = majority_prior(images)
-    by_path = {
-        path: population for population, paths in images.items() for path in paths
-    }
 
     directory = probe_directory(Path(cfg["export"]["output_dir"]) / version)
     directory.mkdir(parents=True, exist_ok=True)
@@ -95,9 +85,17 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(populations)} capture population(s); {len(refused)} refused by "
         f"the patch grid"
     )
-    print(f"majority-population prior at group level: {prior:.3f}")
 
-    fold_manifest = probe_partition(cfg, manifest, str(splits_dir), refused)
+    fold_manifest = probe_partition(
+        cfg, manifest, str(splits_dir), refused, classes=classes
+    )
+    # After the partition and from it, because the unit of the prior has to be
+    # the unit of the accuracy it is compared against.
+    prior = majority_prior(fold_manifest)
+    print(
+        f"{len(fold_manifest['groups'])} sample group(s); majority-population "
+        f"prior at group level: {prior:.3f}"
+    )
     # Written by `create_folds` under the probe's own directory, never over the
     # arms' `splits.json`: the two partitions answer different questions and a
     # run that read one for the other would be scoring the wrong thing.
@@ -134,6 +132,17 @@ def main(argv: list[str] | None = None) -> int:
 
     predictions, _ = load_arm_predictions(directory, fold_manifest)
     pairs = _group_pairs(predictions)
+    # The prior was counted over the partition's groups, so the accuracy has to
+    # be counted over the same ones. A group the folds hold and no fold scored
+    # would leave the two denominators quietly different.
+    if len(pairs) != len(fold_manifest["groups"]):
+        print(
+            f"{len(pairs)} group(s) were scored out of "
+            f"{len(fold_manifest['groups'])} in the partition, so the prior and "
+            f"the accuracy would be counted over different sets",
+            file=sys.stderr,
+        )
+        return 1
 
     report = write_probe_report(
         directory,
