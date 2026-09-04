@@ -1,0 +1,306 @@
+"""Is the capture population recoverable from the patches? (SPEC 0055)
+
+The archive is three capture populations out of one device, and one of them —
+the transported population `B` — lost its EXIF and was re-encoded with a
+luminance quantization table three to four times coarser in the band soil
+texture lives in. It is also 69 % Argilosa and 0 % Muito Argilosa, so its
+encoding signature is **correlated with the label**. If a model can recover the
+population from the same patches it classifies texture from, the E0 verdict may
+be reading a compression artefact rather than soil, and nothing in the gate
+would say so.
+
+This module asks that question with the cheapest arm and the least new code:
+the descriptor featuriser and `arms.probe.probe_fold`, unchanged, with the
+**label** swapped from texture class to capture population.
+
+Two things about it are deliberate and are not the protocol's defaults.
+
+**It draws its own partition.** All twenty of population `B`'s sample groups are
+train-only under SPEC 0040 D6, so `B` is in no E0 fold's test side and a probe
+scored on those folds could never be scored on the population it exists to ask
+about. It would answer "can `A` be told from `C`", which is not the question.
+This is legitimate because the probe is a diagnostic about the data and not an
+arm: it is reported outside `evaluation.contrasts` and shares no correction
+family with anything.
+
+**Its reading rule is fixed before it runs**, in :func:`probe_verdict`. A
+diagnostic whose threshold is chosen after the number is not a diagnostic.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Collection, Mapping, Sequence
+
+from .arms.descriptors import descriptor_features
+from .dataset import create_folds, sample_ids_by_image
+from .manifest import Manifest
+from .stats import wilson_interval
+
+#: The arm name the probe's artifacts are filed under. Not in
+#: `evaluation.contrasts` and never contrasted with an arm: it answers a
+#: question about the data, and putting it in that family would spend the
+#: correction budget of the family that answers the gate's question.
+POPULATION_PROBE_ARM = "population_probe"
+
+#: The same features the descriptor arm computes, over the same patches. Bound
+#: here by name so a test can assert the identity rather than the resemblance —
+#: a probe over *different* features would answer a question about those
+#: features instead of about what the arms actually see.
+probe_featuriser = descriptor_features
+
+#: The confidence the interval is reported at, matching `evaluate.py`'s.
+INTERVAL_CONFIDENCE = 0.95
+
+
+def population_images(
+    manifest: Manifest, refused: Collection[str]
+) -> dict[str, list[str]]:
+    """Resolved image paths grouped by capture population.
+
+    The shape `create_folds` takes, so the probe's partition is drawn by the
+    same function the protocol's is — stratified on whatever the keys are, which
+    here is the population rather than the texture class.
+
+    Args:
+        manifest: The dataset version's manifest.
+        refused: Paths the patch grid cannot cut. Excluded, because the probe
+            reads the patches the arms see and the arms never see these.
+
+    Raises:
+        ValueError: If any row carries no ``source_group``. Inferring one from
+            the pixel dimensions is how a diagnostic becomes a guess about the
+            very thing it is diagnosing, so it is refused instead.
+    """
+    unrecorded = [row.image for row in manifest.rows if not row.source_group]
+    if unrecorded:
+        raise ValueError(
+            f"{len(unrecorded)} row(s) of {manifest.version} carry no "
+            f"source_group, so their capture population is unknown; the first "
+            f"is {unrecorded[0]}. The probe reads that column and never infers "
+            f"it"
+        )
+
+    excluded = set(refused)
+    grouped: dict[str, list[str]] = {}
+    for row in manifest.rows:
+        path = str(manifest.root / row.image)
+        if path in excluded:
+            continue
+        grouped.setdefault(row.source_group, []).append(path)
+    return {population: sorted(paths) for population, paths in sorted(grouped.items())}
+
+
+def probe_partition(
+    cfg: Mapping,
+    manifest: Manifest,
+    splits_dir: str,
+    refused: Collection[str],
+) -> dict:
+    """Draw the probe's own partition, with every population splittable.
+
+    Grouped on ``sample_id`` exactly as the protocol requires — no sample group
+    spans two capture populations, asserted by a test over the manifest, so the
+    grouping leaks nothing. ``train_only_samples`` is deliberately **not**
+    passed: SPEC 0040 D6's restriction is what puts `B` beyond the reach of the
+    E0 folds, and honouring it here would make the probe unable to ask its own
+    question. D6 is untouched — this partition is the probe's and is written to
+    its own directory.
+    """
+    evaluation = cfg["evaluation"]
+    return create_folds(
+        population_images(manifest, refused),
+        k=evaluation["k"],
+        repeats=evaluation["repeats"],
+        seed=cfg["data"]["seed"],
+        splits_dir=splits_dir,
+        sample_ids=sample_ids_by_image(manifest),
+        dataset_version=manifest.version,
+        manifest_digest=manifest.digest,
+    )
+
+
+def relabel_by_population(
+    entries: Sequence[Mapping],
+    populations: Mapping[str, str],
+    ordered: Sequence[str],
+) -> list[dict]:
+    """Return the entries with the population as their label.
+
+    A copy rather than a mutation: the caller's entries are the fold manifest's
+    and are read again for the texture arms.
+
+    Raises:
+        ValueError: If an entry's photograph has no recorded population.
+    """
+    index = {population: position for position, population in enumerate(ordered)}
+    relabelled = []
+    for entry in entries:
+        population = populations.get(entry["path"])
+        if population is None:
+            raise ValueError(
+                f"{entry['path']} has no recorded capture population, so it "
+                f"cannot be probed for one"
+            )
+        relabelled.append(
+            {**entry, "label": index[population], "class": population}
+        )
+    return relabelled
+
+
+def probe_verdict(*, correct: int, total: int, prior: float) -> dict:
+    """Apply the reading rule, which was fixed before the probe ran.
+
+    The comparison is on the **Wilson lower bound** and not on the point
+    estimate, because the question is whether predictability was *demonstrated*:
+    at 97 groups a point estimate several points above the prior is routinely
+    consistent with no effect. And against the **prior** rather than against
+    chance, because the populations are 14 / 20 / 63 groups and always answering
+    the majority scores 0.649 having learned nothing.
+
+    Returns:
+        The accuracy, its interval, the prior, whether predictability was
+        demonstrated, and the reading that follows — in the words the spec fixed.
+    """
+    if total <= 0:
+        raise ValueError("the probe scored no group, so there is nothing to read")
+
+    accuracy = correct / total
+    low, high = wilson_interval(correct, total, INTERVAL_CONFIDENCE)
+    predictable = low > prior
+
+    if predictable:
+        reading = (
+            "the capture population is recoverable from the patches the arms "
+            "see, so SPEC 0040 D6's train-only rule is a mitigation whose "
+            "sufficiency has not been shown. D6 is re-opened: either population "
+            "B leaves training entirely, or it is restricted to arms that "
+            "provably cannot exploit an encoding signature. Recovering the "
+            "population is not the same as the texture arms exploiting it, and "
+            "this reading does not say the E0 result is wrong"
+        )
+    else:
+        reading = (
+            "predictability of the capture population was not demonstrated at "
+            "this resolution, so SPEC 0040 D6's train-only rule stands as "
+            "written and the E0 verdict is read as it stands. Failing to "
+            "demonstrate an effect is not evidence that there is none"
+        )
+
+    return {
+        "correct": int(correct),
+        "total": int(total),
+        "accuracy": accuracy,
+        "lower_bound": low,
+        "upper_bound": high,
+        "prior": prior,
+        "confidence": INTERVAL_CONFIDENCE,
+        "predictable": predictable,
+        "reading": reading,
+    }
+
+
+def majority_prior(images: Mapping[str, Sequence[str]]) -> float:
+    """The share the largest population would score by always being answered."""
+    sizes = [len(paths) for paths in images.values()]
+    if not sizes:
+        raise ValueError("no population holds a photograph")
+    return max(sizes) / sum(sizes)
+
+
+def population_recall(
+    pairs: Sequence[tuple[int, int]], ordered: Sequence[str]
+) -> dict[str, float | None]:
+    """The share of each population's groups the probe recovered.
+
+    Reported beside the pooled figure because a pooled accuracy at the prior is
+    consistent with a probe that recovers `B` perfectly and confuses `A` with
+    `C` — and `B` is the population the whole question is about. The pooled
+    number alone would hide the finding.
+
+    A population no fold scored is ``None`` and not ``0.0``: zero reads as
+    "recovered none of them", which is a different fact from "never asked".
+    """
+    recall: dict[str, float | None] = {}
+    for index, population in enumerate(ordered):
+        held = [pair for pair in pairs if pair[0] == index]
+        if not held:
+            recall[population] = None
+            continue
+        recall[population] = sum(1 for _, predicted in held if predicted == index) / len(
+            held
+        )
+    return recall
+
+
+#: The predicate, in the words SPEC 0055 fixed, carried in the report so a later
+#: reader cannot substitute a different one for the number in front of them.
+READING_RULE = (
+    "The Wilson 95 % lower bound on pooled group-level accuracy is compared "
+    "against the majority-population prior. At or below it, predictability was "
+    "not demonstrated at this resolution and SPEC 0040 D6 stands as written. "
+    "Above it, the capture population is recoverable from the patches the arms "
+    "see and D6 is re-opened by name. The lower bound rather than the point "
+    "estimate, because the question is whether predictability was demonstrated; "
+    "against the prior rather than against chance, because always answering the "
+    "majority population scores the prior having learned nothing."
+)
+
+PROBE_REPORT_FILENAME = "probe.json"
+
+
+def write_probe_report(
+    directory: Path | str,
+    *,
+    version: str,
+    manifest_digest: str,
+    populations: Sequence[str],
+    pairs: Sequence[tuple[int, int]],
+    prior: float,
+    seeds: Mapping,
+    library_versions: Mapping,
+) -> dict:
+    """Write the probe's verdict, whichever way it reads.
+
+    Committed either way, with everything needed to reproduce it: a probe that
+    reported only when it found something would be a probe nobody could read a
+    null from.
+    """
+    correct = sum(1 for truth, predicted in pairs if truth == predicted)
+    report = {
+        "spec": "0055",
+        "dataset_version": version,
+        "manifest_digest": manifest_digest,
+        "populations": list(populations),
+        "reading_rule": READING_RULE,
+        "verdict": probe_verdict(correct=correct, total=len(pairs), prior=prior),
+        "recall": population_recall(pairs, populations),
+        "confusion": _confusion(pairs, populations),
+        "seeds": dict(seeds),
+        "library_versions": dict(library_versions),
+    }
+
+    destination = Path(directory)
+    destination.mkdir(parents=True, exist_ok=True)
+    (destination / PROBE_REPORT_FILENAME).write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8"
+    )
+    return report
+
+
+def _confusion(
+    pairs: Sequence[tuple[int, int]], ordered: Sequence[str]
+) -> dict[str, dict[str, int]]:
+    """Which population each was mistaken for, which the recall alone hides."""
+    table = {
+        truth: {predicted: 0 for predicted in ordered} for truth in ordered
+    }
+    for truth, predicted in pairs:
+        table[ordered[truth]][ordered[predicted]] += 1
+    return table
+
+
+def probe_directory(output_dir: Path | str) -> Path:
+    """Where the probe's folds and report live, beside the arms and not among."""
+    return Path(output_dir) / POPULATION_PROBE_ARM
