@@ -103,6 +103,13 @@ def main(argv: list[str] | None = None) -> int:
     # run that read one for the other would be scoring the wrong thing.
     assert (splits_dir / FOLD_MANIFEST_FILENAME).exists()
 
+    # `classes` is what the probe predicts, and here it is the capture
+    # populations rather than the texture classes. That one substitution is the
+    # whole difference between this and the descriptor arm: same patches, same
+    # features, same probe, same nesting — a different label. Overriding the key
+    # rather than threading a second one through `probe_fold` keeps the arm's
+    # code path literally unchanged, which is what lets the probe be read as a
+    # statement about the representation the arms use.
     probe_cfg = {**cfg, "classes": populations}
     from src.arms.probe import probe_fold  # noqa: E402  (needs the training stack)
 
