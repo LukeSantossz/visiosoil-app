@@ -68,9 +68,31 @@ afford if it ever were adopted.
 **Encoder features are computed once per patch and cached for the run.** The
 arm is 25 folds over the same photographs; recomputing 5,100 patch embeddings
 per fold would spend almost all of the arm's cost re-deriving a deterministic
-function of the pixels. The cache is keyed by the photograph's path and its
-patch index, is written under the arm's directory, and is invalidated by the
-manifest digest, so a cache from another dataset version cannot be read.
+function of the pixels. Measured: **0.78 s per photograph cold, so 2.6 minutes
+for the whole pool once, against 17 ms per photograph warm** — without the cache
+the arm's 25 folds would be about 1.1 hours of forward passes and nothing else.
+
+The cache is written under the arm's directory and keyed by the photograph's
+path, one file per photograph whose **row index is the patch index** — 204 files
+per arm rather than 5,100, for the same key at a coarser granularity.
+
+**A stale entry is refused, never silently rebuilt**, and the identity it is
+refused against is more than the manifest digest. The digest identifies the
+data; it cannot see `data.image_size`, `preprocessing.canonical_mm_per_px` or
+`preprocessing.patch_stride_fraction`, which live in `config.yaml` and move
+**where a patch is cut over the very same pixels**. A change to the canonical
+scale need not change the patch *count*, so a row-count check would not catch
+it either, and the arm would train on embeddings of soil it is no longer
+looking at. The store therefore records all three beside the digest, the feature
+width, and the preprocessing convention, and a disagreement in any of them stops
+the run naming the directory to delete. Rebuilding silently would leave feature
+files whose provenance nobody established claiming to describe this version.
+
+The digest is `manifest.manifest_digest` and deliberately **not**
+`unmeasured_digest`: the latter blanks the four scale columns so it can be
+stable across `measure_scale.py`'s own write, and those columns are exactly what
+decides where a patch is cut. A cache keyed by it would survive a re-measurement
+that moved every patch.
 
 **The label-shuffled control stays a single arm on the incumbent's path.**
 SPEC 0044 registers three primary contrasts, each real arm against one control,
@@ -114,8 +136,14 @@ strongest control to hold every other arm against.
   - `ml/src/descriptors.py` (new) — the four component groups over a `uint8`
     patch, pure numpy, no TensorFlow, and a named grouping so the ablation can
     remove one group at a time.
-  - `ml/src/arms/` (new) — `descriptor_fold` and `encoder_probe_fold`, each with
-    `train_fold`'s signature and each writing the same fold artifacts.
+  - `ml/src/arms/probe.py` (new) — the shared fold trainer both arms are thin
+    wrappers around, parameterised by a featuriser. The nested selection, the
+    standardisation, the aggregation back to one prediction per photograph and
+    every fold artifact live here, in one place, because two arms that differed
+    in any of them would not be comparable.
+  - `ml/src/arms/descriptors.py` and `ml/src/arms/encoder.py` (new) —
+    `descriptor_fold` and `encoder_probe_fold`, each with `train_fold`'s
+    signature and each a binding of a featuriser to `probe_fold`.
   - `ml/src/crossval.py` — dispatch `--arm` to the fold trainer that implements
     it, refusing an arm name nothing implements rather than silently running the
     incumbent.
@@ -140,9 +168,19 @@ strongest control to hold every other arm against.
 ## Acceptance Criteria
 
 - every_arm_writes_the_artifacts_the_protocol_reads: each new arm produces
-  `predictions.json`, `cost.json`, `runtime.json` and `selection_audit.json` in
-  the same shape the incumbent does, asserted by loading a completed fold through
-  `crossval.load_arm_predictions`.
+  exactly those four artifacts — `predictions.json`, `cost.json`, `runtime.json`
+  and `selection_audit.json` — in the shape the incumbent writes them, asserted
+  by loading a completed fold through `crossval.load_arm_predictions`. Four and
+  not "the same as the incumbent": the incumbent also writes `model.keras` and
+  `fine_tune.json`, and a probe over frozen or arithmetic features has no
+  backbone to unfreeze and no checkpoint worth keeping.
+- the_selection_never_reads_a_test_group_even_when_the_audit_is_clean: a test
+  asserts that of every featurisation a fold performs, only the last may be the
+  test side. The audit alone cannot establish this — it is written from what
+  `inner_folds` returned, so an arm that builds honest inner folds and then
+  scores its candidates on the outer test side files a **clean** audit. That
+  blind spot is in `train.train_fold` too, and closing it there is not this
+  spec's, but it is recorded here rather than left for someone to rediscover.
 - an_unimplemented_arm_name_is_refused_by_name: `run_arm` with an arm nothing
   implements fails, naming the arm and the ones that exist, rather than running
   the incumbent under that name.
@@ -154,11 +192,25 @@ strongest control to hold every other arm against.
 - lbp_and_glcm_match_hand_computed_values: both are asserted against values
   computed by hand on small arrays, not against another library's output.
 - descriptors_are_invariant_to_what_they_claim_to_be: the LBP histogram is
-  unchanged by a monotonic intensity shift, and the spectral bands of one patch
-  scale as the arithmetic says when its contrast is scaled.
+  unchanged by a monotonic intensity shift.
+- the_spectral_bands_scale_as_the_arithmetic_says: band energies scale by the
+  square of a contrast scaling, the normalised distribution is therefore
+  unchanged, and adding a constant changes nothing because DC is excluded.
+- the_whole_descriptor_is_invariant_to_a_quarter_turn: the entire feature vector
+  is unchanged when the patch is rotated by 90 degrees. This is the property the
+  four-direction GLCM average and the rotation-invariant LBP mapping exist to
+  obtain, and it was missing from this list — the dish's placement in the frame
+  is arbitrary, so a descriptor that moved with it would report the
+  photographer's hand. It holds exactly rather than approximately: the Fourier
+  magnitude is symmetric under the same turn, the four co-occurrence offsets
+  permute among themselves once the pair is unordered, and each LBP code is a
+  circular shift.
 - an_ablation_removes_one_component_group_at_a_time: the descriptor arm accepts a
-  set of component groups, and removing one changes the feature width by exactly
-  that group's size.
+  set of component groups; removing one changes the feature width by exactly that
+  group's size **and leaves every remaining value identical**. The width alone is
+  not enough: if the other groups moved when one left, the ablation would confound
+  "this group carried the signal" with "the arm changed when it was removed", and
+  telling those apart is what the ablation is for.
 - the_probe_is_selected_inside_the_fold: for both arms, `C` is chosen on the
   inner folds and the selection audit's intersection with the fold's test groups
   is empty.
@@ -168,7 +220,14 @@ strongest control to hold every other arm against.
   photographs reads the cache rather than the encoder, asserted by counting
   encoder calls.
 - a_cached_feature_from_another_version_is_refused: the cache carries the
-  manifest digest and a mismatch is refused rather than read.
+  manifest digest, the input size, the canonical scale, the stride fraction, the
+  preprocessing convention and the feature width, and a disagreement in any of
+  them is refused by name rather than read or silently rebuilt.
+- a_partly_written_cache_is_not_read_as_complete: every entry is written to a
+  scratch file and renamed over its destination, so an interrupted run leaves
+  either the whole entry or none of it. A torn entry is recomputed rather than
+  served as short rows, and a failed write leaves nothing at the destination and
+  no scratch file behind.
 - contrasts_are_registered_before_the_first_run: `ml/config.yaml` carries the
   four contrasts, three `primary` and exactly one `secondary`, and `load_config`
   accepts them.
@@ -188,17 +247,47 @@ Python 3.12.13 and the pinned stack of `ml/requirements.txt`, unchanged by this
 spec. Both arms are seeded through `seed_everything(derive_repeat_seed(...))`
 exactly as the incumbent is, and both are deterministic given the fold manifest:
 the descriptors are arithmetic over pixels with no sampling, and the encoder is a
-forward pass through frozen weights. `liblinear`/`lbfgs` convergence is bounded
-by an explicit iteration cap so a run cannot differ by how long it happened to
-iterate.
+forward pass through frozen weights.
+
+The solver is `lbfgs`, which is multinomial for more than two classes without
+being told so — `liblinear` cannot fit a multinomial model at all, being
+one-vs-rest only, and this spec first named it in error. `multi_class` is not
+passed: it is deprecated across the whole pinned scikit-learn range, so its
+absence is the correct call rather than the requirement being unmet. Convergence
+is bounded by an explicit iteration cap so a run cannot differ by how long it
+happened to iterate.
+
+**The arms need TensorFlow installed even though the descriptors do not use it.**
+`seed_everything` and `runtime_mode` live in `src/train.py`, which imports
+TensorFlow at module scope, and every arm is seeded through them because a fold
+seeded differently from the incumbent is not on the same protocol. So
+`ml/src/descriptors.py` imports no TensorFlow and is tested to prove it, while
+the descriptor *arm* still requires the training stack to be present. Moving the
+seeding out of `src/train.py` would make the arm independent of it and would
+touch the incumbent, which is why it is recorded here and not done.
 
 ## Risks and Assumptions
 
-- **Assumption: the descriptor arm is cheap enough to run at 5 by 5 and to
-  ablate.** Four component groups over 25 patches is milliseconds per photograph
-  and a logistic regression over ~200 rows is milliseconds per fold, so the arm
-  should complete in minutes. If it does not, SPEC 0044 says the ablation is
-  what gets cut, not the repeats.
+- **The descriptor arm is cheap enough to run at 5 by 5 and to ablate, but not
+  as cheap as this spec first claimed.** It said "milliseconds per photograph",
+  wrong by two orders of magnitude. Measured after implementing, at a 160 px
+  patch: **4.5 to 6.2 ms per patch**, so roughly 150 ms per photograph, 31 s for
+  one pass over the 204 photographs a fold sees, and **about 13 minutes of
+  descriptor time over the full 25 folds**. The conclusion survives — the arm is
+  minutes, not hours, and decoding and resampling the photographs dominates it —
+  but the premise is corrected here rather than left as a figure nobody checked.
+  The logistic regression over a few thousand patch rows remains milliseconds per
+  fold. If the arm does prove too slow, SPEC 0044 says the ablation is what gets
+  cut, not the repeats.
+
+  **Measured end to end on the real archive**, one outer fold of `v1` — 174
+  training and 30 test photographs over 82 and 15 sample groups — the arm takes
+  **147 s**, so **about one hour for the full 25 folds**. Its `cost.json` shows
+  where that goes: five trainings at 75.9, 0.36, 0.42, 0.47 and 0.13 seconds. The
+  fitting is sub-second; the featurisation is everything, and the first training
+  carries it because the descriptors of a photograph are memoised for the fold
+  once computed. An hour is well inside what the gate can spend, and the ablation
+  multiplies it by the number of groups removed.
 - **Risk: the encoder arm's feature extraction is the expensive step and it is
   paid once.** 204 photographs at 25 patches is 5,100 forward passes through
   MobileNetV2 at 160 px. On CPU that is minutes, not hours, and the cache makes
