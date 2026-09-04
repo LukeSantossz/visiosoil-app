@@ -144,9 +144,19 @@ strongest control to hold every other arm against.
   - `ml/src/arms/descriptors.py` and `ml/src/arms/encoder.py` (new) —
     `descriptor_fold` and `encoder_probe_fold`, each with `train_fold`'s
     signature and each a binding of a featuriser to `probe_fold`.
-  - `ml/src/crossval.py` — dispatch `--arm` to the fold trainer that implements
-    it, refusing an arm name nothing implements rather than silently running the
-    incumbent.
+  - `ml/src/crossval.py` and `ml/src/train.py` — dispatch `--arm` to the fold
+    trainer that implements it, refusing an arm name nothing implements rather
+    than silently running the incumbent. **Both** entry points, not one:
+    `crossval.run_arm` runs a whole arm and `train.train` runs a single fold,
+    and the latter is what CI dispatches one job per fold to — so it is the path
+    a published result comes from, and it took the arm name for the directory
+    while always running the incumbent.
+  - `ml/src/crossval.py` — refuse an arm name and a `shuffled_control` flag that
+    disagree. They travel independently into both entry points, and either
+    mismatch writes a result the artifacts cannot correct: unpermuted labels
+    under `shuffled_control` is a control that is not one, and every primary
+    contrast is read against it. SPEC 0044 warns about it in prose, and prose is
+    not a guard.
   - `ml/config.yaml` — register the four arm names and the four contrasts:
     three `primary`, each real arm against `shuffled_control`, and exactly one
     `secondary`, `encoder_probe` against `descriptors`.
@@ -184,6 +194,22 @@ strongest control to hold every other arm against.
 - an_unimplemented_arm_name_is_refused_by_name: `run_arm` with an arm nothing
   implements fails, naming the arm and the ones that exist, rather than running
   the incumbent under that name.
+- the_single_fold_entry_point_runs_the_arms_own_method: `train.train` resolves
+  the trainer through the same dispatch, so `--arm descriptors` on the entry
+  point CI uses cannot write a CNN's checkpoint into the descriptor arm's
+  directory for every contrast downstream to read as the descriptor arm's.
+- an_arm_name_and_a_control_flag_that_disagree_are_refused: both entry points
+  refuse unless `arm == shuffled_control` exactly when the labels are permuted.
+- the_registered_contrasts_are_exactly_the_four_e0_names: the shipped config
+  carries those four `(name, arms, family)` triples and no others. Counting
+  families is not enough — three differently-named `cnn`-against-control entries
+  would satisfy a count of three primaries while leaving two real arms
+  uncontrasted, and the gate would return a verdict on one arm believing it had
+  read three.
+- a_cache_directory_without_its_sidecar_is_refused: `.npy` entries with no
+  `index.json` are entries whose provenance nothing establishes. Adopting them
+  would write a sidecar claiming this run's geometry over embeddings computed
+  under another, and the row-count check cannot see the difference.
 - each_arm_averages_patch_distributions_into_one_prediction: every arm writes
   one row per photograph whose distribution is the mean over that photograph's
   patches, so a contrast compares methods and not aggregation rules.
