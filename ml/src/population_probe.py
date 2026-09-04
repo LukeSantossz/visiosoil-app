@@ -89,6 +89,17 @@ def population_images(
             column for every row and `train_only_sample_ids` reads it for the
             arms too, so a blank one is a broken ingest rather than a row this
             probe happens not to want.
+        ValueError: If one ``sample_id`` carries two ``source_group`` values.
+            `create_folds` groups on the key it is given, so a spanning sample
+            would become two fold groups for one physical sample and its
+            photographs could land on opposite sides of a split — the leak the
+            protocol exists to prevent.
+        ValueError: If the patch grid's refusals empty a population entirely.
+            A population that never reaches a fold is not reported as ``null``
+            by :func:`population_recall`; it is absent from ``populations`` and
+            the report reads as a complete answer over whichever populations
+            survived. The verdict is about which populations are separable, so
+            losing one silently is losing the question.
     """
     unrecorded = [row.image for row in manifest.rows if not row.source_group]
     if unrecorded:
@@ -99,16 +110,44 @@ def population_images(
             f"it"
         )
 
-    excluded = set(refused)
     emitted = set(classes)
+    probed = [row for row in manifest.rows if row.texture_class in emitted]
+
+    # Before any filtering, because both of the guards below are about what the
+    # filtering must not be allowed to hide.
+    spanning: dict[str, set[str]] = {}
+    for row in probed:
+        spanning.setdefault(row.sample_id, set()).add(row.source_group)
+    conflicted = sorted(
+        sample for sample, groups in spanning.items() if len(groups) > 1
+    )
+    if conflicted:
+        raise ValueError(
+            f"{len(conflicted)} sample group(s) of {manifest.version} span two "
+            f"capture populations, so grouping on sample_id would put one "
+            f"physical sample on both sides of a split; the first is "
+            f"{conflicted[0]} in "
+            f"{', '.join(sorted(spanning[conflicted[0]]))}"
+        )
+    expected = {row.source_group for row in probed}
+
+    excluded = set(refused)
     grouped: dict[str, list[str]] = {}
-    for row in manifest.rows:
-        if row.texture_class not in emitted:
-            continue
+    for row in probed:
         path = str(manifest.root / row.image)
         if path in excluded:
             continue
         grouped.setdefault(row.source_group, []).append(path)
+
+    emptied = sorted(expected - set(grouped))
+    if emptied:
+        raise ValueError(
+            f"the patch grid refuses every photograph of capture population(s) "
+            f"{', '.join(emptied)}, so they would be absent from the report "
+            f"rather than reported as unscored. A probe that quietly drops a "
+            f"population is not answering the question it was asked"
+        )
+
     return {population: sorted(paths) for population, paths in sorted(grouped.items())}
 
 
