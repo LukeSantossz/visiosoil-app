@@ -174,7 +174,7 @@ def test_the_partition_labels_a_group_by_its_capture_population(tmp_path):
     manifest = read_manifest(root, ARCHIVE_CLASSES)
 
     partition = probe_partition(
-        cfg, manifest, str(tmp_path / "splits"), refused=(), classes=ARCHIVE_CLASSES
+        cfg, manifest, str(tmp_path / "splits"), refused={}, classes=ARCHIVE_CLASSES
     )
 
     labels = {group["class"]: group["label"] for group in partition["groups"].values()}
@@ -238,7 +238,7 @@ def test_the_probe_partition_makes_every_population_splittable(tmp_path):
     manifest = read_manifest(REAL_VERSION, ARCHIVE_CLASSES)
 
     fold_manifest = probe_partition(
-        cfg, manifest, str(tmp_path), refused=(), classes=cfg["classes"]
+        cfg, manifest, str(tmp_path), refused={}, classes=cfg["classes"]
     )
 
     assert fold_manifest["counts"]["train_only_groups"] == 0
@@ -375,6 +375,40 @@ def test_the_prior_is_the_share_of_groups_not_of_photographs():
     }
 
     assert majority_prior(fold_manifest) == pytest.approx(2 / 3)
+
+
+def test_the_partition_records_which_photographs_the_grid_refused(tmp_path):
+    """A partition short of the version it names has to say which ones left.
+
+    The refusals are filtered out of the images before the draw, so passing them
+    on changes no fold. What it changes is the record: without it the probe's
+    `splits.json` reports zero refusals over a version that lost eleven
+    photographs, and a later reader cannot tell that from a version that lost
+    none.
+    """
+    from src.config import load_config, resolve_paths
+    from src.population_probe import probe_partition
+
+    cfg = resolve_paths(load_config())
+    root = _version_with_populations(tmp_path)
+    manifest = read_manifest(root, ARCHIVE_CLASSES)
+    victim = str(manifest.root / manifest.rows[0].image)
+
+    partition = probe_partition(
+        cfg,
+        manifest,
+        str(tmp_path / "splits"),
+        {victim: "too_coarse"},
+        classes=ARCHIVE_CLASSES,
+    )
+
+    assert partition["counts"]["refused_photographs"] == 1
+    assert partition["refused"] == {victim: "too_coarse"}
+    assert victim not in {
+        image
+        for group in partition["groups"].values()
+        for image in group["images"]
+    }
 
 
 @real_only
