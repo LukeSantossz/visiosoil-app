@@ -712,3 +712,67 @@ def test_a_canonical_scale_that_is_not_a_finite_number_is_refused(
 
     with pytest.raises(ValueError, match="finite"):
         load_config(path)
+
+
+# --- E0's arms and contrasts (SPEC 0044, SPEC 0054) --------------------------
+
+
+def test_contrasts_are_registered_before_the_first_run():
+    """Pre-registration is the point, so the shipped config carries them.
+
+    A contrast decided after a run is a contrast chosen for its result. These
+    four are the ones SPEC 0044 fixed before either arm existed: three primary,
+    each real arm against the shuffled-label control, and exactly one secondary
+    that decides which method ships.
+    """
+    contrasts = load_config()["evaluation"]["contrasts"]
+
+    by_family = {}
+    for contrast in contrasts:
+        by_family.setdefault(contrast["family"], []).append(contrast)
+
+    assert len(by_family["primary"]) == 3
+    assert len(by_family["secondary"]) == 1
+    assert all(
+        "shuffled_control" in contrast["arms"] for contrast in by_family["primary"]
+    )
+    assert set(by_family["secondary"][0]["arms"]) == {"encoder_probe", "descriptors"}
+
+
+def test_every_registered_contrast_names_an_arm_that_exists():
+    """A contrast against an arm nothing implements can never be computed."""
+    from src.crossval import ARM_TRAINERS
+
+    contrasts = load_config()["evaluation"]["contrasts"]
+    named = {arm for contrast in contrasts for arm in contrast["arms"]}
+
+    assert named <= set(ARM_TRAINERS)
+
+
+def test_the_registered_contrasts_are_exactly_the_four_e0_names():
+    """Counting families is not enough to pin a pre-registration.
+
+    Three differently-named `cnn` against `shuffled_control` entries would
+    satisfy a count of three primaries while leaving two of the three real arms
+    uncontrasted, and the gate would return a verdict on one arm believing it
+    had read three.
+    """
+    registered = {
+        (contrast["name"], tuple(contrast["arms"]), contrast["family"])
+        for contrast in load_config()["evaluation"]["contrasts"]
+    }
+
+    assert registered == {
+        ("cnn_vs_control", ("cnn", "shuffled_control"), "primary"),
+        ("descriptors_vs_control", ("descriptors", "shuffled_control"), "primary"),
+        (
+            "encoder_probe_vs_control",
+            ("encoder_probe", "shuffled_control"),
+            "primary",
+        ),
+        (
+            "encoder_probe_vs_descriptors",
+            ("encoder_probe", "descriptors"),
+            "secondary",
+        ),
+    }

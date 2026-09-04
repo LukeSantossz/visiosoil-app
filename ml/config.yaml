@@ -62,9 +62,26 @@ evaluation:
   # family: `primary` for an arm against the shuffled-label control, and at most
   # one `secondary`. An unregistered contrast is refused by name.
   #
-  # Empty until the experiment that owns the arms registers its own: E0's arms
-  # and its decision rule belong to SPEC 0044, not to this protocol.
-  contrasts: []
+  # Registered by SPEC 0044 before either new arm existed, which is what makes
+  # them pre-registered rather than chosen. The primary family asks the question
+  # the sample size can answer — is there any signal at all — by holding each
+  # real arm against the label-shuffled control. The single secondary decides
+  # which method ships, under the four-condition rule SPEC 0044 fixes; at 77
+  # groups it is expected to be unresolvable, which is why the default is named
+  # in advance rather than read off the result.
+  contrasts:
+    - name: "cnn_vs_control"
+      arms: ["cnn", "shuffled_control"]
+      family: "primary"
+    - name: "descriptors_vs_control"
+      arms: ["descriptors", "shuffled_control"]
+      family: "primary"
+    - name: "encoder_probe_vs_control"
+      arms: ["encoder_probe", "shuffled_control"]
+      family: "primary"
+    - name: "encoder_probe_vs_descriptors"
+      arms: ["encoder_probe", "descriptors"]
+      family: "secondary"
 
 preprocessing:
   normalization: "mobilenet_v2"
