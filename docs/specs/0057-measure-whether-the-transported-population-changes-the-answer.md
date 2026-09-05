@@ -56,16 +56,25 @@ result and D6 does not neutralise it.
 groups, paired, compared by the **exact McNemar test** at `evaluation.alpha`,
 with the observed accuracy difference read against the **minimum detectable
 effect that contrast records from its own discordance**, exactly as SPEC 0042
-requires of every contrast:
+requires of every contrast.
 
-- **Not significant, and the observed difference below the recorded MDE** —
-  having `B` in training did not measurably change the arm's answer at this
-  experiment's resolution. **SPEC 0040 D6 stands as written.** The 18 % of the
-  training pool that dropping `B` would cost buys nothing this experiment can
-  see.
-- **Significant, and the difference at or above the MDE** — `B`'s presence in
-  training changes a scored result. **D6 does not neutralise `B`**, and the ADR
-  that follows takes the decision with the size and sign of the change in hand.
+**Both clauses must hold to call it a difference**, which is SPEC 0044's
+discipline applied here — *"a significant result smaller than the measurement's
+own resolution does not count"*. The predicate is therefore exhaustive over the
+four combinations rather than defined on two of them:
+
+| McNemar | Difference vs MDE | Reading |
+|---|---|---|
+| significant | at or above | **`B`'s presence changes a scored result. D6 does not neutralise it**, and the ADR takes the decision with the size and sign in hand |
+| significant | below | not demonstrated at this resolution. The test resolves a difference the experiment cannot size, and a difference smaller than the measurement's own floor is not one to act on. **D6 stands** |
+| not significant | at or above | not demonstrated at this resolution. A point estimate large enough to matter with a test that cannot reject — the combination that most argues for more groups, which [ADR 0016](../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md) says this dataset will never supply. **D6 stands**, and the report says it was this combination |
+| not significant | below | not demonstrated at this resolution. **D6 stands as written**, and the 18 % of the training pool that dropping `B` would cost buys nothing this experiment can see |
+
+**The three cells that read "D6 stands" are not the same finding and the report
+must not collapse them.** Only the last is a clean null; the middle two are the
+experiment reaching its own limit, and an ADR written against them is deciding
+under a resolution ceiling rather than against evidence of no effect. The report
+records which of the four cells it landed in, by name.
 
 **Direction is reported and does not change which branch is taken.** A
 significant difference favouring the `B`-free arm is the leak doing damage. One
@@ -167,6 +176,10 @@ it exists to inform.
 - the_reading_rule_is_recorded_before_the_run: the predicate is in this spec and
   in the report, and the report states which branch it took and in which
   direction.
+- the_reading_rule_is_exhaustive: all four combinations of significance and
+  minimum detectable effect have a defined reading, and the report names which
+  cell it landed in rather than collapsing the three that leave D6 standing into
+  one null.
 - the_result_is_reported_outside_the_contrast_family: no entry is written to
   `evaluation.contrasts` and the result is Holm-corrected with nothing, and the
   record says why.

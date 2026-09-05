@@ -174,23 +174,23 @@ Last updated: 2026-09-05.
 > settled per arm before that arm's first fold, or `--force` discards what was
 > already computed.
 >
-> **A7 (#215) runs on an emulator, and what that can decide is asymmetric.**
+> **A7 (#215) runs on an emulator, and an emulator does not decide condition 3.**
 > Decided 2026-09-05: no physical mid-range device is available and the emulator
-> is accepted as the measurement surface. The asymmetry has to be in the record
-> before the number is, or the number will be read for more than it carries. An
-> emulator runs on the host CPU with no thermal ceiling and no frequency
-> governor, so:
+> is accepted as the measurement surface.
 >
-> - **A failing emulator number is decisive.** An encoder that already exceeds
->   the budget there exceeds it on a phone, and condition 3 of SPEC 0044's
->   decision rule is **not met**, on evidence.
-> - **A passing emulator number establishes nothing.** It cannot stand in for the
->   reference device SPEC 0044 names, so condition 3 stays **not met — for want
->   of a measurement on the reference device**, which is a different record entry
->   from "the encoder was too slow" and from "the encoder lost a comparison".
+> **A first draft of this revision claimed a failing emulator number would be
+> decisive. That is withdrawn — it was asserted, not established.** It assumes
+> the emulator is the faster of the two, and the sign of that inequality is
+> unknown here: an emulator has a desktop CPU with no thermal ceiling, and it
+> also lacks NNAPI, a GPU delegate and any NPU, and *translates* an ARM-built
+> TFLite library on an x86 host. Either side can be the slower one.
 >
-> SPEC 0044 already requires those three outcomes to be distinguishable by name;
-> this revision fixes which one an emulator can produce.
+> So until a reference device exists, or the emulator-to-device relationship is
+> calibrated for this model and ABI, **condition 3 reads *not met — for want of a
+> measurement on the reference device*, whatever the emulator returns.** SPEC 0044
+> already requires that to be a different record entry from "too slow" and from
+> "lost a comparison". The emulator run is worth doing for engineering feedback —
+> does it run, does it fit, what order of magnitude — and that is not condition 3.
 >
 > **Two bookkeeping corrections to the order of work.**
 >
@@ -484,18 +484,33 @@ than an experiment over the dataset, and because
 [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
 it as one of four separately auditable conditions.
 
-**Revised 2026-09-05: the emulator is the accepted measurement surface, and what
-it can decide is asymmetric.** No physical mid-range device is available, and the
-Developer accepted the emulator rather than leaving the condition unmeasurable.
-An emulator runs on the host CPU with no thermal ceiling and no frequency
-governor, so a **failing** number is decisive — an encoder that exceeds the
-budget there exceeds it on a phone — while a **passing** number establishes
-nothing, and condition 3 then reads *not met, for want of a measurement on the
-reference device*. SPEC 0044 already requires that to be a different record entry
-from "too slow" and from "lost a comparison"; this revision fixes which of the
-three an emulator can produce.
+**Revised 2026-09-05, and corrected the same day.** No physical mid-range device
+is available, and the Developer accepted the emulator rather than leaving the
+condition unmeasurable.
 
-That also removes this item's dependency on hardware, and with it the
+**A first version of this revision claimed that a *failing* emulator number is
+decisive — that an encoder exceeding the budget there exceeds it on a phone. That
+claim is withdrawn: it was asserted and never established.** It assumes the
+emulator is the faster of the two, and the sign of that inequality is unknown for
+this workload. An emulator can be faster, running on a desktop CPU with no
+thermal ceiling and no frequency governor. It can equally be **slower**: a
+TFLite native library built for ARM is *translated* on an x86 emulator, and a
+phone can reach NNAPI, a GPU delegate or an NPU that no emulator exposes, so a
+quantized model may run far faster on the device's accelerator than on the
+emulator's CPU-only path.
+
+**So neither direction decides condition 3.** Until a reference device exists, or
+the emulator-to-device relationship is calibrated for this model and this ABI,
+condition 3 reads **not met — for want of a measurement on the reference
+device**, whatever the emulator returns. SPEC 0044 already requires that to be a
+different record entry from "too slow" and from "lost a comparison".
+
+**What the emulator is still worth running for** is engineering feedback rather
+than a gate result: whether the encoder runs at all, whether it fits in memory,
+and an order of magnitude that would make a device measurement obviously
+worthwhile or obviously moot. That is useful and it is not condition 3.
+
+That still removes this item's dependency on owning hardware, and with it the
 **human-owned** designation it carried: an emulator run is scriptable, and CI
 already boots one for the `smoke` job.
 
