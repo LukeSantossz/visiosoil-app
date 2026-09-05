@@ -1,6 +1,8 @@
 """The linear-probe fold trainer both new E0 arms are built on (SPEC 0054).
 
-:func:`probe_fold` is :func:`src.train.train_fold` with a featuriser in it. It
+:func:`probe_fold` does what :func:`src.train.train_fold` does, with a
+featuriser in place of the network — a sibling implementation of one protocol
+and **not** a wrapper around it, so nothing here calls into `train.py`. It
 selects the probe's regularisation strength on the inner folds of one outer
 fold's training side, refits on the whole training side, predicts the test side,
 and writes the same four artifacts the incumbent writes — so ``evaluate.py``,
