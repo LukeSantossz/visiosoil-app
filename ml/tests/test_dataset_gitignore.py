@@ -40,6 +40,14 @@ BOOKKEEPING_PATHS = [
 ]
 
 
+#: The fold manifest, which is **not** a dataset version and is deliberately
+#: tracked. Listed beside the ignored paths so the boundary between them is
+#: asserted rather than left to a reader of `.gitignore`.
+TRACKED_PATHS = [
+    "ml/data/splits/splits.json",
+]
+
+
 def check_ignore(path: str) -> bool:
     """Whether git would ignore ``path``, asked of git itself."""
     completed = subprocess.run(
@@ -67,6 +75,42 @@ def test_dataset_images_are_ignored(path):
 def test_dataset_bookkeeping_files_are_ignored_too(path):
     """A dataset version is reproducible, so none of it is a record."""
     assert check_ignore(path), f"{path} would be committed"
+
+
+@pytest.mark.parametrize("path", TRACKED_PATHS)
+def test_the_fold_manifest_is_versioned_and_the_dataset_is_not(path):
+    """The partition is a record, and ADR 0019's argument does not reach it.
+
+    That ADR untracked the dataset version because it is a deterministic
+    function of the archive and the code, both recoverable. The partition is
+    not: `StratifiedGroupKFold` assigns differently across scikit-learn
+    versions, which is why `splits.json` records the versions it was drawn
+    under. Regenerated on another machine under another stack it produces
+    *different* folds, silently, because there is nothing left to compare
+    against — so it is the one file under `ml/data/` that has to travel.
+    """
+    assert not check_ignore(path), f"{path} would not be committed"
+
+
+def test_the_fold_manifest_is_actually_tracked():
+    """An ignore rule that stopped matching says nothing about the index.
+
+    `git add` is what puts the file in history, and a negation pattern with no
+    `git add` behind it leaves the file untracked and the rule inert — the same
+    failure `test_no_dataset_version_file_is_tracked` guards from the other
+    direction.
+    """
+    completed = subprocess.run(
+        ["git", "ls-files", "--", "ml/data/splits/splits.json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        stdin=subprocess.DEVNULL,
+    )
+    tracked = completed.stdout.decode(errors="replace").split()
+
+    assert tracked == ["ml/data/splits/splits.json"], (
+        "the fold manifest is not in the index, so the negation pattern is inert"
+    )
 
 
 def test_no_dataset_version_file_is_tracked():
