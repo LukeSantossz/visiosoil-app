@@ -138,6 +138,7 @@ def test_the_contrast_reuses_evaluates_machinery_rather_than_a_second_copy():
 
 
 def _report(tmp_path, **kwargs):
+    kwargs.setdefault("measured_arms", [*DESCRIPTOR_PAIR, *CNN_PAIR])
     contrasts = kwargs.pop("contrasts", None)
     if contrasts is None:
         contrasts = [
@@ -240,6 +241,106 @@ def test_the_verdict_is_committed_whichever_way_it_returns(tmp_path):
         "each arm records its own stack; this experiment may span two machines"
     )
     assert written["runtimes"]["descriptors"]["device"] == "CPU"
+
+
+def test_an_exact_tie_favours_neither_arm(tmp_path):
+    """Zero difference is not a difference in the `without` direction.
+
+    The sign is reported so a reader can see which way a change went; reporting
+    a direction for a change of zero states something the number does not.
+    """
+    tie = reading_cell(significant=False, observed=0.0, mde=0.16)
+
+    assert tie["favours"] == "neither"
+
+
+def test_a_partial_run_reports_only_the_arms_it_measured(tmp_path):
+    """The licence is only worth carrying if it says what actually ran.
+
+    `--arms descriptors` runs one pair. A report that still claimed the
+    incumbent was measured would hand the E0 verdict exactly the general
+    clearance the licence exists to withhold.
+    """
+    report = _report(
+        tmp_path,
+        contrasts=[
+            sensitivity_contrast(
+                "descriptors_sensitivity",
+                _correctness(60, 77),
+                _correctness(59, 77),
+                alpha=0.05,
+                power=0.8,
+            )
+        ],
+        measured_arms=list(DESCRIPTOR_PAIR),
+    )
+
+    assert report["measured_arms"] == list(DESCRIPTOR_PAIR)
+    assert CNN_PAIR[0] not in report["licence"]
+    assert "descriptors" in report["licence"]
+
+
+def test_a_second_partial_run_keeps_the_first_pair(tmp_path):
+    """The split-machine workflow the runbook documents needs both contrasts.
+
+    Descriptors here, the incumbent on the GPU host: the second run must not
+    overwrite the first's contrast with a report that silently holds one pair.
+    """
+    from src.sensitivity import carry_forward_contrasts
+
+    first = _report(
+        tmp_path,
+        contrasts=[
+            sensitivity_contrast(
+                "descriptors_sensitivity", _correctness(60, 77), _correctness(59, 77),
+                alpha=0.05, power=0.8,
+            )
+        ],
+        measured_arms=list(DESCRIPTOR_PAIR),
+    )
+
+    carried = carry_forward_contrasts(
+        first,
+        computed_now=["cnn_sensitivity"],
+        version="v1",
+        manifest_digest="d" * 64,
+        seeds={"0": 42},
+    )
+
+    assert [entry["name"] for entry in carried] == ["descriptors_sensitivity"]
+
+
+def test_a_previous_run_over_other_data_is_not_carried_forward(tmp_path):
+    """Two reports over two partitions are two experiments, not one."""
+    from src.sensitivity import carry_forward_contrasts
+
+    first = _report(tmp_path, measured_arms=list(DESCRIPTOR_PAIR))
+
+    with pytest.raises(ValueError, match="manifest"):
+        carry_forward_contrasts(
+            first,
+            computed_now=["cnn_sensitivity"],
+            version="v1",
+            manifest_digest="e" * 64,
+            seeds={"0": 42},
+        )
+
+
+def test_a_recomputed_contrast_replaces_the_stored_one(tmp_path):
+    """Carrying forward is for pairs this run did not touch, not for all of them."""
+    from src.sensitivity import carry_forward_contrasts
+
+    first = _report(tmp_path, measured_arms=[*DESCRIPTOR_PAIR, *CNN_PAIR])
+
+    carried = carry_forward_contrasts(
+        first,
+        computed_now=["descriptors_sensitivity", "cnn_sensitivity"],
+        version="v1",
+        manifest_digest="d" * 64,
+        seeds={"0": 42},
+    )
+
+    assert carried == []
 
 
 # --- the withheld population --------------------------------------------------
