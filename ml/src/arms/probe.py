@@ -35,7 +35,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Mapping, Protocol, Sequence
+from typing import Callable, Mapping, Protocol, Sequence
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -173,7 +173,7 @@ def probe_fold(
     shuffled_control: bool = False,
     verify: bool = True,
     forced: bool = False,
-    withhold=None,
+    withhold: Callable[[Mapping], bool] | None = None,
 ) -> dict:
     """Select, refit and predict one outer fold of a probe arm, writing its artifacts.
 

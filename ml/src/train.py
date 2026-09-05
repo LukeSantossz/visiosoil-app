@@ -13,6 +13,7 @@ import argparse
 import json
 import time
 from pathlib import Path
+from typing import Callable, Mapping
 
 import numpy as np
 import tensorflow as tf
@@ -31,6 +32,7 @@ from .dataset import (
     permute_labels_by_group,
     photograph_patch_counts,
     verify_images,
+    withhold_from_training,
 )
 from .model import build_model, fine_tune_report, unfreeze_model
 from .model_paths import CHECKPOINT_FILENAME
@@ -140,7 +142,7 @@ def train_fold(
     shuffled_control: bool = False,
     verify: bool = True,
     forced: bool = False,
-    withhold=None,
+    withhold: Callable[[Mapping], bool] | None = None,
 ) -> dict:
     """Select, refit and predict one outer fold, writing its artifacts.
 

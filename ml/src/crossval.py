@@ -41,6 +41,7 @@ from .dataset import (
     load_folds_for_config,
 )
 from .evaluate import METRICS_FILENAME, arm_metrics
+from .sensitivity import CNN_PAIR, DESCRIPTOR_PAIR
 
 CONFIG_FILENAME = "config.json"
 PREDICTIONS_FILENAME = "predictions.json"
@@ -65,8 +66,13 @@ ENCODER_PROBE_ARM = "encoder_probe"
 #: population SPEC 0040 D6 restricts taken out of its own training side, over the
 #: same folds and the same test sides — so each pairs with its base and neither
 #: takes an entry in `evaluation.contrasts`.
-DESCRIPTOR_WITHOUT_B_ARM = "descriptors_without_b"
-CNN_WITHOUT_B_ARM = "cnn_without_b"
+#:
+#: Derived from `sensitivity`'s pairs rather than spelled again. Both halves
+#: embed the population's letter, and two places spelling it would diverge the
+#: day D6 restricted a different one — the registry would then name an arm
+#: nothing runs, and `fold_trainer_for` would refuse it by that name.
+DESCRIPTOR_WITHOUT_B_ARM = DESCRIPTOR_PAIR[1]
+CNN_WITHOUT_B_ARM = CNN_PAIR[1]
 
 
 def _cnn_fold_trainer():
