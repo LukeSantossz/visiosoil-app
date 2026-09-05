@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-09-04.
+Last updated: 2026-09-05.
 
 > **Revised 2026-08-25.** The lane structure below is sound and its premise is
 > not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
@@ -119,6 +119,97 @@ Last updated: 2026-09-04.
 > representation, which makes D6 a mitigation of unproven sufficiency. The
 > verdict document states this in those words, because the stronger reading is
 > the tempting one.
+
+> **Revised 2026-09-05. The queue between the probe's verdict and the gate is
+> three items in a fixed order, and each is scoped here so that writing it is
+> drafting rather than deciding.** Two items landed since the revision above:
+> [SPEC 0055](../specs/0055-probe-whether-the-capture-population-is-predictable.md)
+> (#213), whose verdict re-opened SPEC 0040 D6, and
+> [SPEC 0056](../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)
+> (#26), which makes an arm resume what it can prove and refuse what it cannot —
+> without which neither of the runs below survives an interruption.
+>
+> | # | Item | What it settles | Blocked on | Cost |
+> |---|---|---|---|---|
+> | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
+> | **ADR 0021** | what D6 becomes | which of D6's two written options is taken | SPEC 0057's numbers | — |
+> | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | ADR 0021 | ~20 h on CPU |
+>
+> **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** Written 2026-09-05 and awaiting the Spec Gate; nothing is implemented. The
+> Developer's instruction on 2026-09-05 was to measure before deciding, and this
+> is that measurement. It runs the descriptor arm **twice over one partition** —
+> once with population `B` in the training sides as D6 permits, once with `B`
+> removed from training entirely — and compares the two on group-level accuracy
+> under a rule fixed before the run. The descriptor arm because it is the cheap
+> one, 147 s a fold, which is what makes running it twice affordable.
+>
+> - *Includes:* a second arm name for the `B`-free run so both are ordinary
+>   arms with ordinary artifacts; the pre-registered comparison and its reading
+>   rule; a report committed **whichever way it reads**.
+> - *Does NOT include:* taking the D6 decision — that is ADR 0021, written
+>   against the number, exactly as SPEC 0055 refused to take the decision its own
+>   rule triggered. Nor the CNN or encoder arms, nor any change to the E0 folds.
+> - *Why it is not simply skipped:* the probe demonstrated that the capture
+>   population is **recoverable**, which is not the same as the texture arms
+>   **exploiting** it. A comparison of two trainings is the only thing that
+>   separates those two claims, and neither the probe's numbers nor an argument
+>   from the confusion matrix can.
+>
+> **ADR 0021 — what D6 becomes.** A decision record and not a spec: it chooses
+> between the two options SPEC 0055 fixed in advance — `B` leaves training
+> entirely, or `B` is restricted to arms that provably cannot exploit an encoding
+> signature — against SPEC 0057's number. The Developer takes it.
+>
+> **SPEC 0044 is written and gate-approved; what it waits on is the ADR.** Both
+> of D6's options change which photographs may train, therefore change the fold
+> manifest, and a result pooled across two fold manifests is refused by
+> construction. Running twenty hours before the decision risks discarding all of
+> it.
+>
+> **The gate's execution hardware is deliberately open (2026-09-05).** The
+> twenty-hour figure is CPU, and SPEC 0044's Risks now record what a GPU changes
+> and what it does not — including the one that bites late rather than early:
+> `require_uniform_runtime` refuses an arm whose folds recorded different
+> devices, so **a CPU-started arm cannot be resumed on a GPU**. The device is
+> settled per arm before that arm's first fold, or `--force` discards what was
+> already computed.
+>
+> **A7 (#215) runs on an emulator, and an emulator does not decide condition 3.**
+> Decided 2026-09-05: no physical mid-range device is available and the emulator
+> is accepted as the measurement surface.
+>
+> **A first draft of this revision claimed a failing emulator number would be
+> decisive. That is withdrawn — it was asserted, not established.** It assumes
+> the emulator is the faster of the two, and the sign of that inequality is
+> unknown here: an emulator has a desktop CPU with no thermal ceiling, and it
+> also lacks NNAPI, a GPU delegate and any NPU, and *translates* an ARM-built
+> TFLite library on an x86 host. Either side can be the slower one.
+>
+> So until a reference device exists, or the emulator-to-device relationship is
+> calibrated for this model and ABI, **condition 3 reads *not met — for want of a
+> measurement on the reference device*, whatever the emulator returns.** SPEC 0044
+> already requires that to be a different record entry from "too slow" and from
+> "lost a comparison". The emulator run is worth doing for engineering feedback —
+> does it run, does it fit, what order of magnitude — and that is not condition 3.
+>
+> **Two bookkeeping corrections to the order of work.**
+>
+> - **#178 is closed** and `ml-handoff.md` still lists it as the remaining defect
+>   that would bias E0. It is not a blocker; nothing is, on that list.
+> - **#180 is not a gate blocker, and is not closed either.** Its Python half is
+>   resolved: `patches.resample_to_canonical` resizes through Pillow, which scales
+>   a filter's support by the reduction factor, so the canonical downsample is
+>   low-passed rather than point-sampled; and `dataset.py` records that
+>   `preprocess.preprocess` — the `tf.image.resize` with `antialias=False` the
+>   issue names — is off the patch path entirely. What survives is the **Dart**
+>   half, `inference_service.dart`'s `Interpolation.linear`, which belongs to A6's
+>   Dart half and is a **release** blocker rather than a gate blocker. E0 is
+>   Python-only and is not waiting on it.
+>
+> **#229 is open and is not on this path.** It guards the `texture_class` axis of
+> the same spanning-group leak SPEC 0055 closed for the capture population. `v1`
+> triggers neither today, checked over the manifest, so it is a guard against a
+> future manifest rather than a live defect.
 
 ## 1. What we are building
 
@@ -383,16 +474,45 @@ released between them.
 ### A7 — On-device patch-batch latency budget
 
 **Record:** none yet; the measurement is a document. **Depends on:** A6 for the
-patch count, and a physical device. **Gate for:** C0's encoder-adoption rule.
+patch count. **Gate for:** C0's encoder-adoption rule.
 
 What a batch of patches costs per candidate encoder on the reference device —
 mid-range Android, at least 4 GB of RAM. Tracked as #215.
 
-It is here rather than inside C0 because it is an application measurement that
-needs hardware rather than an experiment over the dataset, and because
+It is here rather than inside C0 because it is an application measurement rather
+than an experiment over the dataset, and because
 [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
-it as one of four separately auditable conditions. **Human-owned**: no agent can
-run it.
+it as one of four separately auditable conditions.
+
+**Revised 2026-09-05, and corrected the same day.** No physical mid-range device
+is available, and the Developer accepted the emulator rather than leaving the
+condition unmeasurable.
+
+**A first version of this revision claimed that a *failing* emulator number is
+decisive — that an encoder exceeding the budget there exceeds it on a phone. That
+claim is withdrawn: it was asserted and never established.** It assumes the
+emulator is the faster of the two, and the sign of that inequality is unknown for
+this workload. An emulator can be faster, running on a desktop CPU with no
+thermal ceiling and no frequency governor. It can equally be **slower**: a
+TFLite native library built for ARM is *translated* on an x86 emulator, and a
+phone can reach NNAPI, a GPU delegate or an NPU that no emulator exposes, so a
+quantized model may run far faster on the device's accelerator than on the
+emulator's CPU-only path.
+
+**So neither direction decides condition 3.** Until a reference device exists, or
+the emulator-to-device relationship is calibrated for this model and this ABI,
+condition 3 reads **not met — for want of a measurement on the reference
+device**, whatever the emulator returns. SPEC 0044 already requires that to be a
+different record entry from "too slow" and from "lost a comparison".
+
+**What the emulator is still worth running for** is engineering feedback rather
+than a gate result: whether the encoder runs at all, whether it fits in memory,
+and an order of magnitude that would make a device measurement obviously
+worthwhile or obviously moot. That is useful and it is not condition 3.
+
+That still removes this item's dependency on owning hardware, and with it the
+**human-owned** designation it carried: an emulator run is scriptable, and CI
+already boots one for the `smoke` job.
 
 ## 4. Lane B — training pipeline
 
@@ -636,7 +756,7 @@ B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
 B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 python (0053) ── done ──┤
                                                │
-                       C0 probe (#213) ── D6 ADR ──┤
+       C0 probe (#213) ── SPEC 0057 ── ADR 0021 ──┤
                        A7 latency (#215) ───────────┤
                                                     ▼
                                     C0 ── GATE ── C1 ── C2 ── C3 ── release
@@ -660,11 +780,15 @@ SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
 the C0 gate (#216) are the next items**, and they run over a pipeline that
 resamples to a measured canonical rather than to an assumed one.
 
-**Corrected 2026-09-04: C0's probe is done and returned positive, so the next
-item is the D6 decision and not the gate.** The order is now **the D6 ADR, then
-the C0 gate (#216)** — because both of D6's options change which photographs may
-train, both therefore change the folds, and E0 is roughly twenty hours of compute
-that a later change to the partition would discard. A7 (#215) runs whenever a
+**Corrected 2026-09-05, superseding the 2026-09-04 correction this replaces:
+C0's probe is done and returned positive, and two items now stand between it and
+the gate.** The order is **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
+then ADR 0021, then the C0 gate (#216)** — the sensitivity comparison first
+because D6 should be decided on a number rather than an argument, then the ADR
+against that number, then the gate. The gate is last because both of D6's options
+change which photographs may train, both therefore change the folds, and E0 is
+roughly twenty hours of compute that a later change to the partition would
+discard. A7 (#215) runs whenever a
 device is available; it is not on the path until the gate's decision rule reads
 it. A6's Dart half stays behind A4 and is a release blocker rather
 than a gate blocker.
