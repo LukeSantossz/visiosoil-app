@@ -409,6 +409,24 @@ def test_the_single_fold_entry_point_reuses_a_matching_fold(tmp_path, monkeypatc
     assert calls == [], "a matching fold was recomputed"
 
 
+def test_a_fold_outside_the_partition_is_refused_rather_than_skipped(tmp_path):
+    """An empty plan reads as "nothing to run", which here means "already done".
+
+    `train --repeat 9 --fold 9` would then print that the fold was reused and
+    train nothing, exiting zero. A dispatched CI job that trains nothing and
+    succeeds is worse than one that fails.
+    """
+    with pytest.raises(ValueError, match="outside the partition"):
+        plan_arm_run(
+            tmp_path,
+            MANIFEST,
+            cfg=CFG,
+            arm="cnn",
+            shuffled_control=False,
+            only=(9, 9),
+        )
+
+
 def test_planning_can_be_restricted_to_one_fold(tmp_path):
     """One rule, one implementation: the single-fold path asks the same planner."""
     write_fold(tmp_path, 0, 0)
