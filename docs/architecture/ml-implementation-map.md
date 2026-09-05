@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-09-03.
+Last updated: 2026-09-04.
 
 > **Revised 2026-08-25.** The lane structure below is sound and its premise is
 > not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
@@ -89,6 +89,36 @@ Last updated: 2026-09-03.
 > eleven photographs the canonical refuses are all in the transported population,
 > which is already train-only, so the 77-group splittable pool and the minimum
 > detectable effect SPEC 0042 records are untouched.
+
+> **Revised 2026-09-04. C0's probe (#213) is done and it returned positive,
+> which moves the item after it.** The capture-population probe
+> ([SPEC 0055](../specs/0055-probe-whether-the-capture-population-is-predictable.md),
+> verdict in [docs/ml/capture-population-probe.md](../ml/capture-population-probe.md))
+> recovered the capture population from the same patches the E0 arms see:
+> **90 / 97 sample groups, Wilson 95 % lower bound 0.858 against a
+> majority-population prior of 0.649**, with the transported population `B`
+> recovered **20 of 20**. The pre-registered rule fires: **SPEC 0040 D6's
+> train-only restriction is re-opened by name**, and the choice between its two
+> written options — `B` leaves training entirely, or `B` is restricted to arms
+> that provably cannot exploit an encoding signature — is an ADR written against
+> those numbers. SPEC 0055 scoped that decision out deliberately, so it is a new
+> item and not part of the probe.
+>
+> **This displaces the C0 gate (#216) rather than delaying it by a day.** Both
+> options change which photographs may train, so both change the folds, and a
+> result pooled across two fold manifests is refused by construction. Measured
+> per-fold cost puts E0 at roughly twenty hours — `cnn` and `shuffled_control` at
+> about 930 s per fold over 25 folds each, `descriptors` at 147 s, the frozen
+> encoder unmeasured, plus the descriptor ablation — so running the gate before
+> the D6 decision risks spending all of it on a partition the decision
+> invalidates. The recommended order below is corrected accordingly.
+>
+> **What the verdict does not say** is that the E0 result would be wrong.
+> Recovering the capture population is not the same as the texture arms
+> exploiting it; the finding is that the information is present in the
+> representation, which makes D6 a mitigation of unproven sufficiency. The
+> verdict document states this in those words, because the stronger reading is
+> the tempting one.
 
 ## 1. What we are building
 
@@ -606,9 +636,9 @@ B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
 B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 python (0053) ── done ──┤
                                                │
-                       C0 probe (#213)  ───────┤
-                       A7 latency (#215) ──────┤
-                                               ▼
+                       C0 probe (#213) ── D6 ADR ──┤
+                       A7 latency (#215) ───────────┤
+                                                    ▼
                                     C0 ── GATE ── C1 ── C2 ── C3 ── release
 
 their item 1 ── A4 ─┬─ B3
@@ -628,9 +658,15 @@ trained without an environment, and the patch pipeline cannot be built without
 the scale it normalises to. **All three are now done** — B1's environment by SPEC 0051, B2's scale by
 SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
 the C0 gate (#216) are the next items**, and they run over a pipeline that
-resamples to a measured canonical rather than to an assumed one. A7 (#215) runs
-whenever a device is available; it is not on the path until the gate's decision
-rule reads it. A6's Dart half stays behind A4 and is a release blocker rather
+resamples to a measured canonical rather than to an assumed one.
+
+**Corrected 2026-09-04: C0's probe is done and returned positive, so the next
+item is the D6 decision and not the gate.** The order is now **the D6 ADR, then
+the C0 gate (#216)** — because both of D6's options change which photographs may
+train, both therefore change the folds, and E0 is roughly twenty hours of compute
+that a later change to the partition would discard. A7 (#215) runs whenever a
+device is available; it is not on the path until the gate's decision rule reads
+it. A6's Dart half stays behind A4 and is a release blocker rather
 than a gate blocker.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list

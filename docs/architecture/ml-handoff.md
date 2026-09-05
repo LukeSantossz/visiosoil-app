@@ -24,9 +24,24 @@ described. Five decisions followed in one day.
 | **The model sees greyscale patches** | Patches of ~21 mm at 160 px, overlapping by half, inset from the region boundary — 25 for a 90 mm dish, 9 at the refusal floor of ~70 mm. Their disagreement is an image-quality criterion, **not** a confidence. [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) |
 | **The background gap largely closed itself** | A patch cut from inside the soil region is soil and nothing else, so dish-versus-paper stops mattering at the level the model sees. #192 drops to conditional, and the study's "severe" background rating is wrong |
 
-**E0 is runnable now.** It was blocked on images for the whole programme and no
-longer is. It is specified by SPEC 0044 and tracked as **#216**; the issue named
-here, #197, is closed.
+**E0 is runnable and should not be run yet.** It was blocked on images for the
+whole programme and no longer is — it is specified by SPEC 0044 and tracked as
+**#216**, and the issue named here, #197, is closed. What now stands in front of
+it is a number rather than a missing dependency: the capture-population probe
+([SPEC 0055](../specs/0055-probe-whether-the-capture-population-is-predictable.md),
+verdict in [docs/ml/capture-population-probe.md](../ml/capture-population-probe.md))
+recovered the capture population from the same patches the arms see — **90 / 97
+sample groups, Wilson 95 % lower bound 0.858 against a prior of 0.649**, with the
+transported population `B` recovered **20 of 20**. Its pre-registered rule
+re-opens **SPEC 0040 D6** by name, and both of D6's written options change which
+photographs may train and therefore change the folds. E0 is about twenty hours of
+compute; running it before the D6 decision risks spending all of it on a
+partition the decision invalidates.
+
+That verdict does **not** say the E0 result would be wrong. Recovering the
+capture population is not the same as the texture arms exploiting it: the finding
+is that the information is present in the representation, which makes D6 a
+mitigation of unproven sufficiency.
 
 ## Decisions taken
 
@@ -114,11 +129,17 @@ dependencies. The map's §6 is the authority; this is its short form.
 
 1. **#178** — the remaining defect that would bias E0. #180 was folded into A6
    and is closed by the resample it introduced.
-2. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way. It is now the first thing on the critical path.
-3. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
+2. **The D6 ADR** — written against the capture-population probe's numbers,
+   choosing between the two options SPEC 0055 fixed in advance: population `B`
+   leaves training entirely, or it is restricted to arms that provably cannot
+   exploit an encoding signature. **Corrected 2026-09-04: this now sits ahead of
+   the gate**, because either option changes the folds the gate would have run
+   on.
+3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
+   committed either way.
+4. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
    and neither blocks the gate.
-4. Everything else sits behind the C0 gate.
+5. Everything else sits behind the C0 gate.
 
 Done since this file was last rewritten: #196 (HEIC converted, SPEC 0040), #179
 (BatchNorm, SPEC 0045), the four-class list (SPEC 0046), the evaluation protocol
