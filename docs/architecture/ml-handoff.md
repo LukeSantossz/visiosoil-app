@@ -106,7 +106,7 @@ cannot know whether anything is retryable.
 
 ## Open defects, all tracked
 
-**#196, #179 and #178 are closed** and are no longer listed here; the table below is
+**#196, #179, #178, #30 and #26 are closed** and are no longer listed here — #26 by SPEC 0056, which made an interrupted arm resume rather than overwrite. The table below is
 what remains open.
 
 | Issue | |
@@ -114,7 +114,7 @@ what remains open.
 | #194 | The out-of-distribution score, **built for v1** — with Siltosa excluded it is the only guard against a confident wrong answer on silty soil |
 | #185 | `Interpreter.fromBuffer` leaks the model on every classification |
 | #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field |
-| #26, #29, #30, #188 | Checkpoint selection, export parity on real data, path resolution, calibration metrics |
+| #29, #188 | Export parity on real data, calibration metrics |
 | #79 | The contract is not read; SPEC 0035 is specified and unimplemented |
 | #189 | The architecture study needs a resync |
 | #180 | **Half open, and not a gate blocker.** Its Python half is resolved: `patches.resample_to_canonical` resizes through Pillow, which scales a filter's support by the reduction factor, so the canonical downsample is low-passed; and `preprocess.preprocess` — the `tf.image.resize(antialias=False)` the issue names — is off the patch path. The **Dart** half survives: `inference_service.dart` still uses `Interpolation.linear`. It belongs to A6's Dart half and is a **release** blocker |
