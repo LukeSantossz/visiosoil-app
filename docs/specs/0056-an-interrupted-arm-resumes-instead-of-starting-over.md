@@ -47,13 +47,28 @@ is treated as incomplete, not as a corrupt result to be pooled.
 
 **Provenance is four things, all already written per fold except one.** The
 fold's `config.json` must equal the run's resolved configuration; its
-`runtime.json` library versions must equal the current ones; its
 `predictions.json` header must carry the same `arm` and `shuffled_control`; and
 it must carry the **manifest digest**, which is the one thing no fold records
 today. `write_fold_predictions` gains it. Without it, two runs over the same
 `dataset_version` whose manifest changed underneath — which `measure_scale.py`
 does routinely — are indistinguishable, and resume would pool folds computed
 from different data.
+
+**The library versions are checked, and not here.** *Amended during
+implementation, 2026-09-05.* This spec first put the recorded `runtime.json`
+into the reuse predicate. It cannot go there: the runtime a fold would record
+now is produced by `seed_everything`, which lives behind TensorFlow, and
+`crossval.py` defers that import precisely so a run that is going to be refused
+is refused before paying for it. Reading it early would make every refusal cost
+half a minute, and building a second, cheaper version of the same record would
+create two descriptions of one runtime that can disagree.
+
+It becomes a **separate check after the loop and before anything is pooled**:
+`require_uniform_runtime` refuses an arm whose folds did not all record the same
+runtime, naming the folds that differ. That is stronger than the original
+placement rather than weaker — it catches runtime drift in a run that resumed
+nothing at all, which the reuse predicate by construction never could — and it
+runs where the record it compares already exists on disk for every fold.
 
 **A fold written before this spec carries no digest and is therefore not
 reusable.** It falls into the third row and the run is refused unless forced.
@@ -116,10 +131,11 @@ is the property that makes resume legitimate rather than merely convenient.
 
 - Includes:
   - `ml/src/crossval.py` — `fold_reuse_state` (new) classifying one fold
-    directory; `write_fold_predictions` records the manifest digest and whether
-    the fold was forced; `run_arm` gains `--force`, partitions the folds before
-    running any, refuses on stale folds naming all of them, and reports what it
-    reused.
+    directory and `require_uniform_runtime` (new) refusing an arm whose folds
+    ran under different library versions; `write_fold_predictions` records the
+    manifest digest and whether the fold was forced; `run_arm` gains `--force`,
+    partitions the folds before running any, refuses on stale folds naming all
+    of them, and reports what it reused.
   - `ml/scripts/run_population_probe.py` — the same classification in its loop,
     and the same `--force`.
   - `ml/tests/` — one test per acceptance criterion below.
@@ -155,6 +171,9 @@ is the property that makes resume legitimate rather than merely convenient.
 - a_control_and_its_arm_do_not_reuse_each_other: a fold recorded with
   `shuffled_control` true is not reusable by a run without the flag, and the
   reverse.
+- an_arm_whose_folds_ran_under_different_libraries_is_refused: an arm holding two
+  folds with different recorded `runtime.json` values is refused before anything
+  is pooled, naming the folds that differ — whether or not the run resumed.
 - the_probe_resumes_on_the_same_rule: `run_population_probe.py` reuses,
   recomputes and refuses by the same classification, asserted against the same
   function.
@@ -190,7 +209,8 @@ and exits in seconds where it previously spent twenty-eight minutes.
   in it, so moving the checkout invalidates reuse — correctly, since a fold's
   images would then have come from elsewhere.
 - **Risk: resume hides a real change.** If a change alters training without
-  altering the configuration, the runtime versions, the arm name or the manifest,
+  altering the configuration, the arm name or the manifest — and without moving
+  a library version, which `require_uniform_runtime` would catch afterwards —
   a resumed run mixes old and new code. That is the residual gap, it is named
   here rather than left implicit, and `--force` is what closes it for an operator
   who knows the code moved. Recording a source digest per fold was considered and
