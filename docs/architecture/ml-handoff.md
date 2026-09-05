@@ -106,14 +106,12 @@ cannot know whether anything is retryable.
 
 ## Open defects, all tracked
 
-**#196 and #179 are closed** and are no longer listed here; the table below is
+**#196, #179 and #178 are closed** and are no longer listed here; the table below is
 what remains open.
 
 | Issue | |
 |---|---|
 | #194 | The out-of-distribution score, **built for v1** — with Siltosa excluded it is the only guard against a confident wrong answer on silty soil |
-| #178 | The training path does not pass `sample_ids`; grouping falls back to a filename regex that happens to match this archive |
-| #180 | Neither downsample path anti-aliases; folded into A6 and closed by SPEC 0053's resample to the canonical scale |
 | #185 | `Interpreter.fromBuffer` leaks the model on every classification |
 | #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field |
 | #26, #29, #30, #188 | Checkpoint selection, export parity on real data, path resolution, calibration metrics |

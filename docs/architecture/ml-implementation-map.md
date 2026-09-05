@@ -474,16 +474,30 @@ released between them.
 ### A7 — On-device patch-batch latency budget
 
 **Record:** none yet; the measurement is a document. **Depends on:** A6 for the
-patch count, and a physical device. **Gate for:** C0's encoder-adoption rule.
+patch count. **Gate for:** C0's encoder-adoption rule.
 
 What a batch of patches costs per candidate encoder on the reference device —
 mid-range Android, at least 4 GB of RAM. Tracked as #215.
 
-It is here rather than inside C0 because it is an application measurement that
-needs hardware rather than an experiment over the dataset, and because
+It is here rather than inside C0 because it is an application measurement rather
+than an experiment over the dataset, and because
 [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
-it as one of four separately auditable conditions. **Human-owned**: no agent can
-run it.
+it as one of four separately auditable conditions.
+
+**Revised 2026-09-05: the emulator is the accepted measurement surface, and what
+it can decide is asymmetric.** No physical mid-range device is available, and the
+Developer accepted the emulator rather than leaving the condition unmeasurable.
+An emulator runs on the host CPU with no thermal ceiling and no frequency
+governor, so a **failing** number is decisive — an encoder that exceeds the
+budget there exceeds it on a phone — while a **passing** number establishes
+nothing, and condition 3 then reads *not met, for want of a measurement on the
+reference device*. SPEC 0044 already requires that to be a different record entry
+from "too slow" and from "lost a comparison"; this revision fixes which of the
+three an emulator can produce.
+
+That also removes this item's dependency on hardware, and with it the
+**human-owned** designation it carried: an emulator run is scriptable, and CI
+already boots one for the `smoke` job.
 
 ## 4. Lane B — training pipeline
 
@@ -727,7 +741,7 @@ B1 (0032) ── done ──┬─ B1 environment (#214) ──┐
                     │                          │
 B2 (0033/0040) ─────┴─ B2 scale (0052) ── A6 python (0053) ── done ──┤
                                                │
-                       C0 probe (#213) ── D6 ADR ──┤
+       C0 probe (#213) ── SPEC 0057 ── ADR 0021 ──┤
                        A7 latency (#215) ───────────┤
                                                     ▼
                                     C0 ── GATE ── C1 ── C2 ── C3 ── release
@@ -751,11 +765,15 @@ SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
 the C0 gate (#216) are the next items**, and they run over a pipeline that
 resamples to a measured canonical rather than to an assumed one.
 
-**Corrected 2026-09-04: C0's probe is done and returned positive, so the next
-item is the D6 decision and not the gate.** The order is now **the D6 ADR, then
-the C0 gate (#216)** — because both of D6's options change which photographs may
-train, both therefore change the folds, and E0 is roughly twenty hours of compute
-that a later change to the partition would discard. A7 (#215) runs whenever a
+**Corrected 2026-09-05, superseding the 2026-09-04 correction this replaces:
+C0's probe is done and returned positive, and two items now stand between it and
+the gate.** The order is **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
+then ADR 0021, then the C0 gate (#216)** — the sensitivity comparison first
+because D6 should be decided on a number rather than an argument, then the ADR
+against that number, then the gate. The gate is last because both of D6's options
+change which photographs may train, both therefore change the folds, and E0 is
+roughly twenty hours of compute that a later change to the partition would
+discard. A7 (#215) runs whenever a
 device is available; it is not on the path until the gate's decision rule reads
 it. A6's Dart half stays behind A4 and is a release blocker rather
 than a gate blocker.
