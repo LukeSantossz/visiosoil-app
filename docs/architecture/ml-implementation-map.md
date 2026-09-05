@@ -133,7 +133,7 @@ Last updated: 2026-09-05.
 > |---|---|---|---|---|
 > | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
 > | **ADR 0021** | what D6 becomes | which of D6's two written options is taken | SPEC 0057's numbers | — |
-> | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | ADR 0021 | ~20 h |
+> | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | ADR 0021 | ~20 h on CPU |
 >
 > **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** Written 2026-09-05 and awaiting the Spec Gate; nothing is implemented. The
 > Developer's instruction on 2026-09-05 was to measure before deciding, and this
@@ -165,6 +165,14 @@ Last updated: 2026-09-05.
 > manifest, and a result pooled across two fold manifests is refused by
 > construction. Running twenty hours before the decision risks discarding all of
 > it.
+>
+> **The gate's execution hardware is deliberately open (2026-09-05).** The
+> twenty-hour figure is CPU, and SPEC 0044's Risks now record what a GPU changes
+> and what it does not — including the one that bites late rather than early:
+> `require_uniform_runtime` refuses an arm whose folds recorded different
+> devices, so **a CPU-started arm cannot be resumed on a GPU**. The device is
+> settled per arm before that arm's first fold, or `--force` discards what was
+> already computed.
 >
 > **A7 (#215) runs on an emulator, and what that can decide is asymmetric.**
 > Decided 2026-09-05: no physical mid-range device is available and the emulator
