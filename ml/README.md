@@ -261,19 +261,28 @@ Rebuilding it with `ingest_archive.py` and `measure_scale.py` is possible — th
 readings are tracked at `ml/measurements/dish-scale-v1.json` — but it can produce
 a different byte sequence and break that match for no gain. Copy it.
 
-**2. The fold manifest travels through git, and must not be regenerated.**
-`ml/data/splits/splits.json` is **tracked** — the one file under `ml/data/` that
-is, and for a reason worth knowing rather than working around. It is drawn by
+**2. Copy `ml/data/splits/` too, and do not let the other machine regenerate
+it.** This is the one that fails quietly. The fold manifest is drawn by
 `StratifiedGroupKFold`, which **partitions differently across scikit-learn
 releases**: the seed alone does not reproduce a partition, which is why the file
-records the versions it was drawn under. Pulled from git, the stored assignment
-is used as it stands and `load_folds` warns if the reading stack differs.
+records the versions it was drawn under. Copied across, the stored assignment is
+used as it stands and `load_folds` warns if the reading stack differs.
 Regenerated on the other machine under a different scikit-learn, the folds move,
 **no warning fires** because there is nothing left to compare against, and every
 number computed there becomes incomparable with every number computed here.
 
 So on the GPU machine: **do not delete it, and do not run anything that would
 regenerate it.** `run_arm` regenerates only when the file is absent.
+
+*It is copied rather than pulled from git for a reason worth knowing.* Tracking
+it was tried on 2026-09-05 and withdrawn the same day: `splits.json` stores
+**absolute** image paths and nothing re-roots them on load, so a copy pulled from
+git on another machine is a manifest every one of whose paths points at the
+machine it left. Making them relative is a schema change tracked as
+[#233](https://github.com/LukeSantossz/visiosoil-app/issues/233); until it lands,
+the file travels the same way the images do. **Copying the directory works
+because the checkout path is the same on both machines** — if it is not, the
+paths are wrong there too, and #233 is a prerequisite rather than a convenience.
 
 **3. `ml/models/<version>/` is not tracked either.** Carrying it is optional and
 usually not worth it: every fold already there predates the provenance record

@@ -40,10 +40,12 @@ BOOKKEEPING_PATHS = [
 ]
 
 
-#: The fold manifest, which is **not** a dataset version and is deliberately
-#: tracked. Listed beside the ignored paths so the boundary between them is
-#: asserted rather than left to a reader of `.gitignore`.
-TRACKED_PATHS = [
+#: The fold manifest. Tracked on 2026-09-05 and untracked the same day: it
+#: stores absolute image paths, so a copy on another machine is a manifest whose
+#: every path is wrong, and tracking it bought nothing the move it was tracked
+#: for could use. Listed here so the reversal is asserted rather than merely
+#: performed — the same reason `BOOKKEEPING_PATHS` exists. See #233.
+WITHDRAWN_PATHS = [
     "ml/data/splits/splits.json",
 ]
 
@@ -77,58 +79,37 @@ def test_dataset_bookkeeping_files_are_ignored_too(path):
     assert check_ignore(path), f"{path} would be committed"
 
 
-@pytest.mark.parametrize("path", TRACKED_PATHS)
-def test_the_fold_manifest_is_versioned_and_the_dataset_is_not(path):
-    """The partition is a record, and ADR 0019's argument does not reach it.
+@pytest.mark.parametrize("path", WITHDRAWN_PATHS)
+def test_the_fold_manifest_is_not_tracked_while_its_paths_are_absolute(path):
+    """Tracking it was tried and withdrawn, and the reason is worth keeping.
 
-    That ADR untracked the dataset version because it is a deterministic
-    function of the archive and the code, both recoverable. The partition is
-    not: `StratifiedGroupKFold` assigns differently across scikit-learn
-    versions, which is why `splits.json` records the versions it was drawn
-    under. Regenerated on another machine under another stack it produces
-    *different* folds, silently, because there is nothing left to compare
-    against — so it is the one file under `ml/data/` that has to travel.
+    The partition is genuinely not reproducible — `StratifiedGroupKFold` assigns
+    differently across scikit-learn releases, which is why `splits.json` records
+    the versions it was drawn under — so a record of it *should* travel. What
+    stops it is that the file stores absolute image paths and nothing re-roots
+    them on load, so a copy on another machine is a manifest every one of whose
+    paths is wrong. Relative paths are a schema change (#233).
     """
-    assert not check_ignore(path), f"{path} would not be committed"
+    assert check_ignore(path), f"{path} would be committed"
 
 
-def test_the_fold_manifest_is_actually_tracked():
-    """An ignore rule that stopped matching says nothing about the index.
+def test_the_fold_manifest_is_not_in_the_index_either():
+    """An ignore rule says nothing about a file already added.
 
-    `git add` is what puts the file in history, and a negation pattern with no
-    `git add` behind it leaves the file untracked and the rule inert — the same
-    failure `test_no_dataset_version_file_is_tracked` guards from the other
-    direction.
+    `git rm --cached` is what removes one, and this is the check that would have
+    caught forgetting it — the same guard `test_no_dataset_version_file_is_tracked`
+    makes for the dataset.
     """
     completed = subprocess.run(
-        ["git", "ls-files", "--", "ml/data/splits/splits.json"],
+        ["git", "ls-files", "--", "ml/data/splits"],
         cwd=REPO_ROOT,
         capture_output=True,
         stdin=subprocess.DEVNULL,
     )
-    tracked = completed.stdout.decode(errors="replace").split()
+    tracked = [
+        name
+        for name in completed.stdout.decode(errors="replace").split()
+        if not name.endswith(".gitkeep")
+    ]
 
-    assert tracked == ["ml/data/splits/splits.json"], (
-        "the fold manifest is not in the index, so the negation pattern is inert"
-    )
-
-
-def test_no_dataset_version_file_is_tracked():
-    """The reversal is asserted against the index, not only against the rules.
-
-    An ignore rule says nothing about a file already in history: `git rm
-    --cached` is what removes one, and forgetting it leaves the file tracked and
-    the rule inert. This is the check that would have caught that.
-    """
-    completed = subprocess.run(
-        ["git", "ls-files", "--", "ml/data/datasets"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        stdin=subprocess.DEVNULL,
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.strip() == "", (
-        "these dataset-version files are still tracked:\n" + completed.stdout
-    )
+    assert tracked == [], f"the fold manifest is still in the index: {tracked}"

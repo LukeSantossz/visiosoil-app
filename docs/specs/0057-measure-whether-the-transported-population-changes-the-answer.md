@@ -179,15 +179,20 @@ it exists to inform.
   - `docs/ml/transported-population-sensitivity.md` (new, committed) — the
     verdict, with its numbers, whichever way it returns.
   - `ml/tests/` — one test per acceptance criterion below.
-  - `.gitignore` — **track `ml/data/splits/splits.json`.** Added 2026-09-05, at
-    the Developer's direction, so this experiment can move to a machine with a
-    GPU without the partition moving with it. It is not an exception to
-    [ADR 0019](../adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md):
-    that ADR untracked a dataset *version* because a version is a deterministic
-    function of the archive and the code, both recoverable. A partition is not —
-    `StratifiedGroupKFold` assigns differently across scikit-learn releases,
-    which is why the file records the versions it was drawn under. The dataset
-    itself stays ignored, and a test asserts both halves of that boundary.
+  - `.gitignore` — **no change.** Tracking `ml/data/splits/splits.json` was
+    added on 2026-09-05, at the Developer's direction, so this experiment could
+    move to a machine with a GPU without the partition moving with it — and
+    **withdrawn the same day**, on R2's finding, because the file stores
+    absolute image paths and nothing re-roots them on load. A copy pulled from
+    git on another machine is a manifest every one of whose paths points at the
+    machine it left, so tracking it bought nothing the move could use. The
+    reason to track it stands and the mechanism does not: relative paths are a
+    fold-manifest schema change, filed as
+    [#233](https://github.com/LukeSantossz/visiosoil-app/issues/233). Until it
+    lands, `ml/data/` is copied whole, which `ml/README.md` says. The test that
+    asserted the tracking now asserts the withdrawal, so the reversal is
+    checkable rather than remembered.
+
 - Does NOT include:
   - **Taking the D6 decision.** That is ADR 0021, written against these
     numbers, exactly as SPEC 0055 refused to take the decision its own rule

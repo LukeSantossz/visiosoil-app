@@ -75,19 +75,17 @@ nul
 ml/.venv/
 ml/data/raw/
 ml/data/processed/
-# The fold manifest is the one file under `ml/data/` that is versioned, and it
-# is not an exception to ADR 0019 — that ADR untracked a dataset *version*
-# because the version is a deterministic function of the archive and the code,
-# both recoverable. The partition is not: `StratifiedGroupKFold` assigns
-# differently across scikit-learn releases, which is why `splits.json` records
-# the versions it was drawn under. Regenerated elsewhere under another stack it
-# produces different folds and nothing warns, because there is nothing left to
-# compare against — so every number computed against it becomes incomparable
-# with every number computed here, silently. 68 KB of text that diffs, against
-# a failure no artifact would report.
-ml/data/splits/*
-!ml/data/splits/.gitkeep
-!ml/data/splits/splits.json
+# The fold manifest was tracked on 2026-09-05 and untracked the same day. The
+# reason for tracking it stands: the partition is not reproducible from the seed
+# — `StratifiedGroupKFold` assigns differently across scikit-learn releases, so
+# regenerating it elsewhere moves the folds and nothing warns. The reason for
+# untracking it is that it does not survive the move it was tracked for:
+# `splits.json` stores **absolute** image paths, so the file is valid on exactly
+# one machine. Carrying it to another buys a manifest whose every path is wrong.
+# Making those paths relative is a fold-manifest schema change (#233) and
+# belongs to its own spec, not to a rider on an experiment. Until then the whole
+# of `ml/data/` is copied, which is what the ml/README runbook says.
+ml/data/splits/
 # The delivered sample archive, as the laboratory handed it over: original
 # filenames, original formats, English class folders. It is source material,
 # not a pipeline input — ingestion reads it by path and writes a dataset
