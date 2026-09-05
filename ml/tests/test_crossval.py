@@ -801,7 +801,16 @@ def test_the_single_fold_entry_point_runs_the_arms_own_method(monkeypatch, tmp_p
         },
     )
     monkeypatch.setattr(
-        train_module, "load_folds_for_config", lambda cfg, splits_dir: {"k": 1}
+        train_module,
+        "load_folds_for_config",
+        # A partition, not just a fold count: since SPEC 0056 the entry point
+        # plans the fold it was asked for, which needs the shape to check it
+        # against and the digest to check it by.
+        lambda cfg, splits_dir: {
+            "k": 1,
+            "repeats": 1,
+            "manifest_digest": "e" * 64,
+        },
     )
     (tmp_path / "splits.json").write_text("{}", encoding="utf-8")
 

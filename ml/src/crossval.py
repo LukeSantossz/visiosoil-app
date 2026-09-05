@@ -350,32 +350,44 @@ def plan_arm_run(
             an operator deciding whether to pass ``--force`` needs the whole cost
             of that decision in one message. ``force`` recomputes them instead.
     """
+    repeats, k = fold_manifest["repeats"], fold_manifest["k"]
+    if only is None:
+        candidates = [(r, f) for r in range(repeats) for f in range(k)]
+    else:
+        # Checked rather than filtered out. A fold outside the partition would
+        # otherwise leave an empty plan, which every caller reads as "nothing
+        # left to run" -- so `train --repeat 9 --fold 9` would report the fold
+        # reused, train nothing, and exit zero.
+        if not (0 <= only[0] < repeats and 0 <= only[1] < k):
+            raise ValueError(
+                f"repeat {only[0]} fold {only[1]} is outside the partition, "
+                f"which is {repeats} repeat(s) of {k} fold(s)"
+            )
+        candidates = [only]
+
     reuse: list[tuple[int, int]] = []
     run: list[tuple[int, int]] = []
     stale: list[str] = []
 
-    for repeat in range(fold_manifest["repeats"]):
-        for fold in range(fold_manifest["k"]):
-            if only is not None and (repeat, fold) != only:
-                continue
-            if force:
-                run.append((repeat, fold))
-                continue
-            state, reason = fold_reuse_state(
-                arm_dir,
-                repeat,
-                fold,
-                cfg=cfg,
-                manifest_digest=fold_manifest["manifest_digest"],
-                arm=arm,
-                shuffled_control=shuffled_control,
-            )
-            if state is FoldReuse.REUSABLE:
-                reuse.append((repeat, fold))
-            elif state is FoldReuse.STALE:
-                stale.append(f"{fold_directory(arm_dir, repeat, fold)} — {reason}")
-            else:
-                run.append((repeat, fold))
+    for repeat, fold in candidates:
+        if force:
+            run.append((repeat, fold))
+            continue
+        state, reason = fold_reuse_state(
+            arm_dir,
+            repeat,
+            fold,
+            cfg=cfg,
+            manifest_digest=fold_manifest["manifest_digest"],
+            arm=arm,
+            shuffled_control=shuffled_control,
+        )
+        if state is FoldReuse.REUSABLE:
+            reuse.append((repeat, fold))
+        elif state is FoldReuse.STALE:
+            stale.append(f"{fold_directory(arm_dir, repeat, fold)} — {reason}")
+        else:
+            run.append((repeat, fold))
 
     if stale:
         raise ValueError(
