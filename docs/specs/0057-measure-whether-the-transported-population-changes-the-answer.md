@@ -179,6 +179,15 @@ it exists to inform.
   - `docs/ml/transported-population-sensitivity.md` (new, committed) — the
     verdict, with its numbers, whichever way it returns.
   - `ml/tests/` — one test per acceptance criterion below.
+  - `.gitignore` — **track `ml/data/splits/splits.json`.** Added 2026-09-05, at
+    the Developer's direction, so this experiment can move to a machine with a
+    GPU without the partition moving with it. It is not an exception to
+    [ADR 0019](../adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md):
+    that ADR untracked a dataset *version* because a version is a deterministic
+    function of the archive and the code, both recoverable. A partition is not —
+    `StratifiedGroupKFold` assigns differently across scikit-learn releases,
+    which is why the file records the versions it was drawn under. The dataset
+    itself stays ignored, and a test asserts both halves of that boundary.
 - Does NOT include:
   - **Taking the D6 decision.** That is ADR 0021, written against these
     numbers, exactly as SPEC 0055 refused to take the decision its own rule

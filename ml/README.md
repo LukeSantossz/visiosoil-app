@@ -244,20 +244,27 @@ machine with a GPU.
 Three things do not travel through git, and two of them will break the comparison
 silently if they are not handled.
 
-**1. The dataset is not tracked.** `ml/data/datasets/v1/` is a build product
+**1. The dataset is not tracked, and is not going to be.** `ml/data/datasets/v1/`
+is a build product
 ([ADR 0019](../docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md))
-— 221 photographs and the manifest that measures them. Copy the directory.
-Without it nothing runs, which is the safe failure.
+— 221 photographs, **1.3 GB**, of a laboratory's samples, in a **public**
+repository. Copy the directory, or let the synchronised folder the checkout
+already lives in carry it. Without it nothing runs, which is the safe failure:
+loud, immediate, and impossible to mistake for a result.
 
-**2. Copy `ml/data/splits/` as well, and do not let the other machine regenerate
-it.** This is the one that fails quietly. The fold manifest is drawn by
+**2. The fold manifest travels through git, and must not be regenerated.**
+`ml/data/splits/splits.json` is **tracked** — the one file under `ml/data/` that
+is, and for a reason worth knowing rather than working around. It is drawn by
 `StratifiedGroupKFold`, which **partitions differently across scikit-learn
-versions** — the seed alone does not reproduce a partition, which is why
-`splits.json` records the versions it was drawn under. Carried across, the stored
-assignment is used as it stands and `load_folds` warns if the reading stack
-differs. Regenerated on the other machine under a different scikit-learn, the
-folds move, no warning fires because there is nothing to compare against, and
-every number becomes incomparable with everything computed here.
+releases**: the seed alone does not reproduce a partition, which is why the file
+records the versions it was drawn under. Pulled from git, the stored assignment
+is used as it stands and `load_folds` warns if the reading stack differs.
+Regenerated on the other machine under a different scikit-learn, the folds move,
+**no warning fires** because there is nothing left to compare against, and every
+number computed there becomes incomparable with every number computed here.
+
+So on the GPU machine: **do not delete it, and do not run anything that would
+regenerate it.** `run_arm` regenerates only when the file is absent.
 
 **3. `ml/models/<version>/` is not tracked either.** Carrying it is optional and
 usually not worth it: every fold already there predates the provenance record
