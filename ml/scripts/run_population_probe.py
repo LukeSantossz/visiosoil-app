@@ -31,6 +31,8 @@ from src.config import load_config, resolve_paths  # noqa: E402
 from src.crossval import (  # noqa: E402
     FOLD_MANIFEST_FILENAME,
     load_arm_predictions,
+    plan_arm_run,
+    require_uniform_runtime,
 )
 from src.dataset import library_versions  # noqa: E402
 from src.manifest import ARCHIVE_CLASSES, dataset_root, read_manifest  # noqa: E402
@@ -50,6 +52,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--version", help="dataset version; defaults to the config")
     parser.add_argument("--config", help="path to config.yaml")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="recompute every fold, discarding artifacts already on disk",
+    )
     return parser.parse_args(argv)
 
 
@@ -111,25 +118,49 @@ def main(argv: list[str] | None = None) -> int:
     probe_cfg = {**cfg, "classes": populations}
     from src.arms.probe import probe_fold  # noqa: E402  (needs the training stack)
 
+    # The same classification the arms get (SPEC 0056). This loop is the one an
+    # interruption actually killed, at 17 of 25 folds, so a guard that protected
+    # only `run_arm` would leave the probe exactly where it was.
+    try:
+        plan = plan_arm_run(
+            directory,
+            fold_manifest,
+            cfg=probe_cfg,
+            arm=POPULATION_PROBE_ARM,
+            shuffled_control=False,
+            force=args.force,
+        )
+    except ValueError as refusal:
+        print(refusal, file=sys.stderr)
+        return 1
+    if plan["reuse"]:
+        print(
+            f"{len(plan['reuse'])} fold(s) already computed under this "
+            f"configuration and manifest; reusing them untouched."
+        )
+
     started = time.monotonic()
-    for repeat in range(fold_manifest["repeats"]):
-        for fold in range(fold_manifest["k"]):
-            print(
-                f"\n=== population probe: repeat {repeat + 1}/"
-                f"{fold_manifest['repeats']}, fold {fold + 1}/{fold_manifest['k']} ==="
-            )
-            probe_fold(
-                probe_cfg,
-                fold_manifest,
-                arm_dir=directory,
-                arm=POPULATION_PROBE_ARM,
-                repeat=repeat,
-                fold=fold,
-                featuriser=probe_featuriser,
-                verify=False,
-            )
+    for repeat, fold in plan["run"]:
+        print(
+            f"\n=== population probe: repeat {repeat + 1}/"
+            f"{fold_manifest['repeats']}, fold {fold + 1}/{fold_manifest['k']} ==="
+        )
+        probe_fold(
+            probe_cfg,
+            fold_manifest,
+            arm_dir=directory,
+            arm=POPULATION_PROBE_ARM,
+            repeat=repeat,
+            fold=fold,
+            featuriser=probe_featuriser,
+            verify=False,
+            forced=args.force,
+        )
     print(f"\nprobe finished in {time.monotonic() - started:.1f}s")
 
+    # An arm assembled from two library versions is one arm in name only, and
+    # resuming is not what makes that possible.
+    require_uniform_runtime(directory, fold_manifest)
     predictions, _ = load_arm_predictions(directory, fold_manifest)
     pairs = _group_pairs(predictions)
     # The prior was counted over the partition's groups, so the accuracy has to

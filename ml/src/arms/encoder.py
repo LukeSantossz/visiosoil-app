@@ -210,6 +210,7 @@ def encoder_probe_fold(
     fold: int,
     shuffled_control: bool = False,
     verify: bool = True,
+    forced: bool = False,
 ) -> dict:
     """Run one outer fold of the frozen-encoder arm, with ``train_fold``'s signature.
 
@@ -236,6 +237,7 @@ def encoder_probe_fold(
         featuriser=encoder_featuriser(arm_dir, cfg),
         shuffled_control=shuffled_control,
         verify=verify,
+        forced=forced,
     )
 
 

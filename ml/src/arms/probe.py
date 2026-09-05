@@ -169,6 +169,7 @@ def probe_fold(
     featuriser: Featuriser,
     shuffled_control: bool = False,
     verify: bool = True,
+    forced: bool = False,
 ) -> dict:
     """Select, refit and predict one outer fold of a probe arm, writing its artifacts.
 
@@ -335,6 +336,8 @@ def probe_fold(
         classes=cfg["classes"],
         records=_predict(model, split["test"], cfg, featuriser, cache),
         shuffled_control=shuffled_control,
+        manifest_digest=fold_manifest["manifest_digest"],
+        forced=forced,
     )
     # A "training" is one selection pass over an inner fold, plus the refit —
     # the same unit `train_fold` records, and the one a cost table contrasting

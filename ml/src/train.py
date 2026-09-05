@@ -139,6 +139,7 @@ def train_fold(
     fold: int,
     shuffled_control: bool = False,
     verify: bool = True,
+    forced: bool = False,
 ) -> dict:
     """Select, refit and predict one outer fold, writing its artifacts.
 
@@ -279,6 +280,8 @@ def train_fold(
         classes=cfg["classes"],
         records=_predict(model, split["test"], cfg),
         shuffled_control=shuffled_control,
+        manifest_digest=fold_manifest["manifest_digest"],
+        forced=forced,
     )
     write_fold_cost(arm_dir, repeat, fold, len(seconds), seconds)
     return runtime
