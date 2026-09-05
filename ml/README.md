@@ -252,6 +252,15 @@ repository. Copy the directory, or let the synchronised folder the checkout
 already lives in carry it. Without it nothing runs, which is the safe failure:
 loud, immediate, and impossible to mistake for a result.
 
+**Copy the whole directory, not only `images/`.** `manifest.csv` is ignored too,
+and it is not optional: it carries the dish-rim scale measurements
+([SPEC 0052](../docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md))
+that the patch grid resamples against, and its **byte-exact digest** must equal
+the one `splits.json` records or `load_folds_for_config` refuses the partition.
+Rebuilding it with `ingest_archive.py` and `measure_scale.py` is possible — the
+readings are tracked at `ml/measurements/dish-scale-v1.json` — but it can produce
+a different byte sequence and break that match for no gain. Copy it.
+
 **2. The fold manifest travels through git, and must not be regenerated.**
 `ml/data/splits/splits.json` is **tracked** — the one file under `ml/data/` that
 is, and for a reason worth knowing rather than working around. It is drawn by
