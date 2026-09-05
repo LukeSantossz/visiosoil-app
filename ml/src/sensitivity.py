@@ -196,13 +196,22 @@ def write_sensitivity_report(
     manifest_digest: str,
     contrasts: Sequence[Mapping],
     seeds: Mapping,
-    library_versions: Mapping,
+    runtimes: Mapping[str, Mapping | None],
 ) -> dict:
     """Write the verdict, whichever way it reads.
 
     Committed either way and with everything needed to reproduce it: an
     experiment that reported only when it found something would be one nobody
     could read a null from.
+
+    Args:
+        runtimes: What each arm's own folds recorded, **read back from the
+            artifacts** and not taken from the reporting process. The two are the
+            same only when one machine ran everything, and this experiment is
+            explicitly allowed to span two — a GPU host for the incumbent and
+            this one for the descriptors. A single stack copied from whoever
+            wrote the report would describe half the run and claim to describe
+            all of it. ``None`` for an arm whose folds predate the record.
     """
     read = [read_contrast(contrast) for contrast in contrasts]
     reopened = [
@@ -226,7 +235,8 @@ def write_sensitivity_report(
             "reopened_by": reopened,
         },
         "seeds": dict(seeds),
-        "library_versions": dict(library_versions),
+        "runtimes": {arm: dict(runtime) if runtime else None
+                     for arm, runtime in runtimes.items()},
     }
 
     destination = Path(directory)

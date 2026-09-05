@@ -162,7 +162,8 @@ def _report(tmp_path, **kwargs):
         manifest_digest="d" * 64,
         contrasts=contrasts,
         seeds={"0": 42},
-        library_versions={"scikit-learn": "1.5.2"},
+        runtimes={"descriptors": {"device": "CPU", "library_versions": {"scikit_learn": "1.5.2"}},
+                  "cnn": {"device": "GPU", "library_versions": {"tensorflow": "2.21.0"}}},
         **kwargs,
     )
 
@@ -235,7 +236,10 @@ def test_the_verdict_is_committed_whichever_way_it_returns(tmp_path):
     assert written["verdict"]["d6"] == "stands"
     assert written["manifest_digest"] == "d" * 64
     assert written["seeds"] == {"0": 42}
-    assert written["library_versions"] == {"scikit-learn": "1.5.2"}
+    assert written["runtimes"]["cnn"]["device"] == "GPU", (
+        "each arm records its own stack; this experiment may span two machines"
+    )
+    assert written["runtimes"]["descriptors"]["device"] == "CPU"
 
 
 # --- the withheld population --------------------------------------------------

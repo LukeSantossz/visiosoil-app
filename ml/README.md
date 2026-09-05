@@ -233,6 +233,71 @@ is refused by name rather than reinterpreted.
 `data/splits/` is gitignored, so `splits.json` is **not** versioned in git today
 and the seed plus the recorded digest are what make a fold reproducible.
 
+## Running the D6 sensitivity comparison on another machine
+
+[SPEC 0057](../docs/specs/0057-measure-whether-the-transported-population-changes-the-answer.md)
+runs four arms over one partition — the descriptor arm and the incumbent CNN,
+each with and without the withheld capture population. About **fifteen hours** on
+CPU, most of it the two CNN runs, which is why it is expected to move to a
+machine with a GPU.
+
+Three things do not travel through git, and two of them will break the comparison
+silently if they are not handled.
+
+**1. The dataset is not tracked.** `ml/data/datasets/v1/` is a build product
+([ADR 0019](../docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md))
+— 221 photographs and the manifest that measures them. Copy the directory.
+Without it nothing runs, which is the safe failure.
+
+**2. Copy `ml/data/splits/` as well, and do not let the other machine regenerate
+it.** This is the one that fails quietly. The fold manifest is drawn by
+`StratifiedGroupKFold`, which **partitions differently across scikit-learn
+versions** — the seed alone does not reproduce a partition, which is why
+`splits.json` records the versions it was drawn under. Carried across, the stored
+assignment is used as it stands and `load_folds` warns if the reading stack
+differs. Regenerated on the other machine under a different scikit-learn, the
+folds move, no warning fires because there is nothing to compare against, and
+every number becomes incomparable with everything computed here.
+
+**3. `ml/models/<version>/` is not tracked either.** Carrying it is optional and
+usually not worth it: every fold already there predates the provenance record
+SPEC 0056 added, so `run_arm` classifies it stale and refuses until `--force`.
+Starting the other machine with an empty `models/` is cleaner.
+
+Then, from `ml/` on the GPU machine:
+
+```sh
+git submodule update --init                     # .standards, if this is a fresh clone
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m pytest tests/ -q            # the dataset-gated tests should run, not skip
+.venv/bin/python scripts/run_d6_sensitivity.py --version v1
+```
+
+`--arms descriptors` runs only the cheap pair (about two hours) and `--arms cnn`
+only the expensive one, so the two halves can be split across machines. The
+report records **each arm's own runtime**, read back from that arm's folds rather
+than from whichever process wrote the report, precisely so a run split across two
+machines describes both of them.
+
+**On TensorFlow and the GPU.** TensorFlow has had no native Windows GPU support
+since 2.11 — a Windows host needs WSL2 or the DirectML plugin, and this
+repository's own runs print that warning today. Whatever is used, three things
+follow from
+[SPEC 0056](../docs/specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md):
+
+- **Operator determinism must stay on.** `training.deterministic_ops` defaults
+  true. Seeding does not make TensorFlow's kernels deterministic — several reduce
+  across threads in completion order, so float addition order varies run to run
+  on a GPU where it does not on a CPU. A run that turns it off for throughput is
+  not comparable with one that did not.
+- **An arm cannot straddle two devices.** Each fold records its device and
+  library versions, and `require_uniform_runtime` refuses an arm whose folds
+  disagree. So a CPU-started arm cannot be resumed on a GPU; `--force` is the
+  only way through and it discards what was computed.
+- **An interrupted arm resumes.** Killing the run and restarting it recomputes
+  only the folds that did not finish, provided the configuration, the manifest
+  digest and the library versions have not moved. That is checked, not assumed.
+
 ## Evaluation protocol
 
 Every number comes from **repeated stratified group k-fold cross-validation** —

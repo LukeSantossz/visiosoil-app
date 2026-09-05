@@ -61,29 +61,74 @@ def population_withholder(cfg: Mapping) -> Callable[[Mapping], bool]:
     return leaves
 
 
-def descriptor_fold_without_population(cfg: Mapping, fold_manifest: Mapping, **kwargs):
-    """The descriptor arm, with the withheld population out of its training side."""
+def descriptor_fold_without_population(
+    cfg: Mapping,
+    fold_manifest: Mapping,
+    *,
+    arm_dir,
+    arm: str,
+    repeat: int,
+    fold: int,
+    shuffled_control: bool = False,
+    verify: bool = True,
+    forced: bool = False,
+):
+    """The descriptor arm, with the withheld population out of its training side.
+
+    Spelled out rather than forwarded through ``**kwargs``, as
+    `arms.encoder.encoder_probe_fold` is. A variadic passthrough cannot be
+    checked: `tests/test_fold_reuse.py` asserts every registered arm accepts
+    `forced`, and it exists because `encoder_probe_fold` once silently did not —
+    a `TypeError` twenty hours into a forced run. That guard can only read a
+    signature that says what the arm takes.
+    """
     from .descriptors import descriptor_features
     from .probe import probe_fold
 
     return probe_fold(
         cfg,
         fold_manifest,
+        arm_dir=arm_dir,
+        arm=arm,
+        repeat=repeat,
+        fold=fold,
         featuriser=descriptor_features,
+        shuffled_control=shuffled_control,
+        verify=verify,
+        forced=forced,
         withhold=population_withholder(cfg),
-        **kwargs,
     )
 
 
-def cnn_fold_without_population(cfg: Mapping, fold_manifest: Mapping, **kwargs):
+def cnn_fold_without_population(
+    cfg: Mapping,
+    fold_manifest: Mapping,
+    *,
+    arm_dir,
+    arm: str,
+    repeat: int,
+    fold: int,
+    shuffled_control: bool = False,
+    verify: bool = True,
+    forced: bool = False,
+):
     """The incumbent, with the withheld population out of its training side.
 
-    Imported inside the call, as the arm registry's other CNN thunk is: naming
-    this arm should not pull in TensorFlow for a caller that only wanted to know
-    the arm exists.
+    `train_fold` is imported inside the call, as the arm registry's other CNN
+    thunk does it: naming this arm should not pull in TensorFlow for a caller
+    that only wanted to know the arm exists.
     """
     from ..train import train_fold
 
     return train_fold(
-        cfg, fold_manifest, withhold=population_withholder(cfg), **kwargs
+        cfg,
+        fold_manifest,
+        arm_dir=arm_dir,
+        arm=arm,
+        repeat=repeat,
+        fold=fold,
+        shuffled_control=shuffled_control,
+        verify=verify,
+        forced=forced,
+        withhold=population_withholder(cfg),
     )
