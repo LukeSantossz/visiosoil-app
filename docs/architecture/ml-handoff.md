@@ -106,19 +106,19 @@ cannot know whether anything is retryable.
 
 ## Open defects, all tracked
 
-**#196 and #179 are closed** and are no longer listed here; the table below is
+**#196, #179, #178, #30 and #26 are closed** and are no longer listed here — #26 by SPEC 0056, which made an interrupted arm resume rather than overwrite. The table below is
 what remains open.
 
 | Issue | |
 |---|---|
 | #194 | The out-of-distribution score, **built for v1** — with Siltosa excluded it is the only guard against a confident wrong answer on silty soil |
-| #178 | The training path does not pass `sample_ids`; grouping falls back to a filename regex that happens to match this archive |
-| #180 | Neither downsample path anti-aliases; folded into A6 and closed by SPEC 0053's resample to the canonical scale |
 | #185 | `Interpreter.fromBuffer` leaks the model on every classification |
 | #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field |
-| #26, #29, #30, #188 | Checkpoint selection, export parity on real data, path resolution, calibration metrics |
+| #29, #188 | Export parity on real data, calibration metrics |
 | #79 | The contract is not read; SPEC 0035 is specified and unimplemented |
 | #189 | The architecture study needs a resync |
+| #180 | **Half open, and not a gate blocker.** Its Python half is resolved: `patches.resample_to_canonical` resizes through Pillow, which scales a filter's support by the reduction factor, so the canonical downsample is low-passed; and `preprocess.preprocess` — the `tf.image.resize(antialias=False)` the issue names — is off the patch path. The **Dart** half survives: `inference_service.dart` still uses `Interpolation.linear`. It belongs to A6's Dart half and is a **release** blocker |
+| #229 | The `texture_class` axis of the spanning-group leak SPEC 0055 closed for the capture population. `v1` triggers neither, so it guards a future manifest |
 
 ## Order of work
 
@@ -127,16 +127,26 @@ ran E0 as issue #197. #196 and #179 are closed, #197 is closed, and two more
 items have landed since, so following it would have queued work behind finished
 dependencies. The map's §6 is the authority; this is its short form.
 
-1. **#178** — the remaining defect that would bias E0. #180 was folded into A6
-   and is closed by the resample it introduced.
-2. **The D6 ADR** — written against the capture-population probe's numbers,
-   choosing between the two options SPEC 0055 fixed in advance: population `B`
-   leaves training entirely, or it is restricted to arms that provably cannot
-   exploit an encoding signature. **Corrected 2026-09-04: this now sits ahead of
-   the gate**, because either option changes the folds the gate would have run
-   on.
+**Corrected 2026-09-05.** This list opened with #178 as "the remaining defect
+that would bias E0". **#178 is closed**, and so is every other defect that was on
+that list: nothing blocks the gate on defect grounds. #180's status was also
+wrong here — see the correction under **Known status** below. What blocks the
+gate now is a decision, not a defect.
+
+1. **SPEC 0057** — the D6 sensitivity comparison: the descriptor arm run twice
+   over one partition, with population `B` in the training sides and without,
+   compared under a rule fixed before the run. About two hours. It exists
+   because the probe demonstrated the capture population is **recoverable**,
+   which is not the same as the texture arms **exploiting** it, and only a
+   comparison of two trainings separates those.
+2. **ADR 0021, the D6 decision** — written against SPEC 0057's number, choosing
+   between the two options SPEC 0055 fixed in advance: population `B` leaves
+   training entirely, or it is restricted to arms that provably cannot exploit an
+   encoding signature. The Developer takes it.
 3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way.
+   committed either way. It waits on the ADR because both of D6's options change
+   which photographs may train, therefore change the fold manifest, and a result
+   pooled across two manifests is refused by construction.
 4. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
    and neither blocks the gate.
 5. Everything else sits behind the C0 gate.
