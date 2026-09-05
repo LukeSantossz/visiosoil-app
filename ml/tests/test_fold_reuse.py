@@ -10,6 +10,7 @@ spends twenty hours it cannot repeat.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -341,7 +342,11 @@ def test_no_trainer_starts_with_a_completion_marker_still_there(tmp_path, monkey
     monkeypatch.setattr(
         crossval_module, "ARM_TRAINERS", {"cnn": lambda: fake_fold}
     )
-    monkeypatch.setattr(crossval_module, "verify_images", lambda *a, **k: None, raising=False)
+    # `run_arm` imports it inside the call, so the module it comes from is what
+    # has to be patched; patching the importer would silently not take.
+    from src import dataset as dataset_module
+
+    monkeypatch.setattr(dataset_module, "verify_images", lambda *a, **k: None)
 
     crossval_module.run_arm("v1", "cnn", config_path, force=True)
 

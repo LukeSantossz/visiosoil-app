@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.config import load_config, resolve_paths  # noqa: E402
 from src.crossval import (  # noqa: E402
     FOLD_MANIFEST_FILENAME,
+    begin_fold,
     load_arm_predictions,
     plan_arm_run,
     require_uniform_runtime,
@@ -145,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
             f"\n=== population probe: repeat {repeat + 1}/"
             f"{fold_manifest['repeats']}, fold {fold + 1}/{fold_manifest['k']} ==="
         )
+        begin_fold(directory, repeat, fold)
         probe_fold(
             probe_cfg,
             fold_manifest,

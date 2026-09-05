@@ -302,6 +302,25 @@ def fold_reuse_state(
     return FoldReuse.REUSABLE, "it matches this run"
 
 
+def begin_fold(arm_dir: Path | str, repeat: int, fold: int) -> None:
+    """Clear a fold's completion marker before it is computed (SPEC 0056).
+
+    Called immediately before every trainer call, and it is what stops a
+    recomputation from leaving a fold that *looks* finished and is not. A
+    trainer overwrites `config.json` and `runtime.json` before it writes any
+    prediction; killed in between, the fold would keep the **old**
+    `predictions.json` and the **old** `cost.json` beside the **new**
+    `config.json`, and the next run would classify it reusable and pool
+    predictions from one configuration under the record of another.
+
+    Removing the marker first makes that state ``INCOMPLETE``, which is what it
+    is. Nothing else is deleted: the predictions are what the next run would
+    overwrite anyway, and removing them here would destroy a result before the
+    replacement exists.
+    """
+    (fold_directory(arm_dir, repeat, fold) / COST_FILENAME).unlink(missing_ok=True)
+
+
 def plan_arm_run(
     arm_dir: Path | str,
     fold_manifest: Mapping,
@@ -310,12 +329,20 @@ def plan_arm_run(
     arm: str,
     shuffled_control: bool,
     force: bool = False,
+    only: tuple[int, int] | None = None,
 ) -> dict:
     """Which folds this run reuses and which it computes (SPEC 0056).
 
     Every fold is classified before any is run, so a run that would overwrite a
     finished result is refused before it spends the first fold's time rather
     than after twenty-four of them.
+
+    Args:
+        only: A single ``(repeat, fold)`` to plan, for the per-fold entry point
+            `src.train.train` — the one CI dispatches a job per fold to, and
+            therefore the path a published result comes from. It asks this
+            planner rather than carrying a second copy of the rule, because two
+            implementations of one refusal are how the two come to disagree.
 
     Raises:
         ValueError: If any fold is finished but cannot be shown to belong to
@@ -329,6 +356,8 @@ def plan_arm_run(
 
     for repeat in range(fold_manifest["repeats"]):
         for fold in range(fold_manifest["k"]):
+            if only is not None and (repeat, fold) != only:
+                continue
             if force:
                 run.append((repeat, fold))
                 continue
@@ -674,6 +703,7 @@ def run_arm(
             f"\n=== {arm}: repeat {repeat + 1}/{fold_manifest['repeats']}, "
             f"fold {fold + 1}/{fold_manifest['k']} ==="
         )
+        begin_fold(arm_dir, repeat, fold)
         train_fold(
             cfg,
             fold_manifest,
