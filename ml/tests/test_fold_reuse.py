@@ -454,12 +454,117 @@ def test_the_probe_resumes_on_the_same_rule():
     assert probe_script.plan_arm_run is plan_arm_run
 
 
-def test_a_resumed_arm_equals_an_uninterrupted_one(tmp_path):
-    """The folds a resumed run reuses are the folds it would have produced.
+def _deterministic_arm(monkeypatch, tmp_path, *, dies_on=None, calls=None):
+    """Wire `run_arm` to a trainer whose output depends only on the fold.
 
-    Trivially, because it does not touch them — and that is the whole claim.
-    The artifacts are compared byte for byte against a trainer that would have
-    written something else, so a run that quietly recomputed would fail here.
+    A perfect arm, so two runs of one fold are byte-identical and any difference
+    between a resumed arm and an uninterrupted one is the resume, not the model.
+    """
+    from src import crossval as crossval_module
+    from src import dataset as dataset_module
+    from src.dataset import fold_split
+
+    def fake_fold(cfg, fold_manifest, *, arm_dir, arm, repeat, fold, **kwargs):
+        if dies_on is not None and (repeat, fold) == dies_on:
+            raise KeyboardInterrupt("the machine went away")
+        if calls is not None:
+            calls.append((repeat, fold))
+        width = len(fold_manifest["classes"])
+        records = []
+        for entry in fold_split(fold_manifest, repeat, fold)["test"]:
+            distribution = [0.0] * width
+            distribution[entry["label"]] = 1.0
+            records.append(
+                {
+                    "path": entry["path"],
+                    "group": entry["group"],
+                    "label": entry["label"],
+                    "probabilities": distribution,
+                }
+            )
+        directory = fold_directory(arm_dir, repeat, fold)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+        (directory / RUNTIME_FILENAME).write_text(
+            json.dumps(RUNTIME), encoding="utf-8"
+        )
+        write_fold_predictions(
+            arm_dir,
+            repeat=repeat,
+            fold=fold,
+            arm=arm,
+            classes=fold_manifest["classes"],
+            records=records,
+            shuffled_control=False,
+            manifest_digest=fold_manifest["manifest_digest"],
+            forced=kwargs.get("forced", False),
+        )
+        write_fold_cost(arm_dir, repeat, fold, trainings=1, seconds=[1.0])
+        return {}
+
+    monkeypatch.setattr(
+        crossval_module, "ARM_TRAINERS", {"cnn": lambda: fake_fold}
+    )
+    monkeypatch.setattr(dataset_module, "verify_images", lambda *a, **k: None)
+
+
+def test_a_resumed_arm_pools_the_same_predictions_as_an_uninterrupted_one(
+    tmp_path, monkeypatch
+):
+    """The criterion says pooled predictions, so this asserts pooled predictions.
+
+    An earlier version of this test asserted the plan and the untouched bytes of
+    the reused folds, which is the mechanism rather than the claim: a regression
+    in what a *recomputed* fold writes, or in how the arm is pooled afterwards,
+    would have passed it while the stated equivalence was false.
+
+    So: one arm run in a single pass, and a second run interrupted at its third
+    fold and resumed, compared on what `load_arm_predictions` returns for the
+    whole arm.
+    """
+    from src import crossval as crossval_module
+    from tests.test_fold_provenance import build, write_config
+
+    _, folds = build(tmp_path, k=2, repeats=2)
+    config_path = write_config(tmp_path, k=2, repeats=2)
+
+    one_pass = []
+    _deterministic_arm(monkeypatch, tmp_path, calls=one_pass)
+    crossval_module.run_arm("uninterrupted", "cnn", config_path)
+    assert one_pass == [(0, 0), (0, 1), (1, 0), (1, 1)]
+    whole, _ = crossval_module.load_arm_predictions(
+        Path(tmp_path) / "models" / "uninterrupted" / "cnn", folds
+    )
+
+    _deterministic_arm(monkeypatch, tmp_path, dies_on=(1, 0))
+    with pytest.raises(KeyboardInterrupt):
+        crossval_module.run_arm("resumed", "cnn", config_path)
+
+    resumed_dir = Path(tmp_path) / "models" / "resumed" / "cnn"
+    assert (
+        fold_directory(resumed_dir, 0, 0) / PREDICTIONS_FILENAME
+    ).is_file(), "the interruption must leave earlier folds behind to resume from"
+
+    after_resume = []
+    _deterministic_arm(monkeypatch, tmp_path, calls=after_resume)
+    crossval_module.run_arm("resumed", "cnn", config_path)
+
+    # The point of the whole change: the two folds the interruption completed
+    # are not trained again. Without this the test would pass just as well on a
+    # run that recomputed everything, since the trainer is deterministic.
+    assert after_resume == [(1, 0), (1, 1)]
+
+    resumed, _ = crossval_module.load_arm_predictions(resumed_dir, folds)
+    assert resumed == whole
+
+
+def test_a_resumed_arm_equals_an_uninterrupted_one(tmp_path):
+    """The mechanism underneath the criterion above: a reused fold is untouched.
+
+    Narrower than `..._pools_the_same_predictions_as_an_uninterrupted_one`, and
+    kept because it fails for a different reason — this one localises a quiet
+    recomputation to the planner, where that test would only report that the
+    arm came out different.
     """
     for fold in range(2):
         write_fold(tmp_path, 0, fold)
