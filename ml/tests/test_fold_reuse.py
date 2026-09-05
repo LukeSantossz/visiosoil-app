@@ -18,6 +18,7 @@ from src.crossval import (
     PREDICTIONS_FILENAME,
     RUNTIME_FILENAME,
     FoldReuse,
+    begin_fold,
     fold_directory,
     fold_reuse_state,
     plan_arm_run,
@@ -276,6 +277,148 @@ def test_every_arm_trainer_accepts_the_forced_flag():
     ]
 
     assert missing == []
+
+
+# --- the completion marker is invalidated before it can lie ------------------
+
+
+def test_a_recomputation_clears_the_completion_marker_first(tmp_path):
+    """Otherwise an interrupted forced run leaves a fold that looks finished.
+
+    A forced trainer overwrites `config.json` and `runtime.json` before it
+    writes predictions. Killed in between, the fold keeps the **old**
+    `predictions.json` and the **old** `cost.json` beside the **new**
+    `config.json` — and the next run classifies it REUSABLE, pooling
+    predictions from one configuration under the record of another. Clearing
+    the marker first makes that state INCOMPLETE, which is what it is.
+    """
+    write_fold(tmp_path, 0, 0)
+    assert state_of(tmp_path) is FoldReuse.REUSABLE
+
+    begin_fold(tmp_path, 0, 0)
+
+    assert state_of(tmp_path) is FoldReuse.INCOMPLETE
+
+
+def test_clearing_the_marker_of_a_fold_that_never_ran_is_not_an_error(tmp_path):
+    begin_fold(tmp_path, 0, 0)
+
+    assert state_of(tmp_path) is FoldReuse.ABSENT
+
+
+def test_no_trainer_starts_with_a_completion_marker_still_there(tmp_path, monkeypatch):
+    """The property, asserted where it has to hold: inside the trainer call.
+
+    `begin_fold` living in the loop is an implementation detail; that the marker
+    is already gone when a fold begins is the contract, and it is what stops the
+    window above from reopening if the loop is ever rearranged.
+    """
+    from src import crossval as crossval_module
+    from tests.test_fold_provenance import build, write_config
+
+    _, folds = build(tmp_path, k=2, repeats=1)
+    config_path = write_config(tmp_path, k=2, repeats=1)
+    arm_dir = Path(tmp_path) / "models" / "v1" / "cnn"
+    write_fold(
+        arm_dir, 0, 0, cfg=CFG, digest=folds["manifest_digest"], arm="cnn"
+    )
+    seen = []
+
+    def fake_fold(cfg, fold_manifest, *, arm_dir, arm, repeat, fold, **kwargs):
+        seen.append(
+            (fold_directory(arm_dir, repeat, fold) / COST_FILENAME).exists()
+        )
+        write_fold(
+            arm_dir,
+            repeat,
+            fold,
+            cfg=cfg,
+            digest=fold_manifest["manifest_digest"],
+            arm=arm,
+        )
+        return {}
+
+    monkeypatch.setattr(
+        crossval_module, "ARM_TRAINERS", {"cnn": lambda: fake_fold}
+    )
+    monkeypatch.setattr(crossval_module, "verify_images", lambda *a, **k: None, raising=False)
+
+    crossval_module.run_arm("v1", "cnn", config_path, force=True)
+
+    assert seen and not any(seen), "a trainer began on a fold still marked finished"
+
+
+# --- the single-fold entry point is the path CI actually uses ---------------
+
+
+def _single_fold_train(monkeypatch, tmp_path, *, force=False, calls=None):
+    """Drive `train.train` with the trainer replaced, as test_crossval.py does."""
+    from src import crossval as crossval_module
+    from src import train as train_module
+
+    def fake_fold(cfg, fold_manifest, **kwargs):
+        (calls if calls is not None else []).append(kwargs)
+        return {"ran": True}
+
+    monkeypatch.setattr(
+        crossval_module, "ARM_TRAINERS", {"cnn": lambda: fake_fold}
+    )
+    return train_module.train("v1", 0, 0, "cnn", str(tmp_path / "config.yaml"),
+                              force=force)
+
+
+def test_the_single_fold_entry_point_refuses_a_stale_fold(tmp_path, monkeypatch):
+    """It is the path CI dispatches one job per fold to, so it is the path a
+    published result comes from — and it had no overwrite protection at all."""
+    from src import train as train_module
+    from tests.test_fold_provenance import build, write_config
+
+    _, folds = build(tmp_path, k=2, repeats=1)
+    write_config(tmp_path, k=2, repeats=1)
+    arm_dir = Path(tmp_path) / "models" / "v1" / "cnn"
+    write_fold(arm_dir, 0, 0, digest=OTHER_DIGEST, arm="cnn")
+
+    calls = []
+    with pytest.raises(ValueError, match="--force"):
+        _single_fold_train(monkeypatch, tmp_path, calls=calls)
+
+    assert calls == [], "the trainer ran despite the refusal"
+    assert train_module is not None
+
+
+def test_the_single_fold_entry_point_reuses_a_matching_fold(tmp_path, monkeypatch):
+    from tests.test_fold_provenance import build, write_config
+
+    _, folds = build(tmp_path, k=2, repeats=1)
+    config_path = write_config(tmp_path, k=2, repeats=1)
+    arm_dir = Path(tmp_path) / "models" / "v1" / "cnn"
+
+    from src.config import load_config, resolve_paths
+
+    cfg = resolve_paths(load_config(config_path))
+    write_fold(arm_dir, 0, 0, cfg=cfg, digest=folds["manifest_digest"], arm="cnn")
+
+    calls = []
+    _single_fold_train(monkeypatch, tmp_path, calls=calls)
+
+    assert calls == [], "a matching fold was recomputed"
+
+
+def test_planning_can_be_restricted_to_one_fold(tmp_path):
+    """One rule, one implementation: the single-fold path asks the same planner."""
+    write_fold(tmp_path, 0, 0)
+
+    plan = plan_arm_run(
+        tmp_path,
+        MANIFEST,
+        cfg=CFG,
+        arm="cnn",
+        shuffled_control=False,
+        only=(0, 1),
+    )
+
+    assert plan["reuse"] == []
+    assert plan["run"] == [(0, 1)]
 
 
 # --- both loops, one rule ----------------------------------------------------
