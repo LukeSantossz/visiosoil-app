@@ -105,8 +105,10 @@ Last updated: 2026-09-05.
 > item and not part of the probe.
 >
 > **This displaces the C0 gate (#216) rather than delaying it by a day.** Both
-> options change which photographs may train, so both change the folds, and a
-> result pooled across two fold manifests is refused by construction. Measured
+> options change which photographs may train. *Corrected 2026-09-05: this said
+> they therefore change the folds. They do not — SPEC 0057 drops `B` with an
+> arm-level filter and the partition is untouched. What changes is which arms the
+> gate must run, which still has to be settled first.* Measured
 > per-fold cost puts E0 at roughly twenty hours — `cnn` and `shuffled_control` at
 > about 930 s per fold over 25 folds each, `descriptors` at 147 s, the frozen
 > encoder unmeasured, plus the descriptor ablation — so running the gate before
@@ -160,11 +162,19 @@ Last updated: 2026-09-05.
 > entirely, or `B` is restricted to arms that provably cannot exploit an encoding
 > signature — against SPEC 0057's number. The Developer takes it.
 >
-> **SPEC 0044 is written and gate-approved; what it waits on is the ADR.** Both
-> of D6's options change which photographs may train, therefore change the fold
-> manifest, and a result pooled across two fold manifests is refused by
-> construction. Running twenty hours before the decision risks discarding all of
-> it.
+> **SPEC 0044 is written and gate-approved; what it waits on is the ADR.** The
+> gate must run the arms D6 settles on: an arm trained with `B` after the record
+> has rejected that is twenty hours of numbers under a rejected rule.
+>
+> *Corrected 2026-09-05.* An earlier version of this block gave a different
+> reason — that D6's options change the fold manifest, so a pooled result would
+> be refused. **They do not change it.** SPEC 0057 drops `B` with an arm-level
+> filter, and the partition and its digest are untouched by construction. The
+> ordering conclusion is unchanged and its reason is not, and the difference
+> matters: because the folds hold still, **SPEC 0057's runs are reusable as the
+> gate's own arms** rather than discarded by the decision they inform — which is
+> what makes measuring the incumbent both ways cost about six and a half
+> additional hours rather than thirteen.
 >
 > **The gate's execution hardware is deliberately open (2026-09-05).** The
 > twenty-hour figure is CPU, and SPEC 0044's Risks now record what a GPU changes
@@ -785,12 +795,11 @@ C0's probe is done and returned positive, and two items now stand between it and
 the gate.** The order is **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
 then ADR 0021, then the C0 gate (#216)** — the sensitivity comparison first
 because D6 should be decided on a number rather than an argument, then the ADR
-against that number, then the gate. The gate is last because both of D6's options
-change which photographs may train, both therefore change the folds, and E0 is
-roughly twenty hours of compute that a later change to the partition would
-discard. A7 (#215) runs whenever a
-device is available; it is not on the path until the gate's decision rule reads
-it. A6's Dart half stays behind A4 and is a release blocker rather
+against that number, then the gate. The gate is last because it has to run the
+arms D6 settles on — the partition holds still either way, so what the decision
+changes is the arms and not the folds, and SPEC 0057's runs carry over into the
+gate rather than being discarded by it. A7 (#215) runs on an emulator and does
+not decide condition 3; see §3. A6's Dart half stays behind A4 and is a release blocker rather
 than a gate blocker.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list

@@ -41,6 +41,7 @@ from .dataset import (
     load_folds_for_config,
 )
 from .evaluate import METRICS_FILENAME, arm_metrics
+from .sensitivity import CNN_PAIR, DESCRIPTOR_PAIR
 
 CONFIG_FILENAME = "config.json"
 PREDICTIONS_FILENAME = "predictions.json"
@@ -61,6 +62,18 @@ SHUFFLED_CONTROL_ARM = "shuffled_control"
 DESCRIPTOR_ARM = "descriptors"
 ENCODER_PROBE_ARM = "encoder_probe"
 
+#: SPEC 0057's two withheld-population arms. Each is its base arm with the
+#: population SPEC 0040 D6 restricts taken out of its own training side, over the
+#: same folds and the same test sides — so each pairs with its base and neither
+#: takes an entry in `evaluation.contrasts`.
+#:
+#: Derived from `sensitivity`'s pairs rather than spelled again. Both halves
+#: embed the population's letter, and two places spelling it would diverge the
+#: day D6 restricted a different one — the registry would then name an arm
+#: nothing runs, and `fold_trainer_for` would refuse it by that name.
+DESCRIPTOR_WITHOUT_B_ARM = DESCRIPTOR_PAIR[1]
+CNN_WITHOUT_B_ARM = CNN_PAIR[1]
+
 
 def _cnn_fold_trainer():
     from .train import train_fold
@@ -80,6 +93,18 @@ def _encoder_probe_fold_trainer():
     return encoder_probe_fold
 
 
+def _descriptor_without_b_fold_trainer():
+    from .arms.withheld import descriptor_fold_without_population
+
+    return descriptor_fold_without_population
+
+
+def _cnn_without_b_fold_trainer():
+    from .arms.withheld import cnn_fold_without_population
+
+    return cnn_fold_without_population
+
+
 #: Arm name to the fold trainer that implements it. Behind thunks because each
 #: import pulls in a different stack — the incumbent needs TensorFlow, the
 #: descriptor arm does not — and naming one arm should not pay for the others.
@@ -94,6 +119,8 @@ ARM_TRAINERS = {
     SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
     DESCRIPTOR_ARM: _descriptor_fold_trainer,
     ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
+    DESCRIPTOR_WITHOUT_B_ARM: _descriptor_without_b_fold_trainer,
+    CNN_WITHOUT_B_ARM: _cnn_without_b_fold_trainer,
 }
 
 

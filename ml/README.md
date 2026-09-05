@@ -233,6 +233,96 @@ is refused by name rather than reinterpreted.
 `data/splits/` is gitignored, so `splits.json` is **not** versioned in git today
 and the seed plus the recorded digest are what make a fold reproducible.
 
+## Running the D6 sensitivity comparison on another machine
+
+[SPEC 0057](../docs/specs/0057-measure-whether-the-transported-population-changes-the-answer.md)
+runs four arms over one partition — the descriptor arm and the incumbent CNN,
+each with and without the withheld capture population. About **fifteen hours** on
+CPU, most of it the two CNN runs, which is why it is expected to move to a
+machine with a GPU.
+
+Three things do not travel through git, and two of them will break the comparison
+silently if they are not handled.
+
+**1. The dataset is not tracked, and is not going to be.** `ml/data/datasets/v1/`
+is a build product
+([ADR 0019](../docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md))
+— 221 photographs, **1.3 GB**, of a laboratory's samples, in a **public**
+repository. Copy the directory, or let the synchronised folder the checkout
+already lives in carry it. Without it nothing runs, which is the safe failure:
+loud, immediate, and impossible to mistake for a result.
+
+**Copy the whole directory, not only `images/`.** `manifest.csv` is ignored too,
+and it is not optional: it carries the dish-rim scale measurements
+([SPEC 0052](../docs/specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md))
+that the patch grid resamples against, and its **byte-exact digest** must equal
+the one `splits.json` records or `load_folds_for_config` refuses the partition.
+Rebuilding it with `ingest_archive.py` and `measure_scale.py` is possible — the
+readings are tracked at `ml/measurements/dish-scale-v1.json` — but it can produce
+a different byte sequence and break that match for no gain. Copy it.
+
+**2. Copy `ml/data/splits/` too, and do not let the other machine regenerate
+it.** This is the one that fails quietly. The fold manifest is drawn by
+`StratifiedGroupKFold`, which **partitions differently across scikit-learn
+releases**: the seed alone does not reproduce a partition, which is why the file
+records the versions it was drawn under. Copied across, the stored assignment is
+used as it stands and `load_folds` warns if the reading stack differs.
+Regenerated on the other machine under a different scikit-learn, the folds move,
+**no warning fires** because there is nothing left to compare against, and every
+number computed there becomes incomparable with every number computed here.
+
+So on the GPU machine: **do not delete it, and do not run anything that would
+regenerate it.** `run_arm` regenerates only when the file is absent.
+
+*It is copied rather than pulled from git for a reason worth knowing.* Tracking
+it was tried on 2026-09-05 and withdrawn the same day: `splits.json` stores
+**absolute** image paths and nothing re-roots them on load, so a copy pulled from
+git on another machine is a manifest every one of whose paths points at the
+machine it left. Making them relative is a schema change tracked as
+[#233](https://github.com/LukeSantossz/visiosoil-app/issues/233); until it lands,
+the file travels the same way the images do. **Copying the directory works
+because the checkout path is the same on both machines** — if it is not, the
+paths are wrong there too, and #233 is a prerequisite rather than a convenience.
+
+**3. `ml/models/<version>/` is not tracked either.** Carrying it is optional and
+usually not worth it: every fold already there predates the provenance record
+SPEC 0056 added, so `run_arm` classifies it stale and refuses until `--force`.
+Starting the other machine with an empty `models/` is cleaner.
+
+Then, from `ml/` on the GPU machine:
+
+```sh
+git submodule update --init                     # .standards, if this is a fresh clone
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m pytest tests/ -q            # the dataset-gated tests should run, not skip
+.venv/bin/python scripts/run_d6_sensitivity.py --version v1
+```
+
+`--arms descriptors` runs only the cheap pair (about two hours) and `--arms cnn`
+only the expensive one, so the two halves can be split across machines. The
+report records **each arm's own runtime**, read back from that arm's folds rather
+than from whichever process wrote the report, precisely so a run split across two
+machines describes both of them.
+
+**On TensorFlow and the GPU.** TensorFlow has had no native Windows GPU support
+since 2.11 — a Windows host needs WSL2 or the DirectML plugin, and this
+repository's own runs print that warning today. Whatever is used, three things
+follow from
+[SPEC 0056](../docs/specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md):
+
+- **Operator determinism must stay on.** `training.deterministic_ops` defaults
+  true. Seeding does not make TensorFlow's kernels deterministic — several reduce
+  across threads in completion order, so float addition order varies run to run
+  on a GPU where it does not on a CPU. A run that turns it off for throughput is
+  not comparable with one that did not.
+- **An arm cannot straddle two devices.** Each fold records its device and
+  library versions, and `require_uniform_runtime` refuses an arm whose folds
+  disagree. So a CPU-started arm cannot be resumed on a GPU; `--force` is the
+  only way through and it discards what was computed.
+- **An interrupted arm resumes.** Killing the run and restarting it recomputes
+  only the folds that did not finish, provided the configuration, the manifest
+  digest and the library versions have not moved. That is checked, not assumed.
+
 ## Evaluation protocol
 
 Every number comes from **repeated stratified group k-fold cross-validation** —

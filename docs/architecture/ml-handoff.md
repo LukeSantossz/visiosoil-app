@@ -33,10 +33,14 @@ verdict in [docs/ml/capture-population-probe.md](../ml/capture-population-probe.
 recovered the capture population from the same patches the arms see — **90 / 97
 sample groups, Wilson 95 % lower bound 0.858 against a prior of 0.649**, with the
 transported population `B` recovered **20 of 20**. Its pre-registered rule
-re-opens **SPEC 0040 D6** by name, and both of D6's written options change which
-photographs may train and therefore change the folds. E0 is about twenty hours of
-compute; running it before the D6 decision risks spending all of it on a
-partition the decision invalidates.
+re-opens **SPEC 0040 D6** by name.
+
+**Corrected 2026-09-05.** This paragraph said the gate waits because D6's options
+change the folds. They do not: SPEC 0057's design drops `B` with an **arm-level
+filter** and leaves the partition and its digest untouched. The gate still waits,
+for a different reason — **E0 has to run the arms D6 settles on.** Running them
+with `B` in training after the record has rejected that produces twenty hours of
+numbers under a rule nobody accepts.
 
 That verdict does **not** say the E0 result would be wrong. Recovering the
 capture population is not the same as the texture arms exploiting it: the finding
@@ -144,9 +148,11 @@ gate now is a decision, not a defect.
    training entirely, or it is restricted to arms that provably cannot exploit an
    encoding signature. The Developer takes it.
 3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way. It waits on the ADR because both of D6's options change
-   which photographs may train, therefore change the fold manifest, and a result
-   pooled across two manifests is refused by construction.
+   committed either way. It waits on the ADR because the gate must run the arms
+   D6 settles on: the partition is untouched either way, but an arm trained with
+   `B` after the record has rejected that is a number under a rejected rule. What
+   SPEC 0057 computes is reusable here rather than discarded — same folds, same
+   digest, checked by SPEC 0056's reuse rule rather than assumed.
 4. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
    and neither blocks the gate.
 5. Everything else sits behind the C0 gate.

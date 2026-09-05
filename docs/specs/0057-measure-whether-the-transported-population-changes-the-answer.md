@@ -76,6 +76,14 @@ experiment reaching its own limit, and an ADR written against them is deciding
 under a resolution ceiling rather than against evidence of no effect. The report
 records which of the four cells it landed in, by name.
 
+**The rule is applied to each contrast separately, and the two are not pooled.**
+The descriptor pair and the CNN pair answer the same question about two different
+representations, and the answers may differ — a null on the descriptors with a
+difference on the incumbent is the outcome that would matter most, and averaging
+or Holm-correcting the two together would hide it. Each contrast reports its own
+cell, and D6 is re-opened if **either** lands in the top row: an arm that is
+affected is affected whatever the other arm did.
+
 **Direction is reported and does not change which branch is taken.** A
 significant difference favouring the `B`-free arm is the leak doing damage. One
 favouring `B`-in-training is consistent with the encoding signature helping *and*
@@ -83,14 +91,35 @@ with 37 more photographs simply helping, and **this experiment does not separate
 those two**; it is written down here so that the more flattering reading is not
 chosen after the number. Either way the finding is the same: `B` is not inert.
 
-**What this measures, and what it therefore licenses.** It measures the
-descriptor arm: a regularised linear probe over 26 classical features. A network
-with more capacity may exploit what that cannot, so a null result licenses D6
-**for arms of this class and not for the incumbent CNN**. The E0 verdict must say
-which arms the sensitivity was measured on rather than citing it as a general
-clearance. Measuring the CNN both ways as well would cost about thirteen hours
-against this experiment's two, and is a decision for the Developer rather than an
-omission this spec hides.
+**Both arms are measured, including the incumbent.** *Amended 2026-09-05, at
+the Developer's direction, superseding this spec's original descriptor-only
+scope.* The first version measured the descriptor arm alone — a regularised
+linear probe over 26 classical features — and stated the limit that came with it:
+a network with more capacity may exploit what a linear probe cannot, so a null
+result would have licensed D6 for arms of that class and **not** for the
+incumbent CNN, which is the arm every E0 number is compared against. That limit
+is now closed rather than declared.
+
+So **four runs over one partition**: the descriptor arm with and without `B` in
+its training side, and the incumbent CNN with and without. Two paired contrasts,
+each read by the rule above, each reported separately — a null on one arm and a
+difference on the other is a real and readable outcome, and collapsing them would
+lose exactly the finding that would matter most.
+
+**The cost is not what it looks like, because the partition does not change.**
+The two CNN runs are about thirteen hours against the descriptor pair's two. But
+the fold manifest is untouched by construction, so whichever CNN configuration
+ADR 0021 settles on **is** the E0 gate's `cnn` arm, already computed — and
+[SPEC 0056](0056-an-interrupted-arm-resumes-instead-of-starting-over.md)'s reuse
+rule will *verify* that rather than assume it, refusing the reuse if the
+configuration, the manifest digest or the library versions have moved in between.
+So the additional cost of measuring the incumbent is about **six and a half
+hours**, not thirteen, and it buys the licence over the arm the gate's headline
+number comes from.
+
+**What still is not measured** is the frozen-encoder arm, in either
+configuration. It stays out for the reason the CNN no longer does: its cost is
+unmeasured, and SPEC 0044 already permits it to be recorded as *not executed*.
 
 **The result is reported outside `evaluation.contrasts`.** Like SPEC 0055's
 probe, this is a diagnostic about the data and not an arm-versus-arm comparison
@@ -139,8 +168,10 @@ it exists to inform.
 - Includes:
   - `ml/config.yaml` — register the second arm name. **No** entry under
     `evaluation.contrasts`.
-  - `ml/src/arms/` — the `B`-free descriptor arm: `arms.probe.probe_fold` with
-    the training side filtered by capture population, and nothing else changed.
+  - `ml/src/arms/` — the `B`-free arms: `arms.probe.probe_fold` and
+    `train.train_fold` with the training side filtered by capture population, and
+    nothing else changed. **The CNN half was added on 2026-09-05** at the
+    Developer's direction; this spec's first version excluded it.
   - `ml/src/` — the paired comparison and its report, reusing
     `evaluate`'s exact McNemar and minimum-detectable-effect functions rather
     than reimplementing them.
@@ -148,10 +179,26 @@ it exists to inform.
   - `docs/ml/transported-population-sensitivity.md` (new, committed) — the
     verdict, with its numbers, whichever way it returns.
   - `ml/tests/` — one test per acceptance criterion below.
+  - `.gitignore` — **no change.** Tracking `ml/data/splits/splits.json` was
+    added on 2026-09-05, at the Developer's direction, so this experiment could
+    move to a machine with a GPU without the partition moving with it — and
+    **withdrawn the same day**, on R2's finding, because the file stores
+    absolute image paths and nothing re-roots them on load. A copy pulled from
+    git on another machine is a manifest every one of whose paths points at the
+    machine it left, so tracking it bought nothing the move could use. The
+    reason to track it stands and the mechanism does not: relative paths are a
+    fold-manifest schema change, filed as
+    [#233](https://github.com/LukeSantossz/visiosoil-app/issues/233). Until it
+    lands, `ml/data/` is copied whole, which `ml/README.md` says. The test that
+    asserted the tracking now asserts the withdrawal, so the reversal is
+    checkable rather than remembered.
+
 - Does NOT include:
-  - **Taking the D6 decision.** That is ADR 0021, written against this number,
-    exactly as SPEC 0055 refused to take the decision its own rule triggered.
-  - The CNN or frozen-encoder arms, in either configuration.
+  - **Taking the D6 decision.** That is ADR 0021, written against these
+    numbers, exactly as SPEC 0055 refused to take the decision its own rule
+    triggered.
+  - The frozen-encoder arm, in either configuration. Its cost is unmeasured, and
+    SPEC 0044 already permits it to be recorded as *not executed*.
   - Any change to the fold manifest, its schema, its digest, or SPEC 0040 D6.
   - Running the E0 gate, which is SPEC 0044.
   - Any change under `lib/`.
@@ -166,7 +213,12 @@ it exists to inform.
   make the contrast meaningless and nothing else in the run would say so.
 - the_b_free_arm_drops_b_from_training_and_nothing_else: its training side is the
   other arm's minus every entry whose `source_group` is `B`, and its test side is
-  untouched.
+  untouched. Asserted for **both** arms, and for the inner selection folds as well
+  as the outer training side — an inner fold still holding `B` would leak it back
+  into the selection the outer refit is chosen by.
+- each_contrast_reports_its_own_cell: the descriptor pair and the CNN pair are
+  read separately by the rule above, neither is pooled with nor corrected against
+  the other, and D6 is re-opened if either lands in the top row.
 - population_b_is_in_no_test_side_of_either_arm: it is train-only under D6, and
   the run asserts that rather than assuming it.
 - the_contrast_is_mcnemar_on_groups_with_its_own_mde: the report carries the
@@ -198,8 +250,11 @@ cd ml
 ```
 
 Python 3.12.13 and the pinned stack of `ml/requirements.txt`, unchanged; no
-dependency is added. Both arms are the descriptor arm at its measured 147 s per
-fold, so the pair is about **two hours** at `k = 5`, `R = 5`.
+dependency is added. The descriptor pair is about **two hours** at `k = 5`,
+`R = 5`, from a measured 147 s per fold. The CNN pair is about **thirteen**, from
+a measured 930 s per fold — of which roughly half is the E0 gate's `cnn` arm paid
+early rather than spent twice, since the partition is unchanged and SPEC 0056's
+reuse rule will check that the artifacts still belong to the run that wants them.
 
 Both runs resume under [SPEC 0056](0056-an-interrupted-arm-resumes-instead-of-starting-over.md),
 which is why that spec precedes this one: two hours is long enough that an

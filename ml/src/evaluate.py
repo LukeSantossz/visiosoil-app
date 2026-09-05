@@ -222,7 +222,7 @@ def contrast_results(
         The contrast record, which the caller writes to ``contrasts.json``.
     """
     correctness = {
-        arm: _pooled_group_correctness(predictions)
+        arm: pooled_group_correctness(predictions)
         for arm, predictions in predictions_by_arm.items()
     }
 
@@ -238,7 +238,7 @@ def contrast_results(
                     f"--arm {arm}"
                 )
         computed.append(
-            _one_contrast(contrast, correctness[first], correctness[second], alpha, power)
+            one_contrast(contrast, correctness[first], correctness[second], alpha, power)
         )
 
     _apply_holm_within_families(computed)
@@ -518,7 +518,7 @@ def _cost(fold_manifest: Mapping, costs: Mapping[tuple[int, int], Mapping]) -> d
     }
 
 
-def _pooled_group_correctness(
+def pooled_group_correctness(
     predictions: Mapping[tuple[int, int], Sequence[Mapping]],
 ) -> dict[str, bool]:
     """Whether each group is right, pooling its distributions over every repeat.
@@ -539,13 +539,20 @@ def _pooled_group_correctness(
     return {group: predicted[group] == truth[group] for group in predicted}
 
 
-def _one_contrast(
+def one_contrast(
     contrast: Mapping,
     first_correct: Mapping[str, bool],
     second_correct: Mapping[str, bool],
     alpha: float,
     power: float,
 ) -> dict:
+    """One paired contrast between two arms, on group-level correctness.
+
+    Public since SPEC 0057, which reads a diagnostic contrast outside
+    `evaluation.contrasts` and must read it with **this** implementation: two
+    copies of one McNemar test are how a diagnostic and the gate come to
+    disagree about what the same groups say.
+    """
     first, second = contrast["arms"]
     if set(first_correct) != set(second_correct):
         raise ValueError(

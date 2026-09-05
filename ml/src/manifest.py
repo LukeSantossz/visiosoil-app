@@ -619,6 +619,19 @@ def sample_ids_by_image(manifest: Manifest) -> dict[str, str]:
     return {str(manifest.root / row.image): row.sample_id for row in manifest.rows}
 
 
+def source_groups_by_image(manifest: Manifest) -> dict[str, str]:
+    """Map each resolved image path to the capture population it came from.
+
+    The same join `sample_ids_by_image` performs, for the column SPEC 0040 D6
+    restricts on. An arm withholding a population reads it from here rather than
+    re-deriving one from pixel dimensions, which is how a filter about the data
+    becomes a guess about it.
+    """
+    return {
+        str(manifest.root / row.image): row.source_group for row in manifest.rows
+    }
+
+
 def split_composition(
     splits: Mapping[str, Sequence[Mapping[str, object]]], manifest: Manifest
 ) -> dict[str, dict[str, Counter]]:
