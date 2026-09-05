@@ -635,6 +635,43 @@ def fold_split(fold_manifest: Mapping, repeat: int, fold: int) -> dict[str, list
     return {"train": train, "test": test}
 
 
+def withhold_from_training(
+    split: Mapping[str, list[dict]],
+    inner: Sequence[Mapping[str, list[dict]]],
+    *,
+    leaves,
+) -> tuple[dict[str, list[dict]], list[dict[str, list[dict]]]]:
+    """Drop the entries ``leaves`` selects from every training side (SPEC 0057).
+
+    The outer training side **and both sides of every inner fold**. An inner
+    fold still holding a withheld entry would put it back into the selection the
+    outer refit is chosen by, so the outer side would look clean while the
+    choice was made on contaminated data — a leak that no artifact would record.
+
+    The test side is not filtered and is not offered to be: what is withheld is
+    withheld from training, and the comparison this exists for is only paired if
+    both arms are scored on identical groups.
+
+    Copies rather than mutates: the caller's split is the fold manifest's own
+    view and is read again for the arm that keeps the population.
+
+    Args:
+        leaves: Predicate on one entry, true when it should leave training.
+    """
+    kept = {
+        "train": [entry for entry in split["train"] if not leaves(entry)],
+        "test": list(split["test"]),
+    }
+    kept_inner = [
+        {
+            side: [entry for entry in entries if not leaves(entry)]
+            for side, entries in inner_split.items()
+        }
+        for inner_split in inner
+    ]
+    return kept, kept_inner
+
+
 def inner_folds(
     fold_manifest: Mapping, repeat: int, fold: int, inner_k: int
 ) -> list[dict[str, list[dict]]]:

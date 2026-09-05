@@ -61,6 +61,13 @@ SHUFFLED_CONTROL_ARM = "shuffled_control"
 DESCRIPTOR_ARM = "descriptors"
 ENCODER_PROBE_ARM = "encoder_probe"
 
+#: SPEC 0057's two withheld-population arms. Each is its base arm with the
+#: population SPEC 0040 D6 restricts taken out of its own training side, over the
+#: same folds and the same test sides — so each pairs with its base and neither
+#: takes an entry in `evaluation.contrasts`.
+DESCRIPTOR_WITHOUT_B_ARM = "descriptors_without_b"
+CNN_WITHOUT_B_ARM = "cnn_without_b"
+
 
 def _cnn_fold_trainer():
     from .train import train_fold
@@ -80,6 +87,18 @@ def _encoder_probe_fold_trainer():
     return encoder_probe_fold
 
 
+def _descriptor_without_b_fold_trainer():
+    from .arms.withheld import descriptor_fold_without_population
+
+    return descriptor_fold_without_population
+
+
+def _cnn_without_b_fold_trainer():
+    from .arms.withheld import cnn_fold_without_population
+
+    return cnn_fold_without_population
+
+
 #: Arm name to the fold trainer that implements it. Behind thunks because each
 #: import pulls in a different stack — the incumbent needs TensorFlow, the
 #: descriptor arm does not — and naming one arm should not pay for the others.
@@ -94,6 +113,8 @@ ARM_TRAINERS = {
     SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
     DESCRIPTOR_ARM: _descriptor_fold_trainer,
     ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
+    DESCRIPTOR_WITHOUT_B_ARM: _descriptor_without_b_fold_trainer,
+    CNN_WITHOUT_B_ARM: _cnn_without_b_fold_trainer,
 }
 
 

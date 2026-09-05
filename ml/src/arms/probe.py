@@ -56,6 +56,7 @@ from ..dataset import (
     inner_folds,
     permute_labels_by_group,
     verify_images,
+    withhold_from_training,
 )
 
 #: The regularisation strengths selection chooses between. Five points a decade
@@ -172,6 +173,7 @@ def probe_fold(
     shuffled_control: bool = False,
     verify: bool = True,
     forced: bool = False,
+    withhold=None,
 ) -> dict:
     """Select, refit and predict one outer fold of a probe arm, writing its artifacts.
 
@@ -217,6 +219,14 @@ def probe_fold(
 
     split = fold_split(fold_manifest, repeat, fold)
     inner = inner_folds(fold_manifest, repeat, fold, cfg["evaluation"]["inner_k"])
+
+    if withhold is not None:
+        kept_train = len(split["train"])
+        split, inner = withhold_from_training(split, inner, leaves=withhold)
+        print(
+            f"withheld {kept_train - len(split['train'])} training photograph(s) "
+            f"from repeat {repeat} fold {fold}; the test side is untouched"
+        )
 
     permutation_seed = None
     if shuffled_control:
