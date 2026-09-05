@@ -38,6 +38,11 @@ K = 5
 REPEATS = 2
 SEED = 42
 
+#: The manifest these fixtures' folds claim to come from. Named rather
+#: than omitted: SPEC 0056 treats a fold recording no digest as unproven,
+#: which is a state these tests are not about.
+FIXTURE_DIGEST = "f" * 64
+
 
 def write_config(tmp_path, *, classes=CLASSES, seed=SEED, k=K, repeats=REPEATS):
     """A complete, valid config pointing at this test's temporary tree.
@@ -121,6 +126,7 @@ def fabricate_predictions(tmp_path, folds, arm="cnn"):
                 classes=folds["classes"],
                 records=records,
                 shuffled_control=False,
+                manifest_digest=FIXTURE_DIGEST,
             )
     return arm_dir
 

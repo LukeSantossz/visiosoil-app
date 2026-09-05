@@ -39,6 +39,11 @@ K = 5
 REPEATS = 3
 SEED = 42
 
+#: The manifest these fixtures' folds claim to come from. Named rather
+#: than omitted: SPEC 0056 treats a fold recording no digest as unproven,
+#: which is a state these tests are not about.
+FIXTURE_DIGEST = "f" * 64
+
 
 #: `write_version(extra_photographs=1)` gives this sample a third photograph;
 #: every other sample has the two the protocol prescribes.
@@ -529,6 +534,7 @@ def test_fold_predictions_round_trip_through_the_fold_directory(tmp_path, folds)
             classes=folds["classes"],
             records=records,
             shuffled_control=False,
+            manifest_digest=FIXTURE_DIGEST,
         )
         directory = fold_directory(arm_dir, repeat, fold)
         assert directory == arm_dir / f"repeat-{repeat}" / f"fold-{fold}"
@@ -557,6 +563,7 @@ def test_loading_an_arm_with_a_missing_fold_names_it(tmp_path, folds):
         classes=folds["classes"],
         records=fabricate(folds)[(0, 0)],
         shuffled_control=False,
+        manifest_digest=FIXTURE_DIGEST,
     )
 
     with pytest.raises(FileNotFoundError, match="repeat 0 fold 1"):
@@ -667,6 +674,7 @@ def test_the_fold_cost_record_round_trips_into_the_metrics(tmp_path, folds):
             classes=folds["classes"],
             records=records,
             shuffled_control=False,
+            manifest_digest=FIXTURE_DIGEST,
         )
         write_fold_cost(arm_dir, repeat, fold, trainings=5, seconds=[1.5] * 5)
 
@@ -692,6 +700,7 @@ def test_the_arm_metadata_says_whether_it_was_the_shuffled_control(tmp_path, fol
         classes=folds["classes"],
         records=fabricate(folds)[(0, 0)],
         shuffled_control=True,
+        manifest_digest=FIXTURE_DIGEST,
     )
 
     metadata = read_fold_metadata(arm_dir, 0, 0)
@@ -792,7 +801,16 @@ def test_the_single_fold_entry_point_runs_the_arms_own_method(monkeypatch, tmp_p
         },
     )
     monkeypatch.setattr(
-        train_module, "load_folds_for_config", lambda cfg, splits_dir: {"k": 1}
+        train_module,
+        "load_folds_for_config",
+        # A partition, not just a fold count: since SPEC 0056 the entry point
+        # plans the fold it was asked for, which needs the shape to check it
+        # against and the digest to check it by.
+        lambda cfg, splits_dir: {
+            "k": 1,
+            "repeats": 1,
+            "manifest_digest": "e" * 64,
+        },
     )
     (tmp_path / "splits.json").write_text("{}", encoding="utf-8")
 

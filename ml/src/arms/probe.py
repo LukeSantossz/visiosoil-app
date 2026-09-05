@@ -1,6 +1,8 @@
 """The linear-probe fold trainer both new E0 arms are built on (SPEC 0054).
 
-:func:`probe_fold` is :func:`src.train.train_fold` with a featuriser in it. It
+:func:`probe_fold` does what :func:`src.train.train_fold` does, with a
+featuriser in place of the network — a sibling implementation of one protocol
+and **not** a wrapper around it, so nothing here calls into `train.py`. It
 selects the probe's regularisation strength on the inner folds of one outer
 fold's training side, refits on the whole training side, predicts the test side,
 and writes the same four artifacts the incumbent writes — so ``evaluate.py``,
@@ -169,6 +171,7 @@ def probe_fold(
     featuriser: Featuriser,
     shuffled_control: bool = False,
     verify: bool = True,
+    forced: bool = False,
 ) -> dict:
     """Select, refit and predict one outer fold of a probe arm, writing its artifacts.
 
@@ -335,6 +338,8 @@ def probe_fold(
         classes=cfg["classes"],
         records=_predict(model, split["test"], cfg, featuriser, cache),
         shuffled_control=shuffled_control,
+        manifest_digest=fold_manifest["manifest_digest"],
+        forced=forced,
     )
     # A "training" is one selection pass over an inner fold, plus the refit —
     # the same unit `train_fold` records, and the one a cost table contrasting

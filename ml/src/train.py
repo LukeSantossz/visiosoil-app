@@ -139,6 +139,7 @@ def train_fold(
     fold: int,
     shuffled_control: bool = False,
     verify: bool = True,
+    forced: bool = False,
 ) -> dict:
     """Select, refit and predict one outer fold, writing its artifacts.
 
@@ -279,6 +280,8 @@ def train_fold(
         classes=cfg["classes"],
         records=_predict(model, split["test"], cfg),
         shuffled_control=shuffled_control,
+        manifest_digest=fold_manifest["manifest_digest"],
+        forced=forced,
     )
     write_fold_cost(arm_dir, repeat, fold, len(seconds), seconds)
     return runtime
@@ -465,11 +468,22 @@ def train(
     arm: str,
     config_path: str | None = None,
     shuffled_control: bool = False,
+    force: bool = False,
 ) -> dict:
-    """Train one outer fold from the command line."""
+    """Train one outer fold from the command line.
+
+    Args:
+        force: Recompute the fold, discarding artifacts already there. Off by
+            default, and the refusal it unlocks is the same one `run_arm` makes
+            (SPEC 0056) — this path needs it more, not less, because CI
+            dispatches one job per fold through here.
+    """
     from .crossval import (
         arm_directory,
+        begin_fold,
+        fold_directory,
         fold_trainer_for,
+        plan_arm_run,
         require_control_matches_arm,
     )
 
@@ -491,6 +505,28 @@ def train(
         fold_manifest = create_folds_for_config(cfg, splits_dir)
 
     arm_dir = arm_directory(Path(cfg["export"]["output_dir"]) / version, arm)
+
+    # The same classification `run_arm` makes, over this one fold. Without it
+    # this entry point silently overwrote a finished fold and recorded
+    # `forced=False` while doing it — an overwrite the artifacts denied having
+    # happened.
+    plan = plan_arm_run(
+        arm_dir,
+        fold_manifest,
+        cfg=cfg,
+        arm=arm,
+        shuffled_control=shuffled_control,
+        force=force,
+        only=(repeat, fold),
+    )
+    if not plan["run"]:
+        print(
+            f"repeat {repeat} fold {fold} of {arm} is already computed under "
+            f"this configuration and manifest; reusing it untouched."
+        )
+        return load_runtime(fold_directory(arm_dir, repeat, fold)) or {}
+
+    begin_fold(arm_dir, repeat, fold)
     return fold_trainer(
         cfg,
         fold_manifest,
@@ -499,6 +535,7 @@ def train(
         repeat=repeat,
         fold=fold,
         shuffled_control=shuffled_control,
+        forced=force,
     )
 
 
@@ -518,6 +555,11 @@ def main():
         help="Permute texture_class across groups within this fold's training side",
     )
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Recompute this fold, discarding artifacts already on disk",
+    )
     args = parser.parse_args()
 
     train(
@@ -527,6 +569,7 @@ def main():
         default_arm_name(args.arm, args.shuffled_control),
         args.config,
         shuffled_control=args.shuffled_control,
+        force=args.force,
     )
 
 

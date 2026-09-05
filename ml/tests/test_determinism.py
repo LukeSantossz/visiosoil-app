@@ -288,7 +288,9 @@ def test_train_fold_writes_the_record_for_the_refit_model(
     arm_dir = tmp_path / "models" / "vtest" / "cnn"
     train_module.train_fold(
         _fold_config(tmp_path),
-        {"seed": SEED},
+        # A digest as well as a seed: since SPEC 0056 a fold records the manifest
+        # it was computed from, so a stand-in fold manifest has to carry one.
+        {"seed": SEED, "manifest_digest": "d" * 64},
         arm_dir=arm_dir,
         arm="cnn",
         repeat=0,
