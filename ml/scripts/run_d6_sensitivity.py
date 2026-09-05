@@ -25,6 +25,7 @@ read** — and 1 it could not be run.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -44,6 +45,8 @@ from src.evaluate import pooled_group_correctness  # noqa: E402
 from src.sensitivity import (  # noqa: E402
     CNN_PAIR,
     DESCRIPTOR_PAIR,
+    SENSITIVITY_REPORT_FILENAME,
+    carry_forward_contrasts,
     sensitivity_contrast,
     write_sensitivity_report,
 )
@@ -57,6 +60,21 @@ PAIRS = {
 }
 
 SENSITIVITY_DIRNAME = "d6_sensitivity"
+
+
+def _previous_report(directory: Path) -> dict | None:
+    """The report already at this path, if one is there and parses.
+
+    Unreadable is treated as absent rather than fatal: a half-written file from
+    a killed run should not stop the run that replaces it.
+    """
+    path = Path(directory) / SENSITIVITY_REPORT_FILENAME
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -81,6 +99,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     cfg = resolve_paths(load_config(args.config))
     version = args.version or cfg["data"]["dataset_version"]
+    # Written back, not merely held: `load_folds_for_config` reads the version
+    # from the configuration, so a `--version` that only reached the output path
+    # would load one version's folds and file the result under another's name.
+    cfg["data"]["dataset_version"] = version
     evaluation = cfg["evaluation"]
 
     try:
@@ -105,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
 
     contrasts = []
     runtimes: dict[str, dict | None] = {}
+    measured: list[str] = []
     for base, withheld in pairs:
         correctness = {}
         for arm in (base, withheld):
@@ -118,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             runtimes[arm] = first_runtime(arm_dir, fold_manifest)
             predictions, _ = load_arm_predictions(arm_dir, fold_manifest)
             correctness[arm] = pooled_group_correctness(predictions)
+            measured.append(arm)
 
         contrasts.append(
             sensitivity_contrast(
@@ -130,13 +154,48 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     directory = output_dir / SENSITIVITY_DIRNAME
+
+    # A partial run must not erase the other pair. `--arms descriptors` here and
+    # `--arms cnn` on the GPU host is the workflow the runbook documents, and it
+    # only works if the second run keeps what the first computed — after
+    # checking the two were computed over one partition.
+    previous = _previous_report(directory)
+    try:
+        carried = carry_forward_contrasts(
+            previous,
+            computed_now=[entry["name"] for entry in contrasts],
+            version=version,
+            manifest_digest=fold_manifest["manifest_digest"],
+            seeds=fold_manifest["seeds"],
+        )
+    except ValueError as refusal:
+        print(refusal, file=sys.stderr)
+        return 1
+    if carried:
+        print(
+            f"carrying forward {len(carried)} contrast(s) from the report "
+            f"already here: {', '.join(entry['name'] for entry in carried)}"
+        )
+        for entry in carried:
+            runtimes.update(
+                {
+                    arm: runtime
+                    for arm, runtime in (previous.get("runtimes") or {}).items()
+                    if arm not in runtimes
+                }
+            )
+        measured.extend(
+            arm for arm in previous.get("measured_arms", []) if arm not in measured
+        )
+
     report = write_sensitivity_report(
         directory,
         version=version,
         manifest_digest=fold_manifest["manifest_digest"],
-        contrasts=contrasts,
+        contrasts=[*carried, *contrasts],
         seeds=fold_manifest["seeds"],
         runtimes=runtimes,
+        measured_arms=measured,
     )
 
     for entry in report["contrasts"]:

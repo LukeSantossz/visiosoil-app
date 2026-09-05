@@ -58,14 +58,69 @@ READING_RULE = (
     "re-opened if either lands in the top row."
 )
 
-#: What the sensitivity does and does not clear, carried beside the numbers so
-#: the E0 verdict cannot cite it as a general clearance.
-LICENCE = (
-    "Measured on the descriptor arm and on the incumbent CNN, each with and "
-    "without the withheld population in its training side. It does not clear the "
-    "frozen-encoder arm, which was not run in either configuration and which "
-    "SPEC 0044 permits to be recorded as not executed."
-)
+def licence_for(measured_arms: Sequence[str]) -> str:
+    """What the sensitivity clears, written from what actually ran.
+
+    Composed rather than fixed, because `--arms descriptors` runs one pair and a
+    licence naming both would hand the E0 verdict exactly the general clearance
+    this sentence exists to withhold. The arm that was **not** measured is the
+    one a reader needs named.
+    """
+    measured = sorted(set(measured_arms))
+    unmeasured = sorted(
+        {*DESCRIPTOR_PAIR, *CNN_PAIR, "encoder_probe"} - set(measured)
+    )
+    return (
+        f"Measured on {', '.join(measured)}, each arm with and without the "
+        f"withheld population in its training side. It does not clear "
+        f"{', '.join(unmeasured)}, which SPEC 0044 permits to be recorded as "
+        f"not executed."
+    )
+
+
+def carry_forward_contrasts(
+    previous: Mapping | None,
+    *,
+    computed_now: Sequence[str],
+    version: str,
+    manifest_digest: str,
+    seeds: Mapping,
+) -> list[dict]:
+    """Contrasts from a previous report that this run did not recompute.
+
+    The split-machine workflow needs this: the descriptor pair can run on one
+    host and the incumbent on a machine with a GPU, and the second run must not
+    overwrite the first's contrast with a report holding one pair. A contrast
+    this run **did** recompute is dropped, because the fresh one replaces it.
+
+    Raises:
+        ValueError: If the previous report was written over a different dataset
+            version, manifest or seed set. Two reports over two partitions are
+            two experiments, and merging them would produce one report whose
+            halves were never comparable.
+    """
+    if not previous:
+        return []
+
+    for field, mine, theirs in (
+        ("dataset_version", version, previous.get("dataset_version")),
+        ("manifest_digest", manifest_digest, previous.get("manifest_digest")),
+        ("seeds", dict(seeds), previous.get("seeds")),
+    ):
+        if mine != theirs:
+            raise ValueError(
+                f"the report already at this path was written over a different "
+                f"{field} ({theirs!r}, against this run's {mine!r}), so its "
+                f"contrasts were not computed on these groups and cannot be "
+                f"carried forward. Move it aside or rerun both pairs"
+            )
+
+    recomputed = set(computed_now)
+    return [
+        dict(entry)
+        for entry in previous.get("contrasts", [])
+        if entry["name"] not in recomputed
+    ]
 
 
 def reading_cell(
@@ -88,7 +143,14 @@ def reading_cell(
         the difference favours, and the sentence the report prints.
     """
     resolvable = mde is not None and abs(observed) >= mde
-    favours = "with_withheld" if observed > 0 else "without_withheld"
+    # Three values and not two: a difference of exactly zero has no direction,
+    # and naming one states something the number does not.
+    if observed > 0:
+        favours = "with_withheld"
+    elif observed < 0:
+        favours = "without_withheld"
+    else:
+        favours = "neither"
 
     if significant and resolvable:
         return {
@@ -197,6 +259,7 @@ def write_sensitivity_report(
     contrasts: Sequence[Mapping],
     seeds: Mapping,
     runtimes: Mapping[str, Mapping | None],
+    measured_arms: Sequence[str],
 ) -> dict:
     """Write the verdict, whichever way it reads.
 
@@ -223,9 +286,9 @@ def write_sensitivity_report(
         "dataset_version": version,
         "manifest_digest": manifest_digest,
         "withheld_population": WITHHELD_POPULATION,
-        "measured_arms": [*DESCRIPTOR_PAIR, *CNN_PAIR],
+        "measured_arms": list(measured_arms),
         "reading_rule": READING_RULE,
-        "licence": LICENCE,
+        "licence": licence_for(measured_arms),
         "contrasts": read,
         "verdict": {
             # Either arm is enough: an arm that is affected is affected whatever

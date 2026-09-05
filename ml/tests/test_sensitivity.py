@@ -276,8 +276,10 @@ def test_a_partial_run_reports_only_the_arms_it_measured(tmp_path):
     )
 
     assert report["measured_arms"] == list(DESCRIPTOR_PAIR)
-    assert CNN_PAIR[0] not in report["licence"]
-    assert "descriptors" in report["licence"]
+    # Naming the incumbent is right; claiming it was measured is not. The arm
+    # that did NOT run is the one a reader of the E0 verdict needs named.
+    assert f"Measured on {DESCRIPTOR_PAIR[0]}" in report["licence"]
+    assert f"does not clear {CNN_PAIR[0]}" in report["licence"]
 
 
 def test_a_second_partial_run_keeps_the_first_pair(tmp_path):

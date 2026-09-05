@@ -31,7 +31,7 @@ import re
 import warnings
 from collections import Counter
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, Mapping
+from typing import TYPE_CHECKING, Collection, Mapping, Sequence
 
 import numpy as np
 import sklearn
