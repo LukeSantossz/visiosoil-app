@@ -258,6 +258,26 @@ def test_a_fold_with_no_recorded_runtime_is_refused_rather_than_assumed(tmp_path
         require_uniform_runtime(tmp_path, MANIFEST)
 
 
+def test_every_arm_trainer_accepts_the_forced_flag():
+    """`run_arm` passes `forced` to whatever `fold_trainer_for` returns.
+
+    A structural test rather than a behavioural one, because the failure is a
+    `TypeError` raised twenty hours into a forced run — after the arm that does
+    accept it has already finished, and on the arm nobody has run yet.
+    """
+    import inspect
+
+    from src.crossval import ARM_TRAINERS, fold_trainer_for
+
+    missing = [
+        arm
+        for arm in ARM_TRAINERS
+        if "forced" not in inspect.signature(fold_trainer_for(arm)).parameters
+    ]
+
+    assert missing == []
+
+
 # --- both loops, one rule ----------------------------------------------------
 
 

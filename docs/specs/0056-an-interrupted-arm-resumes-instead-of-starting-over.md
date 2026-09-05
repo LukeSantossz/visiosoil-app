@@ -192,9 +192,18 @@ The behaviour is decided by files on disk and needs no dataset; every test above
 builds its fold directories from fixtures. Python 3.12.13 and the pinned stack of
 `ml/requirements.txt`, unchanged; no dependency is added.
 
-Against the real archive the change is observable without training anything: a
-completed `models/v1/population_probe` re-run reports twenty-five folds reused
-and exits in seconds where it previously spent twenty-eight minutes.
+Against the real archive the change is observable without training anything, on
+a directory this spec produced: a completed `models/v1/population_probe` re-run
+reports twenty-five folds reused and exits in seconds where it previously spent
+twenty-eight minutes.
+
+**The directories already on this machine are not that.** Every fold under
+`models/v1/` was written before folds recorded a manifest digest, so each is
+unproven by the rule above and the first run after this change refuses, naming
+all twenty-five and `--force`. That is the intended behaviour and its cost is
+one forced run per existing arm — a `population_probe` directory whose verdict
+is already committed, and a `cnn` directory holding a single fold that no
+reported number depends on.
 
 ## Risks and Assumptions
 
