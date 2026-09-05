@@ -131,11 +131,11 @@ Last updated: 2026-09-05.
 >
 > | # | Item | What it settles | Blocked on | Cost |
 > |---|---|---|---|---|
-> | **SPEC 0057** | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
+> | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
 > | **ADR 0021** | what D6 becomes | which of D6's two written options is taken | SPEC 0057's numbers | — |
 > | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | ADR 0021 | ~20 h |
 >
-> **SPEC 0057 — decide D6 by measurement rather than by argument.** The
+> **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** Written 2026-09-05 and awaiting the Spec Gate; nothing is implemented. The
 > Developer's instruction on 2026-09-05 was to measure before deciding, and this
 > is that measurement. It runs the descriptor arm **twice over one partition** —
 > once with population `B` in the training sides as D6 permits, once with `B`
