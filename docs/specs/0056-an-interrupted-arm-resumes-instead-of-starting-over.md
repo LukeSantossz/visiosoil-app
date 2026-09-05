@@ -86,6 +86,30 @@ published result says so in the command.
 whether to force needs the whole cost of that decision in one message; a refusal
 that reveals it one fold at a time turns one decision into twenty-five.
 
+**A fold's completion marker is cleared before the fold is computed.** *Added
+2026-09-05, from R3.* The classification above is only as good as the state a
+half-finished recomputation leaves behind, and without this it is worthless in
+exactly the case it exists for. A trainer overwrites `config.json` and
+`runtime.json` before it writes any prediction; killed in between, the fold keeps
+the **old** `predictions.json` and the **old** `cost.json` beside the **new**
+`config.json` — and the next run reads it as complete, matching, reusable, and
+pools predictions from one configuration under the record of another. Removing
+the marker first makes that state `INCOMPLETE`, which is what it is. Nothing else
+is removed: the predictions are what a recomputation overwrites anyway, and
+deleting them here would destroy a result before its replacement exists.
+
+**The per-fold entry point plans its one fold, through the same planner.**
+*Added 2026-09-05, from R3.* `src.train.train` called the trainer directly, so a
+re-run through it overwrote a finished fold silently **and recorded
+`forced=False`** — an overwrite the artifacts denied having happened. This spec's
+Scope did not name `train.py`, and it should have: that is the entry point CI
+dispatches one job per fold to, which `train.py`'s own comment already says makes
+it "the path a published result comes from". A contract that holds at `run_arm`
+and not there protects the path nobody's published numbers came from. It asks
+`plan_arm_run` with `only=(repeat, fold)` rather than carrying a second copy of
+the rule, because two implementations of one refusal are how the two come to
+disagree.
+
 **The same classification runs in `scripts/run_population_probe.py`.** It is a
 second 25-fold loop with the same failure — it is what the interruption actually
 happened to — so the check lives in `crossval.py` and both callers use it. A
@@ -138,6 +162,10 @@ is the property that makes resume legitimate rather than merely convenient.
     of them, and reports what it reused.
   - `ml/scripts/run_population_probe.py` — the same classification in its loop,
     and the same `--force`.
+  - `ml/src/train.py` — `begin_fold` before the trainer, and the per-fold entry
+    point plans its one fold through `plan_arm_run(only=...)` and gains
+    `--force`. **Added to this Scope on 2026-09-05**, from R3: leaving it out
+    would have left the contract false at the entry point CI actually uses.
   - `ml/tests/` — one test per acceptance criterion below.
 - Does NOT include:
   - Any change to a fold's training recipe, the nested selection, the pooling,
@@ -177,6 +205,12 @@ is the property that makes resume legitimate rather than merely convenient.
 - the_probe_resumes_on_the_same_rule: `run_population_probe.py` reuses,
   recomputes and refuses by the same classification, asserted against the same
   function.
+- no_fold_begins_while_still_marked_finished: a trainer is never entered on a
+  fold whose `cost.json` is still there, so an interrupted recomputation leaves
+  the fold incomplete rather than falsely complete.
+- the_per_fold_entry_point_refuses_a_stale_fold: `src.train.train` reuses a
+  matching fold, refuses a stale one naming `--force`, and records `forced` when
+  it is given — the same three outcomes `run_arm` has.
 - a_resumed_arm_equals_an_uninterrupted_one: an arm run in two halves across a
   simulated interruption produces the same pooled predictions as the same arm run
   in one pass.
