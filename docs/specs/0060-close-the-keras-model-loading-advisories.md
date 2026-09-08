@@ -86,21 +86,31 @@ already started.
   resolves with TensorFlow still at 2.21.0, numpy at 1.26.4, scikit-learn at
   1.5.2 and pillow at 10.4.0 — asserted by reading the installed versions back,
   not by reading the file.
-- the_ml_suite_passes_under_the_new_pin: `pytest tests/ -q` in `ml/` passes with
-  the dataset-gated tests executing rather than skipping.
+- the_ml_suite_passes_under_the_new_pin: `pytest tests/ -q` in `ml/` passes and
+  its summary reports **zero skipped**, checked by the command below rather than
+  read off the output by eye. *Corrected after R3: the original asked for the
+  dataset-gated tests to execute rather than skip but gave no way to fail on a
+  skip, and those tests skip by design when TensorFlow or the dataset is absent —
+  so a run in the wrong environment would have satisfied it silently.*
 - the_recorded_verdict_stays_true: the sensitivity report's provenance still says
   the arms ran under Keras 3.14.0, and the document says the pin has since moved.
-- no_open_advisory_remains_for_keras: `gh api .../dependabot/alerts` reports no
-  open alert whose package is `keras`.
+- no_open_advisory_remains_for_keras: the Dependabot query filtered to
+  `state=open`, `ecosystem=pip` and `package=keras`, paginated, returns nothing.
+  *Corrected after R3: the original counted every open alert on the first page,
+  which neither isolates Keras nor sees past page one.*
 
 ## Reproducibility
 
 ```sh
 cd ml
 .venv/Scripts/python.exe -m pip install -r requirements.txt
-.venv/Scripts/python.exe -m pytest tests/ -q
-gh api repos/LukeSantossz/visiosoil-app/dependabot/alerts \
-  --jq '[.[] | select(.state=="open")] | length'
+
+# Fails on a skip rather than leaving it to the reader's eye.
+.venv/Scripts/python.exe -m pytest tests/ -q -rs | tee ml-suite.log
+grep -qE "[0-9]+ skipped" ml-suite.log && { echo "tests skipped"; exit 1; }
+
+# Keras only, every page.
+gh api --paginate "/repos/LukeSantossz/visiosoil-app/dependabot/alerts?state=open&ecosystem=pip&package=keras" --jq "length"
 ```
 
 ## Risks and Assumptions
