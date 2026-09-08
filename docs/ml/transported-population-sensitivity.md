@@ -98,6 +98,15 @@ Pooling across repeats is an ensemble and reads higher than any single repeat.
 | Repeat seeds | 42, 1042, 2042, 3042, 4042 (from `data.seed` via `derive_repeat_seed`) |
 | Fold-draw libraries | scikit-learn 1.5.2, numpy 1.26.4 |
 | Run libraries | scikit-learn 1.5.2, numpy 1.26.4, TensorFlow 2.21.0, Keras 3.14.0 |
+
+The Keras pin has since moved to 3.15.1
+([SPEC 0060](../specs/0060-close-the-keras-model-loading-advisories.md), closing
+seven model-loading advisories), so `ml/requirements.txt` no longer names the
+version these arms recorded. The row above is what ran and is not restated to
+match the file. Nothing measured here moves — the folds are not re-run — but a
+fold of these arms recomputed under the new pin would record 3.15.1 beside
+siblings recording 3.14.0, and `require_uniform_runtime` refuses an arm whose
+folds disagree.
 | Operator determinism | on, for all 100 folds |
 | Devices | `descriptors`, `descriptors_without_b` on CPU; `cnn`, `cnn_without_b` on GPU |
 | Measured arms | `descriptors`, `descriptors_without_b`, `cnn`, `cnn_without_b` |
