@@ -180,16 +180,36 @@ numbers by the Developer.
 
 ## Reproducibility
 
+**Reproducing what ran needs Keras 3.14.0, which `ml/requirements.txt` no longer
+names.** The pin moved to 3.15.1 under SPEC 0060 after these arms were computed,
+so installing the current requirements file gives a different Keras from the one
+every fold recorded. Pin it back for a reproduction run, and only for that:
+
 ```sh
-cd ml
+pip install -r requirements.txt
+pip install keras==3.14.0     # the version these arms recorded
+```
+
+Then, from `ml/` — the descriptor pair ran on Windows and the CNN pair in WSL2,
+so both interpreter paths appear below because both were used:
+
+```sh
+# Windows (the descriptor pair)
 .venv/Scripts/python.exe -m pytest tests/ -q
-.venv/Scripts/python.exe scripts/run_d6_sensitivity.py --version v1
+.venv/Scripts/python.exe scripts/run_d6_sensitivity.py --version v1 --arms descriptors
+
+# WSL2 / Linux (the CNN pair)
+.venv/bin/python -m pytest tests/ -q
+.venv/bin/python scripts/run_d6_sensitivity.py --version v1 --arms cnn
 ```
 
 `--arms descriptors` runs the cheap pair alone and `--arms cnn` the expensive
 one, so the two halves can be split across machines; the report carries each
 arm's own runtime, read back from that arm's folds. The machine-readable verdict
 is `models/v1/d6_sensitivity/sensitivity.json`.
+
+On Linux the fold manifest's absolute paths must be re-rooted first, for the
+reason the provenance section above records; issue #233 is the durable fix.
 
 The run was interrupted three times and resumed under
 [SPEC 0056](../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)

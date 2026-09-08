@@ -95,8 +95,11 @@ mixing them would hide the second inside the first.
 - the_pin_moves_in_a_commit_of_its_own: the `.standards` gitlink change is one
   commit that touches nothing else.
 - every_gate_runs_rather_than_reporting_a_missing_document: `mf check` reports a
-  pass or a fail for `spec`, `commit`, `branch`, `docs`, `records`, `agents` and
-  `design`, and none of them reports a file it cannot read.
+  pass for `spec`, `commit`, `branch`, `docs`, `records`, `agents` and `design`,
+  and none of them reports a file it cannot read. *Corrected after R3: this read
+  "a pass or a fail", which a failing gate would have satisfied. The intent was
+  always that a gate must be able to run and then pass; the original wording let
+  the first half stand in for both.*
 - the_agent_files_match_their_source: `mf check agents` passes, with `CLAUDE.md`
   and `AGENTS.md` regenerated through `mf agents sync` rather than edited.
 - durable_numbering_holds_under_the_new_rule: `mf check records` passes, and any
@@ -126,10 +129,21 @@ flutter analyze && flutter test
 cd ml && .venv/Scripts/python.exe -m pytest tests/ -q
 ```
 
-`mf` v0.8.0 or later on `PATH`. The bump moves `.standards` from `6ad21c4`
-(PR #13) to `origin/main`, 160 commits ahead at the time of writing; the exact
-target commit is recorded in the pull request so the bump is reproducible after
-`main` moves again.
+`mf` v0.8.0 or later on `PATH`.
+
+*Corrected after R3.* This said the bump moves `.standards` from `6ad21c4`
+(PR #13) to `origin/main`. Two things were wrong with that. The committed gitlink
+on `main` was `0a3e625`, not `6ad21c4` — the latter was checked out in the
+working tree without ever being committed — and naming `origin/main` rather than
+a commit makes the instruction select a different target every time the branch
+moves. **The bump this spec covers is `0a3e625` → `d8feba6`**, and a reproduction
+checks that commit out by hash:
+
+```sh
+git -C .standards fetch origin
+git -C .standards checkout d8feba6
+git add .standards
+```
 
 ## Risks and Assumptions
 
