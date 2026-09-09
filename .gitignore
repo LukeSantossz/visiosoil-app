@@ -75,17 +75,17 @@ nul
 ml/.venv/
 ml/data/raw/
 ml/data/processed/
-# The fold manifest was tracked on 2026-09-05 and untracked the same day. The
-# reason for tracking it stands: the partition is not reproducible from the seed
-# — `StratifiedGroupKFold` assigns differently across scikit-learn releases, so
-# regenerating it elsewhere moves the folds and nothing warns. The reason for
-# untracking it is that it does not survive the move it was tracked for:
-# `splits.json` stores **absolute** image paths, so the file is valid on exactly
-# one machine. Carrying it to another buys a manifest whose every path is wrong.
-# Making those paths relative is a fold-manifest schema change (#233) and
-# belongs to its own spec, not to a rider on an experiment. Until then the whole
-# of `ml/data/` is copied, which is what the ml/README runbook says.
-ml/data/splits/
+# The fold manifest was tracked on 2026-09-05 and untracked the same day,
+# because it stored absolute image paths and so did not survive the move it was
+# tracked for. SPEC 0061 made those paths relative to the dataset root, and the
+# reason for tracking it was never in doubt: the partition is not reproducible
+# from the seed — `StratifiedGroupKFold` assigns differently across scikit-learn
+# releases, so regenerating it elsewhere moves the folds and nothing warns.
+# `splits.json` is therefore the one build product here that is deliberately
+# versioned. Everything else this directory may hold is not.
+ml/data/splits/*
+!ml/data/splits/.gitkeep
+!ml/data/splits/splits.json
 # The delivered sample archive, as the laboratory handed it over: original
 # filenames, original formats, English class folders. It is source material,
 # not a pipeline input — ingestion reads it by path and writes a dataset

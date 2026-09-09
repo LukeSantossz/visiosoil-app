@@ -34,10 +34,19 @@ K = 5
 REPEATS = 2
 
 
-def generate(class_images, splits_dir, *, k=K, repeats=REPEATS):
-    """Generate folds over a folder-scanned dataset and return the manifest."""
+def generate(class_images, splits_dir, raw_dir, *, k=K, repeats=REPEATS):
+    """Generate folds over a folder-scanned dataset and return the manifest.
+
+    The folder scan has no dataset version, so the root the paths are stored
+    relative to is the scanned directory itself.
+    """
     return create_folds(
-        class_images, k=k, repeats=repeats, seed=42, splits_dir=splits_dir
+        class_images,
+        k=k,
+        repeats=repeats,
+        seed=42,
+        splits_dir=splits_dir,
+        dataset_root=str(raw_dir),
     )
 
 
@@ -77,7 +86,7 @@ def test_create_folds_preserves_config_order(fake_dataset):
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    generate(class_images, splits_dir)
+    generate(class_images, splits_dir, raw_dir)
 
     with open(Path(splits_dir) / FOLD_MANIFEST_FILENAME) as f:
         manifest = json.load(f)
@@ -94,7 +103,7 @@ def test_create_folds_labels_match_class_to_idx(fake_dataset):
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    folds = generate(class_images, splits_dir)
+    folds = generate(class_images, splits_dir, raw_dir)
 
     class_to_idx = folds["class_to_idx"]
     for repeat in range(REPEATS):
@@ -141,7 +150,7 @@ def test_create_folds_rejects_a_class_below_the_fold_count(tmp_path):
     splits_dir = tempfile.mkdtemp()
 
     with pytest.raises(ValueError, match="at least 5"):
-        generate(class_images, splits_dir)
+        generate(class_images, splits_dir, raw_dir)
 
 
 def test_no_sample_leakage_between_a_folds_two_sides(grouped_dataset):
@@ -150,7 +159,7 @@ def test_no_sample_leakage_between_a_folds_two_sides(grouped_dataset):
     class_images = scan_dataset(raw_dir, classes)
     splits_dir = tempfile.mkdtemp()
 
-    folds = generate(class_images, splits_dir)
+    folds = generate(class_images, splits_dir, raw_dir)
 
     for repeat in range(REPEATS):
         for fold in range(K):

@@ -514,6 +514,7 @@ def build_folds(tmp_path):
         repeats=REPEAT_COUNT,
         seed=42,
         splits_dir=str(tmp_path / "splits"),
+        dataset_root=str(version),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
@@ -589,6 +590,7 @@ def test_create_folds_refuses_when_every_group_is_restricted(tmp_path):
             repeats=REPEAT_COUNT,
             seed=42,
             splits_dir=str(tmp_path / "splits"),
+            dataset_root=str(version),
             sample_ids=sample_ids_by_image(manifest),
             train_only_samples={row.sample_id for row in manifest.rows},
         )
@@ -851,6 +853,7 @@ def test_create_folds_refuses_a_class_whose_every_group_is_restricted(tmp_path):
             repeats=REPEAT_COUNT,
             seed=42,
             splits_dir=str(tmp_path / "splits"),
+            dataset_root=str(version),
             sample_ids=sample_ids_by_image(manifest),
             train_only_samples=doomed,
         )

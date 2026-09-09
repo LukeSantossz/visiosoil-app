@@ -93,6 +93,7 @@ def build(tmp_path, *, classes=CLASSES, seed=SEED, k=K, repeats=REPEATS):
         repeats=repeats,
         seed=seed,
         splits_dir=str(tmp_path / "splits"),
+        dataset_root=str(root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,

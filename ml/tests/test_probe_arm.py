@@ -138,12 +138,14 @@ def offset_featuriser(offset_paths):
     return featurise
 
 
-def _class_images(classes):
+def _class_images(classes, root):
     """Fake image paths per class, and the sample each one photographs.
 
     No file is written and none is opened: `create_folds` groups paths and
     `probe_fold` is called with ``verify=False``, exactly as `run_arm` calls it
-    once the images have been verified for the whole run.
+    once the images have been verified for the whole run. The paths are still
+    absolute under ``root``, because that is what `create_folds` stores relative
+    to and an already-relative path has no relative form.
     """
     images: dict[str, list[str]] = {}
     sample_ids: dict[str, str] = {}
@@ -153,7 +155,7 @@ def _class_images(classes):
         for index in range(GROUPS_PER_CLASS):
             sample = f"{slug}-{index}"
             for setting in ("dish", "paper"):
-                path = f"images/{sample}_{setting}.jpg"
+                path = str(root / f"images/{sample}_{setting}.jpg")
                 paths.append(path)
                 sample_ids[path] = sample
         images[name] = paths
@@ -174,13 +176,15 @@ def cfg():
 @pytest.fixture
 def folds(tmp_path, cfg):
     """A fold manifest over synthetic groups of the configured classes."""
-    images, sample_ids = _class_images(cfg["classes"])
+    root = tmp_path / "datasets" / "v-fixture"
+    images, sample_ids = _class_images(cfg["classes"], root)
     return create_folds(
         images,
         k=K,
         repeats=REPEATS,
         seed=SEED,
         splits_dir=str(tmp_path / "splits"),
+        dataset_root=str(root),
         sample_ids=sample_ids,
         dataset_version="v-fixture",
         manifest_digest="0" * 64,

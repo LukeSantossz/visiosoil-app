@@ -261,8 +261,8 @@ Rebuilding it with `ingest_archive.py` and `measure_scale.py` is possible — th
 readings are tracked at `ml/measurements/dish-scale-v1.json` — but it can produce
 a different byte sequence and break that match for no gain. Copy it.
 
-**2. Copy `ml/data/splits/` too, and do not let the other machine regenerate
-it.** This is the one that fails quietly. The fold manifest is drawn by
+**2. `ml/data/splits/splits.json` comes from git, and the other machine must not
+regenerate it.** This is the one that fails quietly. The fold manifest is drawn by
 `StratifiedGroupKFold`, which **partitions differently across scikit-learn
 releases**: the seed alone does not reproduce a partition, which is why the file
 records the versions it was drawn under. Copied across, the stored assignment is
@@ -274,15 +274,15 @@ number computed there becomes incomparable with every number computed here.
 So on the GPU machine: **do not delete it, and do not run anything that would
 regenerate it.** `run_arm` regenerates only when the file is absent.
 
-*It is copied rather than pulled from git for a reason worth knowing.* Tracking
-it was tried on 2026-09-05 and withdrawn the same day: `splits.json` stores
-**absolute** image paths and nothing re-roots them on load, so a copy pulled from
-git on another machine is a manifest every one of whose paths points at the
-machine it left. Making them relative is a schema change tracked as
-[#233](https://github.com/LukeSantossz/visiosoil-app/issues/233); until it lands,
-the file travels the same way the images do. **Copying the directory works
-because the checkout path is the same on both machines** — if it is not, the
-paths are wrong there too, and #233 is a prerequisite rather than a convenience.
+*It travels in the checkout, and that is recent.* Tracking it was tried on
+2026-09-05 and withdrawn the same day, because `splits.json` stored **absolute**
+image paths and nothing re-rooted them on load, so a copy pulled from git on
+another machine was a manifest every one of whose paths pointed at the machine
+it left. [SPEC 0061](../docs/specs/0061-a-fold-manifest-that-survives-the-move-it-is-written-for.md)
+made the stored paths relative to the dataset root and `load_folds` re-roots them
+against the reading machine's own, so the checkout path no longer has to match
+and no copy step is needed. A manifest written before that change records
+`schema_version: 2` and is refused by name rather than read.
 
 **3. `ml/models/<version>/` is not tracked either.** Carrying it is optional and
 usually not worth it: every fold already there predates the provenance record

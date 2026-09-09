@@ -56,6 +56,7 @@ def generate(tmp_path, root, *, classes=CLASSES, k=K, repeats=REPEATS, seed=SEED
         repeats=repeats,
         seed=seed,
         splits_dir=str(splits_dir),
+        dataset_root=str(root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version if with_provenance else None,
         manifest_digest=manifest.digest if with_provenance else None,
@@ -73,6 +74,7 @@ def real_folds(tmp_path, **kwargs):
         repeats=REPEATS,
         seed=SEED,
         splits_dir=str(tmp_path / "splits"),
+        dataset_root=str(manifest.root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
@@ -275,7 +277,7 @@ def test_result_from_another_manifest_is_refused(tmp_path):
     manifest, splits_dir, _ = generate(tmp_path, root)
 
     with pytest.raises(ValueError) as raised:
-        load_folds(str(splits_dir), manifest_digest="0" * 64)
+        load_folds(str(splits_dir), dataset_root=str(root), manifest_digest="0" * 64)
 
     message = str(raised.value)
     assert manifest.digest in message
@@ -287,7 +289,7 @@ def test_a_fold_manifest_that_belongs_to_the_dataset_loads(tmp_path):
     root = write_version(tmp_path)
     manifest, splits_dir, _ = generate(tmp_path, root)
 
-    loaded = load_folds(str(splits_dir), manifest_digest=manifest.digest)
+    loaded = load_folds(str(splits_dir), dataset_root=str(root), manifest_digest=manifest.digest)
 
     assert loaded["dataset_version"] == "v1"
 
@@ -312,8 +314,10 @@ def test_stale_schema_is_refused(tmp_path):
         encoding="utf-8",
     )
 
+    # Any root: the schema is refused before anything is re-rooted against it,
+    # and this version-1 file names no dataset to point one at.
     with pytest.raises(ValueError) as raised:
-        load_folds(str(splits_dir))
+        load_folds(str(splits_dir), dataset_root=str(tmp_path))
 
     message = str(raised.value)
     assert REGENERATE_FOLDS_COMMAND in message
@@ -330,7 +334,7 @@ def test_a_fold_manifest_from_a_future_schema_is_refused(tmp_path):
     path.write_text(json.dumps(written), encoding="utf-8")
 
     with pytest.raises(ValueError, match="schema_version"):
-        load_folds(str(splits_dir))
+        load_folds(str(splits_dir), dataset_root=str(root))
 
 
 # --- repeats_use_distinct_derived_seeds -------------------------------------
@@ -690,7 +694,7 @@ def test_loading_a_fold_manifest_from_another_library_version_warns(tmp_path):
     path.write_text(json.dumps(written), encoding="utf-8")
 
     with pytest.warns(UserWarning, match="0.0.1-not-installed"):
-        loaded = load_folds(str(splits_dir))
+        loaded = load_folds(str(splits_dir), dataset_root=str(root))
 
     assert loaded["folds"] == written["folds"], "the stored assignment is used as is"
 
@@ -704,7 +708,7 @@ def test_loading_a_fold_manifest_from_this_library_version_is_silent(tmp_path):
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        load_folds(str(splits_dir))
+        load_folds(str(splits_dir), dataset_root=str(root))
 
 
 def test_loading_a_fold_manifest_that_records_no_versions_warns(tmp_path):
@@ -717,7 +721,7 @@ def test_loading_a_fold_manifest_that_records_no_versions_warns(tmp_path):
     path.write_text(json.dumps(written), encoding="utf-8")
 
     with pytest.warns(UserWarning, match="records no library versions"):
-        load_folds(str(splits_dir))
+        load_folds(str(splits_dir), dataset_root=str(root))
 
 
 def test_rebalance_repairs_any_assignment_the_generator_could_produce():

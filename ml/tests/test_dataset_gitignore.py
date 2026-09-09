@@ -40,12 +40,13 @@ BOOKKEEPING_PATHS = [
 ]
 
 
-#: The fold manifest. Tracked on 2026-09-05 and untracked the same day: it
-#: stores absolute image paths, so a copy on another machine is a manifest whose
-#: every path is wrong, and tracking it bought nothing the move it was tracked
-#: for could use. Listed here so the reversal is asserted rather than merely
-#: performed — the same reason `BOOKKEEPING_PATHS` exists. See #233.
-WITHDRAWN_PATHS = [
+#: The fold manifest. Tracked on 2026-09-05, untracked the same day because it
+#: stored absolute image paths, and tracked again by SPEC 0061, which made those
+#: paths relative to the dataset root. It is the one build product here that is
+#: deliberately versioned: `StratifiedGroupKFold` assigns differently across
+#: scikit-learn releases, so the partition is not reproducible from the seed and
+#: a record of it has to travel with the repository. See #233.
+TRACKED_PATHS = [
     "ml/data/splits/splits.json",
 ]
 
@@ -79,37 +80,24 @@ def test_dataset_bookkeeping_files_are_ignored_too(path):
     assert check_ignore(path), f"{path} would be committed"
 
 
-@pytest.mark.parametrize("path", WITHDRAWN_PATHS)
-def test_the_fold_manifest_is_not_tracked_while_its_paths_are_absolute(path):
-    """Tracking it was tried and withdrawn, and the reason is worth keeping.
+@pytest.mark.parametrize("path", TRACKED_PATHS)
+def test_the_fold_manifest_is_tracked(path):
+    """The ignore rule lets it through, and it is actually in the index.
 
-    The partition is genuinely not reproducible — `StratifiedGroupKFold` assigns
-    differently across scikit-learn releases, which is why `splits.json` records
-    the versions it was drawn under — so a record of it *should* travel. What
-    stops it is that the file stores absolute image paths and nothing re-roots
-    them on load, so a copy on another machine is a manifest every one of whose
-    paths is wrong. Relative paths are a schema change (#233).
+    Both halves, because they fail independently: an ignore rule says nothing
+    about a file already added, and an un-ignored file nobody added is not a
+    record. The second half is the check that would catch forgetting `git add`
+    — the mirror of what `test_the_fold_manifest_is_not_in_the_index_either`
+    used to do in the other direction.
     """
-    assert check_ignore(path), f"{path} would be committed"
+    assert not check_ignore(path), f"{path} is ignored and cannot be committed"
 
-
-def test_the_fold_manifest_is_not_in_the_index_either():
-    """An ignore rule says nothing about a file already added.
-
-    `git rm --cached` is what removes one, and this is the check that would have
-    caught forgetting it — the same guard `test_no_dataset_version_file_is_tracked`
-    makes for the dataset.
-    """
     completed = subprocess.run(
-        ["git", "ls-files", "--", "ml/data/splits"],
+        ["git", "ls-files", "--", path],
         cwd=REPO_ROOT,
         capture_output=True,
         stdin=subprocess.DEVNULL,
     )
-    tracked = [
-        name
-        for name in completed.stdout.decode(errors="replace").split()
-        if not name.endswith(".gitkeep")
-    ]
+    listed = completed.stdout.decode(errors="replace").split()
 
-    assert tracked == [], f"the fold manifest is still in the index: {tracked}"
+    assert listed, f"{path} is not in the index"
