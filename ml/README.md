@@ -227,11 +227,18 @@ undefined for the class and silently so. The repair moves whole groups from the
 fold holding most of a class to the fold holding fewest until no two differ by
 more than one, so every class with at least k groups reaches every fold under any
 library version.
-It is `schema_version: 2`; a version-1 file — one `train`/`val`/`test` partition —
-is refused by name rather than reinterpreted.
+It is `schema_version: 3`. Two older schemas are refused by name rather than
+reinterpreted: a version-1 file, which is one `train`/`val`/`test` partition, and
+a version-2 file, which stores absolute image paths and does not record the root
+they were written under.
 
-`data/splits/` is gitignored, so `splits.json` is **not** versioned in git today
-and the seed plus the recorded digest are what make a fold reproducible.
+`splits.json` **is** versioned in git; everything else under `data/splits/` is
+ignored. Its image paths are stored relative to the dataset root
+([SPEC 0061](../docs/specs/0061-a-fold-manifest-that-survives-the-move-it-is-written-for.md))
+and re-rooted on load, so the file survives a move to another machine — which is
+why it can be a record at all. The seed alone does not reproduce a partition, so
+the file, its recorded `library_versions` and the manifest digest are together
+what make a fold reproducible.
 
 ## Running the D6 sensitivity comparison on another machine
 
