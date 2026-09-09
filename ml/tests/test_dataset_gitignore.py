@@ -97,7 +97,15 @@ def test_the_fold_manifest_is_tracked(path):
         cwd=REPO_ROOT,
         capture_output=True,
         stdin=subprocess.DEVNULL,
+        check=False,
     )
+    # Checked before the output is read, for the reason `check_ignore` checks
+    # its own: git failing — absent, or not a repository — leaves stdout empty,
+    # and an empty stdout read as an answer reports a missing `git add` when the
+    # truth is that nothing was asked.
+    if completed.returncode != 0:
+        pytest.fail(f"git ls-files failed: {completed.stderr.decode(errors='replace')}")
+
     listed = completed.stdout.decode(errors="replace").split()
 
     assert listed, f"{path} is not in the index"
