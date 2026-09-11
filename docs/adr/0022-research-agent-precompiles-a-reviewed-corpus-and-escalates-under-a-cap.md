@@ -133,9 +133,16 @@ every capture.
 | 2 — live research | Only on an escalation predicate | Metered, capped | No |
 
 Tier 2 escalates when, and only when, the user asked a free-text question about
-the record, the verdict is `ambiguous`, structured soil context for the
-coordinate contradicts the classification, or the region has no corpus cell.
-When the cap is exhausted it degrades to Tier 1 and says so.
+the record, structured soil context for the coordinate contradicts the
+classification, or the region has no corpus cell. When the cap is exhausted it
+degrades to Tier 1 and says so — permanently, because the allowance is one-time
+rather than a renewing quota.
+
+An ambiguous verdict is deliberately **not** an escalation. Two candidate classes
+are two Tier 1 lookups, rendered as two readings rather than merged into one
+answer. That is free, offline and already reviewed; what it gives up is synthesis
+of the two, and the fallback if that proves inadequate is precomputing the six
+class pairs per biome.
 
 Tier 2 must not offer to research a record whose classification never ran. ADR
 0011 and ADR 0015 bind here: `notAnalysed` conflates six causes, and no surface
@@ -254,11 +261,19 @@ the free, offline, cacheable one. This is the payoff of the stable boundary ADR
   the four classes, cells for changed classes are orphaned. The artifact
   therefore carries a class-list version and the build derives keys from
   `SoilTextureLabels.ordered` rather than a literal, so the breakage is loud.
-- **Two escalation predicates are dormant on arrival.** The `ambiguous` trigger
-  needs the distribution, which is not persisted (issue #186); the contradiction
-  trigger needs a classification to exist, and no `.tflite` artifact is tracked.
-  Both are specified and tested against fixtures now, and become reachable when
-  those land.
+- **Tier 2 ships enabled, and two of its three predicates cannot fire yet.**
+  `userQuestion` needs a free-text input that the result surface does not have,
+  which is the UI/UX terminal's to build; `regionalContradiction` needs a
+  classification to exist, and no `.tflite` artifact is tracked. Until those
+  land, Tier 2 serves only `corpusMiss`. Both are specified and tested against
+  fixtures now.
+- **A one-time allowance makes Tier 2 finite.** Its cap does not reset monthly,
+  so exhaustion is a durable state the interface must present as such. The same
+  arithmetic makes the twice-yearly rebuild cadence funded for one year and not
+  the second; that gap is recorded rather than discovered.
+- **The corpus release is blocked until a reviewer is named.** Human review is
+  the release gate and no one is identified for it. The build slices proceed; the
+  release does not.
 - **A rebuild is auditable rather than reproducible.** The artifact records the
   model identifier, the date, the prompts and the retrieved sources, so a later
   rebuild can be compared against its predecessor even when the original model

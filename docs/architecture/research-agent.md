@@ -90,8 +90,13 @@ the app beyond a region resolver.
 `InferenceService` produces a class and a score. Only those two reach
 `SoilRecord`. The distribution, the verdict, the quality report and the model
 version are computed or computable but never persisted, so any consumer reading
-a record from history sees a top-1 and nothing else. This is the binding
-constraint on §6 and the reason two escalation predicates in §5 start dormant.
+a record from history sees a top-1 and nothing else.
+
+Two consequences run through the rest of this document. It is the binding
+constraint on §6, which cannot ask for fields the record does not hold. And it is
+why a record reopened from history cannot be known to be ambiguous: the
+composition in §5.3 renders one cell where it should render two, until issue #186
+persists the distribution.
 
 ## 3. Use case catalogue
 
@@ -106,7 +111,7 @@ serves it.
 | 2 | Explain what the texture class means | class | Static explainer | No — compiled copy | **v1 — compiled, no agent** |
 | 3 | Why these tips and not others | corpus cell provenance | Source list + build date | No — read the artifact | **v1 — Tier 1** |
 | 4 | Free-text question about this record | question, class, region | Cited answer | **Yes** | **v1 — Tier 2** |
-| 5 | Guidance when the verdict is ambiguous | two candidate classes, region | Comparison of both | **Yes** — per-record synthesis | v1 contract, dormant (#186) |
+| 5 | Guidance when the verdict is ambiguous | two candidate classes, region | Both cells, side by side | **No** — two Tier 1 lookups | **v1 — Tier 1 composition** |
 | 6 | Conflict between classification and regional soil data | class, region soil prior | Named discrepancy | **Yes** | v1 contract, dormant (no model) |
 | 7 | Region outside the corpus | class, region | Honest unavailability, or live research | **Yes** | **v1 — Tier 2** |
 | 8 | Next steps after a result | verdict, record state | Primary action | No — `compose`, UX terminal | Out of scope here |
@@ -118,18 +123,22 @@ serves it.
 
 ### 3.1 The cases that genuinely justify an agent
 
-Four, and they share one property: the input space is unbounded, so no
+Three, and they share one property: the input space is unbounded, so no
 enumeration can precompute the answer.
 
 - **#4, free-text question.** The user writes arbitrary text. Nothing else in
   this design has that property.
-- **#5, ambiguous verdict.** The pair of candidate classes plus the region is a
-  synthesis that exists only for that record. Precomputing all class pairs is
-  possible in principle — six pairs per region — and is the fallback if Tier 2
-  proves unaffordable.
 - **#6, contradiction.** Naming *how* a regional soil prior disagrees with the
   photograph's classification is specific to the coordinate.
 - **#7, corpus miss.** By construction there is no cell to read.
+
+**#5 was a fourth and is no longer.** An ambiguous verdict looks like it needs
+synthesis, and the first draft of this document treated it that way. It does not:
+the two candidate classes each already have a reviewed cell, and rendering both
+is honest about a distribution that settled nothing. Synthesising them would
+assert a combined reading no source supports, which is the failure mode the whole
+design exists to avoid. The enumerable fallback — six class pairs per biome —
+remains costed in §15.1 and unbuilt.
 
 ### 3.2 The non-agentic alternatives, stated
 
@@ -233,23 +242,56 @@ The biome set is the six IBGE biomes: `amazonia`, `cerrado`, `mata_atlantica`,
 `caatinga`, `pampa`, `pantanal`. The unit set is the 27 federative units as
 ISO 3166-2:BR codes.
 
-### 5.2 Escalation predicates
+**Coverage is Brazil only.** Every region table here is Brazilian, as are the
+source tiers in §8. A coordinate outside Brazil is a `corpusMiss` and is told so
+plainly. Extending coverage later is additive — a new biome set and a new source
+tier — and nothing in the key or the contract forecloses it.
 
-All four are cheap, total functions over data the app already holds. None is a
-model call.
+### 5.2 Resolving the biome on device
+
+The biome must be resolved on the device. Resolving it server-side would require
+sending the coordinate, which is the egress §6 exists to remove, so a
+server-side resolver would give back the privacy property the key was chosen for.
+
+The app ships a **packed biome grid**: a 0.1° lattice over Brazil's bounding box,
+one byte per cell holding a biome identifier, roughly 130 KB. Lookup is an array
+index from latitude and longitude — constant time, no parsing, no dependency.
+
+Its error is confined to biome transition bands, where a cell straddles two
+biomes and the grid names one. That is accepted because the alternative,
+simplified IBGE boundary polygons, costs more bytes and a point-in-polygon test
+to sharpen a boundary that is itself a cartographic generalisation of a gradient.
+The grid records its resolution in the artifact so a later refinement is a data
+change rather than a code change.
+
+A coordinate the grid cannot resolve yields a null biome, which §6 already
+defines as a valid request: the response carries the class-level guidance and
+states that the regional layer is absent.
+
+### 5.3 Escalation predicates
+
+All are cheap, total functions over data the app already holds. None is a model
+call.
 
 | Predicate | Fires when | Dormant until |
 |---|---|---|
-| `userQuestion` | The user submitted free text | — |
-| `ambiguousVerdict` | `ClassificationVerdict.ambiguous` | #186 persists the distribution |
+| `userQuestion` | The user submitted free text | A text input exists on the result surface — see §18.2 |
 | `regionalContradiction` | Corpus soil prior for the cell disagrees with the class | A `.tflite` artifact exists |
 | `corpusMiss` | No cell for `(class, biome)` | — |
+
+**An ambiguous verdict does not escalate.** When two classes hold the mass, the
+app performs two Tier 1 lookups and renders both cells. That is free, offline,
+already reviewed, and it needs no contract change — the request carries one
+class, so two candidates are two requests, both cached. It does not synthesise
+("what to do while you are unsure between these two"), and the interface must
+present it as two readings rather than as one answer. If that proves inadequate,
+the fallback is 36 precomputed pair cells, costed in §15.1 and not built.
 
 `notAnalysed` never escalates. ADR 0011 and ADR 0015 forbid offering retry on it
 until SPEC 0035 lands, and researching a classification that never ran would be
 exactly that offer in another form.
 
-### 5.3 Why the proxy stays
+### 5.4 Why the proxy stays
 
 The corpus could ship entirely in the app. It does not, for three reasons: a
 corpus release must reach users without an app-store round trip; Tier 2 needs a
@@ -284,13 +326,11 @@ Everything above, plus:
 
 ```jsonc
 {
-  "trigger": "userQuestion",          // required — one of the four predicates
+  "trigger": "userQuestion",          // required — one of the three predicates
   "question": "…",                     // required iff trigger is userQuestion; max 500 chars
-  "verdict": "ambiguous",              // required iff trigger is ambiguousVerdict
-  "alternatives": [                    // required iff trigger is ambiguousVerdict
-    { "label": "Argilosa",       "probability": 0.44 },
-    { "label": "Muito Argilosa", "probability": 0.39 }
-  ],
+  "priorFractions": {                  // required iff trigger is regionalContradiction
+    "clay": 0.52, "sand": 0.31, "silt": 0.17
+  },
   "modelVersion": "soil-v1.2.0",       // optional — provenance for the trace
   "qualityFlags": ["blur"]             // optional — criteria that failed, SPEC 0030
 }
@@ -538,12 +578,23 @@ grader verdict, each token count and cost, the model identifier and the prompt
 version. The trace is the audit record for the human reviewer, and the artifact
 references its trace identifier.
 
-A hosted tracer is used here, with two reservations that keep the choice
-reversible: the pipeline is written in plain code against the `LLMClient` and
-`SearchClient` seams, so the tracer is a decorator rather than a framework; and
-a graph orchestration framework is **not** adopted, because this pipeline is a
-bounded chain run 51 times and `tema-rag-decisao.md` lists exactly that shape of
-over-engineering as a warning sign.
+**Traces are local JSONL**, one file per build run, not a hosted tracer. This
+follows the precedent the README already records for experiment tracking — local
+JSON over MLflow or Weights & Biases, as disproportionate overhead for the
+project's size — and the same reasoning holds here: 51 cells built a handful of
+times does not justify hosted infrastructure or a third party in the loop. The
+one capability a hosted tracer would add, replaying the corpus against a new
+model, is reached by re-running a build that is cheap by construction.
+
+Two constraints keep the choice reversible. The pipeline is written in plain code
+against the `LLMClient` and `SearchClient` seams, so tracing is a decorator
+rather than a framework. And a graph orchestration framework is **not** adopted,
+because this pipeline is a bounded chain run 51 times and `tema-rag-decisao.md`
+lists exactly that shape as an over-engineering signal.
+
+The record that would overturn this is the human review proving impractical to
+perform against raw JSONL. That is a measurable outcome of slice 4, not a
+prediction, and the trace format is chosen so a hosted tracer could ingest it.
 
 ### 11.2 Runtime
 
@@ -619,7 +670,7 @@ content derived from the instruction and that the grader flags it.
 | Offline, record not cached, bundled corpus present | Answers from the bundled snapshot; this is new, and it is the case today's build cannot serve |
 | Offline, nothing available | The existing offline empty state |
 | Offline, escalation predicate true | Tier 1 result plus a notice that deepening needs a connection |
-| Online, cap exhausted | Tier 1 result plus a notice, never a silent downgrade |
+| Online, cap exhausted | Tier 1 result plus a notice that says the allowance is spent, not that the user should retry — the cap is one-time and does not reset (§15.2) |
 | Region unresolved | Class-level guidance, with the regional layer stated absent |
 
 The bundled snapshot is what makes the main path genuinely offline-first, which
@@ -667,7 +718,7 @@ app changes in this repository. Each passes its own Spec Gate.
 | 7 | App: corpus version comparison and cache invalidation | app | Stale cache refreshes; offline keeps serving |
 | 8 | App: bundled corpus snapshot and the offline path | app | Fresh install answers offline |
 | 9 | App: `category` and `evidenceStrength` rendering; per-tip feedback | app | Design-system sections render; flat fallback holds |
-| 10 | Tier 2 behind a flag: endpoint, predicates, cap | both | Cap fails closed; unreviewed output is marked |
+| 10 | Tier 2, enabled: endpoint, three predicates, fail-closed cap, unreviewed marking | both | Cap fails closed; unreviewed output is visibly distinct |
 | 11 | Auth: `idToken` capture and `serverClientId` (issue #95) | app | Proxy verifies by audience |
 
 Slice 11 is unchanged from ADR 0001's slice 8 and still depends on the OAuth Web
@@ -675,23 +726,69 @@ client from #55. Slices 1–9 do not depend on it: until it lands, the proxy
 introspects the access token the app already holds, exactly as ADR 0001's
 two-phase bearer specified.
 
+**Slice 10 ships enabled in v1**, by the Developer's decision on 2026-09-11. It
+carries a dependency this document cannot satisfy: the `userQuestion` predicate
+needs a free-text input on the result surface, which does not exist and belongs
+to the UI/UX terminal (§18.2). Until that input ships, slice 10 serves only
+`corpusMiss`, and `regionalContradiction` stays dormant until a `.tflite`
+artifact exists.
+
+**Slice 4 is blocked**, not merely unscheduled: the human reviewer is not
+identified (§17). Slices 1 through 3 proceed without it, and the artifact cannot
+be released until it lifts.
+
 ### 15.1 Budget
 
-One-time allowance of $50. September 2026 prices: Batch API at 50% of standard,
-web search at $10 per 1,000 searches, web fetch at no additional cost.
+One-time allowance of $50 — **one time, not recurring**. September 2026 prices:
+Batch API at 50% of standard, web search at $10 per 1,000 searches, web fetch at
+no additional cost.
+
+Committed:
 
 | Item | Estimate |
 |---|---|
 | Slice 1 calibration probe, one cell | $1 |
-| 24 substance cells, frontier model via Batch | $11 |
-| 27 unit overlays, mid-tier model via Batch | $3 |
+| 24 substance cells via Batch | $11 |
+| 27 unit overlays via Batch | $3 |
 | Cross-provider verification, 51 cells | $6 |
-| Tier 2 pilot | $8 |
-| Reserve — rebuilds of cells the review rejects | $21 |
+| **Committed subtotal** | **$21** |
 
-The reserve is sized to rebuild the entire substance layer twice. **Slice 1
-gates the rest**: if measured cost per cell diverges from the estimate by more
-than a factor of two, the plan is re-costed before slice 2 begins.
+The remaining **$29 is not allocated**, by decision: slice 1 measures the real
+cost per cell, and the split is chosen against that measurement rather than
+against this document's estimate. The three candidate splits, recorded so the
+decision is a choice between known options:
+
+| Split | Tier 2 runway | Corpus reserve | Buys |
+|---|---|---|---|
+| Conservative | $8 (~80 questions) | $21 | Two full rebuilds of the substance layer |
+| Runway-weighted | $20 (~200 questions) | $9 | Enough live questions to learn what users ask |
+| Quality-weighted | $8 (~80 questions) | $9, plus $11 upgrading the substance layer to the frontier model | Better permanent text, short runway |
+
+A fourth option exists and is not costed here: 36 precomputed class-pair cells at
+roughly $8, the fallback named in §5.3 if composing two cells proves inadequate
+for the ambiguous case.
+
+**Slice 1 gates everything after it.** If measured cost per cell diverges from
+the estimate by more than a factor of two, the whole plan is re-costed before
+slice 2 begins.
+
+### 15.2 What the budget does not cover
+
+Two commitments in this document outlive the allowance, and both are named here
+rather than discovered later.
+
+**The rebuild cadence is twice a year** (Developer's decision, 2026-09-11),
+aligned to the agricultural calendar. At roughly $14 a rebuild that is $28 a
+year, against a reserve of at most $29 that Tier 2 also draws from. **The first
+year is funded and the second is not.** Sustaining the cadence needs recurring
+budget that does not exist today; without it, the corpus stops being rebuilt once
+the reserve is spent, and the guidance ages silently unless §13's staleness
+signal is surfaced.
+
+**Tier 2 on a one-time budget has a finite lifetime**, not a monthly quota. At
+roughly $0.10 a question its runway is whatever the split allocates, and when the
+cap is reached it fails closed permanently rather than resetting. The interface
+must therefore treat cap exhaustion as a durable state, not a temporary one.
 
 ## 16. Risks and mitigations
 
@@ -699,11 +796,15 @@ than a factor of two, the plan is re-costed before slice 2 begins.
 |---|---|
 | The class list changes and orphans cells | `classListVersion` in the artifact and the contract; keys derived from `SoilTextureLabels.ordered`; only changed classes need rebuilding |
 | Token estimates are wrong | Slice 1 measures before slice 2 spends |
+| **No reviewer is identified** | **Unmitigated, and it blocks slice 4.** Slices 1–3 proceed; no corpus is released until it lifts. This is the one risk with no fallback |
 | Human review does not happen | It is the release gate, not a recommendation; no artifact without it |
-| Reviewer lacks agronomic expertise | Named as an open question (§17), not assumed away |
-| The corpus goes stale | `accessedAt` per source, corpus version, staleness in `alerts`, scheduled rebuild |
+| Reviewer lacks agronomic expertise | Would silently weaken the design's central guarantee. The reviewer's competence is recorded with the release, so a corpus reviewed by a non-specialist is labelled as one |
+| The corpus goes stale | `accessedAt` per source, corpus version, staleness in `alerts`, rebuild twice a year |
+| **The cadence outlives the budget** | Twice-yearly rebuilds cost ~$28/year against a reserve of at most $29. Year one is funded; year two needs recurring budget that does not exist. §15.2 states it rather than letting it surface as a stalled release |
+| **Tier 2's runway is exhausted permanently** | A one-time allowance is not a monthly quota. The cap fails closed for good, so the interface treats exhaustion as durable, not temporary |
 | Guidance is too generic to be useful | Measured by the feedback loop in §11.3; if it fails, Tier 2 or richer inputs are the escalation |
 | Tier 2 cost overruns | Hard cap that fails closed; it degrades to Tier 1 rather than to an error |
+| Tier 2 ships before its input exists | Without the free-text field (§18.2) it serves only `corpusMiss`; that is a reduced feature, not a broken one |
 | Tier 2 injection reaches a user | Allowlist, two tools only, schema validation, output marked unreviewed |
 | A provider deprecates the build model | The seams keep the pipeline portable; the artifact survives the provider regardless |
 | Biome resolution on device is wrong | The biome is optional; an unresolved biome degrades to class-level guidance rather than to a wrong cell |
@@ -711,23 +812,38 @@ than a factor of two, the plan is re-costed before slice 2 begins.
 
 ## 17. Open questions
 
-1. **Who reviews the corpus?** The design makes human review the release gate
-   and does not say who is qualified to give it. This is the single largest
-   unresolved dependency.
-2. **How is a record's biome resolved on device?** A bundled boundary lookup, a
-   coarse grid, or the reverse-geocoded address — each trades size against
-   accuracy, and none is chosen here.
-3. **How often is the corpus rebuilt?** Agronomic guidance ages slowly; the
-   cadence is a product decision with a budget consequence.
-4. **Does Tier 2 ship enabled?** It is specified and built behind a flag; whether
-   it is switched on in the first release is not decided.
-5. **Is a class-pair cell cheaper than Tier 2 for the ambiguous case?** Six pairs
-   per region is enumerable. If Tier 2's cap proves too tight, precomputing the
-   pairs is the fallback and has not been costed.
-6. **Does the product want guidance outside Brazil?** Every region table here is
-   Brazilian. A foreign coordinate is a `corpusMiss` today.
-7. **Which hosted tracer, and under what data terms?** §11.1 argues the choice is
-   low-stakes because no user data is in the build, but it is not made.
+Six of the seven questions this document opened were decided by the Developer on
+2026-09-11 and are recorded in the sections they belong to rather than here.
+What remains open is one question and two deferrals.
+
+### 17.1 Open
+
+1. **Who reviews the corpus?** The design makes human review the release gate and
+   does not name who is qualified to give it. Two candidates the repository
+   itself suggests — the project's academic supervisor, and the soil laboratory
+   that supplied the 194-sample archive of ADR 0016 — are unconfirmed. **This
+   blocks slice 4.** Slices 1 through 3 proceed without it; no corpus is released
+   until it is answered. It is the only risk in §16 with no fallback.
+
+### 17.2 Deferred with a stated trigger
+
+2. **How the remaining $29 is split.** Deferred to the measurement from slice 1
+   rather than guessed. The three candidate splits are costed in §15.1.
+3. **Whether composing two cells is adequate for an ambiguous verdict.** The
+   decision is to compose; the fallback is 36 precomputed pair cells at roughly
+   $8. The trigger is field feedback, and the question cannot be answered before
+   #186 makes the verdict reachable from history.
+
+### 17.3 Decided
+
+| Question | Decision | Recorded in |
+|---|---|---|
+| Biome resolution on device | Packed 0.1° grid, ~130 KB | §5.2 |
+| Ambiguous verdict | Compose two Tier 1 cells; no escalation | §5.3 |
+| Tier 2 enabled in v1 | Yes, complete — with the input-field dependency named | §15, §18.2 |
+| Rebuild cadence | Twice a year, with its funding gap stated | §15.2 |
+| Coverage beyond Brazil | Brazil only; a foreign coordinate is a `corpusMiss` | §5.1 |
+| Build tracing | Local JSONL, following the README's precedent | §11.1 |
 
 ## 18. Cross-terminal contracts
 
@@ -739,7 +855,8 @@ version; `textureClass` and `confidenceScore`; `ClassificationVerdict` and, when
 when a production caller exists; and the model version string.
 
 It asks for two things it does not have, and works without them: the persisted
-distribution (#186), which wakes the `ambiguousVerdict` predicate; and a
+distribution (#186), without which a record reopened from history cannot be known
+to be ambiguous and so renders one cell where it should render two; and a
 `.tflite` artifact, which wakes `regionalContradiction`.
 
 It undertakes not to change `ml/`, the model, or the preprocessing path.
@@ -755,6 +872,26 @@ flat fallback; and **no field names a UI component**, per §7.1.
 It asks the UI terminal to own: all layout and composition; the per-tip feedback
 control in §11.3; the visual distinction between reviewed corpus guidance and
 unreviewed Tier 2 output; and the copy for every degraded state in §13.
+
+Four asks are new with the 2026-09-11 decisions, and the first is a **blocking
+dependency for slice 10**:
+
+1. **A free-text input on the result surface.** The `userQuestion` predicate has
+   no entry point today — the Details screen has no text field. Tier 2 ships
+   enabled, so until this exists it serves only `corpusMiss`. The input needs a
+   length limit matching the contract's 500 characters, and it must be clear that
+   what follows is live and unreviewed.
+2. **Cap exhaustion is a durable state, not a transient one.** The budget is
+   one-time, so "try again later" is the wrong copy: when the runway is gone it
+   is gone. §15.2 states why.
+3. **An ambiguous verdict renders as two readings, not one answer.** Composing
+   two Tier 1 cells presents both candidate classes' guidance side by side. The
+   surface must not merge them into a single recommendation, because nothing
+   synthesised them. This complements `verdict_ambiguous` in the roadmap's
+   acceptance criteria, which already requires neither candidate to be asserted.
+4. **Absent regional coverage is stated, not hidden.** `coverage.unitLayerPresent`
+   false means the guidance is class-level only, and a record saved without
+   location is the normal case that produces it.
 
 Two items in `13-roadmap.md` §3.1 are answered by this document: the
 recommendation contract divergence is resolved in §7.1, and the

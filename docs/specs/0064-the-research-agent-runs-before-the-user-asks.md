@@ -6,7 +6,7 @@ ADR 0001's Research Agent design cannot be built as written: its named model was
 
 ## Design Decision
 
-**The expensive pipeline moves from the request path to a build step.** ADR 0001's corrective-RAG chain is kept almost intact and run offline, once per corpus release, producing a versioned and human-reviewed JSON artifact keyed by texture class, federative unit and biome. At runtime the app performs a deterministic lookup with no model call; live per-record research survives as a third tier reached only through four fixed predicates and bounded by a spend cap that fails closed.
+**The expensive pipeline moves from the request path to a build step.** ADR 0001's corrective-RAG chain is kept almost intact and run offline, once per corpus release, producing a versioned and human-reviewed JSON artifact keyed by texture class, federative unit and biome. At runtime the app performs a deterministic lookup with no model call; live per-record research survives as a third tier reached only through three fixed predicates and bounded by a spend cap that fails closed.
 
 The move is justified by ADR 0001's own limiting statement — "**Thin inputs** (texture + location + date) cap specificity" — which is a claim about the size of the function's domain. Four classes and a bounded region set make the domain enumerable, so the per-request agent was recomputing on every capture a function with roughly a hundred distinct inputs.
 
@@ -36,7 +36,9 @@ Three consequences follow that no per-request variant offers: a human reviews ev
   - Creating the proxy repository.
   - Any change to `ml/`, the model, the preprocessing path, or the class list.
   - Any change to `lib/core/features/details/management_tips_section.dart`, which belongs to the UI/UX terminal.
-  - Resolving the open questions in §17 of the architecture document, which are recorded as open precisely because this change does not close them.
+  - Identifying the corpus reviewer. Six of the seven questions this design opened were decided on 2026-09-11 and are recorded in the sections they belong to; this one was not, and it blocks the corpus release rather than this change.
+  - Allocating the unspent remainder of the budget, deferred by decision to the calibration probe's measurement.
+  - Building the free-text input the `userQuestion` predicate needs. It is an ask to the UI/UX terminal, recorded in §18.2.
   - Bumping the `.standards` submodule.
 
 ## Acceptance Criteria
@@ -52,6 +54,12 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - `llm_wiki_role_is_evidence_based`: the `llm-wiki` section states the measured page counts and concludes its role from them rather than from assumption.
 - `every_deferred_use_case_states_why`: each catalogue entry not in v1 carries the reason it was deferred or eliminated.
 - `dormant_predicates_are_named`: the two escalation predicates that cannot fire yet name the artifact each waits on.
+- `ambiguous_does_not_escalate`: the design resolves an ambiguous verdict by composing two Tier 1 cells and states that the surface renders two readings rather than one answer.
+- `biome_resolves_on_device`: the biome resolver is on-device, and the document states that a server-side resolver would reinstate the coordinate egress the key removes.
+- `one_time_budget_consequences_are_stated`: the document states that the rebuild cadence is funded for one year and not the second, and that Tier 2's cap fails closed permanently rather than resetting.
+- `unallocated_budget_names_its_trigger`: the unallocated remainder names the measurement that decides its split and lists the candidate splits.
+- `blocked_slice_is_marked_blocked`: the slice depending on the unidentified reviewer is marked blocked rather than merely unscheduled.
+- `new_ux_dependencies_are_declared`: the free-text input, the durable cap-exhaustion state, the two-readings presentation and the absent-coverage statement appear as asks to the UI/UX terminal.
 - `no_retry_on_not_analysed`: the design states that `notAnalysed` never escalates, per ADR 0011 and ADR 0015.
 - `budget_sums_within_the_allowance`: the delivery plan's budget table sums to no more than the stated one-time allowance.
 - `cross_terminal_contracts_are_two_way`: the document states what this terminal consumes from the vision terminal and what it guarantees to the UI/UX terminal, and names the shared files each owns.
@@ -80,8 +88,11 @@ Gate command: `mf check`, run from the repository root. Toolchain as pinned in `
 
 - **Assumption:** the four-class list is stable for the life of a corpus release. If a future ADR changes it, cells for changed classes are orphaned; the artifact carries a class-list version and keys derive from `SoilTextureLabels.ordered` so the breakage is loud rather than silent.
 - **Assumption:** the token estimates are within a factor of two of reality. Slice 1 measures one cell before slice 2 spends, and the plan is re-costed if they diverge further.
-- **Assumption:** a qualified human reviewer exists for the corpus. This is recorded as the largest open question rather than resolved, and the design has no fallback if it proves false.
+- **Assumption:** a qualified human reviewer can be found for the corpus. As of 2026-09-11 none is identified, so this is a **blocker on the release slice** rather than an assumption in good standing. The design has no fallback if it proves false: the build slices proceed and no corpus ships.
 - **Assumption:** guidance keyed by class, unit and biome is specific enough to be useful. The feedback loop in the observability section is what would falsify it.
+- **Assumption:** the 0.1° biome grid is accurate enough. Its error is confined to transition bands; a wrong biome yields guidance for the neighbouring biome rather than a failure, which is a quieter wrong answer than a crash and therefore worth watching in the feedback loop.
+- **Risk:** the twice-yearly rebuild cadence outlives its funding. At roughly $28 a year against a reserve of at most $29 that Tier 2 also draws from, year one is funded and year two is not. Recorded in the architecture document rather than mitigated, because the mitigation is recurring budget and that is not this document's to grant.
+- **Risk:** Tier 2 ships enabled before the input it needs exists. Until the UI/UX terminal builds the free-text field, it serves only `corpusMiss` — a reduced feature rather than a broken one — and its one-time runway is spent on the narrowest of its three predicates.
 - **Risk:** the ML terminal's D6 outcome changes the class list before the corpus is built. Mitigated by building after that decision lands, and by the class-list version.
 - **Risk:** the proxy repository is never created, leaving this design unbuilt. The app then degrades exactly as it does today, through `UnavailableResearchService`, so nothing regresses.
 - **What would invalidate this spec:** the app gaining crop, season or soil-chemistry inputs. The domain would stop being enumerable and the per-request architecture ADR 0001 chose would become correct again — which is why that record is retired rather than deleted.
