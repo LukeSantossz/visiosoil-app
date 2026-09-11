@@ -36,8 +36,9 @@ Three consequences follow that no per-request variant offers: a human reviews ev
   - Creating the proxy repository.
   - Any change to `ml/`, the model, the preprocessing path, or the class list.
   - Any change to `lib/core/features/details/management_tips_section.dart`, which belongs to the UI/UX terminal.
-  - Identifying the corpus reviewer. Six of the seven questions this design opened were decided on 2026-09-11 and are recorded in the sections they belong to; this one was not, and it blocks the corpus release rather than this change.
+  - Identifying the corpus reviewer. Nine questions this design opened were decided on 2026-09-11 and are recorded in the sections they belong to; this one was not, and it blocks the corpus release rather than this change.
   - Allocating the unspent remainder of the budget, deferred by decision to the calibration probe's measurement.
+  - Answering whether the guidance is specific enough to be worth reading. The widened calibration probe answers it for $1, in slice 1 rather than here.
   - Building the free-text input the `userQuestion` predicate needs. It is an ask to the UI/UX terminal, recorded in §18.2.
   - Bumping the `.standards` submodule.
 
@@ -59,6 +60,12 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - `one_time_budget_consequences_are_stated`: the document states that the rebuild cadence is funded for one year and not the second, and that Tier 2's cap fails closed permanently rather than resetting.
 - `unallocated_budget_names_its_trigger`: the unallocated remainder names the measurement that decides its split and lists the candidate splits.
 - `blocked_slice_is_marked_blocked`: the slice depending on the unidentified reviewer is marked blocked rather than merely unscheduled.
+- `additive_covers_the_local_cache`: the output contract states that the Drift cache is the same compatibility boundary as the transport, and that every added field is read null-safely so rows cached before the change still parse.
+- `additive_field_count_is_correct`: the output contract's stated number of added fields matches the number it lists.
+- `review_is_specified_not_just_assigned`: the design fixes review as complete against a named checklist, rather than saying only that a human reviews.
+- `unverified_inputs_are_labelled`: the assumptions that were reasoned about but not checked are listed as inputs to the slice that depends on them, with what was and was not verified.
+- `value_question_is_open_and_cheaply_testable`: the design records that no evidence exists for the guidance being specific enough to be useful, and names the $1 probe as what answers it before the corpus is built.
+- `tier_two_slice_is_split_by_dependency`: the Tier 2 slice separates the predicate that depends on nothing external from the one waiting on another terminal.
 - `new_ux_dependencies_are_declared`: the free-text input, the durable cap-exhaustion state, the two-readings presentation and the absent-coverage statement appear as asks to the UI/UX terminal.
 - `no_retry_on_not_analysed`: the design states that `notAnalysed` never escalates, per ADR 0011 and ADR 0015.
 - `budget_sums_within_the_allowance`: the delivery plan's budget table sums to no more than the stated one-time allowance.
@@ -90,6 +97,8 @@ Gate command: `mf check`, run from the repository root. Toolchain as pinned in `
 - **Assumption:** the token estimates are within a factor of two of reality. Slice 1 measures one cell before slice 2 spends, and the plan is re-costed if they diverge further.
 - **Assumption:** a qualified human reviewer can be found for the corpus. As of 2026-09-11 none is identified, so this is a **blocker on the release slice** rather than an assumption in good standing. The design has no fallback if it proves false: the build slices proceed and no corpus ships.
 - **Assumption:** guidance keyed by class, unit and biome is specific enough to be useful. The feedback loop in the observability section is what would falsify it.
+- **Assumption:** three inputs to the corpus build are obtainable — bulk SoilGrids coverage, IBGE biome boundaries in rasterisable form, and a second vendor for verification within budget. None was verified; all three are listed as slice-2 checks rather than presented as settled.
+- **Risk:** the guidance is correct but too generic to be worth reading. No evidence exists either way, and the feedback loop would only reveal it after the corpus is built. Mitigated by widening the calibration probe: the one cell it builds is judged by an agronomist before the other fifty are, which costs nothing extra and can stop the plan early.
 - **Assumption:** the 0.1° biome grid is accurate enough. Its error is confined to transition bands; a wrong biome yields guidance for the neighbouring biome rather than a failure, which is a quieter wrong answer than a crash and therefore worth watching in the feedback loop.
 - **Risk:** the twice-yearly rebuild cadence outlives its funding. At roughly $28 a year against a reserve of at most $29 that Tier 2 also draws from, year one is funded and year two is not. Recorded in the architecture document rather than mitigated, because the mitigation is recurring budget and that is not this document's to grant.
 - **Risk:** Tier 2 ships enabled before the input it needs exists. Until the UI/UX terminal builds the free-text field, it serves only `corpusMiss` — a reduced feature rather than a broken one — and its one-time runway is spent on the narrowest of its three predicates.

@@ -365,9 +365,21 @@ the class-level guidance with the regional layer absent and stated as absent.
 
 ## 7. Output contract
 
-The response is unchanged in shape from what `ManagementTipsResult.fromJson`
-already parses, with three additive fields. Additive means an old client ignores
-them and a new client tolerates their absence.
+The response keeps the shape `ManagementTipsResult.fromJson` already parses and
+adds **nine** fields: `category` and `evidenceStrength` on a tip, `accessedAt` and
+`tier` on a source, and `corpusVersion`, `limitations`, `alerts`,
+`followUpQuestions` and `coverage` at the top level.
+
+**Additive has two directions here, and the second is easy to miss.** Over the
+wire it means an old client ignores what it does not know and a new client
+tolerates absence. But the Drift cache stores the serialised payload
+(`payloadJson`) and reads it back through the *same* `fromJson`, so **every row
+cached before this change is parsed by the new reader**. If any new field is read
+as required, every existing cache entry fails to parse — and because the Details
+section has an error branch, it degrades quietly: the user simply loses the
+offline tips they had. The local cache is the same compatibility boundary as the
+transport, and every field added here is read null-safely with a defined default
+for that reason.
 
 ```jsonc
 {
@@ -681,7 +693,33 @@ range; zero admissible results; corpus version older than the server's; a
 `(class, biome)` pair with no cell; a unit overlay missing for a present biome
 cell; Tier 2 cap exhausted mid-request.
 
-### 12.3 The injection test is a fixture, not a live page
+### 12.3 The review checklist
+
+Human review is the release gate, so "a human reviews it" is not a sufficient
+specification. Review is **complete** — every cell is read — and each cell is
+judged against a fixed list. A cell failing any item is rejected and rebuilt or
+dropped; a rejected cell never ships in a weaker form.
+
+| # | The reviewer confirms |
+|---|---|
+| 1 | The guidance is agronomically correct for this texture class in this biome |
+| 2 | Each cited source actually supports the claim attached to it |
+| 3 | Every number appears in a cited source, unchanged |
+| 4 | Nothing prescribes a field action; the stance is advisory throughout (`CONTEXT.md`) |
+| 5 | No claim rests on a source below the tier §8.1 requires |
+| 6 | Nothing in the text originates from fetched page content acting as an instruction |
+| 7 | The stated `evidenceStrength` matches what the sources actually support |
+| 8 | The limitations are the real ones, not boilerplate |
+
+Item 6 is what makes the reviewer the injection control, and it is the reason
+review is complete rather than sampled: a sampled review defends nothing, because
+an injected cell is exactly the one an attacker would want unsampled.
+
+The reviewer's identity and competence are recorded with the release, so a corpus
+reviewed by a non-specialist is labelled as one rather than presented as
+equivalent.
+
+### 12.4 The injection test is a fixture, not a live page
 
 A page whose text instructs the model to ignore its instructions is stored as a
 fixture and replayed. The assertion is that the produced cell contains no
@@ -736,8 +774,8 @@ app changes in this repository. Each passes its own Spec Gate.
 
 | # | Slice | Repo | Gate |
 |---|---|---|---|
-| 1 | **Calibration probe** — build one cell end to end, measure real token usage and cost | proxy | Measured cost per cell replaces §15.1's estimate |
-| 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage) | proxy | 24 + 27 cells enumerated; priors sampled |
+| 1 | **Calibration probe** — build one cell end to end; measure real token usage and cost, **and put that cell in front of an agronomist** | proxy | Measured cost per cell replaces §15.1's estimate, **and the cell is judged useful rather than obvious** |
+| 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage) | proxy | 24 + 27 cells enumerated; priors sampled. **Three inputs are unverified — see §15.3** |
 | 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | proxy | Injection fixture passes; citations 100% resolvable |
 | 4 | Cross-provider verification pass and the human review gate | proxy | No cell reaches the artifact unreviewed |
 | 5 | Corpus serving endpoint, schema validation, forbidden-field rejection | proxy | `400` on any forbidden key |
@@ -745,7 +783,8 @@ app changes in this repository. Each passes its own Spec Gate.
 | 7 | App: corpus version comparison and cache invalidation | app | Stale cache refreshes; offline keeps serving |
 | 8 | App: bundled corpus snapshot and the offline path | app | Fresh install answers offline |
 | 9 | App: `category` and `evidenceStrength` rendering; per-tip feedback | app | Design-system sections render; flat fallback holds |
-| 10 | Tier 2, enabled: endpoint, three predicates, fail-closed cap, unreviewed marking | both | Cap fails closed; unreviewed output is visibly distinct |
+| 10a | Tier 2 for `corpusMiss`: endpoint, cap, unreviewed marking | both | Cap fails closed; unreviewed output is visibly distinct; depends on nothing external |
+| 10b | Tier 2 for `userQuestion`, once the free-text input exists | both | 500-character limit enforced; `regionalContradiction` stays dormant until a model ships |
 | 11 | Auth: `idToken` capture and `serverClientId` (issue #95) | app | Proxy verifies by audience |
 
 Slice 11 is unchanged from ADR 0001's slice 8 and still depends on the OAuth Web
@@ -801,21 +840,43 @@ slice 2 begins.
 
 ### 15.2 What the budget does not cover
 
-Two commitments in this document outlive the allowance, and both are named here
-rather than discovered later.
+**The product is both an academic deliverable and a field product at the same
+time** (Developer's decision, 2026-09-11). That is not a hedge, and it settles
+what follows: the observability in §11 is a live loop rather than a proposal, and
+the recurring costs below are a **requirement to be funded**, not a gap to be
+tolerated.
+
+Two commitments outlive the allowance, and both are named here rather than
+discovered later.
 
 **The rebuild cadence is twice a year** (Developer's decision, 2026-09-11),
 aligned to the agricultural calendar. At roughly $14 a rebuild that is $28 a
 year, against a reserve of at most $29 that Tier 2 also draws from. **The first
-year is funded and the second is not.** Sustaining the cadence needs recurring
-budget that does not exist today; without it, the corpus stops being rebuilt once
-the reserve is spent, and the guidance ages silently unless §13's staleness
-signal is surfaced.
+year is funded and the second is not.** Because the product is meant to be
+operated, this is a funding requirement with a date: the second rebuild of year
+two needs money that does not exist today. Without it the corpus stops being
+rebuilt, and the guidance ages behind §13's staleness signal — which is then the
+only thing standing between a user and advice nobody refreshed.
 
 **Tier 2 on a one-time budget has a finite lifetime**, not a monthly quota. At
 roughly $0.10 a question its runway is whatever the split allocates, and when the
 cap is reached it fails closed permanently rather than resetting. The interface
 must therefore treat cap exhaustion as a durable state, not a temporary one.
+
+### 15.3 Unverified inputs to slice 2
+
+Three assumptions this document relies on were reasoned about but not checked.
+They are inputs to slice 2 and each is cheap to verify before it is depended on.
+
+| Assumption | What was actually verified | What was not |
+|---|---|---|
+| ISRIC SoilGrids coverage is obtainable in bulk | That the point API is degraded — `200` with null values, then `503`, on 2026-09-05 | That the CC-BY coverage downloads at a workable size and resolution |
+| IBGE biome boundaries exist in a rasterisable form | Nothing | The source, its licence, and whether the ~130 KB figure in §5.2 survives contact with it |
+| Cross-provider verification costs about $6 | The arithmetic, given small inputs | That a second vendor is reachable on this budget — it means a second account and credential, and it does not get the first vendor's batch discount |
+
+None of the three changes the architecture. All three change slice 2's estimate,
+and a wrong figure discovered during the build is worse than a cheap check before
+it.
 
 ## 16. Risks and mitigations
 
@@ -839,9 +900,10 @@ must therefore treat cap exhaustion as a durable state, not a temporary one.
 
 ## 17. Open questions
 
-Six of the seven questions this document opened were decided by the Developer on
-2026-09-11 and are recorded in the sections they belong to rather than here.
-What remains open is one question and two deferrals.
+Nine questions have been decided by the Developer, on 2026-09-11, and are
+recorded in the sections they belong to rather than here. What remains is two
+open questions and two deferrals — and the second open question is new, raised by
+reviewing this document rather than by writing it.
 
 ### 17.1 Open
 
@@ -852,11 +914,25 @@ What remains open is one question and two deferrals.
    blocks slice 4.** Slices 1 through 3 proceed without it; no corpus is released
    until it is answered. It is the only risk in §16 with no fallback.
 
+   What review means is no longer open: §12.3 fixes it as complete, against an
+   eight-item checklist. That makes the ask concrete enough to put to someone —
+   51 cells, eight checks each — and it makes the cost of the answer visible
+   before anyone agrees to it.
+
+2. **Is guidance at `(class, biome)` specific enough to be worth an agronomist's
+   attention?** The entire product value rests here and there is no evidence
+   either way. It may be textbook content the reader already knows. Slice 1 now
+   answers it for $1: the probe's cell goes in front of an agronomist, and a
+   verdict of "useful" or "obvious" arrives before the other fifty are built.
+   Asking someone to read one cell is a ten-minute request rather than an
+   hours-long one, so the probe doubles as the approach that might resolve
+   question 1.
+
 ### 17.2 Deferred with a stated trigger
 
-2. **How the remaining $29 is split.** Deferred to the measurement from slice 1
+3. **How the remaining $29 is split.** Deferred to the measurement from slice 1
    rather than guessed. The three candidate splits are costed in §15.1.
-3. **Whether composing two cells is adequate for an ambiguous verdict.** The
+4. **Whether composing two cells is adequate for an ambiguous verdict.** The
    decision is to compose; the fallback is 36 precomputed pair cells at roughly
    $8. The trigger is field feedback, and the question cannot be answered before
    #186 makes the verdict reachable from history.
@@ -871,6 +947,9 @@ What remains open is one question and two deferrals.
 | Rebuild cadence | Twice a year, with its funding gap stated | §15.2 |
 | Coverage beyond Brazil | Brazil only; a foreign coordinate is a `corpusMiss` | §5.1 |
 | Build tracing | Local JSONL, following the README's precedent | §11.1 |
+| Review protocol | Complete, against an eight-item checklist | §12.3 |
+| Tier 2 slicing | Split: 10a serves `corpusMiss` now, 10b waits on the input field | §15 |
+| What the product is | Academic deliverable and field product at once — so §11 is a live loop and the recurring cost is a funding requirement | §15.2 |
 
 ## 18. Cross-terminal contracts
 
