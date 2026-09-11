@@ -27,10 +27,11 @@ property holds.
 from __future__ import annotations
 
 import json
+import ntpath
 import re
 import warnings
 from collections import Counter
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Collection, Mapping, Sequence
 
 import numpy as np
@@ -219,9 +220,12 @@ def _sample_id_of(path: str, sample_ids: Mapping[str, str] | None) -> str:
 
 #: Schema of the fold manifest. Version 1 was SPEC 0033's single
 #: `train`/`val`/`test` partition; version 2 is the repeated group k-fold
-#: assignment of ADR 0020. The version is refused rather than migrated, because
-#: a version-1 file records a design that no longer produces a valid number.
-FOLD_SCHEMA_VERSION = 2
+#: assignment of ADR 0020; version 3 stores every image path relative to the
+#: dataset root (SPEC 0061) so the file can be read on the machine that runs the
+#: arm. The version is refused rather than migrated, because a version-1 file
+#: records a design that no longer produces a valid number, and a version-2 file
+#: does not record the root its absolute paths were written under.
+FOLD_SCHEMA_VERSION = 3
 
 #: The fold manifest keeps the path and the name the split manifest had, so
 #: every tool, ignore rule and provenance guard that names it keeps working.
@@ -238,8 +242,13 @@ SEED_DERIVATION = "seed_r = data.seed + 1000 * r"
 INNER_SEED_OFFSET = 1
 
 #: What an operator is told to run when the fold manifest cannot be used. Named
-#: in the refusal rather than described, because the file is git-ignored and
-#: regenerating it is the only remedy.
+#: in the refusal rather than described, because a refusal that says only "this
+#: file is wrong" leaves the reader to find the generator.
+#:
+#: It is no longer the only remedy, and usually not the right one: the manifest
+#: is tracked (SPEC 0061), so `git restore ml/data/splits/splits.json` recovers
+#: the partition every published number was drawn over, while regenerating draws
+#: a new one under whatever scikit-learn is installed.
 REGENERATE_FOLDS_COMMAND = (
     "python scripts/validate_dataset.py --version <version> "
     "--splits-dir data/splits"
@@ -280,6 +289,7 @@ def create_folds(
     repeats: int,
     seed: int,
     splits_dir: str,
+    dataset_root: str,
     sample_ids: Mapping[str, str] | None = None,
     dataset_version: str | None = None,
     manifest_digest: str | None = None,
@@ -299,6 +309,14 @@ def create_folds(
     group left in would shift the class proportions the folds are trying to
     preserve, and the correction would then be invisible in the counts.
 
+    **Paths go in absolute and are written relative** (SPEC 0061). Grouping
+    reads ``sample_ids``, which is keyed by the absolute path, so relativising
+    before the partition is drawn would change the key each photograph is looked
+    up under; doing it at serialisation cannot move a fold, because by then
+    there is nothing left to decide. What this returns is re-rooted back to
+    absolute, so it is exactly what :func:`load_folds` would return for the file
+    it just wrote and no caller has to know which side of the boundary it is on.
+
     Args:
         class_images: Class name to image paths, from ``manifest.class_images``.
         k: Number of outer folds. Each class needs at least this many
@@ -306,6 +324,9 @@ def create_folds(
         repeats: Number of times the whole partition is redrawn.
         seed: Base seed; repeat r uses :func:`derive_repeat_seed`.
         splits_dir: Directory the fold manifest is written to.
+        dataset_root: The version directory every image lives under. Image
+            paths are stored relative to it, so the file is readable on a
+            machine whose checkout is somewhere else.
         sample_ids: Image path to declared sample id. Given, the group is what
             the collector declared; omitted, it is inferred from the filename.
         dataset_version: The immutable version the images came from.
@@ -318,12 +339,14 @@ def create_folds(
             being one short of the version it names.
 
     Returns:
-        The fold manifest, which is also written to
-        ``<splits_dir>/splits.json``.
+        The fold manifest with absolute image paths. The copy written to
+        ``<splits_dir>/splits.json`` holds the same manifest with every path
+        relative to ``dataset_root``.
 
     Raises:
-        ValueError: If ``k`` or ``repeats`` is out of range, or if any class
-            holds fewer than ``k`` splittable groups.
+        ValueError: If ``k`` or ``repeats`` is out of range, if any class
+            holds fewer than ``k`` splittable groups, or if any image is not
+            under ``dataset_root``.
     """
     if k < 2:
         raise ValueError(f"k must be at least 2, got {k}")
@@ -379,8 +402,8 @@ def create_folds(
         # refuses is one the model never sees, and a manifest that listed 221
         # photographs for a version of 221 while training on 210 would be
         # describing a run that did not happen.
-        "refused": dict(refused or {}),
-        "groups": groups,
+        "refused": _stored_refusals(refused or {}, dataset_root),
+        "groups": _stored_groups(groups, dataset_root),
         "folds": assignments,
         "counts": {
             "groups": len(groups),
@@ -393,10 +416,11 @@ def create_folds(
 
     destination = Path(splits_dir)
     destination.mkdir(parents=True, exist_ok=True)
-    with open(destination / FOLD_MANIFEST_FILENAME, "w") as handle:
+    written = destination / FOLD_MANIFEST_FILENAME
+    with open(written, "w") as handle:
         json.dump(fold_manifest, handle, indent=2)
 
-    return fold_manifest
+    return _reroot(fold_manifest, dataset_root, written)
 
 
 def create_folds_for_config(
@@ -483,6 +507,12 @@ def create_folds_for_config(
         repeats=evaluation["repeats"],
         seed=data["seed"],
         splits_dir=splits_dir,
+        # The manifest's own root, not the configured one. A caller that passed
+        # a manifest read from elsewhere — `validate_dataset.py --root` is the
+        # supported case — is partitioning images that live under that root, and
+        # relativising them against a root they are not under is exactly what
+        # `_stored_path` refuses.
+        dataset_root=str(manifest.root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,
@@ -491,17 +521,26 @@ def create_folds_for_config(
     )
 
 
-def load_folds(splits_dir: str, manifest_digest: str | None = None) -> dict:
+def load_folds(
+    splits_dir: str, *, dataset_root: str, manifest_digest: str | None = None
+) -> dict:
     """Load the fold manifest, refusing one that cannot produce a valid number.
 
     Args:
         splits_dir: Directory holding ``splits.json``.
+        dataset_root: The version directory on **this** machine. Every stored
+            path is re-rooted against it, which is what lets a partition drawn
+            on one machine be read on another. Required rather than optional:
+            an absent root would give this function two return shapes, and the
+            relative one would resolve against the working directory, which is
+            ``ml/`` for every entry point here and would therefore appear to
+            work from the one place anybody runs it.
         manifest_digest: Digest of the dataset manifest the caller intends to
             use. Given, a manifest that does not belong to it is refused rather
             than silently scoring a different set of images.
 
     Returns:
-        The fold manifest dict.
+        The fold manifest dict, with absolute image paths.
 
     Raises:
         FileNotFoundError: If the file does not exist.
@@ -520,18 +559,17 @@ def load_folds(splits_dir: str, manifest_digest: str | None = None) -> dict:
 
     recorded = fold_manifest.get("schema_version")
     if recorded != FOLD_SCHEMA_VERSION:
-        # Named, not migrated. A version-1 file records one train/val/test
-        # partition, and reinterpreting it as folds would produce a number that
-        # looks like a cross-validated one and is not.
-        described = (
-            "a SPEC 0033 train/val/test split"
-            if recorded is None
-            else f"schema_version {recorded}"
-        )
+        # Named, not migrated, and the reason differs by version, so it is
+        # stated per version rather than in one sentence that is true of one of
+        # them. A version-1 file records one train/val/test partition, and
+        # reinterpreting it as folds would produce a number that looks like a
+        # cross-validated one and is not. A version-2 file stores absolute image
+        # paths and does not record the root they were written under, so there
+        # is nothing to re-root them against.
+        described, because = _why_the_schema_is_refused(recorded)
         raise ValueError(
             f"{path} is {described}, not schema_version {FOLD_SCHEMA_VERSION}. "
-            f"The evaluation protocol is repeated group k-fold (ADR 0020) and "
-            f"cannot read it. Regenerate the fold manifest with: "
+            f"{because} Regenerate the fold manifest with: "
             f"{REGENERATE_FOLDS_COMMAND}"
         )
 
@@ -540,7 +578,27 @@ def load_folds(splits_dir: str, manifest_digest: str | None = None) -> dict:
     if manifest_digest is not None:
         verify_split_digest(fold_manifest, manifest_digest)
 
-    return fold_manifest
+    return _reroot(fold_manifest, dataset_root, path)
+
+
+def _why_the_schema_is_refused(recorded: int | None) -> tuple[str, str]:
+    """How a fold manifest at ``recorded`` is described, and why it is refused."""
+    if recorded is None:
+        return (
+            "a SPEC 0033 train/val/test split",
+            "The evaluation protocol is repeated group k-fold (ADR 0020) and "
+            "cannot read it.",
+        )
+    if recorded == 2:
+        return (
+            "schema_version 2",
+            "Its image paths are absolute and it does not record the root they "
+            "were written under, so nothing can re-root them (SPEC 0061).",
+        )
+    return (
+        f"schema_version {recorded}",
+        "It was written to a schema this reader does not implement.",
+    )
 
 
 def load_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
@@ -575,7 +633,11 @@ def load_folds_for_config(cfg: Mapping, splits_dir: str) -> dict:
             f"{REGENERATE_FOLDS_COMMAND}"
         )
 
-    fold_manifest = load_folds(splits_dir, manifest_digest=manifest_digest(root))
+    fold_manifest = load_folds(
+        splits_dir,
+        dataset_root=str(root),
+        manifest_digest=manifest_digest(root),
+    )
     _require_config_agreement(fold_manifest, cfg, splits_dir)
     return fold_manifest
 
@@ -843,6 +905,177 @@ def _group_records(
             "create_folds. Check the manifest against the configured classes"
         )
     return groups
+
+
+def _stored_path(path: str, dataset_root: str) -> str:
+    """One image path in the form the fold manifest stores it.
+
+    POSIX-separated because the move this exists for is Windows to Linux, and a
+    backslash is a legal filename character there: a Windows-separated relative
+    path does not resolve on Linux, it becomes one long filename.
+    """
+    try:
+        relative = Path(path).relative_to(Path(dataset_root))
+    except ValueError:
+        raise ValueError(
+            f"{path} is not under the dataset root {dataset_root}, so it has no "
+            f"relative form. The fold manifest stores every image path relative "
+            f"to that root so the partition can be read on the machine that runs "
+            f"the arm"
+        ) from None
+    return relative.as_posix()
+
+
+def _stored_groups(
+    groups: Mapping[str, dict], dataset_root: str
+) -> dict[str, dict]:
+    """The group table with every image path relative to the dataset root."""
+    return {
+        group_id: {
+            **record,
+            "images": [
+                _stored_path(path, dataset_root) for path in record["images"]
+            ],
+        }
+        for group_id, record in groups.items()
+    }
+
+
+def _stored_refusals(
+    refused: Mapping[str, str], dataset_root: str
+) -> dict[str, str]:
+    """The refusal table with the path relativised in the key and the message.
+
+    The message is a third place a path lives: `_canonical_region` builds it as
+    ``f"{path}: {reason}"``, so a change that relativised only the keys would
+    still write an absolute path once per refused photograph. It is rewritten by
+    substituting the one string known to be in it — the entry's own key — rather
+    than by parsing its shape.
+
+    One assumption remains and is narrower than "none": the substitution is
+    unanchored, so it would also rewrite a **second** path in the message that
+    had the key as a prefix. No builder can produce that — every refusal here is
+    ``f"{path}: {reason}"`` naming one photograph — and the alternative, parsing
+    the message to anchor the replacement, trades a reachable-by-nobody case for
+    a dependence on the message's shape, which is the more fragile of the two.
+    """
+    stored: dict[str, str] = {}
+    for path, reason in refused.items():
+        relative = _stored_path(path, dataset_root)
+        stored[relative] = reason.replace(path, relative)
+    return stored
+
+
+def _reroot(fold_manifest: Mapping, dataset_root: str, path: Path) -> dict:
+    """The fold manifest with every stored path made absolute again.
+
+    Built as ``root / stored`` so the result is string-identical to what
+    :func:`manifest.class_images` produces for the same row. That identity is
+    load-bearing rather than cosmetic: `photograph_scale` and
+    `sample_ids_by_image` are dictionaries keyed by that exact string, and a
+    path that resolves to the right file under a different spelling is a lookup
+    miss reported as an unmeasured photograph.
+
+    The path inside a refusal message is deliberately left as written. The
+    message is a human-readable record of why a photograph left; the key is what
+    code reads.
+    """
+    groups = _require_table(fold_manifest, "groups", path)
+    refused = _require_table(fold_manifest, "refused", path)
+
+    root = Path(dataset_root)
+    rerooted = dict(fold_manifest)
+    rerooted["groups"] = {
+        group_id: {
+            **record,
+            "images": [
+                str(root / _require_contained(stored, path))
+                for stored in _require_image_list(record, group_id, path)
+            ],
+        }
+        for group_id, record in groups.items()
+    }
+    rerooted["refused"] = {
+        str(root / _require_contained(stored, path)): reason
+        for stored, reason in refused.items()
+    }
+    return rerooted
+
+
+def _require_contained(stored: str, path: Path) -> str:
+    """One stored path, refused unless it can only land inside the root.
+
+    The read side validates what the write side already validates, and it is
+    not symmetry for its own sake: ``root / stored`` **discards the root**
+    outright when ``stored`` is absolute on the reading platform, and walks out
+    of it on ``..``. Both pass the schema and digest guards, because neither
+    looks at a path.
+
+    That became reachable when SPEC 0061 made this file tracked. A manifest
+    damaged by hand or by a merge conflict would otherwise put a path to any
+    file on disk into a fold entry, and the failure is downstream and indirect
+    — `_measurement_of` reporting a photograph the scale was never read for.
+    """
+    if not isinstance(stored, str):
+        raise ValueError(
+            f"{path} holds a non-string image path ({type(stored).__name__}). "
+            f"Restore or regenerate the fold manifest with: "
+            f"{REGENERATE_FOLDS_COMMAND}"
+        )
+    candidate = PurePosixPath(stored)
+    escapes = (
+        candidate.is_absolute()
+        or ntpath.isabs(stored)
+        or "\\" in stored
+        or ".." in candidate.parts
+    )
+    if escapes:
+        raise ValueError(
+            f"{path} stores {stored!r}, which is not a relative POSIX path "
+            f"inside the dataset root. A fold manifest stores every image "
+            f"relative to that root (SPEC 0061), and joining this one would "
+            f"reach outside it or discard it entirely. Restore or regenerate "
+            f"the fold manifest with: {REGENERATE_FOLDS_COMMAND}"
+        )
+    return stored
+
+
+def _require_table(fold_manifest: Mapping, key: str, path: Path) -> Mapping:
+    """The manifest's ``key`` block, refused by name when it is not a table.
+
+    Checked below the schema and digest guards rather than trusted by them: both
+    of those pass on a file that parses as JSON and is not a fold manifest, and
+    since SPEC 0061 this file is tracked, hand-editable and reachable by a merge
+    conflict. Without this, the damage surfaced as a bare ``KeyError`` naming
+    neither the file nor the remedy.
+    """
+    block = fold_manifest.get(key)
+    if not isinstance(block, Mapping):
+        found = "absent" if key not in fold_manifest else type(block).__name__
+        raise ValueError(
+            f"{path} has no usable {key!r} table ({found}), so it is not a "
+            f"schema_version {FOLD_SCHEMA_VERSION} fold manifest. Restore it "
+            f"with `git restore {FOLD_MANIFEST_FILENAME}`'s path, or regenerate "
+            f"it with: {REGENERATE_FOLDS_COMMAND}"
+        )
+    return block
+
+
+def _require_image_list(record: Mapping, group_id: str, path: Path) -> Sequence[str]:
+    """One group's image list, refused by name when it is not a list.
+
+    A string here is the case that earns an explicit check: it is iterable, so
+    it produced one re-rooted path per **character** and raised nothing at all.
+    """
+    images = record.get("images")
+    if not isinstance(images, (list, tuple)):
+        found = "absent" if "images" not in record else type(images).__name__
+        raise ValueError(
+            f"{path} group {group_id!r} has no usable 'images' list ({found}). "
+            f"Restore or regenerate the fold manifest with: "
+            f"{REGENERATE_FOLDS_COMMAND}"
+        )
+    return images
 
 
 def _refuse_a_class_below_the_fold_count(

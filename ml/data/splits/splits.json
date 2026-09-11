@@ -1,0 +1,1558 @@
+{
+  "schema_version": 3,
+  "dataset_version": "v1",
+  "manifest_digest": "49cc469f8923f5f41e5cdba5c6413712a40559479d7092ccdc0efd3e13af59f9",
+  "classes": [
+    "Arenosa",
+    "Media",
+    "Muito Argilosa",
+    "Argilosa"
+  ],
+  "class_to_idx": {
+    "Arenosa": 0,
+    "Media": 1,
+    "Muito Argilosa": 2,
+    "Argilosa": 3
+  },
+  "k": 5,
+  "repeats": 5,
+  "seed": 42,
+  "seed_derivation": "seed_r = data.seed + 1000 * r",
+  "seeds": {
+    "0": 42,
+    "1": 1042,
+    "2": 2042,
+    "3": 3042,
+    "4": 4042
+  },
+  "library_versions": {
+    "scikit_learn": "1.5.2",
+    "numpy": "1.26.4"
+  },
+  "train_only_samples": [
+    "116515_4",
+    "116520_1",
+    "116520_2",
+    "116528_1",
+    "119026_1",
+    "119026_10",
+    "119026_11",
+    "119026_12",
+    "119026_13",
+    "119026_14",
+    "119026_15",
+    "119026_16",
+    "119026_2",
+    "119026_3",
+    "119026_4",
+    "119026_5",
+    "119026_6",
+    "119026_7",
+    "119026_8",
+    "119026_9",
+    "119028_1",
+    "119028_2",
+    "119030_1",
+    "119038_1",
+    "119041_1"
+  ],
+  "refused": {
+    "images/Arenosa/116515_4 (2).jpeg": "images/Arenosa/116515_4 (2).jpeg: too_coarse_to_normalise: the photograph measures 0.1314 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.02x",
+    "images/Arenosa/116515_4.jpeg": "images/Arenosa/116515_4.jpeg: too_coarse_to_normalise: the photograph measures 0.1355 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.05x",
+    "images/Media/116520_1 (2).jpeg": "images/Media/116520_1 (2).jpeg: too_coarse_to_normalise: the photograph measures 0.1353 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.05x",
+    "images/Media/116520_1.jpeg": "images/Media/116520_1.jpeg: too_coarse_to_normalise: the photograph measures 0.1348 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.04x",
+    "images/Media/116528_1.jpeg": "images/Media/116528_1.jpeg: too_coarse_to_normalise: the photograph measures 0.1373 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.06x",
+    "images/Argilosa/119026_13 (2).jpeg": "images/Argilosa/119026_13 (2).jpeg: too_coarse_to_normalise: the photograph measures 0.1334 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.03x",
+    "images/Argilosa/119026_2 (2).jpeg": "images/Argilosa/119026_2 (2).jpeg: too_coarse_to_normalise: the photograph measures 0.1402 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.08x",
+    "images/Argilosa/119026_2.jpeg": "images/Argilosa/119026_2.jpeg: too_coarse_to_normalise: the photograph measures 0.1533 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.19x",
+    "images/Argilosa/119026_4.jpeg": "images/Argilosa/119026_4.jpeg: too_coarse_to_normalise: the photograph measures 0.1332 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.03x",
+    "images/Argilosa/119026_9 (2).jpeg": "images/Argilosa/119026_9 (2).jpeg: too_coarse_to_normalise: the photograph measures 0.1535 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.19x",
+    "images/Argilosa/119026_9.jpeg": "images/Argilosa/119026_9.jpeg: too_coarse_to_normalise: the photograph measures 0.1653 mm/px and the canonical is 0.1292, so reaching it would upsample by 1.28x"
+  },
+  "groups": {
+    "Arenosa::100262,1": {
+      "sample_id": "100262,1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/100262,1 (1).JPEG",
+        "images/Arenosa/100262,1 (2).JPEG",
+        "images/Arenosa/100262,1 (3).JPEG",
+        "images/Arenosa/100262,1 (4).JPEG"
+      ],
+      "train_only": false
+    },
+    "Arenosa::100282,1": {
+      "sample_id": "100282,1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/100282,1 (1).JPEG",
+        "images/Arenosa/100282,1 (2).JPEG",
+        "images/Arenosa/100282,1 (3).JPEG",
+        "images/Arenosa/100282,1 (4).JPEG"
+      ],
+      "train_only": false
+    },
+    "Arenosa::111656-2": {
+      "sample_id": "111656-2",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/111656-2 (1).JPEG",
+        "images/Arenosa/111656-2 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Arenosa::1117021-1": {
+      "sample_id": "1117021-1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/1117021-1 (1).JPEG",
+        "images/Arenosa/1117021-1 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Arenosa::112098-13": {
+      "sample_id": "112098-13",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/112098-13 (1).JPEG",
+        "images/Arenosa/112098-13 (2).JPEG",
+        "images/Arenosa/112098-13 (3).JPEG",
+        "images/Arenosa/112098-13 (4).JPEG"
+      ],
+      "train_only": false
+    },
+    "Arenosa::119028_1": {
+      "sample_id": "119028_1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/119028_1 (2).jpeg",
+        "images/Arenosa/119028_1.jpeg"
+      ],
+      "train_only": true
+    },
+    "Arenosa::119028_2": {
+      "sample_id": "119028_2",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/119028_2 (2).jpeg",
+        "images/Arenosa/119028_2.jpeg"
+      ],
+      "train_only": true
+    },
+    "Arenosa::119030_1": {
+      "sample_id": "119030_1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/119030_1 (2).jpeg",
+        "images/Arenosa/119030_1.jpeg"
+      ],
+      "train_only": true
+    },
+    "Arenosa::119038_1": {
+      "sample_id": "119038_1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/119038_1 (2).jpeg",
+        "images/Arenosa/119038_1.jpeg"
+      ],
+      "train_only": true
+    },
+    "Arenosa::119041_1": {
+      "sample_id": "119041_1",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/119041_1 (2).jpeg",
+        "images/Arenosa/119041_1.jpeg"
+      ],
+      "train_only": true
+    },
+    "Arenosa::burst-20231004-175040": {
+      "sample_id": "burst-20231004-175040",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8060.png",
+        "images/Arenosa/IMG_8061.png",
+        "images/Arenosa/IMG_8062.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-175442": {
+      "sample_id": "burst-20231004-175442",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8063.png",
+        "images/Arenosa/IMG_8064.png",
+        "images/Arenosa/IMG_8066.png",
+        "images/Arenosa/IMG_8067.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-180308": {
+      "sample_id": "burst-20231004-180308",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8068.png",
+        "images/Arenosa/IMG_8069.png",
+        "images/Arenosa/IMG_8070.png",
+        "images/Arenosa/IMG_8071.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-180745": {
+      "sample_id": "burst-20231004-180745",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8072.png",
+        "images/Arenosa/IMG_8073.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-181614": {
+      "sample_id": "burst-20231004-181614",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8074.png",
+        "images/Arenosa/IMG_8075.png",
+        "images/Arenosa/IMG_8076.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-181920": {
+      "sample_id": "burst-20231004-181920",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8077.png",
+        "images/Arenosa/IMG_8078.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-182259": {
+      "sample_id": "burst-20231004-182259",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8079.png",
+        "images/Arenosa/IMG_8080.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-182729": {
+      "sample_id": "burst-20231004-182729",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8081.png",
+        "images/Arenosa/IMG_8082.png",
+        "images/Arenosa/IMG_8083.png",
+        "images/Arenosa/IMG_8084.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-183108": {
+      "sample_id": "burst-20231004-183108",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8085.png",
+        "images/Arenosa/IMG_8086.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-183651": {
+      "sample_id": "burst-20231004-183651",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8087.png",
+        "images/Arenosa/IMG_8088.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-184605": {
+      "sample_id": "burst-20231004-184605",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8089.png",
+        "images/Arenosa/IMG_8090.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-185624": {
+      "sample_id": "burst-20231004-185624",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8091.png",
+        "images/Arenosa/IMG_8092.png",
+        "images/Arenosa/IMG_8093.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-190005": {
+      "sample_id": "burst-20231004-190005",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8094.png",
+        "images/Arenosa/IMG_8095.png",
+        "images/Arenosa/IMG_8096.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-190344": {
+      "sample_id": "burst-20231004-190344",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8097.png",
+        "images/Arenosa/IMG_8098.png"
+      ],
+      "train_only": false
+    },
+    "Arenosa::burst-20231004-190737": {
+      "sample_id": "burst-20231004-190737",
+      "class": "Arenosa",
+      "label": 0,
+      "images": [
+        "images/Arenosa/IMG_8099.png",
+        "images/Arenosa/IMG_8100.png"
+      ],
+      "train_only": false
+    },
+    "Media::112098-3": {
+      "sample_id": "112098-3",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/112098-3 (1).JPEG",
+        "images/Media/112098-3 (2).JPEG",
+        "images/Media/112098-3 (3).JPEG",
+        "images/Media/112098-3 (4).JPEG"
+      ],
+      "train_only": false
+    },
+    "Media::113266-1": {
+      "sample_id": "113266-1",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/113266-1 (1).JPEG",
+        "images/Media/113266-1 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Media::113880-2": {
+      "sample_id": "113880-2",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/113880-2 (1).JPEG",
+        "images/Media/113880-2 (2).JPEG",
+        "images/Media/113880-2 (3).JPEG"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-193103": {
+      "sample_id": "burst-20231004-193103",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8102.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-193413": {
+      "sample_id": "burst-20231004-193413",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8104.png",
+        "images/Media/IMG_8105.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-193722": {
+      "sample_id": "burst-20231004-193722",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8106.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-194027": {
+      "sample_id": "burst-20231004-194027",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8108.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-194812": {
+      "sample_id": "burst-20231004-194812",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8110.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-195045": {
+      "sample_id": "burst-20231004-195045",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8112.png",
+        "images/Media/IMG_8113.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-195402": {
+      "sample_id": "burst-20231004-195402",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8118.png",
+        "images/Media/IMG_8119.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-195618": {
+      "sample_id": "burst-20231004-195618",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8120.png",
+        "images/Media/IMG_8121.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-195834": {
+      "sample_id": "burst-20231004-195834",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8122.png",
+        "images/Media/IMG_8123.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-200035": {
+      "sample_id": "burst-20231004-200035",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8124.png",
+        "images/Media/IMG_8125.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-200301": {
+      "sample_id": "burst-20231004-200301",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8126.png",
+        "images/Media/IMG_8127.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-200552": {
+      "sample_id": "burst-20231004-200552",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8128.png",
+        "images/Media/IMG_8129.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-201749": {
+      "sample_id": "burst-20231004-201749",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8131.png",
+        "images/Media/IMG_8132.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-202054": {
+      "sample_id": "burst-20231004-202054",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8133.png",
+        "images/Media/IMG_8134.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-202539": {
+      "sample_id": "burst-20231004-202539",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8135.png",
+        "images/Media/IMG_8136.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-202735": {
+      "sample_id": "burst-20231004-202735",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8137.png",
+        "images/Media/IMG_8138.png"
+      ],
+      "train_only": false
+    },
+    "Media::burst-20231004-203012": {
+      "sample_id": "burst-20231004-203012",
+      "class": "Media",
+      "label": 1,
+      "images": [
+        "images/Media/IMG_8139.png",
+        "images/Media/IMG_8140.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::116876-3": {
+      "sample_id": "116876-3",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/116876-3 (1).JPEG",
+        "images/Muito_Argilosa/116876-3 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::116876-6": {
+      "sample_id": "116876-6",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/116876-6 (1).JPEG",
+        "images/Muito_Argilosa/116876-6 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::116880-3": {
+      "sample_id": "116880-3",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/116880-3 (1).JPEG",
+        "images/Muito_Argilosa/116880-3 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-203608": {
+      "sample_id": "burst-20231004-203608",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8143.png",
+        "images/Muito_Argilosa/IMG_8144.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-203836": {
+      "sample_id": "burst-20231004-203836",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8145.png",
+        "images/Muito_Argilosa/IMG_8146.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-204102": {
+      "sample_id": "burst-20231004-204102",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8147.png",
+        "images/Muito_Argilosa/IMG_8148.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-204625": {
+      "sample_id": "burst-20231004-204625",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8149.png",
+        "images/Muito_Argilosa/IMG_8150.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-204939": {
+      "sample_id": "burst-20231004-204939",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8151.png",
+        "images/Muito_Argilosa/IMG_8152.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-205251": {
+      "sample_id": "burst-20231004-205251",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8153.png",
+        "images/Muito_Argilosa/IMG_8154.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-205716": {
+      "sample_id": "burst-20231004-205716",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8156.png",
+        "images/Muito_Argilosa/IMG_8157.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-205953": {
+      "sample_id": "burst-20231004-205953",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8158.png",
+        "images/Muito_Argilosa/IMG_8159.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-210414": {
+      "sample_id": "burst-20231004-210414",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8162.png",
+        "images/Muito_Argilosa/IMG_8163.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-210742": {
+      "sample_id": "burst-20231004-210742",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8164.png",
+        "images/Muito_Argilosa/IMG_8165.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-211156": {
+      "sample_id": "burst-20231004-211156",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8166.png",
+        "images/Muito_Argilosa/IMG_8167.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-211517": {
+      "sample_id": "burst-20231004-211517",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8168.png",
+        "images/Muito_Argilosa/IMG_8169.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-211924": {
+      "sample_id": "burst-20231004-211924",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8170.png",
+        "images/Muito_Argilosa/IMG_8171.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-212209": {
+      "sample_id": "burst-20231004-212209",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8172.png",
+        "images/Muito_Argilosa/IMG_8173.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-212459": {
+      "sample_id": "burst-20231004-212459",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8174.png",
+        "images/Muito_Argilosa/IMG_8175.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-212705": {
+      "sample_id": "burst-20231004-212705",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8176.png",
+        "images/Muito_Argilosa/IMG_8177.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-213220": {
+      "sample_id": "burst-20231004-213220",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8178.png",
+        "images/Muito_Argilosa/IMG_8179.png"
+      ],
+      "train_only": false
+    },
+    "Muito Argilosa::burst-20231004-213444": {
+      "sample_id": "burst-20231004-213444",
+      "class": "Muito Argilosa",
+      "label": 2,
+      "images": [
+        "images/Muito_Argilosa/IMG_8180.png",
+        "images/Muito_Argilosa/IMG_8181.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::111800-2": {
+      "sample_id": "111800-2",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/111800-2 (1).JPEG",
+        "images/Argilosa/111800-2 (2).JPEG",
+        "images/Argilosa/111800-2 (3).JPEG"
+      ],
+      "train_only": false
+    },
+    "Argilosa::111911-19": {
+      "sample_id": "111911-19",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/111911-19 (1).JPEG",
+        "images/Argilosa/111911-19 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Argilosa::112427-6": {
+      "sample_id": "112427-6",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/112427-6 (1).JPEG",
+        "images/Argilosa/112427-6 (2).JPEG"
+      ],
+      "train_only": false
+    },
+    "Argilosa::116520_2": {
+      "sample_id": "116520_2",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/116520_2 (2).jpeg",
+        "images/Argilosa/116520_2.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_1": {
+      "sample_id": "119026_1",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_1 (2).jpeg",
+        "images/Argilosa/119026_1.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_10": {
+      "sample_id": "119026_10",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_10 (2).jpeg",
+        "images/Argilosa/119026_10.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_11": {
+      "sample_id": "119026_11",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_11 (2).jpeg",
+        "images/Argilosa/119026_11.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_12": {
+      "sample_id": "119026_12",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_12 (2).jpeg",
+        "images/Argilosa/119026_12.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_13": {
+      "sample_id": "119026_13",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_13.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_14": {
+      "sample_id": "119026_14",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_14 (2).jpeg",
+        "images/Argilosa/119026_14.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_15": {
+      "sample_id": "119026_15",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_15.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_16": {
+      "sample_id": "119026_16",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_16 (2).jpeg",
+        "images/Argilosa/119026_16.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_3": {
+      "sample_id": "119026_3",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_3 (2).jpeg",
+        "images/Argilosa/119026_3.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_4": {
+      "sample_id": "119026_4",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_4 (2).jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_5": {
+      "sample_id": "119026_5",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_5 (2).jpeg",
+        "images/Argilosa/119026_5.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_6": {
+      "sample_id": "119026_6",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_6 (2).jpeg",
+        "images/Argilosa/119026_6.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_7": {
+      "sample_id": "119026_7",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_7 (2).jpeg",
+        "images/Argilosa/119026_7.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::119026_8": {
+      "sample_id": "119026_8",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/119026_8 (2).jpeg",
+        "images/Argilosa/119026_8.jpeg"
+      ],
+      "train_only": true
+    },
+    "Argilosa::burst-20231005-180053": {
+      "sample_id": "burst-20231005-180053",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8202.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-180628": {
+      "sample_id": "burst-20231005-180628",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8204.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-181514": {
+      "sample_id": "burst-20231005-181514",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8206.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-201241": {
+      "sample_id": "burst-20231005-201241",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8219.png",
+        "images/Argilosa/IMG_8220.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-201645": {
+      "sample_id": "burst-20231005-201645",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8221.png",
+        "images/Argilosa/IMG_8222.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-202518": {
+      "sample_id": "burst-20231005-202518",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8223.png",
+        "images/Argilosa/IMG_8224.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-202817": {
+      "sample_id": "burst-20231005-202817",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8226.png",
+        "images/Argilosa/IMG_8227.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-203123": {
+      "sample_id": "burst-20231005-203123",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8228.png",
+        "images/Argilosa/IMG_8229.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-203536": {
+      "sample_id": "burst-20231005-203536",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8230.png",
+        "images/Argilosa/IMG_8231.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-204116": {
+      "sample_id": "burst-20231005-204116",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8232.png",
+        "images/Argilosa/IMG_8233.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-204625": {
+      "sample_id": "burst-20231005-204625",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8234.png",
+        "images/Argilosa/IMG_8235.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-204906": {
+      "sample_id": "burst-20231005-204906",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8236.png",
+        "images/Argilosa/IMG_8237.png"
+      ],
+      "train_only": false
+    },
+    "Argilosa::burst-20231005-210548": {
+      "sample_id": "burst-20231005-210548",
+      "class": "Argilosa",
+      "label": 3,
+      "images": [
+        "images/Argilosa/IMG_8238.png",
+        "images/Argilosa/IMG_8239.png"
+      ],
+      "train_only": false
+    }
+  },
+  "folds": {
+    "0": {
+      "Arenosa::100262,1": 3,
+      "Arenosa::burst-20231004-175040": 0,
+      "Arenosa::burst-20231004-181920": 0,
+      "Arenosa::burst-20231004-185624": 0,
+      "Arenosa::burst-20231004-190737": 0,
+      "Media::113266-1": 1,
+      "Media::burst-20231004-193722": 0,
+      "Media::burst-20231004-194812": 0,
+      "Media::burst-20231004-200552": 0,
+      "Media::burst-20231004-203012": 0,
+      "Muito Argilosa::116880-3": 0,
+      "Muito Argilosa::burst-20231004-205716": 0,
+      "Muito Argilosa::burst-20231004-212209": 0,
+      "Muito Argilosa::burst-20231004-212459": 0,
+      "Argilosa::burst-20231005-201241": 0,
+      "Argilosa::burst-20231005-202817": 0,
+      "Arenosa::1117021-1": 1,
+      "Arenosa::burst-20231004-175442": 1,
+      "Arenosa::burst-20231004-184605": 1,
+      "Arenosa::burst-20231004-190005": 1,
+      "Media::burst-20231004-193413": 1,
+      "Media::burst-20231004-195618": 1,
+      "Media::burst-20231004-202054": 1,
+      "Muito Argilosa::116876-3": 1,
+      "Muito Argilosa::burst-20231004-204102": 1,
+      "Muito Argilosa::burst-20231004-205953": 1,
+      "Muito Argilosa::burst-20231004-212705": 1,
+      "Muito Argilosa::burst-20231004-213220": 1,
+      "Argilosa::111911-19": 0,
+      "Argilosa::burst-20231005-202518": 1,
+      "Argilosa::burst-20231005-203536": 1,
+      "Argilosa::burst-20231005-210548": 1,
+      "Arenosa::112098-13": 2,
+      "Arenosa::burst-20231004-181614": 2,
+      "Arenosa::burst-20231004-182259": 2,
+      "Arenosa::burst-20231004-183108": 2,
+      "Media::113880-2": 2,
+      "Media::burst-20231004-194027": 2,
+      "Media::burst-20231004-195834": 2,
+      "Media::burst-20231004-201749": 2,
+      "Muito Argilosa::burst-20231004-203608": 2,
+      "Muito Argilosa::burst-20231004-204625": 2,
+      "Muito Argilosa::burst-20231004-210742": 2,
+      "Muito Argilosa::burst-20231004-211156": 2,
+      "Argilosa::112427-6": 2,
+      "Argilosa::burst-20231005-201645": 2,
+      "Argilosa::burst-20231005-204116": 2,
+      "Arenosa::100282,1": 3,
+      "Arenosa::burst-20231004-180308": 3,
+      "Arenosa::burst-20231004-182729": 3,
+      "Media::112098-3": 3,
+      "Media::burst-20231004-195045": 3,
+      "Media::burst-20231004-200035": 3,
+      "Media::burst-20231004-202735": 3,
+      "Muito Argilosa::116876-6": 3,
+      "Muito Argilosa::burst-20231004-204939": 3,
+      "Muito Argilosa::burst-20231004-210414": 3,
+      "Muito Argilosa::burst-20231004-211924": 3,
+      "Argilosa::111800-2": 3,
+      "Argilosa::burst-20231005-180053": 3,
+      "Argilosa::burst-20231005-180628": 3,
+      "Argilosa::burst-20231005-204906": 3,
+      "Arenosa::111656-2": 4,
+      "Arenosa::burst-20231004-180745": 4,
+      "Arenosa::burst-20231004-183651": 4,
+      "Arenosa::burst-20231004-190344": 4,
+      "Media::burst-20231004-193103": 4,
+      "Media::burst-20231004-195402": 4,
+      "Media::burst-20231004-200301": 4,
+      "Media::burst-20231004-202539": 4,
+      "Muito Argilosa::burst-20231004-203836": 4,
+      "Muito Argilosa::burst-20231004-205251": 4,
+      "Muito Argilosa::burst-20231004-211517": 4,
+      "Muito Argilosa::burst-20231004-213444": 4,
+      "Argilosa::burst-20231005-181514": 4,
+      "Argilosa::burst-20231005-203123": 4,
+      "Argilosa::burst-20231005-204625": 4,
+      "Arenosa::119028_1": null,
+      "Arenosa::119028_2": null,
+      "Arenosa::119030_1": null,
+      "Arenosa::119038_1": null,
+      "Arenosa::119041_1": null,
+      "Argilosa::116520_2": null,
+      "Argilosa::119026_1": null,
+      "Argilosa::119026_10": null,
+      "Argilosa::119026_11": null,
+      "Argilosa::119026_12": null,
+      "Argilosa::119026_13": null,
+      "Argilosa::119026_14": null,
+      "Argilosa::119026_15": null,
+      "Argilosa::119026_16": null,
+      "Argilosa::119026_3": null,
+      "Argilosa::119026_4": null,
+      "Argilosa::119026_5": null,
+      "Argilosa::119026_6": null,
+      "Argilosa::119026_7": null,
+      "Argilosa::119026_8": null
+    },
+    "1": {
+      "Arenosa::100282,1": 4,
+      "Arenosa::burst-20231004-175442": 0,
+      "Arenosa::burst-20231004-181920": 0,
+      "Arenosa::burst-20231004-184605": 0,
+      "Arenosa::burst-20231004-190737": 0,
+      "Media::burst-20231004-193103": 0,
+      "Media::burst-20231004-195834": 0,
+      "Media::burst-20231004-200552": 0,
+      "Muito Argilosa::116876-3": 0,
+      "Muito Argilosa::burst-20231004-203608": 0,
+      "Muito Argilosa::burst-20231004-205953": 0,
+      "Muito Argilosa::burst-20231004-211517": 0,
+      "Argilosa::burst-20231005-201241": 0,
+      "Argilosa::burst-20231005-203123": 0,
+      "Argilosa::burst-20231005-210548": 0,
+      "Arenosa::111656-2": 1,
+      "Arenosa::burst-20231004-175040": 1,
+      "Arenosa::burst-20231004-182259": 1,
+      "Arenosa::burst-20231004-185624": 1,
+      "Media::113266-1": 0,
+      "Media::burst-20231004-193722": 1,
+      "Media::burst-20231004-195402": 1,
+      "Media::burst-20231004-202054": 1,
+      "Media::burst-20231004-203012": 1,
+      "Muito Argilosa::burst-20231004-204102": 1,
+      "Muito Argilosa::burst-20231004-210414": 1,
+      "Muito Argilosa::burst-20231004-211924": 1,
+      "Muito Argilosa::burst-20231004-212459": 1,
+      "Argilosa::111800-2": 1,
+      "Argilosa::burst-20231005-202518": 1,
+      "Argilosa::burst-20231005-203536": 1,
+      "Arenosa::112098-13": 2,
+      "Arenosa::burst-20231004-180308": 2,
+      "Arenosa::burst-20231004-183651": 2,
+      "Arenosa::burst-20231004-190005": 2,
+      "Media::112098-3": 2,
+      "Media::burst-20231004-194027": 2,
+      "Media::burst-20231004-200301": 2,
+      "Media::burst-20231004-202539": 2,
+      "Muito Argilosa::116876-6": 2,
+      "Muito Argilosa::burst-20231004-204625": 2,
+      "Muito Argilosa::burst-20231004-210742": 2,
+      "Muito Argilosa::burst-20231004-212705": 2,
+      "Muito Argilosa::burst-20231004-213444": 2,
+      "Argilosa::burst-20231005-180053": 2,
+      "Argilosa::burst-20231005-201645": 2,
+      "Argilosa::burst-20231005-204116": 2,
+      "Arenosa::100262,1": 3,
+      "Arenosa::burst-20231004-180745": 3,
+      "Arenosa::burst-20231004-182729": 3,
+      "Arenosa::burst-20231004-190344": 3,
+      "Media::113880-2": 3,
+      "Media::burst-20231004-194812": 3,
+      "Media::burst-20231004-200035": 3,
+      "Media::burst-20231004-202735": 3,
+      "Muito Argilosa::burst-20231004-203836": 3,
+      "Muito Argilosa::burst-20231004-204939": 3,
+      "Muito Argilosa::burst-20231004-205716": 3,
+      "Muito Argilosa::burst-20231004-213220": 3,
+      "Argilosa::111911-19": 3,
+      "Argilosa::burst-20231005-180628": 3,
+      "Argilosa::burst-20231005-204625": 3,
+      "Arenosa::1117021-1": 4,
+      "Arenosa::burst-20231004-181614": 4,
+      "Arenosa::burst-20231004-183108": 4,
+      "Media::burst-20231004-193413": 4,
+      "Media::burst-20231004-195045": 4,
+      "Media::burst-20231004-195618": 4,
+      "Media::burst-20231004-201749": 4,
+      "Muito Argilosa::116880-3": 4,
+      "Muito Argilosa::burst-20231004-205251": 4,
+      "Muito Argilosa::burst-20231004-211156": 4,
+      "Muito Argilosa::burst-20231004-212209": 4,
+      "Argilosa::112427-6": 4,
+      "Argilosa::burst-20231005-181514": 4,
+      "Argilosa::burst-20231005-202817": 4,
+      "Argilosa::burst-20231005-204906": 4,
+      "Arenosa::119028_1": null,
+      "Arenosa::119028_2": null,
+      "Arenosa::119030_1": null,
+      "Arenosa::119038_1": null,
+      "Arenosa::119041_1": null,
+      "Argilosa::116520_2": null,
+      "Argilosa::119026_1": null,
+      "Argilosa::119026_10": null,
+      "Argilosa::119026_11": null,
+      "Argilosa::119026_12": null,
+      "Argilosa::119026_13": null,
+      "Argilosa::119026_14": null,
+      "Argilosa::119026_15": null,
+      "Argilosa::119026_16": null,
+      "Argilosa::119026_3": null,
+      "Argilosa::119026_4": null,
+      "Argilosa::119026_5": null,
+      "Argilosa::119026_6": null,
+      "Argilosa::119026_7": null,
+      "Argilosa::119026_8": null
+    },
+    "2": {
+      "Arenosa::100262,1": 4,
+      "Arenosa::burst-20231004-175040": 0,
+      "Arenosa::burst-20231004-181920": 0,
+      "Arenosa::burst-20231004-185624": 0,
+      "Arenosa::burst-20231004-190737": 0,
+      "Media::112098-3": 0,
+      "Media::burst-20231004-193413": 0,
+      "Media::burst-20231004-195402": 0,
+      "Media::burst-20231004-201749": 0,
+      "Muito Argilosa::116876-6": 4,
+      "Muito Argilosa::burst-20231004-203836": 0,
+      "Muito Argilosa::burst-20231004-205953": 0,
+      "Muito Argilosa::burst-20231004-212209": 0,
+      "Muito Argilosa::burst-20231004-212705": 0,
+      "Argilosa::burst-20231005-181514": 0,
+      "Argilosa::burst-20231005-204116": 0,
+      "Arenosa::111656-2": 1,
+      "Arenosa::burst-20231004-180308": 1,
+      "Arenosa::burst-20231004-182259": 1,
+      "Arenosa::burst-20231004-184605": 1,
+      "Media::113266-1": 1,
+      "Media::burst-20231004-193722": 1,
+      "Media::burst-20231004-195834": 1,
+      "Media::burst-20231004-200552": 1,
+      "Muito Argilosa::116880-3": 1,
+      "Muito Argilosa::burst-20231004-204102": 1,
+      "Muito Argilosa::burst-20231004-211924": 1,
+      "Muito Argilosa::burst-20231004-212459": 1,
+      "Argilosa::112427-6": 1,
+      "Argilosa::burst-20231005-201645": 1,
+      "Argilosa::burst-20231005-204906": 1,
+      "Arenosa::112098-13": 2,
+      "Arenosa::burst-20231004-180745": 2,
+      "Arenosa::burst-20231004-182729": 2,
+      "Arenosa::burst-20231004-190005": 2,
+      "Media::113880-2": 2,
+      "Media::burst-20231004-194027": 2,
+      "Media::burst-20231004-200035": 2,
+      "Media::burst-20231004-202735": 2,
+      "Muito Argilosa::116876-3": 2,
+      "Muito Argilosa::burst-20231004-204625": 2,
+      "Muito Argilosa::burst-20231004-205716": 2,
+      "Muito Argilosa::burst-20231004-213220": 2,
+      "Muito Argilosa::burst-20231004-213444": 2,
+      "Argilosa::burst-20231005-180053": 2,
+      "Argilosa::burst-20231005-201241": 2,
+      "Argilosa::burst-20231005-203123": 2,
+      "Arenosa::100282,1": 3,
+      "Arenosa::burst-20231004-175442": 3,
+      "Arenosa::burst-20231004-183108": 3,
+      "Arenosa::burst-20231004-190344": 3,
+      "Media::burst-20231004-193103": 3,
+      "Media::burst-20231004-194812": 3,
+      "Media::burst-20231004-195618": 3,
+      "Media::burst-20231004-202054": 3,
+      "Muito Argilosa::burst-20231004-203608": 3,
+      "Muito Argilosa::burst-20231004-204939": 3,
+      "Muito Argilosa::burst-20231004-210742": 3,
+      "Muito Argilosa::burst-20231004-211156": 3,
+      "Argilosa::111800-2": 3,
+      "Argilosa::burst-20231005-202518": 3,
+      "Argilosa::burst-20231005-203536": 3,
+      "Arenosa::1117021-1": 4,
+      "Arenosa::burst-20231004-181614": 4,
+      "Arenosa::burst-20231004-183651": 4,
+      "Media::burst-20231004-195045": 4,
+      "Media::burst-20231004-200301": 4,
+      "Media::burst-20231004-202539": 4,
+      "Media::burst-20231004-203012": 4,
+      "Muito Argilosa::burst-20231004-205251": 4,
+      "Muito Argilosa::burst-20231004-210414": 4,
+      "Muito Argilosa::burst-20231004-211517": 4,
+      "Argilosa::111911-19": 0,
+      "Argilosa::burst-20231005-180628": 4,
+      "Argilosa::burst-20231005-202817": 4,
+      "Argilosa::burst-20231005-204625": 4,
+      "Argilosa::burst-20231005-210548": 4,
+      "Arenosa::119028_1": null,
+      "Arenosa::119028_2": null,
+      "Arenosa::119030_1": null,
+      "Arenosa::119038_1": null,
+      "Arenosa::119041_1": null,
+      "Argilosa::116520_2": null,
+      "Argilosa::119026_1": null,
+      "Argilosa::119026_10": null,
+      "Argilosa::119026_11": null,
+      "Argilosa::119026_12": null,
+      "Argilosa::119026_13": null,
+      "Argilosa::119026_14": null,
+      "Argilosa::119026_15": null,
+      "Argilosa::119026_16": null,
+      "Argilosa::119026_3": null,
+      "Argilosa::119026_4": null,
+      "Argilosa::119026_5": null,
+      "Argilosa::119026_6": null,
+      "Argilosa::119026_7": null,
+      "Argilosa::119026_8": null
+    },
+    "3": {
+      "Arenosa::100282,1": 0,
+      "Arenosa::burst-20231004-175040": 0,
+      "Arenosa::burst-20231004-181920": 0,
+      "Arenosa::burst-20231004-185624": 0,
+      "Media::112098-3": 0,
+      "Media::burst-20231004-193413": 0,
+      "Media::burst-20231004-195834": 0,
+      "Media::burst-20231004-200035": 0,
+      "Muito Argilosa::116876-6": 3,
+      "Muito Argilosa::burst-20231004-203836": 0,
+      "Muito Argilosa::burst-20231004-205716": 0,
+      "Muito Argilosa::burst-20231004-211517": 0,
+      "Muito Argilosa::burst-20231004-213220": 0,
+      "Argilosa::111911-19": 0,
+      "Argilosa::burst-20231005-201241": 0,
+      "Argilosa::burst-20231005-203536": 0,
+      "Arenosa::111656-2": 1,
+      "Arenosa::burst-20231004-175442": 1,
+      "Arenosa::burst-20231004-182729": 1,
+      "Arenosa::burst-20231004-190005": 1,
+      "Media::burst-20231004-193722": 1,
+      "Media::burst-20231004-200301": 1,
+      "Media::burst-20231004-202054": 1,
+      "Muito Argilosa::116880-3": 1,
+      "Muito Argilosa::burst-20231004-204102": 1,
+      "Muito Argilosa::burst-20231004-205953": 1,
+      "Muito Argilosa::burst-20231004-212209": 1,
+      "Argilosa::112427-6": 1,
+      "Argilosa::burst-20231005-202518": 1,
+      "Argilosa::burst-20231005-204116": 1,
+      "Argilosa::burst-20231005-204906": 1,
+      "Arenosa::1117021-1": 2,
+      "Arenosa::burst-20231004-180308": 2,
+      "Arenosa::burst-20231004-182259": 2,
+      "Arenosa::burst-20231004-190344": 2,
+      "Media::113266-1": 2,
+      "Media::burst-20231004-194812": 2,
+      "Media::burst-20231004-195402": 2,
+      "Media::burst-20231004-201749": 2,
+      "Muito Argilosa::burst-20231004-203608": 2,
+      "Muito Argilosa::burst-20231004-204625": 2,
+      "Muito Argilosa::burst-20231004-210414": 2,
+      "Muito Argilosa::burst-20231004-212705": 2,
+      "Muito Argilosa::burst-20231004-213444": 2,
+      "Argilosa::burst-20231005-180053": 2,
+      "Argilosa::burst-20231005-201645": 2,
+      "Argilosa::burst-20231005-204625": 2,
+      "Arenosa::100262,1": 3,
+      "Arenosa::burst-20231004-180745": 3,
+      "Arenosa::burst-20231004-183108": 3,
+      "Arenosa::burst-20231004-184605": 3,
+      "Media::burst-20231004-193103": 1,
+      "Media::burst-20231004-194027": 3,
+      "Media::burst-20231004-195618": 3,
+      "Media::burst-20231004-202539": 3,
+      "Media::burst-20231004-202735": 3,
+      "Muito Argilosa::burst-20231004-204939": 3,
+      "Muito Argilosa::burst-20231004-211156": 3,
+      "Muito Argilosa::burst-20231004-212459": 3,
+      "Argilosa::111800-2": 3,
+      "Argilosa::burst-20231005-180628": 3,
+      "Argilosa::burst-20231005-203123": 3,
+      "Arenosa::112098-13": 4,
+      "Arenosa::burst-20231004-181614": 4,
+      "Arenosa::burst-20231004-183651": 4,
+      "Arenosa::burst-20231004-190737": 4,
+      "Media::113880-2": 4,
+      "Media::burst-20231004-195045": 4,
+      "Media::burst-20231004-200552": 4,
+      "Media::burst-20231004-203012": 4,
+      "Muito Argilosa::116876-3": 4,
+      "Muito Argilosa::burst-20231004-205251": 4,
+      "Muito Argilosa::burst-20231004-210742": 4,
+      "Muito Argilosa::burst-20231004-211924": 4,
+      "Argilosa::burst-20231005-181514": 4,
+      "Argilosa::burst-20231005-202817": 4,
+      "Argilosa::burst-20231005-210548": 4,
+      "Arenosa::119028_1": null,
+      "Arenosa::119028_2": null,
+      "Arenosa::119030_1": null,
+      "Arenosa::119038_1": null,
+      "Arenosa::119041_1": null,
+      "Argilosa::116520_2": null,
+      "Argilosa::119026_1": null,
+      "Argilosa::119026_10": null,
+      "Argilosa::119026_11": null,
+      "Argilosa::119026_12": null,
+      "Argilosa::119026_13": null,
+      "Argilosa::119026_14": null,
+      "Argilosa::119026_15": null,
+      "Argilosa::119026_16": null,
+      "Argilosa::119026_3": null,
+      "Argilosa::119026_4": null,
+      "Argilosa::119026_5": null,
+      "Argilosa::119026_6": null,
+      "Argilosa::119026_7": null,
+      "Argilosa::119026_8": null
+    },
+    "4": {
+      "Arenosa::100282,1": 0,
+      "Arenosa::burst-20231004-175040": 0,
+      "Arenosa::burst-20231004-181920": 0,
+      "Arenosa::burst-20231004-184605": 0,
+      "Media::112098-3": 0,
+      "Media::113880-2": 0,
+      "Media::burst-20231004-195402": 0,
+      "Media::burst-20231004-202539": 0,
+      "Muito Argilosa::116876-3": 4,
+      "Muito Argilosa::burst-20231004-203836": 0,
+      "Muito Argilosa::burst-20231004-205716": 0,
+      "Muito Argilosa::burst-20231004-211517": 0,
+      "Muito Argilosa::burst-20231004-212459": 0,
+      "Argilosa::111800-2": 0,
+      "Argilosa::burst-20231005-180628": 0,
+      "Argilosa::burst-20231005-204116": 0,
+      "Arenosa::111656-2": 1,
+      "Arenosa::burst-20231004-175442": 1,
+      "Arenosa::burst-20231004-182259": 1,
+      "Arenosa::burst-20231004-190344": 1,
+      "Media::113266-1": 1,
+      "Media::burst-20231004-193413": 1,
+      "Media::burst-20231004-195618": 1,
+      "Media::burst-20231004-200552": 1,
+      "Muito Argilosa::116876-6": 1,
+      "Muito Argilosa::burst-20231004-204102": 1,
+      "Muito Argilosa::burst-20231004-205953": 1,
+      "Muito Argilosa::burst-20231004-211924": 1,
+      "Argilosa::111911-19": 1,
+      "Argilosa::burst-20231005-201241": 1,
+      "Argilosa::burst-20231005-204625": 1,
+      "Arenosa::1117021-1": 2,
+      "Arenosa::burst-20231004-180745": 2,
+      "Arenosa::burst-20231004-183108": 2,
+      "Arenosa::burst-20231004-185624": 2,
+      "Media::burst-20231004-193103": 2,
+      "Media::burst-20231004-194027": 2,
+      "Media::burst-20231004-200035": 2,
+      "Media::burst-20231004-202735": 2,
+      "Muito Argilosa::116880-3": 2,
+      "Muito Argilosa::burst-20231004-204625": 2,
+      "Muito Argilosa::burst-20231004-211156": 2,
+      "Muito Argilosa::burst-20231004-212705": 2,
+      "Muito Argilosa::burst-20231004-213220": 2,
+      "Argilosa::burst-20231005-180053": 2,
+      "Argilosa::burst-20231005-201645": 2,
+      "Argilosa::burst-20231005-204906": 2,
+      "Arenosa::100262,1": 3,
+      "Arenosa::burst-20231004-180308": 3,
+      "Arenosa::burst-20231004-182729": 3,
+      "Arenosa::burst-20231004-190737": 3,
+      "Media::burst-20231004-193722": 3,
+      "Media::burst-20231004-194812": 3,
+      "Media::burst-20231004-195834": 3,
+      "Media::burst-20231004-203012": 3,
+      "Muito Argilosa::burst-20231004-203608": 3,
+      "Muito Argilosa::burst-20231004-205251": 3,
+      "Muito Argilosa::burst-20231004-210414": 3,
+      "Muito Argilosa::burst-20231004-212209": 3,
+      "Argilosa::112427-6": 3,
+      "Argilosa::burst-20231005-202518": 3,
+      "Argilosa::burst-20231005-210548": 3,
+      "Arenosa::112098-13": 4,
+      "Arenosa::burst-20231004-181614": 4,
+      "Arenosa::burst-20231004-183651": 4,
+      "Arenosa::burst-20231004-190005": 4,
+      "Media::burst-20231004-195045": 4,
+      "Media::burst-20231004-200301": 4,
+      "Media::burst-20231004-201749": 4,
+      "Media::burst-20231004-202054": 4,
+      "Muito Argilosa::burst-20231004-204939": 4,
+      "Muito Argilosa::burst-20231004-210742": 4,
+      "Muito Argilosa::burst-20231004-213444": 4,
+      "Argilosa::burst-20231005-181514": 4,
+      "Argilosa::burst-20231005-202817": 4,
+      "Argilosa::burst-20231005-203123": 4,
+      "Argilosa::burst-20231005-203536": 4,
+      "Arenosa::119028_1": null,
+      "Arenosa::119028_2": null,
+      "Arenosa::119030_1": null,
+      "Arenosa::119038_1": null,
+      "Arenosa::119041_1": null,
+      "Argilosa::116520_2": null,
+      "Argilosa::119026_1": null,
+      "Argilosa::119026_10": null,
+      "Argilosa::119026_11": null,
+      "Argilosa::119026_12": null,
+      "Argilosa::119026_13": null,
+      "Argilosa::119026_14": null,
+      "Argilosa::119026_15": null,
+      "Argilosa::119026_16": null,
+      "Argilosa::119026_3": null,
+      "Argilosa::119026_4": null,
+      "Argilosa::119026_5": null,
+      "Argilosa::119026_6": null,
+      "Argilosa::119026_7": null,
+      "Argilosa::119026_8": null
+    }
+  },
+  "counts": {
+    "groups": 97,
+    "splittable_groups": 77,
+    "train_only_groups": 20,
+    "photographs": 204,
+    "refused_photographs": 11
+  }
+}

@@ -42,6 +42,7 @@ def generate(tmp_path, root, *, with_provenance=True):
         repeats=REPEATS,
         seed=42,
         splits_dir=str(splits_dir),
+        dataset_root=str(root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version if with_provenance else None,
         manifest_digest=manifest.digest if with_provenance else None,
@@ -105,7 +106,7 @@ def test_loading_a_fold_manifest_whose_hash_does_not_match_fails(tmp_path):
     _, splits_dir, _ = generate(tmp_path, root)
 
     with pytest.raises(ValueError, match="manifest_digest"):
-        load_folds(str(splits_dir), manifest_digest="0" * 64)
+        load_folds(str(splits_dir), dataset_root=str(root), manifest_digest="0" * 64)
 
 
 def test_loading_a_fold_manifest_whose_hash_matches_succeeds(tmp_path):
@@ -113,7 +114,7 @@ def test_loading_a_fold_manifest_whose_hash_matches_succeeds(tmp_path):
     root = write_version(tmp_path)
     manifest, splits_dir, _ = generate(tmp_path, root)
 
-    loaded = load_folds(str(splits_dir), manifest_digest=manifest.digest)
+    loaded = load_folds(str(splits_dir), dataset_root=str(root), manifest_digest=manifest.digest)
 
     assert loaded["dataset_version"] == "v1"
 
@@ -126,7 +127,7 @@ def test_loading_a_fold_manifest_without_provenance_fails_when_a_hash_is_require
     _, splits_dir, _ = generate(tmp_path, root, with_provenance=False)
 
     with pytest.raises(ValueError, match="manifest_digest"):
-        load_folds(str(splits_dir), manifest_digest=manifest_digest(root))
+        load_folds(str(splits_dir), dataset_root=str(root), manifest_digest=manifest_digest(root))
 
 
 def test_loading_a_fold_manifest_without_a_required_hash_still_works(tmp_path):
@@ -134,7 +135,7 @@ def test_loading_a_fold_manifest_without_a_required_hash_still_works(tmp_path):
     root = write_version(tmp_path)
     _, splits_dir, _ = generate(tmp_path, root, with_provenance=False)
 
-    assert load_folds(str(splits_dir))["classes"] == CLASSES
+    assert load_folds(str(splits_dir), dataset_root=str(root))["classes"] == CLASSES
 
 
 def test_importing_dataset_does_not_load_tensorflow():

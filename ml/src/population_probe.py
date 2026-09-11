@@ -202,6 +202,7 @@ def probe_partition(
         repeats=evaluation["repeats"],
         seed=cfg["data"]["seed"],
         splits_dir=splits_dir,
+        dataset_root=str(manifest.root),
         sample_ids=sample_ids_by_image(manifest),
         dataset_version=manifest.version,
         manifest_digest=manifest.digest,

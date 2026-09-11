@@ -280,7 +280,10 @@ def _splits_destination(requested: str | None):
 
     `create_folds` always persists. Defaulting to the configured `splits_dir`
     would make a command that reads like a report overwrite the artefact
-    `src.crossval` reuses — and it is gitignored, so unrecoverably.
+    `src.crossval` reuses. Since SPEC 0061 that file is tracked, so the overwrite
+    is recoverable with `git restore` — but it would still redraw the partition
+    under whatever scikit-learn is installed, which is the damage, and a report
+    command must not do it silently.
     """
     if requested:
         yield requested
