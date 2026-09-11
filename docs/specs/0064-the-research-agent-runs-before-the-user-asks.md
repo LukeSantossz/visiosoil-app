@@ -35,12 +35,13 @@ Three consequences follow that no per-request variant offers: a human reviews ev
   - `docs/adr/0001-research-agent-advisory-web-grounded.md` — marked Retired in place, keeping its number and file, with what survives and what was withdrawn stated.
   - `docs/architecture/research-agent.md` — rewritten as the design reference: current state, integration map, use case catalogue, architecture comparison, input and output contracts, source policy, `llm-wiki` strategy, security, observability, evaluation, offline behaviour, GenUI integration, delivery plan, risks, open questions, cross-terminal contracts.
   - `README.md` — the Engineering Decisions row for ADR 0001 marked Retired, and a row added for ADR 0022.
+  - The stack section (§20 of the architecture document): where each part lives and in what language, the model and search providers, what is deliberately absent, and how the build runs with its spend guards.
   - The app implementation notes (§19 of the architecture document): the file-level decisions each app slice's spec consumes — domain-model defaults, the v4→v5 column, the region resolver's placement, the asset layout and its ceiling, the fixture corpus, and the slice map.
 - Does NOT include:
   - Any code, in `lib/` or in a proxy repository. Every delivery slice in the architecture document passes its own Spec Gate first, including the schema migration §19.2 describes.
   - The per-slice specs themselves, written one per gate by decision rather than all at once.
   - Any spend. The calibration probe that would replace this document's token estimates with measurements is slice 1 of that plan, not part of this change.
-  - Creating the proxy repository.
+  - Creating the proxy repository, or the `corpus/` directory this repository will hold.
   - Any change to `ml/`, the model, the preprocessing path, or the class list.
   - Any change to `lib/core/features/details/management_tips_section.dart`, which belongs to the UI/UX terminal.
   - Identifying the corpus reviewer. Nine questions this design opened were decided on 2026-09-11 and are recorded in the sections they belong to; this one was not, and it blocks the corpus release rather than this change.
@@ -82,6 +83,8 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - `app_slices_have_settled_inputs`: for each app slice, the architecture document names the files it touches, what is already decided, and what its own spec must still decide.
 - `cache_compatibility_has_a_test`: the notes require a test that reads a payload written before the change through the new parser and asserts the documented defaults.
 - `coordinate_absence_is_asserted_on_the_wire`: the notes require the no-coordinate test to assert against the request body a fake transport receives, not against the method that builds it.
+- `stack_is_recorded_in_one_place`: the document names, for each part of the system, where it lives and in what language, which providers it uses, and what was deliberately not adopted.
+- `finite_budget_has_a_closed_guard`: the build's dispatch requires an explicit confirmation and a spend ledger that refuses to start once the allowance would be exceeded.
 - `app_development_needs_no_proxy`: slices 6 through 9 are stated to be developable and testable against the fixture corpus alone.
 - `new_ux_dependencies_are_declared`: the free-text input, the durable cap-exhaustion state, the two-readings presentation and the absent-coverage statement appear as asks to the UI/UX terminal.
 - `no_retry_on_not_analysed`: the design states that `notAnalysed` never escalates, per ADR 0011 and ADR 0015.

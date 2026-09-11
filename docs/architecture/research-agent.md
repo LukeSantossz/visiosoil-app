@@ -491,11 +491,14 @@ that reintroduces coordinates fails loudly instead of leaking quietly.
 ### 6.5 The composition rule
 
 Composition is a pure function from the §6.1 input and a corpus to a
-`ManagementTipsResult`. It is **the one piece of logic that must be identical
-wherever it runs**, so it is specified here rather than left to an
-implementation, and it is covered by a golden fixture the way the image-quality
-criteria already are (`test/fixtures/image_quality/golden.json`, implemented in
-both Dart and Python).
+`ManagementTipsResult`. Since Tier 1 composes on the device, it runs in exactly
+one place — Dart — which removes the cross-language agreement problem that a
+proxy-side implementation would have created.
+
+It is specified here rather than left to an implementation for a different
+reason: the rule is subtle in one spot, and a subtle rule that lives only in code
+is a rule nobody can review. It is pinned by a golden fixture against regression,
+in the style of `test/fixtures/image_quality/golden.json`.
 
 **Layer order is fixed**: substance, then land use, then institutional. Tips
 appear in that order and are never interleaved, so two records with the same key
@@ -992,15 +995,16 @@ alone — which is what that section asks for.
 
 ## 15. Delivery plan
 
-Slices 1–5 build the corpus and live in a new proxy repository. Slices 6–9 are
-app changes in this repository. Each passes its own Spec Gate.
+Slices 1–4 build the corpus and live in `corpus/` in **this** repository (§20.1);
+slice 5 is the proxy's; slices 6–10 are app changes here. Each passes its own
+Spec Gate.
 
 | # | Slice | Repo | Gate |
 |---|---|---|---|
-| 1 | **Calibration probe** — build one cell end to end; measure real token usage and cost, **and put that cell in front of an agronomist** | proxy | Measured cost per cell replaces §15.1's estimate, **and the cell is judged useful rather than obvious** |
-| 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage) | proxy | 24 + 27 cells enumerated; priors sampled. **Three inputs are unverified — see §15.3** |
-| 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | proxy | Injection fixture passes; citations 100% resolvable |
-| 4 | Cross-provider verification pass and the human review gate | proxy | No cell reaches the artifact unreviewed |
+| 1 | **Calibration probe** — build one cell end to end; measure real token usage and cost, **and put that cell in front of an agronomist**; the dispatch guards and spend ledger of §20.5 | `corpus/` | Measured cost per cell replaces §15.1's estimate, **and the cell is judged useful rather than obvious** |
+| 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage, the soil map) | `corpus/` | 12 + 5 + 27 artifacts enumerated; priors sampled. **Three inputs are unverified — see §15.3** |
+| 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | `corpus/` | Injection fixture passes; citations 100% resolvable |
+| 4 | Cross-provider verification pass and the human review gate | `corpus/` | No cell reaches the artifact unreviewed |
 | 5 | Corpus release endpoint (`GET /v1/corpus/…`), ETag, and the Tier 2 endpoint's forbidden-field rejection | proxy | A `304` on an unchanged version; `400` on any forbidden key at Tier 2 |
 | 6 | App: site resolver and the composition rule (§19.3, §6.5) | app | Golden fixture passes; no per-record request exists at all |
 | 7 | App: corpus fetch, version comparison, background refresh; **schema v4→v5** (§19.2) | app | A failed fetch is invisible to the user; a pre-v5 row still parses |
@@ -1483,3 +1487,86 @@ failure rather than a loud one:
   the citation re-indexing case called out as its own test so a failure names
   itself.
 
+## 20. Stack
+
+Recorded here because the choices were scattered across sections and three of
+them were never made. Decided 2026-09-11 unless marked inherited.
+
+### 20.1 Where the work lives
+
+| Part | Location | Language |
+|---|---|---|
+| Corpus build pipeline | `corpus/` in **this repository** | Python 3.12 |
+| Corpus artifact | `assets/corpus/` in this repository | JSON + packed binary |
+| App | `lib/` | Dart 3.12.1 / Flutter 3.44.1 (inherited) |
+| Proxy | A separate repository | TypeScript on Cloudflare Workers (inherited from ADR 0001) |
+
+**The build pipeline lives in this repository, not in the proxy's.** Three
+reasons compound. The bundled corpus ships from `assets/corpus/` here, so the
+build must land its artifact here regardless, and a builder in another repository
+would mean copying artifacts across repositories. `ml/` already establishes the
+pattern — a Python pipeline inside a Flutter repository, with a Python 3.12 job
+already in CI. And once Tier 1 composes on the device, the proxy shrinks to
+serving a document and one endpoint, which is too little to anchor a build
+pipeline around.
+
+This supersedes the earlier statement that slices 1–5 live in a new proxy
+repository. Slices 1–4 are `corpus/` here; only slice 5, the release endpoint and
+the Tier 2 endpoint, is the proxy's.
+
+### 20.2 App
+
+| Concern | Choice |
+|---|---|
+| State | Riverpod (inherited) |
+| Persistence | Drift + SQLite, schema v4 → v5 (§19.2) |
+| HTTP | `package:http`, already a direct dependency |
+| JSON | Hand-written `toJson`/`fromJson`, no codegen — house style |
+| Test doubles | Hand-written fakes; no `mockito`, no `mocktail` |
+| Composition | Pure Dart, no I/O (§19.3) |
+
+### 20.3 Model and search providers
+
+| Use | Choice | Why |
+|---|---|---|
+| Corpus build | Anthropic, pinned | The Batch API's 50% discount and `web_search`'s `allowed_domains`, which enforces the source allowlist at the platform rather than in our code |
+| Search and fetch | The model's server-side `web_search` and `web_fetch` | Removes Tavily entirely; fetch carries no charge beyond tokens |
+| Cross-provider verification | Via OpenRouter, model chosen per run | The Tier 2 account already exists, so no new credential; and the verifier must be swappable, since its whole purpose is to be a different vendor from the generator |
+| Tier 2 runtime | Via OpenRouter | Cross-provider fallback earns its fee where the dependency is live and the volume is small |
+
+Groq and Tavily, named by ADR 0001, are out entirely.
+
+**Portability is bought where it is cheap.** The build is pinned because routing
+it through a gateway would forfeit the batch discount and the platform-enforced
+allowlist — roughly $25 of capability to save roughly $3 of fee, on a one-time
+budget. The `LLMClient` and `SearchClient` seams ADR 0001 specified are kept, so a
+rebuild can move vendor without a rewrite.
+
+### 20.4 What is deliberately absent
+
+| Not used | Why |
+|---|---|
+| LangGraph or any graph orchestrator | A bounded chain run 51 times offline; `tema-rag-decisao.md` lists exactly this shape as an over-engineering signal |
+| LangSmith or any hosted tracer | Local JSONL, following the README's own precedent of local JSON over MLflow and Weights & Biases |
+| A vector store or embeddings | Nothing is retrieved at runtime; the corpus is a keyed document, not an index |
+| A model gateway at build time | See §20.3 |
+
+### 20.5 How the build runs
+
+**CI, under manual dispatch.** A workflow triggered by hand, never on push and
+never on a schedule.
+
+That choice has a consequence worth naming rather than discovering: the API key
+becomes a repository secret, and the budget is **one-time and finite**, so a job
+that spends it can be triggered by anyone with write access. Two guards follow,
+and they are part of slice 1 rather than an afterthought:
+
+- The workflow takes a **required confirmation input** — the operator types the
+  expected spend — and refuses to run without it.
+- The build keeps a **spend ledger** committed alongside the corpus, and refuses
+  to start when the recorded total would exceed the allowance. A guard that
+  fails closed is the only kind worth having against a budget that does not
+  replenish.
+
+A scheduled build was rejected for the same reason: automatic spending against a
+finite, non-renewing allowance is precisely the risk §15.2 records.
