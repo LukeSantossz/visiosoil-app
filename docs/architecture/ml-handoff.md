@@ -137,25 +137,27 @@ that list: nothing blocks the gate on defect grounds. #180's status was also
 wrong here — see the correction under **Known status** below. What blocks the
 gate now is a decision, not a defect.
 
-1. **SPEC 0057** — the D6 sensitivity comparison: the descriptor arm run twice
-   over one partition, with population `B` in the training sides and without,
-   compared under a rule fixed before the run. About two hours. It exists
-   because the probe demonstrated the capture population is **recoverable**,
-   which is not the same as the texture arms **exploiting** it, and only a
-   comparison of two trainings separates those.
-2. **ADR 0021, the D6 decision** — written against SPEC 0057's number, choosing
-   between the two options SPEC 0055 fixed in advance: population `B` leaves
-   training entirely, or it is restricted to arms that provably cannot exploit an
-   encoding signature. The Developer takes it.
-3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way. It waits on the ADR because the gate must run the arms
-   D6 settles on: the partition is untouched either way, but an arm trained with
-   `B` after the record has rejected that is a number under a rejected rule. What
-   SPEC 0057 computes is reusable here rather than discarded — same folds, same
+**Rewritten 2026-09-11. The first two items are done and the gate is next.**
+SPEC 0057 ran and published its verdict, and
+[ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
+records the decision it informed: **D6 stands unchanged** — population `B` may
+train and may never be validated or tested on. Nothing in the pipeline moves, so
+the gate runs the incumbent arms.
+
+1. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
+   committed either way. `descriptors`, `cnn`, `encoder_probe` and
+   `shuffled_control`, unchanged, because ADR 0021 changed none of them. What
+   SPEC 0057 computed is reusable here rather than discarded — same folds, same
    digest, checked by SPEC 0056's reuse rule rather than assumed.
-4. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
+2. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
    and neither blocks the gate.
-5. Everything else sits behind the C0 gate.
+3. Everything else sits behind the C0 gate.
+
+Two costs SPEC 0057 measured that SPEC 0044's planning should carry: `inner_k: 4`
+means **five trainings per outer fold**, so 250 per arm pair rather than 50; and
+**a GPU does not accelerate this workload** — CPU and GPU both run about 20 s per
+epoch with `enable_op_determinism()` on, because the bottleneck is the input
+pipeline. The CNN pair cost 46.5 hours against an estimate of six and a half.
 
 Done since this file was last rewritten: #196 (HEIC converted, SPEC 0040), #179
 (BatchNorm, SPEC 0045), the four-class list (SPEC 0046), the evaluation protocol

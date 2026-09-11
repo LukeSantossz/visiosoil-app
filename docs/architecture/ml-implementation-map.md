@@ -134,8 +134,8 @@ Last updated: 2026-09-05.
 > | # | Item | What it settles | Blocked on | Cost |
 > |---|---|---|---|---|
 > | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
-> | **ADR 0021** | what D6 becomes | which of D6's two written options is taken | SPEC 0057's numbers | — |
-> | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | ADR 0021 | ~20 h on CPU |
+> | [**ADR 0021**](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md) | what D6 becomes | **taken 2026-09-11: D6 stands unchanged, so no arm moves** | SPEC 0057's numbers — landed | — |
+> | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | nothing; ADR 0021 is taken | ~20 h on CPU, revised — see below |
 >
 > **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** Written 2026-09-05 and awaiting the Spec Gate; nothing is implemented. The
 > Developer's instruction on 2026-09-05 was to measure before deciding, and this
@@ -157,14 +157,17 @@ Last updated: 2026-09-05.
 >   separates those two claims, and neither the probe's numbers nor an argument
 >   from the confusion matrix can.
 >
-> **ADR 0021 — what D6 becomes.** A decision record and not a spec: it chooses
-> between the two options SPEC 0055 fixed in advance — `B` leaves training
-> entirely, or `B` is restricted to arms that provably cannot exploit an encoding
-> signature — against SPEC 0057's number. The Developer takes it.
+> **ADR 0021 — what D6 becomes. Taken 2026-09-11: it stays what it is.** A
+> decision record and not a spec. It weighed the two options SPEC 0055 fixed in
+> advance — `B` leaves training entirely, or `B` is restricted to arms that
+> provably cannot exploit an encoding signature — against SPEC 0057's numbers,
+> and took neither, because neither contrast cleared its own measurement floor
+> and the incumbent's point estimate pointed the other way. `B` may train and may
+> never be validated or tested on, exactly as SPEC 0040 D6 says.
 >
-> **SPEC 0044 is written and gate-approved; what it waits on is the ADR.** The
-> gate must run the arms D6 settles on: an arm trained with `B` after the record
-> has rejected that is twenty hours of numbers under a rejected rule.
+> **SPEC 0044 is written, gate-approved, and no longer blocked.** The gate must
+> run the arms D6 settles on, and D6 settled on the arms it already had:
+> `descriptors`, `cnn`, `encoder_probe` and `shuffled_control`, unchanged.
 >
 > *Corrected 2026-09-05.* An earlier version of this block gave a different
 > reason — that D6's options change the fold manifest, so a pooled result would
@@ -790,17 +793,23 @@ SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
 the C0 gate (#216) are the next items**, and they run over a pipeline that
 resamples to a measured canonical rather than to an assumed one.
 
-**Corrected 2026-09-05, superseding the 2026-09-04 correction this replaces:
-C0's probe is done and returned positive, and two items now stand between it and
-the gate.** The order is **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
-then ADR 0021, then the C0 gate (#216)** — the sensitivity comparison first
-because D6 should be decided on a number rather than an argument, then the ADR
-against that number, then the gate. The gate is last because it has to run the
-arms D6 settles on — the partition holds still either way, so what the decision
-changes is the arms and not the folds, and SPEC 0057's runs carry over into the
-gate rather than being discarded by it. A7 (#215) runs on an emulator and does
-not decide condition 3; see §3. A6's Dart half stays behind A4 and is a release blocker rather
-than a gate blocker.
+**Rewritten 2026-09-11, superseding the 2026-09-05 correction this replaces:
+both items that stood between the probe and the gate are done, and the gate is
+the next thing to run.** SPEC 0057 measured the D6 question and
+[ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
+settled it — **D6 stands unchanged**, so the gate runs the incumbent arms and
+nothing in the pipeline moved. SPEC 0057's runs carry over rather than being
+discarded, checked by SPEC 0056's reuse rule. A7 (#215) runs on an emulator and
+does not decide condition 3; see §3. A6's Dart half stays behind A4 and is a
+release blocker rather than a gate blocker.
+
+**Two measured costs the ~20 h estimate above does not carry**, both from SPEC
+0057's run and both worth folding into SPEC 0044's planning: `inner_k: 4` means
+**five trainings per outer fold**, so 250 per arm pair rather than 50; and **a
+GPU does not accelerate this workload** — CPU and GPU both run about 20 s per
+epoch with `enable_op_determinism()` on, because the bottleneck is the input
+pipeline and not the convolutions. The CNN pair cost 46.5 hours against an
+estimate of six and a half.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list
 single-source. It is off the critical path to the gate.
