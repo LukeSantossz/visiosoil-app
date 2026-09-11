@@ -98,9 +98,33 @@ def section(text: str, heading: str) -> str:
     return body.split(f"{LINE_BREAK}## ", 1)[0]
 
 
+#: The two directories under `docs/` that are durable archives: an approved spec
+#: keeps the text it was approved with, and a run verdict records what was
+#: measured. Both legitimately still say ADR 0021 is the decision they point
+#: forward to, and editing them to match a later decision is what `spec_method.md`
+#: forbids.
+#:
+#: Named as an explicit pair, and asserted to exist, rather than scanning two
+#: directories and calling the rest out of scope: SPEC 0062's criterion says "no
+#: file under `docs/`", and a scan narrower than its own criterion lets a stale
+#: block in `docs/adr/` or `docs/agents/` pass.
+DURABLE_ARCHIVES = ("specs", "ml")
+
+
 def living_pointers() -> list[Path]:
-    """The documents a reader consults for what to do next."""
-    return sorted(ARCHITECTURE_DIR.glob("*.md")) + [README]
+    """Every document under `docs/` that is a pointer rather than an archive."""
+    for name in DURABLE_ARCHIVES:
+        assert (REPOSITORY_ROOT / "docs" / name).is_dir(), (
+            f"docs/{name}/ is named as a durable archive and does not exist; "
+            "the exclusion below would silently widen"
+        )
+
+    return [
+        path
+        for path in sorted((REPOSITORY_ROOT / "docs").rglob("*.md"))
+        if path.relative_to(REPOSITORY_ROOT / "docs").parts[0]
+        not in DURABLE_ARCHIVES
+    ] + [README]
 
 
 def blocks(path: Path):
@@ -292,7 +316,18 @@ def test_the_records_agree_on_what_blocks_the_gate():
             names_the_gate = "#216" in block or "spec 0044" in lowered or (
                 "the gate" in lowered or "e0" in lowered
             )
-            if names_the_adr and names_the_gate and "waits" in lowered:
+            # "waits" alone let `E0 is blocked on ADR 0021` through, because
+            # "blocked on" is deliberately out of PENDING_MARKERS — it is a
+            # column header in the map's queue table. Matched here against the
+            # decision it names rather than on its own, which separates the
+            # dependency sentence from the header.
+            blocked_on_decision = any(
+                re.search(rf"blocked on[^.\n]{{0,40}}{re.escape(name)}", lowered)
+                for name in DECISION_NAMES
+            )
+            if names_the_adr and names_the_gate and (
+                "waits" in lowered or blocked_on_decision
+            ):
                 offenders.append(
                     f"{path.relative_to(REPOSITORY_ROOT)}:{number}: "
                     f"{block.splitlines()[0].strip()}"

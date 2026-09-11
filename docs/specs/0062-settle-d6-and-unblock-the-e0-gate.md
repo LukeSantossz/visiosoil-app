@@ -165,8 +165,15 @@ drawn over them are untouched by this decision in both directions.
   turns on.
 - `readme_indexes_adr_0021` — the README Engineering Decisions section links it;
   enforced by the existing `readme_adr_index_test.dart` guard.
-- `no_record_still_waits_on_adr_0021` — no file under `docs/` describes ADR 0021
-  as pending, undecided, or awaiting the Developer.
+- `no_record_still_waits_on_adr_0021` — no file under `docs/` describes the D6
+  decision as pending, undecided, awaiting the Developer, or blocking the gate.
+  **`docs/specs/` and `docs/ml/` are the two exceptions**, named in the guard and
+  asserted to exist: an approved spec keeps the text it was approved with and a
+  run verdict records what was measured, so editing either to match a later
+  decision is what `spec_method.md` forbids. Everything else under `docs/` is
+  scanned, and the decision is matched under every name the records give it —
+  the first version of this guard looked only for the literal "ADR 0021" and
+  missed the handoff's own "the gate still waits … the arms D6 settles on".
 - `the_records_agree_on_what_blocks_the_gate` — neither the handoff nor the
   implementation map names ADR 0021 as a blocker of SPEC 0044 any more.
 
@@ -178,25 +185,38 @@ flutter test test/standards/
 mf check
 ```
 
-The per-class counts in the Design Decision are read from
-`ml/data/datasets/v1/manifest.csv` at digest
-`49cc469f8923f5f41e5cdba5c6413712a40559479d7092ccdc0efd3e13af59f9`, grouping on
-`sample_id` within `texture_class` and counting distinct groups per
-`source_group`. They need the ingested archive, so they are evidence in the pull
-request and not an acceptance criterion — the criteria above are assertions about
-the records, which run everywhere.
+The per-class counts in the Design Decision are read from the **fold manifest**,
+`ml/data/splits/splits.json`, drawn over `ml/data/datasets/v1/manifest.csv` at
+digest `49cc469f8923f5f41e5cdba5c6413712a40559479d7092ccdc0efd3e13af59f9`. Each
+group in `groups` is counted once, `train_only` marks it as population `B`, and
+`class` gives its class.
+
+Reading the fold manifest rather than the CSV is the whole point of the
+correction recorded above: the CSV holds 102 groups and the partition holds 97,
+because the patch grid refuses 11 photographs — all of them `B` — and with them
+5 entire `B` groups. `splits.json` is tracked since SPEC 0061, so the counts
+reproduce from a checkout alone; only the training-photograph figures need the
+ingested archive, and those are evidence in the pull request rather than an
+acceptance criterion.
 
 ## Risks and Assumptions
 
-- Assumption: the reading rule SPEC 0055 pre-registered permits "unchanged" when
-  neither contrast fires. What would invalidate it: a reading under which the
+- Assumption: **SPEC 0057's** pre-registered reading rule is what governs D6
+  once SPEC 0055 re-opened it, and that rule permits "unchanged" — three of its
+  four cells read "D6 stands". An earlier version of this bullet said SPEC 0055's
+  rule permits it, which contradicts the Design Decision above and is not what
+  SPEC 0055 says. What would invalidate the assumption: a reading under which the
   probe's positive result alone obliges a change regardless of the sensitivity
   comparison — in which case SPEC 0057 was an experiment whose outcome could not
   matter, which is not how it was written.
 - Assumption: `B` being absent from every test side is what closes the inflation
-  risk. It is asserted by the run rather than assumed —
-  `test_create_folds_places_no_group_b_sample_in_a_test_side` guards it, and the
-  sensitivity run asserted it again over its own arms.
+  risk. It is asserted rather than assumed —
+  `test_create_folds_places_no_group_b_sample_in_a_test_side` guards it, the
+  sensitivity run asserted it again over its own arms, and it was re-verified by
+  enumerating every fold of the committed partition. It is a property of `v1`'s
+  data and not of the rule: `train_only_sample_ids` marks a sample train-only
+  only when every photograph of it is `B`, so a mixed sample would be splittable
+  by design. `v1` holds none, and nothing refuses one.
 - Risk, accepted and named in the ADR: **a null at this resolution is not proof
   of absence.** The descriptor contrast resolved to 10.8 points and the
   incumbent only to 19.4, and ADR 0016 closed the dataset at 105 samples, so no
