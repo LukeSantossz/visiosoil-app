@@ -26,18 +26,45 @@ README = REPOSITORY_ROOT / "README.md"
 #: with is one named thing and not an escape repeated in two places.
 LINE_BREAK = "\n"
 
-#: Wording that says a decision has not been taken. A living pointer carrying
-#: one of these on a line that also names ADR 0021 is a record still waiting for
-#: a decision that has been made.
+#: Wording that says a decision has not been taken. A living pointer carrying one
+#: of these in a block that also names ADR 0021 is a record still waiting for a
+#: decision that has been made.
+#:
+#: The list was eight entries and caught none of the phrasings these documents
+#: actually use — "awaiting" among them, which is the word SPEC 0062's own
+#: criterion names and which `ml-implementation-map.md` used. Each entry below
+#: was added because a real or plausible sentence escaped the previous list, not
+#: because it sounded like it belonged.
 PENDING_MARKERS = (
     "undecided",
     "pending",
+    "awaits",
+    "awaiting",
     "waits on",
+    "waits,",
+    "still waits",
     "waiting on",
+    # "blocked on" is deliberately absent: it is the header of a legitimate
+    # column in the map's queue table, so it appears in the same block as the
+    # ADR 0021 row while saying nothing about whether the decision is taken.
+    # The phrasings that would actually claim it is pending are below.
+    "blocked until",
+    "cannot run until",
     "is not yet",
+    "has not been taken",
+    "has not written",
+    "still to be",
+    "remains open",
     "the developer takes it",
     "yet to be",
+    "tbd",
 )
+
+#: The D6 decision under every name these documents give it. The first guard
+#: written here looked only for the literal "adr 0021" and missed the handoff's
+#: own "The gate still waits … E0 has to run the arms D6 settles on", which says
+#: the same thing without the number.
+DECISION_NAMES = ("adr 0021", "d6 decision", "d6 settles", "the d6 ")
 
 
 def adr_0021() -> Path:
@@ -51,6 +78,24 @@ def adr_0021() -> Path:
 
 def adr_0021_text() -> str:
     return adr_0021().read_text(encoding="utf-8")
+
+
+def section(text: str, heading: str) -> str:
+    """The body of one ``##`` section, or "" when the heading is absent.
+
+    Every assertion below reads a section rather than the whole document. The
+    first version of this module searched the full text, and an adversarial
+    review showed what that buys: rewriting the Decision section to its exact
+    opposite — *"D6 is reversed ... may never enter any training side"* — still
+    passed, because "stands" was satisfied by the quoted SPEC 0057 verdict
+    elsewhere in the file. A substring test over a long document mostly asserts
+    that the document is long.
+    """
+    marker = f"## {heading}"
+    if marker not in text:
+        return ""
+    body = text.split(marker, 1)[1]
+    return body.split(f"{LINE_BREAK}## ", 1)[0]
 
 
 def living_pointers() -> list[Path]:
@@ -99,16 +144,27 @@ def test_adr_0021_exists_and_states_the_decision():
     the decision and silent about it would pass a title check and tell a reader
     nothing.
     """
-    text = adr_0021_text().lower()
+    decision = section(adr_0021_text(), "Decision").lower()
 
-    assert "d6" in text
-    assert "stands" in text or "unchanged" in text, (
-        "ADR 0021 does not state that D6 is unchanged"
+    assert decision, "ADR 0021 has no ## Decision section"
+    assert "d6" in decision
+    assert "stands" in decision or "unchanged" in decision, (
+        "the Decision section does not state that D6 is unchanged"
     )
-    assert "may train" in text or "training side" in text, (
-        "ADR 0021 does not say what B may still do"
+    assert "may train" in decision, (
+        "the Decision section does not say that B may still train"
     )
-    assert "never" in text, "ADR 0021 does not state the half of D6 that binds"
+    assert re.search(r"may never be (validated|tested)", decision), (
+        "the Decision section does not state the half of D6 that binds"
+    )
+    # The negation, refused by name. Without these two the reversal of the
+    # decision — "D6 is reversed ... may never enter any training side" — passes
+    # every assertion above, which is what the adversarial review demonstrated.
+    assert "reversed" not in decision, "the Decision section says D6 is reversed"
+    assert not re.search(r"never (enter|be used in) any training", decision), (
+        "the Decision section keeps B out of training, which is the opposite of "
+        "what this record decides"
+    )
 
 
 # --- adr_0021_names_both_rejected_options ----------------------------------
@@ -121,13 +177,23 @@ def test_adr_0021_names_both_rejected_options():
     that mentions neither leaves a reader unable to tell a choice from an
     oversight.
     """
-    text = adr_0021_text().lower()
+    rejected = section(adr_0021_text(), "Options rejected").lower()
 
-    assert "leaves training" in text or "leave training" in text, (
-        "ADR 0021 does not name the option where B leaves training entirely"
+    assert rejected, "ADR 0021 has no ## Options rejected section"
+    assert "leaves training" in rejected or "leave training" in rejected, (
+        "the Options rejected section does not name the option where B leaves "
+        "training entirely"
     )
-    assert "restrict" in text, (
-        "ADR 0021 does not name the option where B is restricted to eligible arms"
+    assert "restrict" in rejected, (
+        "the Options rejected section does not name the option where B is "
+        "restricted to eligible arms"
+    )
+    # A named option with no reason is a list, not a rejection. Read from the
+    # section for the same reason as above: deleting the whole section left the
+    # earlier version of this test passing, because the narrative paragraphs
+    # mention both options in passing.
+    assert rejected.count("rejected") >= 2, (
+        "the Options rejected section does not give a reason per option"
     )
 
 
@@ -143,9 +209,26 @@ def test_adr_0021_records_the_per_class_cost():
     """
     text = adr_0021_text()
 
-    assert "Argilosa" in text, "ADR 0021 does not name the class that pays"
-    assert re.search(r"\b33\b", text), "ADR 0021 does not carry the count with B"
-    assert re.search(r"\b16\b", text), "ADR 0021 does not carry the count without B"
+    # "Argilosa" alone is satisfied by "Muito Argilosa", so the class that pays
+    # could not be told from the class that pays nothing. A negative lookbehind
+    # separates them.
+    assert re.search(r"(?<!Muito )\bArgilosa\b", text), (
+        "ADR 0021 does not name Argilosa, the class that pays"
+    )
+
+    # Asserted as a pair on one table row rather than as two bare integers
+    # anywhere in the file: 31 and 16 in isolation are satisfied by a year, a
+    # line number or an unrelated percentage.
+    row = re.search(r"\|\s*\**(?<!Muito )Argilosa\**\s*\|(?P<cells>[^\n]*)", text)
+    assert row, "ADR 0021 has no Argilosa row in its cost table"
+
+    cells = row.group("cells")
+    assert re.search(r"\b31\b", cells), (
+        f"the Argilosa row does not carry the count with B: {cells!r}"
+    )
+    assert re.search(r"\b16\b", cells), (
+        f"the Argilosa row does not carry the count without B: {cells!r}"
+    )
 
 
 # --- readme_indexes_adr_0021 -----------------------------------------------
@@ -176,7 +259,7 @@ def test_no_record_still_waits_on_adr_0021():
     for path in living_pointers():
         for number, block in blocks(path):
             lowered = block.lower()
-            if "adr 0021" not in lowered:
+            if not any(name in lowered for name in DECISION_NAMES):
                 continue
             for marker in PENDING_MARKERS:
                 if marker in lowered:
@@ -205,8 +288,10 @@ def test_the_records_agree_on_what_blocks_the_gate():
         assert path.exists(), f"{path} is missing"
         for number, block in blocks(path):
             lowered = block.lower()
-            names_the_adr = "adr 0021" in lowered
-            names_the_gate = "#216" in block or "spec 0044" in lowered
+            names_the_adr = any(name in lowered for name in DECISION_NAMES)
+            names_the_gate = "#216" in block or "spec 0044" in lowered or (
+                "the gate" in lowered or "e0" in lowered
+            )
             if names_the_adr and names_the_gate and "waits" in lowered:
                 offenders.append(
                     f"{path.relative_to(REPOSITORY_ROOT)}:{number}: "
