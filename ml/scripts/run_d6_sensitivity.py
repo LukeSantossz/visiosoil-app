@@ -5,11 +5,12 @@ with the capture population SPEC 0040 D6 restricts in its training side and
 without it. Two paired contrasts, each read by the rule SPEC 0057 fixed before
 any of them ran.
 
-**Read it before ADR 0021**, which is the decision it exists to inform, and which
-this script deliberately does not take.
+**Read it before ADR 0021**, the decision it exists to inform, which this script
+deliberately does not take. That decision was taken on 2026-09-11 and left D6
+unchanged.
 
-The partition is untouched by construction, so whichever configuration ADR 0021
-settles on is the E0 gate's arm already computed — `crossval.run_arm` will reuse
+The partition is untouched by construction, so the configuration ADR 0021 settled
+on is the E0 gate's arm already computed — `crossval.run_arm` will reuse
 it under SPEC 0056's rule, after checking that the configuration, the manifest
 digest and the library versions have not moved.
 

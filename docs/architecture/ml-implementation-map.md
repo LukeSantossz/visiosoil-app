@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-11.
 
 > **Revised 2026-08-25.** The lane structure below is sound and its premise is
 > not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
@@ -102,18 +102,23 @@ Last updated: 2026-09-05.
 > written options — `B` leaves training entirely, or `B` is restricted to arms
 > that provably cannot exploit an encoding signature — is an ADR written against
 > those numbers. SPEC 0055 scoped that decision out deliberately, so it is a new
-> item and not part of the probe.
+> item and not part of the probe. *Answered 2026-09-11 by
+> [ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md),
+> which took neither option: SPEC 0057 measured the effect and found none above
+> its own floor.*
 >
-> **This displaces the C0 gate (#216) rather than delaying it by a day.** Both
-> options change which photographs may train. *Corrected 2026-09-05: this said
-> they therefore change the folds. They do not — SPEC 0057 drops `B` with an
-> arm-level filter and the partition is untouched. What changes is which arms the
-> gate must run, which still has to be settled first.* Measured
-> per-fold cost puts E0 at roughly twenty hours — `cnn` and `shuffled_control` at
-> about 930 s per fold over 25 folds each, `descriptors` at 147 s, the frozen
-> encoder unmeasured, plus the descriptor ablation — so running the gate before
-> the D6 decision risks spending all of it on a partition the decision
-> invalidates. The recommended order below is corrected accordingly.
+> **This displaced the C0 gate (#216) rather than delaying it by a day.**
+> *Superseded 2026-09-11 and kept for the reasoning.* Both options change which
+> photographs may train. Corrected 2026-09-05: this said they therefore change
+> the folds — they do not, since SPEC 0057 drops `B` with an arm-level filter and
+> the partition is untouched; what changes is which arms the gate must run.
+> **ADR 0021 settled that by changing neither**, so the gate runs the arms it
+> already had and nothing here displaces it. The cost estimate in this paragraph
+> — roughly twenty hours, from `cnn` and `shuffled_control` at about 930 s per
+> fold over 25 folds each and `descriptors` at 147 s, the frozen encoder
+> unmeasured — is superseded too: see the measured figures at the end of §6,
+> where `inner_k: 4` turns 50 folds into 250 trainings per arm pair and the CNN
+> pair cost 46.5 hours.
 >
 > **What the verdict does not say** is that the E0 result would be wrong.
 > Recovering the capture population is not the same as the texture arms
@@ -133,11 +138,11 @@ Last updated: 2026-09-05.
 >
 > | # | Item | What it settles | Blocked on | Cost |
 > |---|---|---|---|---|
-> | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | ~2 h |
+> | [**SPEC 0057**](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | **measured 46.5 h**, estimated ~2 h |
 > | [**ADR 0021**](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md) | what D6 becomes | **taken 2026-09-11: D6 stands unchanged, so no arm moves** | SPEC 0057's numbers — landed | — |
 > | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | nothing; ADR 0021 is taken | ~20 h on CPU, revised — see below |
 >
-> **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** Written 2026-09-05 and awaiting the Spec Gate; nothing is implemented. The
+> **[SPEC 0057](../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** *Ran 2026-09-05 to 2026-09-08; its verdict is [docs/ml/transported-population-sensitivity.md](../ml/transported-population-sensitivity.md) and it cost 46.5 hours, not the two estimated here.* The
 > Developer's instruction on 2026-09-05 was to measure before deciding, and this
 > is that measurement. It runs the descriptor arm **twice over one partition** —
 > once with population `B` in the training sides as D6 permits, once with `B`
