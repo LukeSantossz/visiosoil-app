@@ -158,11 +158,16 @@ the library versions and the device — but it is named by a machine nobody else
 has. Nothing prevents publishing one; the record asks you not to, and
 `runtime.json` is what lets a reader tell afterwards.
 
-**Regenerate the fold manifest under the pinned stack** before any run, if it
-was drawn elsewhere. `StratifiedGroupKFold` partitions differently across
-scikit-learn versions, so a manifest drawn outside the pins is one CI cannot
-reproduce. `load_folds` warns when the versions it was drawn under differ from
-the ones reading it; the warning names both.
+**Do not regenerate the fold manifest.** It is tracked (SPEC 0061), so every
+checkout already has the partition every published number was drawn over, and
+`git restore ml/data/splits/splits.json` is the remedy for a damaged one.
+Regenerating is the thing to avoid: `StratifiedGroupKFold` partitions
+differently across scikit-learn versions, and `ml/requirements.txt` pins a
+**range** (`>=1.3.0,<1.6.0`), not a point — so "regenerate under the pinned
+stack" is not one partition, and any in-range release whose heuristic differs
+moves the folds. `load_folds` warns when the versions a manifest was drawn under
+differ from the ones reading it, and names both; that warning is the only signal,
+so read it.
 
 ## Dataset
 

@@ -375,9 +375,10 @@ def test_validator_reports_a_class_with_no_photographs(
 def test_validator_does_not_publish_splits_by_default(tmp_path, validate_dataset):
     """Reporting a composition must not overwrite the pipeline's own splits.
 
-    `src.train` reuses any existing `splits.json` and the file is gitignored, so
-    a validator that wrote there by default would silently replace an artefact
-    the next training run consumes.
+    `src.train` reuses any existing `splits.json`, so a validator that wrote
+    there by default would silently replace an artefact the next training run
+    consumes — with a partition redrawn under the installed scikit-learn rather
+    than the one the tracked file records.
 
     Asserted as *unchanged* rather than *absent*. Absent was the weaker claim and
     the wrong one twice over: it held only on a machine where no fold manifest

@@ -241,8 +241,13 @@ SEED_DERIVATION = "seed_r = data.seed + 1000 * r"
 INNER_SEED_OFFSET = 1
 
 #: What an operator is told to run when the fold manifest cannot be used. Named
-#: in the refusal rather than described, because the file is git-ignored and
-#: regenerating it is the only remedy.
+#: in the refusal rather than described, because a refusal that says only "this
+#: file is wrong" leaves the reader to find the generator.
+#:
+#: It is no longer the only remedy, and usually not the right one: the manifest
+#: is tracked (SPEC 0061), so `git restore ml/data/splits/splits.json` recovers
+#: the partition every published number was drawn over, while regenerating draws
+#: a new one under whatever scikit-learn is installed.
 REGENERATE_FOLDS_COMMAND = (
     "python scripts/validate_dataset.py --version <version> "
     "--splits-dir data/splits"
