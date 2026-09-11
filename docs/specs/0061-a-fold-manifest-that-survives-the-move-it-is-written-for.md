@@ -170,6 +170,33 @@ tracked file fails loudly instead of scoring the wrong photographs.
 - `the_fold_manifest_is_tracked` — `git check-ignore` no longer ignores
   `ml/data/splits/splits.json`, and `git ls-files` lists it.
 
+Two further criteria were added during implementation, by the adversarial review
+that stood in for an unavailable R2. They are recorded here rather than left as
+tests nothing specifies, following SPEC 0030, which carried its implementation's
+corrections in the specification instead of in silence. Both exist because this
+change **promotes the fold manifest to a tracked artifact** — hand-editable, and
+reachable by a merge conflict — which is a property the criteria above were
+written before anyone had:
+
+- `a_malformed_manifest_is_refused_by_name` — a file that passes the schema and
+  digest guards and is then not a fold manifest is refused naming the damaged
+  key, the file and the remedy. The case that earns it is `images` holding a
+  string rather than a list: a string is iterable, so it raised nothing at all
+  and produced one re-rooted path per character.
+- `the_committed_fold_manifest_is_readable` — the tracked
+  `ml/data/splits/splits.json` parses at the current schema and stores no
+  absolute path. Purely lexical, so it runs in CI, where the dataset is absent
+  and nothing else reads the one build product this repository versions.
+
+One limit is recorded rather than claimed away. `stored_paths_are_posix_separated`
+guards a **Windows-only** defect: on POSIX `str(PurePath)` already joins with
+`/`, so dropping `as_posix()` is a no-op on the Linux runner CI uses, and no test
+running only there can observe it. The assertion was strengthened to compare
+against the manifest's own `image` column — exact on both platforms — and fails
+on the machine where the manifest is actually written, which is where the file
+enters git. Making it observable in CI would need the path flavour injected into
+`_stored_path`, which is a redesign this change does not carry.
+
 ## Reproducibility
 
 ```sh
