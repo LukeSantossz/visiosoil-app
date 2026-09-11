@@ -377,6 +377,53 @@ def test_a_malformed_manifest_is_refused_by_name(tmp_path, damage, named):
     assert REGENERATE_FOLDS_COMMAND in message
 
 
+# --- a_stored_path_that_escapes_the_root_is_refused ------------------------
+
+
+@pytest.mark.parametrize(
+    "escaping",
+    [
+        "../../elsewhere/x.jpg",
+        "images/../../elsewhere/x.jpg",
+        "/etc/hosts",
+        "C:/Windows/System32/drivers/etc/hosts",
+        "images\\Arenosa\\x.jpg",
+    ],
+    ids=["traversal", "traversal_mid_path", "posix_absolute", "drive_absolute", "backslash"],
+)
+def test_a_stored_path_that_escapes_the_root_is_refused(tmp_path, escaping):
+    """The read side validates what the write side already validates.
+
+    `root / stored` silently **discards the root** when `stored` is absolute on
+    the reading platform, and happily walks out of it on `..`. The write side
+    refuses both by name; without the same check on load, a tracked manifest
+    damaged by hand or by a merge conflict puts a path to any file on disk into
+    a fold entry, with the schema and digest guards both satisfied.
+
+    The backslash case is here because a Windows-separated path is not the
+    POSIX form this schema stores, and on Linux it is one long filename rather
+    than a path — wrong in a way that resolves to nothing.
+    """
+    root = write_version(tmp_path)
+    splits_dir = tmp_path / "splits"
+    build(root, splits_dir)
+
+    path = splits_dir / FOLD_MANIFEST_FILENAME
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    group_id = next(iter(manifest["groups"]))
+    manifest["groups"][group_id]["images"] = [escaping]
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError) as error:
+        load_folds(str(splits_dir), dataset_root=str(root))
+
+    message = str(error.value)
+    # Compared as a repr because the refusal quotes the path that way, which is
+    # what keeps a trailing space or a backslash visible to whoever reads it.
+    assert repr(escaping) in message
+    assert REGENERATE_FOLDS_COMMAND in message
+
+
 # --- the_committed_fold_manifest_is_readable -------------------------------
 
 

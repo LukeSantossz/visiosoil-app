@@ -27,10 +27,11 @@ property holds.
 from __future__ import annotations
 
 import json
+import ntpath
 import re
 import warnings
 from collections import Counter
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Collection, Mapping, Sequence
 
 import numpy as np
@@ -988,16 +989,55 @@ def _reroot(fold_manifest: Mapping, dataset_root: str, path: Path) -> dict:
         group_id: {
             **record,
             "images": [
-                str(root / stored)
+                str(root / _require_contained(stored, path))
                 for stored in _require_image_list(record, group_id, path)
             ],
         }
         for group_id, record in groups.items()
     }
     rerooted["refused"] = {
-        str(root / stored): reason for stored, reason in refused.items()
+        str(root / _require_contained(stored, path)): reason
+        for stored, reason in refused.items()
     }
     return rerooted
+
+
+def _require_contained(stored: str, path: Path) -> str:
+    """One stored path, refused unless it can only land inside the root.
+
+    The read side validates what the write side already validates, and it is
+    not symmetry for its own sake: ``root / stored`` **discards the root**
+    outright when ``stored`` is absolute on the reading platform, and walks out
+    of it on ``..``. Both pass the schema and digest guards, because neither
+    looks at a path.
+
+    That became reachable when SPEC 0061 made this file tracked. A manifest
+    damaged by hand or by a merge conflict would otherwise put a path to any
+    file on disk into a fold entry, and the failure is downstream and indirect
+    — `_measurement_of` reporting a photograph the scale was never read for.
+    """
+    if not isinstance(stored, str):
+        raise ValueError(
+            f"{path} holds a non-string image path ({type(stored).__name__}). "
+            f"Restore or regenerate the fold manifest with: "
+            f"{REGENERATE_FOLDS_COMMAND}"
+        )
+    candidate = PurePosixPath(stored)
+    escapes = (
+        candidate.is_absolute()
+        or ntpath.isabs(stored)
+        or "\\" in stored
+        or ".." in candidate.parts
+    )
+    if escapes:
+        raise ValueError(
+            f"{path} stores {stored!r}, which is not a relative POSIX path "
+            f"inside the dataset root. A fold manifest stores every image "
+            f"relative to that root (SPEC 0061), and joining this one would "
+            f"reach outside it or discard it entirely. Restore or regenerate "
+            f"the fold manifest with: {REGENERATE_FOLDS_COMMAND}"
+        )
+    return stored
 
 
 def _require_table(fold_manifest: Mapping, key: str, path: Path) -> Mapping:
