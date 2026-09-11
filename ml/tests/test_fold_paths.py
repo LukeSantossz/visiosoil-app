@@ -13,6 +13,7 @@ under another, which is what `two_roots` does.
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -117,29 +118,54 @@ def test_the_fold_manifest_holds_no_absolute_path(tmp_path):
         assert not os.path.isabs(path), f"{path} is absolute"
         assert ":" not in path, f"{path} carries a drive letter"
 
-    for message in written["refused"].values():
-        assert str(root) not in message, f"the refusal message names {root}"
+    # The message's own path, held to the same two rules as a key rather than
+    # to the weaker "does not name this root": a message naming some *other*
+    # absolute path would pass that and still publish a layout.
+    for stored, message in written["refused"].items():
+        assert message.startswith(f"{stored}: "), (
+            f"the refusal message for {stored} does not open with its own "
+            f"stored path: {message!r}"
+        )
+        named = message.split(": ", 1)[0]
+        assert not os.path.isabs(named), f"{named} is absolute in the message"
+        assert ":" not in named, f"{named} carries a drive letter in the message"
 
 
 # --- stored_paths_are_posix_separated --------------------------------------
 
 
 def test_stored_paths_are_posix_separated(tmp_path):
-    """No stored path carries a backslash.
+    """Every stored path equals the manifest's own `image` column, exactly.
 
     A backslash is a legal filename character on Linux, so a Windows-separated
     relative path does not resolve there — it becomes one long filename, and
     the failure is a missing file rather than a parse error.
+
+    Compared against the column rather than asserted with ``"\\\\" not in path``.
+    The column is POSIX by construction, so equality pins the separator *and*
+    the rest of the spelling, where the absence of a backslash would also pass
+    for a path that is posix-separated and wrong.
+
+    **What this cannot do, stated rather than implied.** The defect it guards is
+    Windows-only: on POSIX ``str(PurePath)`` already joins with ``/``, so
+    replacing ``as_posix()`` with ``str()`` in `_stored_path` is a no-op on the
+    Linux runner that CI uses, and no test running only there can observe it.
+    This assertion fails on the machine the manifest is actually written on,
+    which is where the file enters git.
     """
     root = write_version(tmp_path)
-    _, folds = build(root, tmp_path / "splits")
+    manifest = read_manifest(root, CLASSES)
+    build(root, tmp_path / "splits")
 
     written = json.loads(
         (tmp_path / "splits" / FOLD_MANIFEST_FILENAME).read_text(encoding="utf-8")
     )
 
-    for path in stored_paths(written):
-        assert "\\" not in path, f"{path} is separated for one platform only"
+    declared = {row.image for row in manifest.rows}
+    grouped = {
+        path for record in written["groups"].values() for path in record["images"]
+    }
+    assert grouped == declared
 
 
 # --- load_folds_re_roots_against_the_reading_root --------------------------
@@ -301,3 +327,81 @@ def test_refused_photographs_survive_the_round_trip(tmp_path):
     expected = str(reading_root / Path(refused_path).relative_to(written_root))
     assert list(loaded["refused"]) == [expected]
     assert "too_coarse_to_normalise" in loaded["refused"][expected]
+
+
+# --- a_malformed_manifest_is_refused_by_name -------------------------------
+
+
+@pytest.mark.parametrize(
+    "damage, named",
+    [
+        (lambda m: m.pop("groups"), "groups"),
+        (lambda m: m.pop("refused"), "refused"),
+        (lambda m: m.__setitem__("groups", []), "groups"),
+        (lambda m: m["groups"][next(iter(m["groups"]))].pop("images"), "images"),
+        (
+            lambda m: m["groups"][next(iter(m["groups"]))].__setitem__(
+                "images", "images/one.jpg"
+            ),
+            "images",
+        ),
+    ],
+    ids=["no_groups", "no_refused", "groups_not_a_table", "no_images", "images_a_string"],
+)
+def test_a_malformed_manifest_is_refused_by_name(tmp_path, damage, named):
+    """A schema-3 file that parses but is not one is named, not a traceback.
+
+    The version and digest checks pass on all of these — the damage is below
+    them — so before this guard they reached `_reroot` and came out as a bare
+    `KeyError` or an `AttributeError`, with nothing naming the file.
+
+    The last case is the one that earns the parametrisation: a string where a
+    list belongs iterates into its characters, so it raised **nothing at all**
+    and produced one bogus path per character.
+    """
+    root = write_version(tmp_path)
+    splits_dir = tmp_path / "splits"
+    build(root, splits_dir)
+
+    path = splits_dir / FOLD_MANIFEST_FILENAME
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    damage(manifest)
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError) as error:
+        load_folds(str(splits_dir), dataset_root=str(root))
+
+    message = str(error.value)
+    assert named in message
+    assert FOLD_MANIFEST_FILENAME in message
+    assert REGENERATE_FOLDS_COMMAND in message
+
+
+# --- the_committed_fold_manifest_is_readable -------------------------------
+
+
+def test_the_committed_fold_manifest_is_readable():
+    """The tracked `ml/data/splits/splits.json` parses at the current schema.
+
+    Purely lexical: `load_folds` opens no image, so this runs in CI where the
+    dataset is absent. Without it nothing in CI reads the one build product this
+    repository versions, and a committed file at the wrong schema, with absolute
+    paths, or damaged by a merge would pass every check.
+    """
+    splits_dir = Path(__file__).resolve().parents[1] / "data" / "splits"
+    if not (splits_dir / FOLD_MANIFEST_FILENAME).exists():
+        pytest.fail(
+            f"{splits_dir / FOLD_MANIFEST_FILENAME} is tracked and must exist in "
+            "every checkout"
+        )
+
+    reading_root = Path(tempfile.gettempdir()) / "visiosoil-not-a-real-root"
+    loaded = load_folds(str(splits_dir), dataset_root=str(reading_root))
+
+    assert loaded["classes"], "the committed manifest declares no classes"
+    for record in loaded["groups"].values():
+        for path in record["images"]:
+            assert Path(path).is_relative_to(reading_root), (
+                f"{path} did not re-root, so the committed file stores an "
+                "absolute path"
+            )

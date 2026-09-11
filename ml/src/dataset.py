@@ -415,10 +415,11 @@ def create_folds(
 
     destination = Path(splits_dir)
     destination.mkdir(parents=True, exist_ok=True)
-    with open(destination / FOLD_MANIFEST_FILENAME, "w") as handle:
+    written = destination / FOLD_MANIFEST_FILENAME
+    with open(written, "w") as handle:
         json.dump(fold_manifest, handle, indent=2)
 
-    return _reroot(fold_manifest, dataset_root)
+    return _reroot(fold_manifest, dataset_root, written)
 
 
 def create_folds_for_config(
@@ -576,7 +577,7 @@ def load_folds(
     if manifest_digest is not None:
         verify_split_digest(fold_manifest, manifest_digest)
 
-    return _reroot(fold_manifest, dataset_root)
+    return _reroot(fold_manifest, dataset_root, path)
 
 
 def _why_the_schema_is_refused(recorded: int | None) -> tuple[str, str]:
@@ -948,7 +949,14 @@ def _stored_refusals(
     ``f"{path}: {reason}"``, so a change that relativised only the keys would
     still write an absolute path once per refused photograph. It is rewritten by
     substituting the one string known to be in it — the entry's own key — rather
-    than by parsing, so nothing here assumes the message's shape.
+    than by parsing its shape.
+
+    One assumption remains and is narrower than "none": the substitution is
+    unanchored, so it would also rewrite a **second** path in the message that
+    had the key as a prefix. No builder can produce that — every refusal here is
+    ``f"{path}: {reason}"`` naming one photograph — and the alternative, parsing
+    the message to anchor the replacement, trades a reachable-by-nobody case for
+    a dependence on the message's shape, which is the more fragile of the two.
     """
     stored: dict[str, str] = {}
     for path, reason in refused.items():
@@ -957,7 +965,7 @@ def _stored_refusals(
     return stored
 
 
-def _reroot(fold_manifest: Mapping, dataset_root: str) -> dict:
+def _reroot(fold_manifest: Mapping, dataset_root: str, path: Path) -> dict:
     """The fold manifest with every stored path made absolute again.
 
     Built as ``root / stored`` so the result is string-identical to what
@@ -971,20 +979,63 @@ def _reroot(fold_manifest: Mapping, dataset_root: str) -> dict:
     message is a human-readable record of why a photograph left; the key is what
     code reads.
     """
+    groups = _require_table(fold_manifest, "groups", path)
+    refused = _require_table(fold_manifest, "refused", path)
+
     root = Path(dataset_root)
     rerooted = dict(fold_manifest)
     rerooted["groups"] = {
         group_id: {
             **record,
-            "images": [str(root / stored) for stored in record["images"]],
+            "images": [
+                str(root / stored)
+                for stored in _require_image_list(record, group_id, path)
+            ],
         }
-        for group_id, record in fold_manifest["groups"].items()
+        for group_id, record in groups.items()
     }
     rerooted["refused"] = {
-        str(root / stored): reason
-        for stored, reason in fold_manifest["refused"].items()
+        str(root / stored): reason for stored, reason in refused.items()
     }
     return rerooted
+
+
+def _require_table(fold_manifest: Mapping, key: str, path: Path) -> Mapping:
+    """The manifest's ``key`` block, refused by name when it is not a table.
+
+    Checked below the schema and digest guards rather than trusted by them: both
+    of those pass on a file that parses as JSON and is not a fold manifest, and
+    since SPEC 0061 this file is tracked, hand-editable and reachable by a merge
+    conflict. Without this, the damage surfaced as a bare ``KeyError`` naming
+    neither the file nor the remedy.
+    """
+    block = fold_manifest.get(key)
+    if not isinstance(block, Mapping):
+        found = "absent" if key not in fold_manifest else type(block).__name__
+        raise ValueError(
+            f"{path} has no usable {key!r} table ({found}), so it is not a "
+            f"schema_version {FOLD_SCHEMA_VERSION} fold manifest. Restore it "
+            f"with `git restore {FOLD_MANIFEST_FILENAME}`'s path, or regenerate "
+            f"it with: {REGENERATE_FOLDS_COMMAND}"
+        )
+    return block
+
+
+def _require_image_list(record: Mapping, group_id: str, path: Path) -> Sequence[str]:
+    """One group's image list, refused by name when it is not a list.
+
+    A string here is the case that earns an explicit check: it is iterable, so
+    it produced one re-rooted path per **character** and raised nothing at all.
+    """
+    images = record.get("images")
+    if not isinstance(images, (list, tuple)):
+        found = "absent" if "images" not in record else type(images).__name__
+        raise ValueError(
+            f"{path} group {group_id!r} has no usable 'images' list ({found}). "
+            f"Restore or regenerate the fold manifest with: "
+            f"{REGENERATE_FOLDS_COMMAND}"
+        )
+    return images
 
 
 def _refuse_a_class_below_the_fold_count(
