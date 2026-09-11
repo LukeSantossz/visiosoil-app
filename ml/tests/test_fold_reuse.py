@@ -583,3 +583,126 @@ def test_a_resumed_arm_equals_an_uninterrupted_one(tmp_path):
     assert (
         fold_directory(tmp_path, 0, 0) / PREDICTIONS_FILENAME
     ).read_bytes() == before[0]
+
+
+# --- SPEC 0063: a fold drawn on another machine ----------------------------
+
+
+#: A configuration as a second machine would have resolved it. Only the four
+#: keys `resolve_paths` rewrites differ; everything that decides the experiment
+#: is identical.
+FOREIGN_CFG = {
+    "classes": ["Arenosa", "Argilosa"],
+    "data": {
+        "seed": 42,
+        "raw_dir": "/home/other/ml/data/raw",
+        "splits_dir": "/home/other/ml/data/splits",
+        "datasets_dir": "/home/other/ml/data/datasets",
+    },
+    "export": {"output_dir": "/home/other/ml/models"},
+}
+
+LOCAL_CFG = {
+    "classes": ["Arenosa", "Argilosa"],
+    "data": {
+        "seed": 42,
+        "raw_dir": r"C:\here\ml\data\raw",
+        "splits_dir": r"C:\here\ml\data\splits",
+        "datasets_dir": r"C:\here\ml\data\datasets",
+    },
+    "export": {"output_dir": r"C:\here\ml\models"},
+}
+
+
+def test_a_fold_whose_config_differs_only_in_paths_is_reusable(tmp_path):
+    """26.5 hours of finished folds are not thrown away over four strings.
+
+    SPEC 0057's `cnn` arm ran in WSL2 on this machine. Its configuration differs
+    from the Windows one in `raw_dir`, `splits_dir`, `datasets_dir` and
+    `export.output_dir`, and in nothing else — the class list, the evaluation
+    block, the seed and the training recipe are identical, and the recorded
+    manifest digest is the same. Before this, every one of those folds was
+    `stale`.
+    """
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=FOREIGN_CFG)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=LOCAL_CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.REUSABLE, reason
+
+
+def test_a_fold_from_another_configuration_is_still_stale(tmp_path):
+    """The exclusion narrows the comparison; it does not blanket-pass it.
+
+    Parametrised over a nested key and a top-level one, because a fix that
+    compared only the sections it happened to think of would pass one and fail
+    the other.
+    """
+    for section, key, value in (
+        ("data", "seed", 43),
+        ("classes", None, ["Arenosa", "Media"]),
+    ):
+        changed = json.loads(json.dumps(FOREIGN_CFG))
+        if key is None:
+            changed[section] = value
+        else:
+            changed[section][key] = value
+
+        arm_dir = tmp_path / f"cnn-{section}-{key}"
+        write_fold(arm_dir, 0, 0, cfg=changed)
+
+        state, reason = fold_reuse_state(
+            arm_dir, 0, 0,
+            cfg=LOCAL_CFG, manifest_digest=DIGEST, arm="cnn",
+            shuffled_control=False,
+        )
+
+        assert state is FoldReuse.STALE, f"{section}.{key} was not noticed: {reason}"
+
+
+def test_the_excluded_keys_are_exactly_what_resolve_paths_rewrites():
+    """The list is the four `resolve_paths` makes absolute, asserted not assumed.
+
+    Read from the function's behaviour rather than from its source, so a fifth
+    resolved key cannot be added without a decision here: whatever
+    `resolve_paths` changes is what must be excluded, or a fold from another
+    machine is refused for a reason nobody intended.
+    """
+    from src.config import load_config, resolve_paths
+    from src.crossval import MACHINE_LOCAL_CONFIG_KEYS
+
+    before = load_config()
+    after = resolve_paths(json.loads(json.dumps(before)))
+
+    rewritten = {
+        (section, key)
+        for section, block in after.items()
+        if isinstance(block, dict)
+        for key, value in block.items()
+        if before.get(section, {}).get(key) != value
+    }
+
+    assert rewritten == set(MACHINE_LOCAL_CONFIG_KEYS)
+
+
+def test_a_fold_from_another_manifest_is_still_stale(tmp_path):
+    """The digest check is untouched, and it is what guards the data.
+
+    Excluding `datasets_dir` from the comparison is only safe because a fold
+    drawn over different data is refused before the configuration is read at
+    all. This asserts that, so the safety argument is not left as prose.
+    """
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=FOREIGN_CFG, digest=OTHER_DIGEST)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=LOCAL_CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.STALE
+    assert "manifest" in reason

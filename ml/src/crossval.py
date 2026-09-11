@@ -241,6 +241,51 @@ class FoldReuse(str, Enum):
     STALE = "stale"
 
 
+#: The configuration keys that say where files live on one machine, rather than
+#: what the experiment is. `config.resolve_paths` rewrites exactly these four to
+#: absolute paths, so two machines running the identical experiment record four
+#: different strings and nothing else.
+#:
+#: They are excluded from the reuse comparison — not from `config.json`, which
+#: keeps recording them, because which machine produced a fold is provenance
+#: `runtime.json` cannot supply. SPEC 0057's `cnn` arm ran in WSL2 and its 25
+#: finished folds differ from the Windows configuration in these four keys
+#: alone; before SPEC 0063 that cost 26.5 hours of GPU training to recompute.
+#:
+#: Listed rather than detected by shape. A rule like "ignore anything that looks
+#: like a path" would silently absorb a future key whose difference matters;
+#: `test_the_excluded_keys_are_exactly_what_resolve_paths_rewrites` asserts this
+#: tuple is what `resolve_paths` actually rewrites, so a fifth cannot arrive
+#: without a decision.
+#:
+#: Excluding `datasets_dir` is safe because the data is guarded elsewhere and
+#: earlier: `manifest_digest` is compared before the configuration is read at
+#: all, and it is a digest over the dataset manifest's own bytes. A different
+#: dataset under the same path is refused; the same dataset under a different
+#: path is what this stops refusing.
+MACHINE_LOCAL_CONFIG_KEYS = (
+    ("data", "raw_dir"),
+    ("data", "splits_dir"),
+    ("data", "datasets_dir"),
+    ("export", "output_dir"),
+)
+
+
+def comparable_config(cfg: Mapping) -> dict:
+    """``cfg`` as the reuse check compares it: machine-local keys removed.
+
+    Round-tripped through JSON first, so a configuration held in memory and one
+    read back from `config.json` compare as equals rather than differing by a
+    tuple that serialised as a list.
+    """
+    comparable = json.loads(json.dumps(cfg))
+    for section, key in MACHINE_LOCAL_CONFIG_KEYS:
+        block = comparable.get(section)
+        if isinstance(block, dict):
+            block.pop(key, None)
+    return comparable
+
+
 def fold_reuse_state(
     arm_dir: Path | str,
     repeat: int,
@@ -320,7 +365,7 @@ def fold_reuse_state(
             recorded_config = json.load(handle)
     except (json.JSONDecodeError, UnicodeDecodeError):
         return FoldReuse.STALE, f"its {CONFIG_FILENAME} does not parse"
-    if recorded_config != json.loads(json.dumps(cfg)):
+    if comparable_config(recorded_config) != comparable_config(cfg):
         return (
             FoldReuse.STALE,
             "it ran under a different configuration",
