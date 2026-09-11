@@ -54,8 +54,9 @@ Two defects in the current implementation, independent of those:
 
 - **Precise coordinates leave the device.** `ProxyResearchService` sends
   `record.latitude` and `record.longitude` verbatim. ADR 0007 requires location
-  to be opt-in for sharing; no equivalent gate exists for this egress. §6
-  removes the field rather than gating it.
+  to be opt-in for sharing; no equivalent gate exists for this egress. §6 does not
+  gate or coarsen the field — the per-record request that carried it ceases to
+  exist.
 - **The cache has no invalidation.** `management_tips` rows carry `retrievedAt`
   but nothing reads it to decide staleness, so a cached tip is served
   indefinitely. §13 gives it a corpus version to compare against.
@@ -245,14 +246,15 @@ flowchart TD
         B11 --> ART[(corpus vN.json<br/>versioned, signed)]
     end
 
-    ART --> CDN[Proxy: corpus lookup]
+    ART --> CDN[Proxy: serves corpus releases]
     ART -.->|bundled snapshot| ASSET[assets/corpus/]
 
     subgraph RT["Runtime"]
         direction TB
-        REQ[Record: class, unit, biome] --> T1[Tier 1 — compose<br/>biome cell + unit overlay]
-        CDN --> T1
-        ASSET --> T1
+        REQ[Key: class, clayActivity,<br/>unit, biome, landUse] --> T1[Tier 1 — compose locally<br/>substance + land use + institutional]
+        CDN -.->|corpus release, not per record| HELD[(corpus held on device)]
+        ASSET --> HELD
+        HELD --> T1
         T1 --> P{Escalation<br/>predicate?}
         P -->|no| OUT[ManagementTipsResult]
         P -->|yes| CAP{Budget<br/>remaining?}
@@ -379,84 +381,170 @@ the fallback is 36 precomputed pair cells, costed in §15.1 and not built.
 until SPEC 0035 lands, and researching a classification that never ran would be
 exactly that offer in another form.
 
-### 5.5 Why the proxy stays
+### 5.5 What the proxy is, and what it is not
 
-The corpus could ship entirely in the app. It does not, for three reasons: a
-corpus release must reach users without an app-store round trip; Tier 2 needs a
-server to hold credentials and enforce the cap; and the bundled copy is a
-fallback, so the two must be able to differ and be compared by version. The
-proxy serves the corpus and owns Tier 2. Its Tier 1 path is a lookup, which fits
-the 10 ms CPU limit of the Cloudflare Workers free plan (100,000 requests/day,
-50 subrequests/request, as of September 2026).
+**The proxy is not on the Tier 1 request path.** The app holds the corpus and
+composes locally, always — online and offline take the same code path. Two
+implementations of the composition rule, one in the proxy and one in the app,
+would have to agree forever; one implementation cannot disagree with itself.
+
+The proxy therefore does two things:
+
+| Job | Shape |
+|---|---|
+| Serve corpus releases | `GET /v1/corpus/latest`, `GET /v1/corpus/{version}` |
+| Own Tier 2 | `POST /v1/record-inquiry`, with credentials and the spend cap |
+
+Both fit the 10 ms CPU limit of the Cloudflare Workers free plan (100,000
+requests/day, 50 subrequests/request, as of September 2026); serving a static
+document is what that plan is best at.
+
+The bundled snapshot is the corpus the app starts with. A downloaded release
+supersedes it by version, and the bundled copy remains the floor a fresh install
+cannot fall below.
 
 ## 6. Input contract
 
-### 6.1 Tier 1 — `POST /v1/management-tips`
+Tier 1 has no network request, so it has no HTTP input contract. What it has is a
+**composition input**, assembled entirely on the device.
+
+### 6.1 Tier 1 — the composition input
 
 ```jsonc
 {
-  "recordUuid": "9f1c…",              // required — cache key, not an identity
   "textureClass": "Argilosa",          // required — from SoilTextureLabels.ordered
   "classListVersion": "v1-four-class", // required — guards ADR 0022's orphaning
   "clayActivity": "tb_oxidic",         // required, nullable — the substance key
-  "region": {                          // required
-    "country": "BR",
-    "unit": "BR-SP",                   // ISO 3166-2:BR, or null if unresolved
-    "biome": "cerrado"                 // IBGE biome, or null — institutional layer
-  },
-  "landUse": "pasture",                // optional — the user may decline
-  "corpusVersion": "2026.09.1",        // optional — what the client already has
-  "locale": "pt-BR"                    // optional — defaults to pt-BR
+  "unit": "BR-SP",                     // nullable — ISO 3166-2:BR, institutional overlay
+  "biome": "cerrado",                  // nullable — selects the Embrapa unit
+  "landUse": "pasture",                // nullable — the user may decline
+  "locale": "pt-BR"                    // defaults to pt-BR
 }
 ```
 
-### 6.2 Tier 2 — `POST /v1/record-inquiry`
+**Nothing in this object leaves the device.** That is the strongest form of the
+privacy property this design set out to reach: not coarse location instead of
+precise location, but **no per-record egress at all**. The defect recorded in
+§1.3 — `ProxyResearchService` sending `record.latitude` and `record.longitude`
+verbatim — is not gated or coarsened; the request that carried it ceases to
+exist.
 
-Everything above, plus:
+Every key part may be null and none is fatal. A null `clayActivity` falls back to
+the biome default and the result says the substance is generic; a null `unit`
+drops the institutional overlay; a null `landUse` drops that overlay. Each absence
+is reported in `coverage`, never hidden.
+
+### 6.2 Corpus fetch — `GET /v1/corpus/latest`
+
+Carries no record data. The only client-identifying header is the bearer, and its
+purpose is rate limiting rather than personalisation: every caller at a given
+version receives a byte-identical document.
+
+```
+Authorization: Bearer <token>
+X-App-Version: <semver>
+If-None-Match: "<etag of the held corpus>"
+```
+
+A `304` means the held corpus is current. A `200` carries the new document and its
+version. A failure is not an error state for the user: the app keeps composing
+from what it holds, which is at worst the bundled snapshot.
+
+### 6.3 Tier 2 — `POST /v1/record-inquiry`
+
+The only per-record request the design makes, and the only one that carries
+anything about a sample.
 
 ```jsonc
 {
-  "trigger": "userQuestion",          // required — one of the three predicates
-  "question": "…",                     // required iff trigger is userQuestion; max 500 chars
-  "priorFractions": {                  // required iff trigger is regionalContradiction
+  "trigger": "userQuestion",           // required — one of the three predicates
+  "question": "…",                      // required iff userQuestion; max 500 chars
+  "textureClass": "Argilosa",           // required
+  "clayActivity": "tb_oxidic",          // nullable
+  "unit": "BR-SP",                      // nullable
+  "biome": "cerrado",                   // nullable
+  "landUse": "pasture",                 // nullable
+  "priorFractions": {                   // required iff regionalContradiction
     "clay": 0.52, "sand": 0.31, "silt": 0.17
   },
-  "modelVersion": "soil-v1.2.0",       // optional — provenance for the trace
-  "qualityFlags": ["blur"]             // optional — criteria that failed, SPEC 0030
+  "corpusVersion": "2026.09.1",         // what the client composed from
+  "locale": "pt-BR"
 }
 ```
 
-### 6.3 Field policy
+No `recordUuid`. Tier 2 is a question about a *sample's properties*, not about a
+stored record, and the proxy has no reason to be able to correlate two questions
+to the same record.
+
+### 6.4 Field policy
 
 | Policy | Fields |
 |---|---|
-| **Required** | `recordUuid`, `textureClass`, `classListVersion`, `region.country`, `clayActivity` (present, may be null); plus per-trigger fields at Tier 2 |
-| **Optional** | `region.unit`, `region.biome`, `landUse`, `corpusVersion`, `locale`, `modelVersion`, `qualityFlags` |
-| **Forbidden** | `latitude`, `longitude`, `address`, any image or thumbnail, EXIF of any kind, device identifiers, the user's name or e-mail, any other record's data, free text at Tier 1 |
+| **Required** | Tier 2 only: `trigger`, `textureClass`, plus the per-trigger fields |
+| **Optional** | `clayActivity`, `unit`, `biome`, `landUse`, `corpusVersion`, `locale` |
+| **Forbidden** | `latitude`, `longitude`, `address`, any image or thumbnail, EXIF of any kind, device identifiers, the user's name or e-mail, `recordUuid`, any other record's data |
 
-The forbidden list is enforced, not documented: the proxy rejects a request
-carrying any of those keys with `400`, so a client regression that reintroduces
-coordinates fails loudly instead of leaking quietly. This is the remedy for
-§1.3's first defect.
+The forbidden list is enforced rather than documented: the Tier 2 endpoint
+rejects a request carrying any of those keys with `400`, so a client regression
+that reintroduces coordinates fails loudly instead of leaking quietly.
 
-`recordUuid` is used only as a cache key and is never stored server-side beyond
-the request, so it identifies a cache entry rather than a person.
+### 6.5 The composition rule
 
-**Every part of the key may be null, and none is fatal.** Location is optional
-throughout the app, and a record saved without coordinates must still get
-guidance. A null `clayActivity` falls back to the biome default and the response
-says the substance is generic; a null `region.unit` drops the institutional
-overlay; a null or absent `landUse` — the user declined — drops that overlay. Each
-absence is reported in `coverage`, never hidden.
+Composition is a pure function from the §6.1 input and a corpus to a
+`ManagementTipsResult`. It is **the one piece of logic that must be identical
+wherever it runs**, so it is specified here rather than left to an
+implementation, and it is covered by a golden fixture the way the image-quality
+criteria already are (`test/fixtures/image_quality/golden.json`, implemented in
+both Dart and Python).
 
-`clayActivity` is required-but-nullable rather than optional, so a client that
-cannot resolve it says so explicitly instead of being indistinguishable from a
-client too old to know the field exists.
+**Layer order is fixed**: substance, then land use, then institutional. Tips
+appear in that order and are never interleaved, so two records with the same key
+always read identically.
+
+**Source arrays are concatenated in layer order, and citations are re-indexed.**
+This is the part that is easy to get wrong. Each layer stores its own `sources`
+array and its tips cite by index into *that* array. On composition:
+
+1. Start with an empty output `sources` list.
+2. For each layer in order, append its sources to the output list, recording the
+   offset at which that layer's sources began.
+3. For each tip in that layer, rewrite every citation index `i` as `i + offset`.
+
+A citation that does not resolve within its own layer before re-indexing is a
+corpus defect and fails the build (§12.1), so composition may assume resolvable
+input and is not a validation step.
+
+**Duplicate sources are not merged.** If two layers cite the same URL it appears
+twice, with two indices. Merging would mean re-indexing across layers and
+introduces a second place where an index can be wrong, to save a repeated line in
+a source list. Honesty about which layer used which source is worth more than the
+tidiness.
+
+**Derived fields:**
+
+| Field | Rule |
+|---|---|
+| `status` | `grounded` if any layer contributed a tip; `insufficient_evidence` if none did; `abstained` if the substance layer abstained explicitly |
+| `disclaimer` | The substance layer's, always non-empty |
+| `corpusVersion` | The corpus document's version |
+| `retrievedAt` | When the corpus was fetched, not when it was composed |
+| `limitations` | Concatenated across layers, de-duplicated by exact string |
+| `alerts` | Concatenated, plus any staleness alert the app adds |
+| `coverage` | Records which layers were present and whether the substance is generic |
+
+**The empty composition is valid.** A key that matches no substance cell composes
+to `insufficient_evidence` with an empty tips list and a non-empty disclaimer —
+never to an exception, and never to an empty screen.
 
 ## 7. Output contract
 
-The response keeps the shape `ManagementTipsResult.fromJson` already parses and
-adds **nine** fields: `category` and `evidenceStrength` on a tip, `accessedAt` and
+The result keeps the shape `ManagementTipsResult.fromJson` already parses and
+adds **nine** fields. It is produced by local composition (§6.5) rather than
+received from a server, but the type, the cache, the repository and the UI are
+unchanged by that — which is what the `ResearchService` seam was for. Tier 2
+returns the same shape over HTTP.
+
+The added fields: `category` and `evidenceStrength` on a tip, `accessedAt` and
 `tier` on a source, and `corpusVersion`, `limitations`, `alerts`,
 `followUpQuestions` and `coverage` at the top level.
 
@@ -673,8 +761,8 @@ ships, or to Tier 2, where it is capped and flagged.
 | Stale content | — | `accessedAt` per source; corpus version; staleness surfaced in `alerts` | Both |
 | Corpus poisoning | LLM03* | The artifact is versioned and reviewed; a release is a reviewed diff, not a push | Build |
 | Untrusted URLs rendered to the user | LLM02 | URLs are displayed as text, never as executable links; scheme allowlist at render | Runtime |
-| Location leakage | — | Coordinates are not in the contract; the proxy rejects them with `400` | Runtime |
-| Personal data exposure | LLM06 | No image, no EXIF, no identity beyond the bearer | Runtime |
+| Location leakage | — | Tier 1 makes no request at all; Tier 2's contract excludes coordinates and the proxy rejects them with `400` | Runtime |
+| Personal data exposure | LLM06 | No image, no EXIF, no `recordUuid`, no identity beyond the bearer; nothing per-record leaves the device on Tier 1 | Runtime |
 | Tool misuse | LLM08 | Build tools are search and fetch only; Tier 2 inherits the same two | Both |
 | Runaway loops | — | Hard step cap per cell; a cell that does not converge abstains | Build |
 | Unexpected cost | — | Per-cell, per-run and global caps; Tier 2 has a hard spend ceiling that fails closed | Both |
@@ -850,21 +938,33 @@ content derived from the instruction and that the grader flags it.
 
 ## 13. Offline and degraded behaviour
 
+**Tier 1 has no offline behaviour distinct from its online behaviour**, and that
+is the point of composing locally. The app always holds a corpus — the bundled
+snapshot at worst — so the same code path answers in both states. What
+connectivity changes is whether the corpus can be *refreshed* and whether Tier 2
+is reachable, never whether Tier 1 answers.
+
 | Condition | Behaviour |
 |---|---|
-| Online, corpus current | Tier 1 answers from the served corpus |
-| Online, corpus stale | Answers from cache, fetches the new corpus in the background, `alerts` carries staleness |
-| Offline, record cached | Answers from `management_tips` — unchanged from today |
-| Offline, record not cached, bundled corpus present | Answers from the bundled snapshot; this is new, and it is the case today's build cannot serve |
-| Offline, nothing available | The existing offline empty state |
+| Any connectivity, corpus held | Tier 1 composes locally and answers |
+| Online, newer corpus available | Answers immediately from the held corpus; fetches the release in the background; the next composition uses it |
+| Online, corpus fetch fails | Silent — the held corpus still answers. Never an error the user sees |
+| Corpus older than its review horizon | Answers, with staleness in `alerts` |
 | Offline, escalation predicate true | Tier 1 result plus a notice that deepening needs a connection |
-| Online, cap exhausted | Tier 1 result plus a notice that says the allowance is spent, not that the user should retry — the cap is one-time and does not reset (§15.2) |
-| Region unresolved | Class-level guidance, with the regional layer stated absent |
+| Online, cap exhausted | Tier 1 result plus a notice that the allowance is spent, not that the user should retry — the cap is one-time and does not reset (§15.2) |
+| Key partly unresolved | Composes what it can; `coverage` names each absent layer |
+| Key matches no substance cell | `insufficient_evidence`, empty tips, non-empty disclaimer — never an empty screen |
 
-The bundled snapshot is what makes the main path genuinely offline-first, which
-ADR 0001 could not offer. Cache staleness is decided by comparing the cached
-`corpusVersion` against the server's, which is the invalidation §1.3 found
-missing.
+There is no "offline, nothing available" row any more. A fresh install with no
+network composes from the bundled snapshot, which is the field case ADR 0001's
+design could not serve at all.
+
+The `management_tips` cache survives this change, but its justification does not.
+It is no longer a performance cache — local composition is cheap enough to repeat.
+It is an **audit record**: what this record was told, and from which corpus
+version. That is a better reason than the one it was built for, and it is why
+`corpusVersion` becomes a column (§19.2) rather than being dropped along with the
+caching rationale.
 
 ## 14. GenUI integration
 
@@ -901,10 +1001,10 @@ app changes in this repository. Each passes its own Spec Gate.
 | 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage) | proxy | 24 + 27 cells enumerated; priors sampled. **Three inputs are unverified — see §15.3** |
 | 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | proxy | Injection fixture passes; citations 100% resolvable |
 | 4 | Cross-provider verification pass and the human review gate | proxy | No cell reaches the artifact unreviewed |
-| 5 | Corpus serving endpoint, schema validation, forbidden-field rejection | proxy | `400` on any forbidden key |
-| 6 | App: region resolver; request sheds coordinates (§19.3) | app | No coordinate in any outbound body |
-| 7 | App: corpus version comparison and cache invalidation; **schema v4→v5** (§19.2) | app | Stale cache refreshes; offline keeps serving; a pre-v5 row still parses |
-| 8 | App: bundled corpus snapshot and the offline path (§19.4) | app | Fresh install answers offline; both assets stay under 500 KB |
+| 5 | Corpus release endpoint (`GET /v1/corpus/…`), ETag, and the Tier 2 endpoint's forbidden-field rejection | proxy | A `304` on an unchanged version; `400` on any forbidden key at Tier 2 |
+| 6 | App: site resolver and the composition rule (§19.3, §6.5) | app | Golden fixture passes; no per-record request exists at all |
+| 7 | App: corpus fetch, version comparison, background refresh; **schema v4→v5** (§19.2) | app | A failed fetch is invisible to the user; a pre-v5 row still parses |
+| 8 | App: bundled corpus snapshot and the grids (§19.4) | app | Fresh install with no network answers; all assets stay under 500 KB |
 | 9 | App: `category` and `evidenceStrength` rendering; per-tip feedback (§19.1) | app | Design-system sections render; flat fallback holds; an unknown enum member does not throw |
 | 10a | Tier 2 for `corpusMiss`: endpoint, cap, unreviewed marking | both | Cap fails closed; unreviewed output is visibly distinct; depends on nothing external |
 | 10b | Tier 2 for `userQuestion`, once the free-text input exists | both | 500-character limit enforced; `regionalContradiction` stays dormant until a model ships |
@@ -1254,6 +1354,31 @@ injected there and `ResearchService.fetchTips` gains `SiteKey site` and
 `ProxyResearchService` leaves that class a transport concern and keeps it fakeable
 without a grid asset.
 
+**`CorpusResearchService` implements the seam.** `ResearchService` keeps its
+shape, and a new implementation composes from the held corpus instead of calling
+a proxy:
+
+| File | Contents |
+|---|---|
+| `lib/core/services/research/corpus_research_service.dart` | Implements `ResearchService` by composing locally; the Tier 1 binding |
+| `lib/core/services/research/corpus_composer.dart` | The pure function of §6.5 — key + corpus in, `ManagementTipsResult` out |
+| `lib/core/services/research/corpus_store.dart` | Holds the corpus: bundled asset, downloaded release, version comparison |
+
+`ProxyResearchService` is repurposed rather than deleted: it becomes the corpus
+fetcher and, in slice 10, the Tier 2 client. Its timeout, retry and typed-failure
+behaviour transfer unchanged, which is why it is kept.
+
+`researchServiceProvider` stops returning `UnavailableResearchService` in slice 6
+— it returns `CorpusResearchService`, which needs no network and no
+configuration. That is the moment the feature becomes reachable for the first
+time, and it happens without a proxy existing.
+
+**`CorpusComposer` is a pure function with no I/O.** It takes the key and a
+parsed corpus and returns a result. No async, no assets, no clock — the
+`retrievedAt` it reports comes from the corpus, not from `DateTime.now()`. This is
+what makes the golden fixture possible and what keeps the rule testable without a
+device.
+
 **Land use comes from the UI, not from the resolver.** It is the one key part the
 device cannot derive, so it arrives as an argument from the widget that asked for
 it. A user who declines passes null, which §6 accepts.
@@ -1294,23 +1419,39 @@ staleness signal is what keeps that honest.
 `test/fixtures/corpus/`, following the `image_quality` and `patch_geometry`
 precedent already in `test/fixtures/`.
 
-Three artifacts, chosen so the fixture exercises the shapes that differ rather
-than three that look alike:
+```
+test/fixtures/corpus/corpus.json     # a small but real corpus, all three layers
+test/fixtures/corpus/grids/          # cropped grids covering the fixture's keys
+test/fixtures/corpus/golden.json     # key -> expected composed result
+```
 
-1. A grounded cell with sources, both layers present.
-2. An abstained cell — sources found, nothing asserted.
-3. A cell whose unit overlay is absent, so `coverage.unitLayerPresent` is false.
+The corpus holds enough cells to exercise the shapes that differ rather than
+several that look alike: a substance cell that grounds with sources, one that
+abstains, a land-use overlay, an institutional overlay, and a key that matches no
+substance cell at all.
 
-It serves three purposes at once: the fake corpus for app development before a
-proxy exists, the golden for parse tests, and the contract test — if the proxy's
-output stops matching the fixture's shape, a test fails rather than a user finding
-out.
+`golden.json` is the **composition contract** — a list of `(key, expected
+ManagementTipsResult)` pairs, following the precedent of
+`test/fixtures/image_quality/golden.json`. It must cover, at minimum: all three
+layers present; each layer absent in turn; **citation re-indexing across two
+layers, which is the case most likely to be implemented wrongly**; a duplicate
+source appearing twice with two indices; and the empty composition.
+
+The cropped grids matter more than they look. Slices 6 through 9 are supposed to
+need no proxy, but the real grids are produced by slice 2 in the proxy
+repository. Without fixture grids the app would be blocked on the proxy after
+all, which is the dependency this arrangement exists to remove.
+
+The fixture serves three purposes at once: the corpus for app development before
+a proxy exists, the golden for the composition rule, and the contract test — if a
+built corpus stops matching the fixture's shape, a test fails rather than a user
+finding out.
 
 ### 19.6 Slice map
 
 | Slice | Files | Settled here | Its spec still decides |
 |---|---|---|---|
-| 6 | `region/`, `models/site_key.dart`, `models/land_use.dart`, `management_tips_controller.dart`, `research_service.dart`, `proxy_research_service.dart` | Resolver interface, who calls it, forbidden fields, land use as an argument | Both grids' encoding and their source maps |
+| 6 | `region/`, `models/site_key.dart`, `models/land_use.dart`, `research/corpus_*.dart`, `management_tips_controller.dart`, `research_service_provider.dart` | Resolver interface, the composition rule, who calls what, land use as an argument | Both grids' encoding and their source maps |
 | 7 | `management_tips_table.dart`, `app_database.dart`, `drift_management_tips_repository.dart` | v5 column, nullability, migration shape | The staleness rule's exact comparison |
 | 8 | `assets/corpus/`, `pubspec.yaml`, a corpus loader | Asset paths, 500 KB ceiling, fallback precedence | Loader placement and its provider |
 | 9 | `management_tips_result.dart`, and the Details widget (UI terminal) | Null-safe parsing, defensive enums, defaults | Rendering, owned by the UI terminal |
@@ -1334,7 +1475,11 @@ failure rather than a loud one:
 - **A row cached before the change still parses.** Seed the table with a payload
   written by today's `toJson`, read it through the new `fromJson`, assert the
   result is intact and the new fields hold their documented defaults.
-- **No outbound request carries a coordinate.** Assert against the request body
-  the fake transport receives, not against the method that builds it, so a future
-  refactor cannot reintroduce the field behind a passing test.
+- **No per-record request exists at all on Tier 1.** Assert that composing a
+  result performs zero transport calls, using a fake transport that fails the test
+  if touched. This is stronger than asserting a body has no coordinate, and it is
+  the property §6.1 actually claims.
+- **The composition rule matches the golden.** Every pair in `golden.json`, with
+  the citation re-indexing case called out as its own test so a failure names
+  itself.
 
