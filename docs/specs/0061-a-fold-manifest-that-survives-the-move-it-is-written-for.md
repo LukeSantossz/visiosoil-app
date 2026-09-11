@@ -134,6 +134,12 @@ tracked file fails loudly instead of scoring the wrong photographs.
   - Re-rooting the path inside a stored refusal **message** on load. The message
     is a human-readable record of why a photograph left; the key is what code
     reads, and re-rooting prose would claim a precision it does not have.
+    **Validating that a stored path stays inside the root was also excluded here
+    and that exclusion was reversed** — see the criterion
+    `a_stored_path_that_escapes_the_root_is_refused` above. It is recorded
+    rather than edited away, because what changed the judgement is worth
+    keeping: two reviewers found it independently, and the argument that
+    downstream raises anyway defended a boundary this very change moved.
   - The `texture_class` spanning-group guard (#229). It is a separate refusal in
     `create_folds_for_config` and is its own issue.
   - Tracking anything else under `ml/data/`. ADR 0019 keeps a dataset version
@@ -187,6 +193,14 @@ written before anyone had:
   `ml/data/splits/splits.json` parses at the current schema and stores no
   absolute path. Purely lexical, so it runs in CI, where the dataset is absent
   and nothing else reads the one build product this repository versions.
+- `a_stored_path_that_escapes_the_root_is_refused` — a stored path that is
+  absolute, drive-qualified, backslash-separated or carries `..` is refused by
+  name on load, rather than joined. Added after both the adversarial review and
+  R3 reached the same gap independently: the Scope below excluded it as
+  defence-in-depth, and that judgement was wrong for the same reason the
+  criterion above exists — `root / stored` **discards the root** when `stored`
+  is absolute, and the file this change makes tracked is one a merge conflict
+  can damage while leaving the schema and digest guards satisfied.
 
 One limit is recorded rather than claimed away. `stored_paths_are_posix_separated`
 guards a **Windows-only** defect: on POSIX `str(PurePath)` already joins with
