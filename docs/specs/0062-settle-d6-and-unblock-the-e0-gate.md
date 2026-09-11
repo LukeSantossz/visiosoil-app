@@ -23,21 +23,29 @@ to arms that provably cannot exploit an encoding signature". Taking neither look
 like a third option invented after the fact, so the reason it is not is stated
 here rather than left for a reader to reconstruct.
 
-Those two options are what SPEC 0055 pre-registered **as the branches to take if
-the effect were real**. The probe demonstrated the capture population is
-*recoverable*, which re-opened D6 by name; SPEC 0057 then measured whether the
-texture arms *exploit* it, and
-[its verdict](../ml/transported-population-sensitivity.md) is explicit:
+**Corrected during implementation, by the adversarial review that stood in for
+R2.** This section first claimed SPEC 0055's own rule returns "unchanged" when
+neither contrast fires. It does not: that rule is keyed to the probe's Wilson
+bound, its enumeration is "which one", and it predates SPEC 0057 entirely. The
+claim was a convenient re-reading of the one document that does not license the
+conclusion.
+
+What does license it is **SPEC 0057**, whose reading rule is an exhaustive
+four-cell table fixed before the run, in which **three of the four cells read "D6
+stands"**. The probe demonstrated the capture population is *recoverable*, which
+re-opened D6 by name; SPEC 0057 then measured whether the texture arms *exploit*
+it, and [its verdict](../ml/transported-population-sensitivity.md) is explicit:
 **"Both contrasts landed in `not_significant_below_mde`. SPEC 0040 D6 stands, and
-neither arm re-opened it."** The reading rule that fixed the two options is the
-same rule that returns "unchanged" when neither fires. Writing the decision down
-is what this spec is for; inventing a change the measurement did not ask for
-would be the deviation.
+neither arm re-opened it."** Writing that down is what this spec is for; inventing
+a change the measurement did not ask for would be the deviation.
 
 ### The asymmetry that decides it, and which no record had stated
 
-`B` is **already excluded from every test side**. A compression artefact the
-model learns from `B` therefore cannot inflate the score: the test sides are
+`B` is **excluded from every test side of `v1`'s partition** — verified by
+execution over the committed fold manifest, not read off the rule: no `B`
+photograph reaches any outer test side or inner validation side across all 25
+outer folds and their inner folds. A compression artefact the model learns from
+`B` therefore cannot inflate the score: the test sides are
 populations `A` and `C`, and a `B`-specific shortcut is useless there — it costs
 accuracy rather than flattering it. The risk D6 was written against, a
 transported copy in the test set letting a model read artefacts instead of
@@ -49,23 +57,33 @@ find it — with the incumbent's point estimate at **+10.4 points favouring
 `B`-in-training**, below its own floor of 19.4 and therefore not a result, but
 pointing away from removal rather than towards it.
 
-### What removal would have cost, counted from the manifest
+### What removal would have cost, counted from the partition
 
-Measured over `v1` for the four classes the model emits, sample groups:
+Measured over the **partition** of `v1` — not the raw manifest — for the four
+classes the model emits, in sample groups:
 
 | Class | With `B` | `B` | Without `B` | Loss |
 |---|---:|---:|---:|---:|
-| Arenosa | 26 | 6 | 20 | 23 % |
-| Media | 22 | 2 | 20 | 9 % |
+| Arenosa | 25 | 5 | 20 | 20 % |
+| Media | 20 | 0 | 20 | 0 % |
 | Muito Argilosa | 21 | 0 | 21 | 0 % |
-| **Argilosa** | **33** | **17** | **16** | **52 %** |
-| Total | 102 | 25 | 77 | 25 % |
+| **Argilosa** | **31** | **15** | **16** | **48 %** |
+| Total | 97 | 20 | 77 | 21 % |
 
-In training photographs Argilosa falls from 63 to 30, the same 52 %. **The cost
-is not spread across the dataset; it lands almost entirely on one class**, and
-on the one class ADR 0016's amendment records as the only one still clearing its
-floor of 30 samples. Removal would make Argilosa the *smallest* class of the
-four and leave no class above that floor.
+**Corrected during implementation.** The first version of this table counted the
+raw `manifest.csv` and gave 102 / 25 / 25 %, with Argilosa at 52 % and Media at
+9 %. That is the wrong basis: the patch grid refuses 11 photographs of `v1`,
+**all 11 of them population `B`**, and those refusals remove 5 entire `B` groups
+before any fold is drawn. Media's two `B` groups are among them, so **Media pays
+nothing at all**. Every downstream record — SPEC 0055, SPEC 0057 and the verdict
+— uses the partition basis and its 20 groups; only ADR 0016's amendment uses the
+manifest basis, and the ADR names both so the two reconcile.
+
+In training photographs Argilosa falls from 57 to 30, a 47 % cut. **The cost is
+not spread across the dataset; it lands almost entirely on one class**, and on
+the one class ADR 0016's amendment records as the only one still clearing its
+floor of 30 samples. Removal would make Argilosa the *smallest* class of the four
+and leave no class above that floor.
 
 The splittable pool is 77 groups either way — `B` is train-only, so it was never
 in the partition — which is why the folds, the digest and every published number
@@ -75,7 +93,7 @@ drawn over them are untouched by this decision in both directions.
 
 - **`B` leaves training entirely.** The option this record was expected to take,
   and the one the Developer initially chose before the per-class arithmetic
-  above was computed. Rejected on that arithmetic: it pays 52 % of Argilosa's
+  above was computed. Rejected on that arithmetic: it pays 48 % of Argilosa's
   evidence for an effect the only experiment able to see it did not see, whose
   point estimate points the other way, and whose main risk is already closed by
   `B`'s exclusion from every test side. Its one genuine merit — that a null at
@@ -86,9 +104,12 @@ drawn over them are untouched by this decision in both directions.
   cannot separate "an encoding signature helping" from "37 more photographs
   helping", so an eligibility criterion would be asserted rather than
   demonstrated, and it would have to be re-argued for every arm added later.
-- **Defer ADR 0021 until after the gate runs.** Rejected: SPEC 0044 waits on it
-  by name, and running twenty hours of arms under a rule nobody has written is
-  exactly the failure the pre-registration exists to prevent.
+- **Defer ADR 0021 until after the gate runs.** Rejected: running twenty hours
+  of arms under a rule nobody has written is exactly the failure pre-registration
+  exists to prevent. The dependency is real but it lives in the architecture
+  documents, not in SPEC 0044 — which names neither this record, nor D6, nor
+  SPEC 0057. An earlier version of this bullet said SPEC 0044 "waits on it by
+  name"; it does not.
 - **Amend SPEC 0040 D6 in place instead of writing an ADR.** Rejected: an
   approved spec is durable and is not edited to match a later decision, and the
   three tests for promotion all hold — the decision is hard to reverse once the
@@ -111,6 +132,13 @@ drawn over them are untouched by this decision in both directions.
   - `docs/architecture/ml-implementation-map.md` — the ADR 0021 rows in §2 and
     §6, which currently describe a pending choice between two options.
   - `ml/tests/test_records.py` (new) — the criteria below.
+  - **Added during implementation, and named here rather than done in silence:**
+    three docstrings that speak of ADR 0021 in the future tense —
+    `ml/src/arms/withheld.py`, `ml/scripts/run_d6_sensitivity.py` — and the
+    `Last updated` headers of both architecture documents. The Scope below
+    excludes `ml/src/` because a *behaviour* change would contradict the
+    decision; a docstring that says the decision is still to come is the same
+    stale pointer this spec exists to fix, in a file that happens to be code.
 - Does NOT include:
   - Any change to `ml/config.yaml`, to `ml/src/`, or to any arm. The decision is
     that nothing changes; a code change would contradict it.
