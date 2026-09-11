@@ -226,26 +226,48 @@ def contrast_results(
         for arm, predictions in predictions_by_arm.items()
     }
 
+    # An arm that did not run is recorded, not raised. SPEC 0044 makes that a
+    # first-class outcome — its condition 1 is **Executed**, and an arm that
+    # could not be run "is not executed, which is its own recorded outcome and
+    # is never reported as having lost a comparison". Raising here returned no
+    # contrast at all, including the ones whose two arms were both on disk.
+    results = []
     computed = []
     for contrast in registry:
         first, second = contrast["arms"]
-        for arm in (first, second):
-            if arm not in correctness:
-                raise ValueError(
-                    f"contrast {contrast['name']!r} names arm {arm!r}, which "
-                    f"has no predictions. Run it with: python -m src.crossval "
-                    f"--version {fold_manifest.get('dataset_version')} "
-                    f"--arm {arm}"
-                )
-        computed.append(
-            one_contrast(contrast, correctness[first], correctness[second], alpha, power)
+        absent = [arm for arm in (first, second) if arm not in correctness]
+        if absent:
+            results.append(_not_executed(contrast, absent, fold_manifest))
+            continue
+        record = one_contrast(
+            contrast, correctness[first], correctness[second], alpha, power
         )
+        record["outcome"] = "computed"
+        results.append(record)
+        computed.append(record)
 
+    # Only the computed contrasts. Holm compares the i-th smallest p-value
+    # against `alpha / (n - i + 1)`, so a larger family means a *smaller*
+    # threshold for every member: carrying a test nobody performed would
+    # penalise the real contrasts for an absence rather than for evidence.
+    # `_apply_holm_within_families` also reads `p_value` unguarded, so a
+    # not-executed entry cannot reach it without raising `KeyError` — the
+    # statistical argument and the code agree, and neither is the reason for
+    # the other.
     _apply_holm_within_families(computed)
 
     families: dict[str, int] = {}
     for contrast in computed:
         families[contrast["family"]] = families.get(contrast["family"], 0) + 1
+
+    not_executed = sorted(
+        {
+            arm
+            for contrast in results
+            if contrast.get("outcome") == "not_executed"
+            for arm in contrast["not_executed_arms"]
+        }
+    )
 
     return {
         "dataset_version": fold_manifest.get("dataset_version"),
@@ -253,8 +275,39 @@ def contrast_results(
         "alpha": alpha,
         "power": power,
         "unit": "sample group",
+        # Counted over the contrasts that were computed, which is what Holm
+        # corrected over. Where this disagrees with the registered family size
+        # the difference is an arm that did not run, and `not_executed` names
+        # it — a verdict quoting `families` without it would be quoting a
+        # correction whose basis it had not stated.
         "families": families,
-        "contrasts": computed,
+        "not_executed": not_executed,
+        "contrasts": results,
+    }
+
+
+def _not_executed(
+    contrast: Mapping, absent: Sequence[str], fold_manifest: Mapping
+) -> dict:
+    """A contrast that was not computed, because an arm it names never ran.
+
+    Carries no statistic at all — no p-value, no observed difference, no
+    minimum detectable effect, no discordance. Computing one against an empty
+    arm would return p = 1.0 and read as a tie, which is precisely what SPEC
+    0044 forbids: an arm that never ran reported as having not lost.
+    """
+    version = fold_manifest.get("dataset_version")
+    return {
+        "name": contrast["name"],
+        "arms": list(contrast["arms"]),
+        "family": contrast["family"],
+        "outcome": "not_executed",
+        "not_executed_arms": list(absent),
+        "note": (
+            f"{', '.join(absent)} has no predictions, so this contrast was not "
+            f"computed and is not a result. Run it with: "
+            f"python -m src.crossval --version {version} --arm {absent[0]}"
+        ),
     }
 
 

@@ -847,3 +847,156 @@ def test_a_consistent_arm_and_control_pair_is_accepted(arm, shuffled_control):
     from src.crossval import require_control_matches_arm
 
     require_control_matches_arm(arm, shuffled_control)
+
+
+# --- SPEC 0063: an arm that did not run ------------------------------------
+
+
+def _registry_with_an_absent_arm():
+    """Two primary contrasts, one of which names an arm nobody ran."""
+    return [
+        {"name": "strong_vs_control", "arms": ["strong", "control"], "family": "primary"},
+        {"name": "absent_vs_control", "arms": ["absent", "control"], "family": "primary"},
+    ]
+
+
+def test_an_arm_that_did_not_run_is_recorded_as_not_executed(folds):
+    """The gate's own condition 1 is "did this arm run at all".
+
+    SPEC 0044 makes that a first-class outcome — an arm that could not be run
+    "is not executed, which is its own recorded outcome and is never reported as
+    having lost a comparison". Before this, the first absent arm raised and the
+    whole family returned nothing.
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+
+    results = contrast_results(
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    absent = next(
+        c for c in results["contrasts"] if c["name"] == "absent_vs_control"
+    )
+    assert absent["outcome"] == "not_executed"
+    assert absent["not_executed_arms"] == ["absent"]
+
+
+def test_a_not_executed_contrast_carries_no_statistic(folds):
+    """No p-value, no difference, no MDE, no sign.
+
+    A contrast computed against an empty arm would return p = 1.0 and read as a
+    tie, which is exactly the criterion's failure: an arm that never ran
+    reported as having not lost.
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+
+    results = contrast_results(
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    absent = next(
+        c for c in results["contrasts"] if c["name"] == "absent_vs_control"
+    )
+    for key in (
+        "p_value",
+        "p_value_holm",
+        "observed_difference",
+        "minimum_detectable_effect",
+        "discordant",
+    ):
+        assert key not in absent, f"a not-executed contrast carries {key!r}"
+
+
+def test_the_contrasts_whose_arms_ran_are_still_computed(folds):
+    """One absent arm must not cost the contrasts that have their data.
+
+    Run against this repository today, `evaluate --contrasts` raised on `cnn`
+    and returned nothing — including `descriptors_vs_control`, whose two arms
+    were both on disk.
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+
+    results = contrast_results(
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    computed = next(
+        c for c in results["contrasts"] if c["name"] == "strong_vs_control"
+    )
+    assert computed["outcome"] == "computed"
+    assert 0.0 <= computed["p_value"] <= 1.0
+    assert computed["minimum_detectable_effect"] is None or (
+        0.0 <= computed["minimum_detectable_effect"] <= 1.0
+    )
+
+
+def test_holm_corrects_over_the_computed_contrasts_only(folds):
+    """Holm corrects for tests conducted, and an absent arm conducted none.
+
+    The direction matters and is easy to get backwards: Holm compares the i-th
+    smallest p-value against `alpha / (n - i + 1)`, so a larger family means a
+    **smaller** threshold for every member. Including a test nobody performed
+    would penalise the real contrasts for an absence.
+
+    `family_size` is what makes the deviation from the registered family legible
+    in the artifact: the registration declares two primary contrasts and this
+    records one.
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+
+    results = contrast_results(
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    computed = next(
+        c for c in results["contrasts"] if c["name"] == "strong_vs_control"
+    )
+    assert computed["family_size"] == 1
+    assert computed["p_value_holm"] == computed["p_value"]
+
+
+def test_a_not_executed_contrast_does_not_reach_the_correction(folds):
+    """The correction reads `p_value` unguarded, so it must never see one.
+
+    Asserted by making every computed contrast absent: the correction is then
+    handed an empty family, which is the boundary a `KeyError` would surface at.
+    """
+    registry = [
+        {"name": "absent_vs_other", "arms": ["absent", "other"], "family": "primary"},
+    ]
+
+    results = contrast_results(
+        registry, {}, folds, alpha=0.05, power=0.80
+    )
+
+    only = results["contrasts"][0]
+    assert only["outcome"] == "not_executed"
+    assert sorted(only["not_executed_arms"]) == ["absent", "other"]
