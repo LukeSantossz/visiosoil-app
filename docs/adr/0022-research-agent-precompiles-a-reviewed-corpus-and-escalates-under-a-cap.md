@@ -91,13 +91,28 @@ runs offline, once per corpus release, producing a versioned JSON artifact. Per
 unit of work it becomes affordable precisely because the number of units is
 fixed and small rather than proportional to usage.
 
+**This is a named pattern, not an invention.** It is *Template Generation*,
+pattern 29 of the safeguards catalogue in the maintainer's knowledge base
+(`salvaguardas-llm.md`, sourced to `generativeaidesignpatterns.epub` ch. 9):
+generate offline, have a human review, fill deterministically at runtime. Its
+stated problem is that per-output human review does not scale, and its stated
+preconditions are a finite number of combinations and a high risk of
+inappropriate content — which is this feature, restated. Worth recording: ADR
+0001 cited patterns 30 and 31 from that same page and did not cite 29, reading
+past the pattern that answers its own cost and review problems.
+
 Three properties follow that no per-request variant offers. A human reviews every
-cell before it reaches a user, which is the mechanism the risk framework this
-project's own notes describe assigns to high-stakes output. Nothing is generated
-while a user waits, so runtime hallucination risk is not mitigated but absent.
-And indirect prompt injection from fetched pages, the primary threat ADR 0001
-named, is contained at build time behind a human reader instead of reaching the
-device.
+cell before it reaches a user. Nothing is generated while a user waits, so
+runtime hallucination risk is not mitigated but absent. And indirect prompt
+injection from fetched pages, the primary threat ADR 0001 named, is contained at
+build time behind a human reader instead of reaching the device.
+
+On the risk framework, a precision worth keeping: `arquiteturas-risco-genai.md`
+assigns human-in-the-loop to its **high**-risk tier, and ADR 0001 placed this
+feature at **medium** — advisory, customer-facing, not catastrophic. That
+classification is not disputed here. What pattern 29 changes is the price:
+review becomes affordable at a tier that would not have demanded it, so the
+design exceeds its tier's requirement rather than merely meeting it.
 
 ### The corpus is two layers, and the runtime key is their composition
 

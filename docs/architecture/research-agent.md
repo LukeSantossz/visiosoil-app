@@ -191,6 +191,13 @@ what D costs once.
 Three tiers. Tier 0 runs offline and produces an artifact; Tier 1 reads it; Tier
 2 is reached only through fixed predicates.
 
+Tiers 0 and 1 are **Template Generation**, pattern 29 of the safeguards catalogue
+in `salvaguardas-llm.md` (see §9): generate offline, have a human review, fill
+deterministically at runtime. Its preconditions are a finite set of combinations
+and a high cost of inappropriate content, and both hold here. Naming the pattern
+matters for a reason beyond attribution — its known limits are this design's
+limits, and §16 inherits them rather than rediscovering them.
+
 ```mermaid
 flowchart TD
     subgraph T0["Tier 0 — build time, once per corpus release"]
@@ -506,13 +513,28 @@ sensing. **It contains no agronomic domain knowledge.**
 | Method authority for how this system is built | **Yes** — the only role it can hold |
 
 Used as method authority it is genuinely load-bearing, and it was used that way
-in this document: `tema-rag-decisao.md` supplies the symptom-to-pattern decision
-tree and the over-engineering signals that falsified ADR 0001's tier;
-`arquiteturas-risco-genai.md` supplies the risk framework that assigns human
-review to high-stakes output; `avaliacao-rag.md` supplies the metric vocabulary
-in §12, including the meta-evaluation showing no automatic judge reaches the
-human ceiling; `prompt-injection.md`, `seguranca-agentes.md` and
-`owasp-top-10-llm.md` supply §10.
+in this document:
+
+| Page | What it supplied |
+|---|---|
+| `salvaguardas-llm.md` | **Pattern 29, Template Generation** — the architecture of §5, by name and with its preconditions; pattern 30, Assembled Reformat, for the rule in §8.2 that figures are copied and only reworded |
+| `tema-rag-decisao.md` | The symptom-to-pattern decision tree, and the over-engineering signals that falsified ADR 0001's tier |
+| `avaliacao-rag.md` | The metric vocabulary in §12, including the meta-evaluation showing no automatic judge reaches the human ceiling |
+| `prompt-injection.md`, `seguranca-agentes.md`, `owasp-top-10-llm.md` | The threat taxonomy and control layering in §10 |
+| `arquiteturas-risco-genai.md` | The risk tiering — which places this feature at medium, not high; see the note below |
+
+**A correction this validation produced.** An earlier draft said the risk
+framework assigns human review to output of this kind. It does not:
+`arquiteturas-risco-genai.md` assigns human-in-the-loop to its **high**-risk tier
+(medical, legal, financial, safety-critical), and ADR 0001 classified this feature
+as **medium**. The classification stands. Pattern 29 is what makes review
+affordable at a medium tier, so this design exceeds its tier rather than
+satisfying it — a stronger claim than the one it replaces, and an accurate one.
+
+**A second correction.** §10 maps corpus poisoning and impersonating sources to
+LLM03. That entry is *Training Data Poisoning*, and a reviewed knowledge base is
+not training data. The mapping is an extension by analogy, useful for locating
+the control and not a literal classification; it is labelled as such in §10.
 
 Two cautions the vault's own conventions impose. Its pages carry `updated` and
 `status` frontmatter and are a lossy compilation of their sources, so a claim
@@ -534,9 +556,9 @@ ships, or to Tier 2, where it is capped and flagged.
 |---|---|---|---|
 | Indirect prompt injection in fetched pages | LLM01 | Fetched content is delimited and labelled untrusted; instructions inside are never executed; a human reads every cell | Build |
 | Malicious instructions reaching a user | LLM01 | Structurally impossible at Tier 1 — no generation, no fetch | Runtime |
-| Fake or impersonating sources | LLM03 | Platform-enforced domain allowlist; tiering by institution | Build |
+| Fake or impersonating sources | LLM03* | Platform-enforced domain allowlist; tiering by institution | Build |
 | Stale content | — | `accessedAt` per source; corpus version; staleness surfaced in `alerts` | Both |
-| Corpus poisoning | LLM03 | The artifact is versioned and reviewed; a release is a reviewed diff, not a push | Build |
+| Corpus poisoning | LLM03* | The artifact is versioned and reviewed; a release is a reviewed diff, not a push | Build |
 | Untrusted URLs rendered to the user | LLM02 | URLs are displayed as text, never as executable links; scheme allowlist at render | Runtime |
 | Location leakage | — | Coordinates are not in the contract; the proxy rejects them with `400` | Runtime |
 | Personal data exposure | LLM06 | No image, no EXIF, no identity beyond the bearer | Runtime |
@@ -546,6 +568,11 @@ ships, or to Tier 2, where it is capped and flagged.
 | Unsupported recommendation | LLM09 | Grounding grader, then cross-provider verification, then human review | Build |
 | Fabricated citation | LLM09 | Every citation index is resolved against the fetched source set; an unresolvable index fails the cell | Build |
 | Output outside the schema | — | Schema validation at the proxy boundary; the client already maps a malformed body to `malformedResponse` | Both |
+
+\* LLM03 is *Training Data Poisoning*. A reviewed knowledge base is not training
+data, so these two rows are an extension by analogy — the control they point at
+is right, the classification is approximate. Every other code in the table is a
+literal fit.
 
 ### 10.1 Tier 2's residual risk, stated
 
