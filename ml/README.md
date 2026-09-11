@@ -160,7 +160,8 @@ has. Nothing prevents publishing one; the record asks you not to, and
 
 **Do not regenerate the fold manifest.** It is tracked (SPEC 0061), so every
 checkout already has the partition every published number was drawn over, and
-`git restore ml/data/splits/splits.json` is the remedy for a damaged one.
+`git restore data/splits/splits.json` — run from `ml/`, where the commands in
+this file run — is the remedy for a damaged one.
 Regenerating is the thing to avoid: `StratifiedGroupKFold` partitions
 differently across scikit-learn versions, and `ml/requirements.txt` pins a
 **range** (`>=1.3.0,<1.6.0`), not a point — so "regenerate under the pinned
