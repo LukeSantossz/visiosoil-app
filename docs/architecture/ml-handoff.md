@@ -1,7 +1,7 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-09-03.
+Last updated: 2026-09-11.
 
 **Where the authority lives.** The tracked backlog is issues #178–#197. The
 decisions are ADRs 0008–0018. The plan is
@@ -24,10 +24,14 @@ described. Five decisions followed in one day.
 | **The model sees greyscale patches** | Patches of ~21 mm at 160 px, overlapping by half, inset from the region boundary — 25 for a 90 mm dish, 9 at the refusal floor of ~70 mm. Their disagreement is an image-quality criterion, **not** a confidence. [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) |
 | **The background gap largely closed itself** | A patch cut from inside the soil region is soil and nothing else, so dish-versus-paper stops mattering at the level the model sees. #192 drops to conditional, and the study's "severe" background rating is wrong |
 
-**E0 is runnable and should not be run yet.** It was blocked on images for the
-whole programme and no longer is — it is specified by SPEC 0044 and tracked as
-**#216**, and the issue named here, #197, is closed. What now stands in front of
-it is a number rather than a missing dependency: the capture-population probe
+**E0 is runnable, and as of 2026-09-11 there is nothing in front of it.** It was
+blocked on images for the whole programme and no longer is — it is specified by
+SPEC 0044 and tracked as **#216**, and the issue named here, #197, is closed.
+What stood in front of it was the D6 question, and
+[ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
+has answered it: D6 unchanged, so the gate runs the incumbent arms. The history
+below is kept because it is what the answer was measured against — the
+capture-population probe
 ([SPEC 0055](../specs/0055-probe-whether-the-capture-population-is-predictable.md),
 verdict in [docs/ml/capture-population-probe.md](../ml/capture-population-probe.md))
 recovered the capture population from the same patches the arms see — **90 / 97
@@ -35,12 +39,14 @@ sample groups, Wilson 95 % lower bound 0.858 against a prior of 0.649**, with th
 transported population `B` recovered **20 of 20**. Its pre-registered rule
 re-opens **SPEC 0040 D6** by name.
 
-**Corrected 2026-09-05.** This paragraph said the gate waits because D6's options
-change the folds. They do not: SPEC 0057's design drops `B` with an **arm-level
-filter** and leaves the partition and its digest untouched. The gate still waits,
-for a different reason — **E0 has to run the arms D6 settles on.** Running them
-with `B` in training after the record has rejected that produces twenty hours of
-numbers under a rule nobody accepts.
+**Superseded 2026-09-11 and kept for the reasoning.** This paragraph was
+corrected once on 2026-09-05, when it said the gate was held up because D6's
+options change the folds — they do not, since SPEC 0057 drops `B` with an
+arm-level filter and leaves the partition and its digest untouched. It then said
+the gate was held up for a different reason, that E0 has to run the arms D6
+settles on. **That is now answered rather than outstanding**: ADR 0021 settled D6
+by leaving it alone, so the arms the gate must run are the arms it already had.
+Nothing about the gate is held up by a decision.
 
 That verdict does **not** say the E0 result would be wrong. Recovering the
 capture population is not the same as the texture arms exploiting it: the finding
@@ -137,25 +143,27 @@ that list: nothing blocks the gate on defect grounds. #180's status was also
 wrong here — see the correction under **Known status** below. What blocks the
 gate now is a decision, not a defect.
 
-1. **SPEC 0057** — the D6 sensitivity comparison: the descriptor arm run twice
-   over one partition, with population `B` in the training sides and without,
-   compared under a rule fixed before the run. About two hours. It exists
-   because the probe demonstrated the capture population is **recoverable**,
-   which is not the same as the texture arms **exploiting** it, and only a
-   comparison of two trainings separates those.
-2. **ADR 0021, the D6 decision** — written against SPEC 0057's number, choosing
-   between the two options SPEC 0055 fixed in advance: population `B` leaves
-   training entirely, or it is restricted to arms that provably cannot exploit an
-   encoding signature. The Developer takes it.
-3. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
-   committed either way. It waits on the ADR because the gate must run the arms
-   D6 settles on: the partition is untouched either way, but an arm trained with
-   `B` after the record has rejected that is a number under a rejected rule. What
-   SPEC 0057 computes is reusable here rather than discarded — same folds, same
+**Rewritten 2026-09-11. The first two items are done and the gate is next.**
+SPEC 0057 ran and published its verdict, and
+[ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
+records the decision it informed: **D6 stands unchanged** — population `B` may
+train and may never be validated or tested on. Nothing in the pipeline moves, so
+the gate runs the incumbent arms.
+
+1. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
+   committed either way. `descriptors`, `cnn`, `encoder_probe` and
+   `shuffled_control`, unchanged, because ADR 0021 changed none of them. What
+   SPEC 0057 computed is reusable here rather than discarded — same folds, same
    digest, checked by SPEC 0056's reuse rule rather than assumed.
-4. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
+2. **SPEC 0035**, then **A6's Dart half**, then #185. Both are release blockers
    and neither blocks the gate.
-5. Everything else sits behind the C0 gate.
+3. Everything else sits behind the C0 gate.
+
+Two costs SPEC 0057 measured that SPEC 0044's planning should carry: `inner_k: 4`
+means **five trainings per outer fold**, so 250 per arm pair rather than 50; and
+**a GPU does not accelerate this workload** — CPU and GPU both run about 20 s per
+epoch with `enable_op_determinism()` on, because the bottleneck is the input
+pipeline. The CNN pair cost 46.5 hours against an estimate of six and a half.
 
 Done since this file was last rewritten: #196 (HEIC converted, SPEC 0040), #179
 (BatchNorm, SPEC 0045), the four-class list (SPEC 0046), the evaluation protocol

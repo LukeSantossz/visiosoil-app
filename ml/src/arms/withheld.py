@@ -14,10 +14,11 @@ are what the design bought:
   without the population would produce a second manifest whose group set matches
   the first only by coincidence of the seed, and nothing would check that it
   still did.
-- Whichever configuration ADR 0021 settles on, **that run is the E0 gate's arm**,
-  already computed. SPEC 0056's reuse rule verifies that rather than assuming
-  it, refusing the reuse if the configuration, the manifest digest or the
-  library versions have moved in between.
+- The configuration ADR 0021 settled on is the one that was already running:
+  D6 unchanged, so **the E0 gate's arms are the base arms**, and the pair below
+  stays what it was built as — a diagnostic. SPEC 0056's reuse rule verifies a
+  carried-over fold rather than assuming it, refusing the reuse if the
+  configuration, the manifest digest or the library versions have moved.
 """
 
 from __future__ import annotations
