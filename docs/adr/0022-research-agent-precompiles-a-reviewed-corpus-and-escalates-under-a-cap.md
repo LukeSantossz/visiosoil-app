@@ -3,8 +3,9 @@
 The Research Agent's expensive work — query transformation, web search, source
 grading, generation with citations, grounding checks — moves out of the request
 path and into a build step that runs once per corpus release. Its output is a
-versioned, human-reviewed data artifact keyed by texture class, federative unit
-and biome. At runtime the app reads that corpus through the existing app↔proxy
+versioned, human-reviewed data artifact whose substance is keyed by texture class
+and clay-activity family, with land-use and institutional overlays composed onto
+it at lookup time. At runtime the app reads that corpus through the existing app↔proxy
 contract, with no model call and no network dependency beyond fetching the
 corpus itself. Live per-record research survives as a third tier, reached only
 through deterministic predicates and bounded by an explicit spend cap.
@@ -114,25 +115,48 @@ classification is not disputed here. What pattern 29 changes is the price:
 review becomes affordable at a tier that would not have demanded it, so the
 design exceeds its tier's requirement rather than merely meeting it.
 
-### The corpus is two layers, and the runtime key is their composition
+### The corpus is three layers, and the runtime key is their composition
 
-The substantive agronomic content varies with soil and biome; the institutional
-sources vary with the federative unit. Splitting on that boundary gives the
-composite key without paying the cross product.
+An expert agronomic review on 2026-09-11 rejected the first version of this key,
+in which the substance layer was keyed by biome. Biome is a lossy proxy for the
+variable that actually decides what a texture class means: **weathering degree
+and clay activity**. "Argilosa" in the Cerrado means low CEC, high phosphorus
+adsorption and high infiltration; "Argilosa" in the Pampa over basalt means high
+CEC, shrink-swell and low infiltration. Those are opposite readings from one
+class, and a biome key collapses the distinction in the two most populous biomes
+— a single Mata Atlântica cell spans Rio Grande do Sul to Rio Grande do Norte and
+four soil orders, and in the Caatinga and Pantanal texture is not the governing
+variable at all.
+
+The correction inverts the two axes rather than adding one. Clay activity carries
+the substance; biome is an excellent key for **institutions**, because Embrapa's
+decentralised units are themselves biome-shaped (Cerrados, Semiárido, Pantanal,
+Clima Temperado).
 
 | Layer | Cells | Content |
 |---|---|---|
-| Substance | 4 classes × 6 biomes = 24 | The management guidance and its citations |
-| Source overlay | 27 federative units | State extension service, state agency, state-specific guidance |
+| Substance | 4 classes × 3 clay-activity families = 12 | The guidance and its citations |
+| Land-use overlay | 5 | What the dominant constraint becomes under that use |
+| Institutional overlay | 27 federative units, plus a 6-entry biome→Embrapa-unit table | State agency, extension service, the regional Embrapa unit |
 
-A lookup for `(class, federative unit, biome)` composes the biome cell with the
-unit's overlay. The composition is deterministic and involves no model.
+A lookup composes the three deterministically, with no model. The clay-activity
+family and the biome are both resolved on device from the coordinate; the
+federative unit comes from the address the app already derives; land use is the
+one thing the user supplies.
 
-The alternative, materialising every `(class, unit, biome)` triple, produces
-roughly 208 cells against 51. It costs about three and a half times more to
-build, and — the reason that matters more — it multiplies the human review from
-51 artifacts to 208 and scatters a single agronomic error across every state a
-biome spans.
+Re-keying is **budget-positive**: it halves the substance layer from 24 cells to
+12, and human review — not tokens — is the binding cost. The saving pays for the
+land-use axis, which the same review identified as the single cheapest input that
+materially raises usefulness, because it is an observable proxy for management
+history and because the Brazilian source literature is already segmented along it
+(degraded-pasture recovery, plantio direto, Cerrado opening). Net: 44 artifacts to
+review against the 51 the biome key required.
+
+Land use is an overlay rather than a fourth axis of the substance layer. Crossing
+it into the substance would be more faithful to the interaction the review
+describes and would cost 87 artifacts instead of 44 — nearly double the review
+burden, for a reviewer who does not yet exist. The overlay is the affordable
+approximation, and §16 of the architecture document records what it gives up.
 
 ### Runtime is a deterministic read, and escalation is gated by predicates, not by a model
 
@@ -267,7 +291,7 @@ the free, offline, cacheable one. This is the payoff of the stable boundary ADR
   merely caching around it.
 - **Guidance becomes reviewable before it is published**, and review becomes the
   release gate. This is a process obligation the previous design did not create:
-  someone must read 51 artifacts, and a corpus release is blocked until they do.
+  someone must read 44 artifacts, and a corpus release is blocked until they do.
 - **Specificity is capped at the corpus key.** Two records of the same class in
   the same biome and state receive the same guidance. This is honest about what
   the inputs support — ADR 0001 said as much — but it is a real limitation and

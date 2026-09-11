@@ -6,7 +6,9 @@ ADR 0001's Research Agent design cannot be built as written: its named model was
 
 ## Design Decision
 
-**The expensive pipeline moves from the request path to a build step.** ADR 0001's corrective-RAG chain is kept almost intact and run offline, once per corpus release, producing a versioned and human-reviewed JSON artifact keyed by texture class, federative unit and biome. At runtime the app performs a deterministic lookup with no model call; live per-record research survives as a third tier reached only through three fixed predicates and bounded by a spend cap that fails closed.
+**The expensive pipeline moves from the request path to a build step.** ADR 0001's corrective-RAG chain is kept almost intact and run offline, once per corpus release, producing a versioned and human-reviewed JSON artifact whose substance layer is keyed by texture class and clay-activity family, with land-use and institutional overlays composed onto it. At runtime the app performs a deterministic lookup with no model call; live per-record research survives as a third tier reached only through three fixed predicates and bounded by a spend cap that fails closed.
+
+An expert agronomic review on 2026-09-11 rejected an earlier version of the key, in which the substance layer was keyed by biome: biome is a lossy proxy for weathering degree and clay activity, which is what actually decides whether "Argilosa" means low CEC and high phosphorus adsorption or high CEC and shrink-swell. Re-keying halves the substance layer from 24 cells to 12 and pays for a land-use overlay, the cheapest input that raises usefulness. That review is a prompted model, not an agronomist; its standing and the three checkable claims verified against primary sources are recorded in §1.4 of the architecture document, and it does not substitute for the human review gate.
 
 The move is justified by ADR 0001's own limiting statement — "**Thin inputs** (texture + location + date) cap specificity" — which is a claim about the size of the function's domain. Four classes and a bounded region set make the domain enumerable, so the per-request agent was recomputing on every capture a function with roughly a hundred distinct inputs.
 
@@ -18,8 +20,10 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - **Keep the per-request pipeline and pay for it.** Rejected on the comparison, not on principle. The same one-time allowance buys roughly 500 runtime generations that are consumed and gone with none of them reviewed, or the whole corpus built with a frontier model with budget left for rebuilds.
 - **Precompile and drop live research entirely.** Rejected. A free-text question about a specific record has an unbounded input space that no enumeration serves, and that is the one case where an agent is genuinely the right tool.
 - **Materialise the full cross product of class, unit and biome.** Rejected on review cost rather than money: 208 reviewed artifacts against 51, with each agronomic correction applied once per state instead of once per biome.
-- **Key by federative unit alone.** Rejected as agronomically dishonest — soil does not follow state borders, and a state spanning two biomes would average away the distinction that matters most.
-- **Key by biome alone.** Rejected as losing the institutional layer; which extension service a user should consult is a state fact.
+- **Key by federative unit alone.** Rejected as agronomically dishonest — soil does not follow state borders.
+- **Key the substance by biome.** Rejected on expert review: it collapses opposite guidance into one class in the two most populous biomes, and in the Caatinga and Pantanal texture is not the governing variable at all. Biome is kept, moved to the institutional layer, where Embrapa's own biome-shaped units make it the right key.
+- **Cross land use into the substance layer** rather than composing it as an overlay. Rejected on review burden, not money: 87 artifacts against 44, for a reviewer who does not yet exist. The overlay approximates an interaction the review describes, and that approximation is recorded as a risk rather than hidden.
+- **Collect crop instead of land use.** Rejected: crop pulls straight toward rates and critical levels, which the advisory stance forbids, and it does not change what texture physically means.
 - **Route the build through a model gateway for portability.** Rejected on cost asymmetry: at build time a gateway forfeits the batch discount and the platform-enforced domain allowlist, trading roughly $25 of capability for roughly $3 of fee on a one-time budget. Portability is bought at runtime instead, where the dependency is live and the volume is small.
 - **Adopt a graph orchestration framework for the build.** Rejected. The pipeline is a bounded chain run 51 times offline, and the project's own method notes list a six-plus-step RAG pipeline with no measurement as an over-engineering signal. Tracing is adopted; orchestration is not.
 
@@ -58,7 +62,10 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - `every_deferred_use_case_states_why`: each catalogue entry not in v1 carries the reason it was deferred or eliminated.
 - `dormant_predicates_are_named`: the two escalation predicates that cannot fire yet name the artifact each waits on.
 - `ambiguous_does_not_escalate`: the design resolves an ambiguous verdict by composing two Tier 1 cells and states that the surface renders two readings rather than one answer.
-- `biome_resolves_on_device`: the biome resolver is on-device, and the document states that a server-side resolver would reinstate the coordinate egress the key removes.
+- `key_resolves_on_device`: every derivable part of the key resolves on-device, and the document states that a server-side resolver would reinstate the coordinate egress the key removes.
+- `expert_review_standing_is_stated`: the document records that the agronomic review is a prompted model rather than an agronomist, names the checkable claims verified against primary sources, and states that it does not substitute for the human review gate.
+- `editorial_rules_are_recorded`: the corpus authors are bound by the adjacent-cells rule, the silt caveat and the Média width statement before the reviewer sees anything.
+- `overlay_approximation_is_recorded`: the risk section states that composing land use as an overlay approximates an interaction, names the faithful alternative and its cost, and gives the reason it was refused.
 - `one_time_budget_consequences_are_stated`: the document states that the rebuild cadence is funded for one year and not the second, and that Tier 2's cap fails closed permanently rather than resetting.
 - `unallocated_budget_names_its_trigger`: the unallocated remainder names the measurement that decides its split and lists the candidate splits.
 - `blocked_slice_is_marked_blocked`: the slice depending on the unidentified reviewer is marked blocked rather than merely unscheduled.

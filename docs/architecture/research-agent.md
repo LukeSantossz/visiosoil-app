@@ -60,6 +60,35 @@ Two defects in the current implementation, independent of those:
   but nothing reads it to decide staleness, so a cached tip is served
   indefinitely. §13 gives it a corpus version to compare against.
 
+### 1.4 The 2026-09-11 agronomic review, and what it is worth
+
+Several decisions in this document cite an expert agronomic review taken on
+2026-09-11. Its standing needs to be stated plainly, because it is easy to
+over-credit.
+
+It was produced by a language model prompted to act as a Brazilian soil
+scientist, asked adversarially — told that an honest negative verdict was worth
+more than encouragement — and forbidden to search, so the answer came from the
+model rather than from compilation. **It is not an agronomist.** It does not
+satisfy, reduce or substitute for the human review that §12.3 makes the release
+gate, and the reviewer named in §17.1 is still unidentified.
+
+What it is worth was calibrated rather than assumed. Three of its checkable
+factual claims were verified against primary sources, and all three held,
+including an exact numeric threshold:
+
+| Claim | Verification |
+|---|---|
+| EMATER-PR became IDR-Paraná | Correct — Lei 20.121/2019, Iapar-Emater merger |
+| Bahia's EBDA was extinguished | Correct — 2015 administrative reform, replaced by Bahiater |
+| SiBCS divides Ta from Tb at 27 cmolc/kg of clay | Correct and exact, per Embrapa |
+
+Its verdict was **(b) — useful only with a specific change**, with the note that
+on the design exactly as specified it would have voted (c). What it changed is
+recorded where each decision lives: the substance key (§5.1), the land-use axis
+(§5.3), the editorial rules (§12.3), the soil-map dependency (§8.4), and the
+naming question raised to the UI/UX terminal (§18.2).
+
 ## 2. Map of existing integrations
 
 ```mermaid
@@ -95,7 +124,7 @@ a record from history sees a top-1 and nothing else.
 Two consequences run through the rest of this document. It is the binding
 constraint on §6, which cannot ask for fields the record does not hold. And it is
 why a record reopened from history cannot be known to be ambiguous: the
-composition in §5.3 renders one cell where it should render two, until issue #186
+composition in §5.4 renders one cell where it should render two, until issue #186
 persists the distribution.
 
 ## 3. Use case catalogue
@@ -116,7 +145,7 @@ serves it.
 | 7 | Region outside the corpus | class, region | Honest unavailability, or live research | **Yes** | **v1 — Tier 2** |
 | 8 | Next steps after a result | verdict, record state | Primary action | No — `compose`, UX terminal | Out of scope here |
 | 9 | Ask the user for more context | — | Refinement question | No — a fixed question set per class | Deferred — no consumer |
-| 10 | Personalise by crop or season | crop, season | Narrower guidance | Yes, but | **Deferred — inputs do not exist** |
+| 10 | Personalise by management context | land use | Which constraint dominates | No — an overlay layer | **v1 — land use only**; crop and season stay deferred |
 | 11 | Refresh stale guidance | corpus version | New corpus | No — a release | **v1 — corpus release** |
 | 12 | Compare two records | two records | Comparison | Yes | Deferred — no demand evidence |
 | 13 | Low-confidence alternatives | distribution | Alternative classes | No — that is the verdict | Out of scope — ADR 0011 owns it |
@@ -137,7 +166,7 @@ synthesis, and the first draft of this document treated it that way. It does not
 the two candidate classes each already have a reviewed cell, and rendering both
 is honest about a distribution that settled nothing. Synthesising them would
 assert a combined reading no source supports, which is the failure mode the whole
-design exists to avoid. The enumerable fallback — six class pairs per biome —
+design exists to avoid. The enumerable fallback — six class pairs per clay-activity family —
 remains costed in §15.1 and unbuilt.
 
 ### 3.2 The non-agentic alternatives, stated
@@ -161,7 +190,7 @@ tested.
 ## 4. Architecture comparison
 
 Five candidates. Costs assume the September 2026 prices in §15.1. The runtime
-rows assume one request per capture; the build row assumes 51 cells.
+rows assume one request per capture; the build row assumes 44 artifacts.
 
 | Criterion | A. Deterministic workflow | B. Runtime RAG | C. Tool-using agent | D. Precompiled corpus | E. **D + capped C** |
 |---|---|---|---|---|---|
@@ -236,46 +265,98 @@ flowchart TD
 
 ### 5.1 The corpus
 
+The substance layer is keyed by **clay activity**, not by biome. An expert
+agronomic review on 2026-09-11 found biome to be a lossy proxy for the variable
+that actually decides what a texture class means — weathering degree and clay
+mineralogy — and that it fails hardest in the two most populous biomes. The
+review's reasoning and the evidence checked against it are summarised in ADR
+0022.
+
 | Layer | Cells | Key | Content |
 |---|---|---|---|
-| Substance | 24 | `(class, biome)` | Guidance, citations, evidence strength, limitations |
-| Overlay | 27 | `(unit)` | State extension service, state agency, unit-specific guidance |
+| Substance | 12 | `(class, clayActivity)` | The guidance, citations, evidence strength, limitations |
+| Land use | 5 | `(landUse)` | What the dominant constraint becomes under that use |
+| Institutional | 27 + 6 | `(unit)`, `(biome)` | State agency and extension service; the regional Embrapa unit |
 
-A lookup for `(class, unit, biome)` composes the two deterministically. The
-composition rule is pure and enumerable, so all 208 resolved combinations can be
-asserted in tests without 208 build cells existing.
+**44 artifacts to review**, against 51 under the biome key. Re-keying halves the
+substance layer, and that saving is what pays for the land-use axis.
 
-The biome set is the six IBGE biomes: `amazonia`, `cerrado`, `mata_atlantica`,
-`caatinga`, `pampa`, `pantanal`. The unit set is the 27 federative units as
-ISO 3166-2:BR codes.
+The clay-activity families are three:
 
-**Coverage is Brazil only.** Every region table here is Brazilian, as are the
-source tiers in §8. A coordinate outside Brazil is a `corpusMiss` and is told so
-plainly. Extending coverage later is additive — a new biome set and a new source
-tier — and nothing in the key or the contract forecloses it.
+| Value | Meaning |
+|---|---|
+| `tb_oxidic` | Deeply weathered, low-activity clay — CEC of the clay fraction below 27 cmolc/kg (SiBCS Tb) |
+| `intermediate` | Between the two |
+| `ta_less_weathered` | Less weathered, high-activity clay (SiBCS Ta) |
 
-### 5.2 Resolving the biome on device
+The 27 federative units are ISO 3166-2:BR codes. The six IBGE biomes —
+`amazonia`, `cerrado`, `mata_atlantica`, `caatinga`, `pampa`, `pantanal` — remain
+in the model, moved to the institutional layer, because Embrapa's decentralised
+units are themselves biome-shaped.
 
-The biome must be resolved on the device. Resolving it server-side would require
-sending the coordinate, which is the egress §6 exists to remove, so a
-server-side resolver would give back the privacy property the key was chosen for.
+The five land-use values are `native_vegetation`, `pasture`, `annual_crop`,
+`perennial_or_forest`, `exposed_or_degraded`.
 
-The app ships a **packed biome grid**: a 0.1° lattice over Brazil's bounding box,
-one byte per cell holding a biome identifier, roughly 130 KB. Lookup is an array
-index from latitude and longitude — constant time, no parsing, no dependency.
+**Coverage is Brazil only.** Every table here is Brazilian, as are the source
+tiers in §8. A coordinate outside Brazil is a `corpusMiss` and is told so plainly.
+Extending coverage later is additive and nothing in the key forecloses it.
 
-Its error is confined to biome transition bands, where a cell straddles two
-biomes and the grid names one. That is accepted because the alternative,
-simplified IBGE boundary polygons, costs more bytes and a point-in-polygon test
-to sharpen a boundary that is itself a cartographic generalisation of a gradient.
-The grid records its resolution in the artifact so a later refinement is a data
-change rather than a code change.
+### 5.2 Resolving the key on device
 
-A coordinate the grid cannot resolve yields a null biome, which §6 already
-defines as a valid request: the response carries the class-level guidance and
-states that the regional layer is absent.
+Everything except land use is derived from data the app already holds, and all of
+it is resolved **on the device**. Resolving server-side would require sending the
+coordinate, which is the egress §6 exists to remove.
 
-### 5.3 Escalation predicates
+| Key part | Source |
+|---|---|
+| `textureClass` | The classifier |
+| `clayActivity` | Packed grid, sampled from the soil map at build time |
+| `biome` | Packed grid |
+| `unit` | The address the app already reverse-geocodes |
+| `landUse` | The user, one tap |
+
+The two grids are a 0.1° lattice over Brazil's bounding box, one byte per cell
+each, roughly 130 KB apiece. Lookup is an array index from latitude and
+longitude — constant time, no parsing, no dependency.
+
+Their error is confined to transition bands and to the generalisation already
+present in the source maps. That is accepted: a soil map at national scale gives a
+distribution over map-unit associations rather than a soil class, which is exactly
+why the guidance derived from it is advisory and says so. Each grid records its
+resolution and its source map in the artifact, so refinement is a data change
+rather than a code change.
+
+**Any key part may be null, and none of them is fatal.** A null `clayActivity`
+falls back to the biome-derived default and the response says the substance layer
+is generic. A null `unit` drops the institutional overlay. A null `landUse` — the
+user declined to answer — drops that overlay. §6 defines each as a valid request.
+
+### 5.3 Land use is the one thing the user is asked
+
+The same review identified current land use at the sampling point as the single
+cheapest input that materially raises usefulness. It is the cheapest observable
+proxy for management history, whose absence is the largest hole in what this
+feature knows; the user is standing there looking at it, so it needs no expertise
+and no equipment; it stays advisory, where crop would pull straight toward rates
+and critical levels; and the Brazilian source literature is already segmented
+along it, so cells can be filled from existing reviews rather than synthesised.
+
+It changes which constraint dominates in a way texture alone cannot express. On
+the same clayey Cerrado soil: under degraded pasture the binding issues are
+compaction, low organic matter and absent correction history; under fifteen years
+of no-till they are nutrient stratification, subsurface acidity and the traffic
+window; under native vegetation they are the conversion decision and the up-front
+phosphorus fixation cost.
+
+**Assumption, cheap to reverse:** land use is asked at tips-generation time and
+travels in the request, rather than being captured with the photograph and
+persisted on `SoilRecord`. Persisting it is scientifically tidier — it is a
+property of the sample, not of the query — but it would change the capture flow,
+which the UI/UX terminal is actively redesigning, and add a column to a shared
+table. Moving it to capture later is a migration plus a request-field change, both
+small. Asking it at generation time is the v1 answer.
+
+### 5.4 Escalation predicates
 
 All are cheap, total functions over data the app already holds. None is a model
 call.
@@ -298,7 +379,7 @@ the fallback is 36 precomputed pair cells, costed in §15.1 and not built.
 until SPEC 0035 lands, and researching a classification that never ran would be
 exactly that offer in another form.
 
-### 5.4 Why the proxy stays
+### 5.5 Why the proxy stays
 
 The corpus could ship entirely in the app. It does not, for three reasons: a
 corpus release must reach users without an app-store round trip; Tier 2 needs a
@@ -317,11 +398,13 @@ the 10 ms CPU limit of the Cloudflare Workers free plan (100,000 requests/day,
   "recordUuid": "9f1c…",              // required — cache key, not an identity
   "textureClass": "Argilosa",          // required — from SoilTextureLabels.ordered
   "classListVersion": "v1-four-class", // required — guards ADR 0022's orphaning
+  "clayActivity": "tb_oxidic",         // required, nullable — the substance key
   "region": {                          // required
     "country": "BR",
     "unit": "BR-SP",                   // ISO 3166-2:BR, or null if unresolved
-    "biome": "cerrado"                 // IBGE biome, or null if unresolved
+    "biome": "cerrado"                 // IBGE biome, or null — institutional layer
   },
+  "landUse": "pasture",                // optional — the user may decline
   "corpusVersion": "2026.09.1",        // optional — what the client already has
   "locale": "pt-BR"                    // optional — defaults to pt-BR
 }
@@ -347,8 +430,8 @@ Everything above, plus:
 
 | Policy | Fields |
 |---|---|
-| **Required** | `recordUuid`, `textureClass`, `classListVersion`, `region.country`; plus per-trigger fields at Tier 2 |
-| **Optional** | `region.unit`, `region.biome`, `corpusVersion`, `locale`, `modelVersion`, `qualityFlags` |
+| **Required** | `recordUuid`, `textureClass`, `classListVersion`, `region.country`, `clayActivity` (present, may be null); plus per-trigger fields at Tier 2 |
+| **Optional** | `region.unit`, `region.biome`, `landUse`, `corpusVersion`, `locale`, `modelVersion`, `qualityFlags` |
 | **Forbidden** | `latitude`, `longitude`, `address`, any image or thumbnail, EXIF of any kind, device identifiers, the user's name or e-mail, any other record's data, free text at Tier 1 |
 
 The forbidden list is enforced, not documented: the proxy rejects a request
@@ -359,9 +442,16 @@ coordinates fails loudly instead of leaking quietly. This is the remedy for
 `recordUuid` is used only as a cache key and is never stored server-side beyond
 the request, so it identifies a cache entry rather than a person.
 
-**A null region is a valid request.** Location is optional throughout the app,
-and a record saved without coordinates must still get guidance. The response is
-the class-level guidance with the regional layer absent and stated as absent.
+**Every part of the key may be null, and none is fatal.** Location is optional
+throughout the app, and a record saved without coordinates must still get
+guidance. A null `clayActivity` falls back to the biome default and the response
+says the substance is generic; a null `region.unit` drops the institutional
+overlay; a null or absent `landUse` — the user declined — drops that overlay. Each
+absence is reported in `coverage`, never hidden.
+
+`clayActivity` is required-but-nullable rather than optional, so a client that
+cannot resolve it says so explicitly instead of being indistinguishable from a
+client too old to know the field exists.
 
 ## 7. Output contract
 
@@ -410,9 +500,13 @@ for that reason.
   "alerts": [],                         // NEW — conflicts, staleness, regional gaps
   "followUpQuestions": [],              // NEW — what the agent would need to narrow it
   "coverage": {                         // NEW — which layers answered
-    "biome": "cerrado",
+    "clayActivity": "tb_oxidic",        // null when the grid could not resolve it
+    "substanceIsGeneric": false,        // true when clayActivity was null
     "unit": "BR-SP",
-    "unitLayerPresent": true
+    "unitLayerPresent": true,
+    "biome": "cerrado",
+    "landUse": "pasture",
+    "landUseLayerPresent": true
   }
 }
 ```
@@ -502,6 +596,13 @@ rather than called at runtime.
 The sampled fractions are what the `regionalContradiction` predicate compares a
 classification against. Baking them removes a runtime dependency on a service
 that is currently degraded.
+
+- **The national soil map** — Embrapa/IBGE at 1:5,000,000 and the state surveys at
+  1:250,000 — is what the clay-activity grid of §5.2 is sampled from. At those
+  scales a coordinate yields a distribution over map-unit associations rather than
+  a soil class, which is precisely why the guidance derived from it is advisory and
+  says so. This is a **new load-bearing dependency** introduced by the 2026-09-11
+  re-key, and §15.3 records that its availability and licence are unverified.
 
 ### 8.5 Conflicts between sources
 
@@ -620,7 +721,7 @@ references its trace identifier.
 **Traces are local JSONL**, one file per build run, not a hosted tracer. This
 follows the precedent the README already records for experiment tracking — local
 JSON over MLflow or Weights & Biases, as disproportionate overhead for the
-project's size — and the same reasoning holds here: 51 cells built a handful of
+project's size — and the same reasoning holds here: 44 artifacts built a handful of
 times does not justify hosted infrastructure or a third party in the loop. The
 one capability a hosted tracer would add, replaying the corpus against a new
 model, is reached by re-running a build that is cheap by construction.
@@ -714,6 +815,28 @@ dropped; a rejected cell never ships in a weaker form.
 Item 6 is what makes the reviewer the injection control, and it is the reason
 review is complete rather than sampled: a sampled review defends nothing, because
 an injected cell is exactly the one an attacker would want unsampled.
+
+Three editorial rules bind the authors before the reviewer sees anything. All
+three come from the 2026-09-11 agronomic review.
+
+**Adjacent cells differ in degree, never in direction.** The classifier will
+misread by one adjacent texture class routinely, so if `(Média, tb_oxidic)` and
+`(Argilosa, tb_oxidic)` ever point a reader opposite ways, a single-class error
+makes the app confidently wrong. Two adjacent cells that disagree in direction is
+a defect in the pair, not in either cell.
+
+**The silt caveat appears wherever silt is plausible.** Siltosa is absent from
+the class list (ADR 0016), and silty soils behave unlike both their neighbours —
+low aggregate stability, high crusting, the highest erodibility. The model will
+sort them silently into Média or Argilosa. Every cell where Cambissolos or várzea
+alluvium are plausible carries a one-line field test the reader can perform on the
+spot: if the sample feels smooth or silky rather than gritty or sticky, the silt
+fraction may dominate and the classification does not apply.
+
+**The Média cell states its own width.** 15–35% clay is a wide bucket, and it is
+where management decisions most diverge — a 16% soil and a 34% soil are different
+farms, and the sandy edge of the class is among the country's live agronomic
+problems. Saying so is honest and advisory-safe.
 
 The reviewer's identity and competence are recorded with the release, so a corpus
 reviewed by a non-specialist is labelled as one rather than presented as
@@ -814,25 +937,26 @@ Committed:
 | Item | Estimate |
 |---|---|
 | Slice 1 calibration probe, one cell | $1 |
-| 24 substance cells via Batch | $11 |
+| 12 substance cells via Batch | $6 |
+| 5 land-use overlays via Batch | $1 |
 | 27 unit overlays via Batch | $3 |
-| Cross-provider verification, 51 cells | $6 |
-| **Committed subtotal** | **$21** |
+| Cross-provider verification, 44 artifacts | $5 |
+| **Committed subtotal** | **$16** |
 
-The remaining **$29 is not allocated**, by decision: slice 1 measures the real
+The remaining **$34 is not allocated**, by decision: slice 1 measures the real
 cost per cell, and the split is chosen against that measurement rather than
 against this document's estimate. The three candidate splits, recorded so the
 decision is a choice between known options:
 
 | Split | Tier 2 runway | Corpus reserve | Buys |
 |---|---|---|---|
-| Conservative | $8 (~80 questions) | $21 | Two full rebuilds of the substance layer |
-| Runway-weighted | $20 (~200 questions) | $9 | Enough live questions to learn what users ask |
-| Quality-weighted | $8 (~80 questions) | $9, plus $11 upgrading the substance layer to the frontier model | Better permanent text, short runway |
+| Conservative | $8 (~80 questions) | $26 | Two full rebuilds of the substance layer |
+| Runway-weighted | $20 (~200 questions) | $14 | Enough live questions to learn what users ask |
+| Quality-weighted | $8 (~80 questions) | $14, plus $12 upgrading every layer to the frontier model | Better permanent text, short runway |
 
-A fourth option exists and is not costed here: 36 precomputed class-pair cells at
-roughly $8, the fallback named in §5.3 if composing two cells proves inadequate
-for the ambiguous case.
+A fourth option exists and is not costed here: 18 precomputed class-pair cells —
+six pairs across three clay-activity families — at roughly $4, the fallback named
+in §5.4 if composing two cells proves inadequate for the ambiguous case.
 
 **Slice 1 gates everything after it.** If measured cost per cell diverges from
 the estimate by more than a factor of two, the whole plan is re-costed before
@@ -851,7 +975,7 @@ discovered later.
 
 **The rebuild cadence is twice a year** (Developer's decision, 2026-09-11),
 aligned to the agricultural calendar. At roughly $14 a rebuild that is $28 a
-year, against a reserve of at most $29 that Tier 2 also draws from. **The first
+year, against a reserve of at most $34 that Tier 2 also draws from. **The first
 year is funded and the second is not.** Because the product is meant to be
 operated, this is a funding requirement with a date: the second rebuild of year
 two needs money that does not exist today. Without it the corpus stops being
@@ -872,6 +996,7 @@ They are inputs to slice 2 and each is cheap to verify before it is depended on.
 |---|---|---|
 | ISRIC SoilGrids coverage is obtainable in bulk | That the point API is degraded — `200` with null values, then `503`, on 2026-09-05 | That the CC-BY coverage downloads at a workable size and resolution |
 | IBGE biome boundaries exist in a rasterisable form | Nothing | The source, its licence, and whether the ~130 KB figure in §5.2 survives contact with it |
+| **The national soil map is obtainable and rasterisable into three clay-activity families** | Nothing — this dependency is one day old, introduced by the 2026-09-11 re-key | Whether Embrapa/IBGE coverages are downloadable, under what licence, and whether map-unit associations collapse cleanly into three families. **The substance key rests on this**, so it is the first of the three to check |
 | Cross-provider verification costs about $6 | The arithmetic, given small inputs | That a second vendor is reachable on this budget — it means a second account and credential, and it does not get the first vendor's batch discount |
 
 None of the three changes the architecture. All three change slice 2's estimate,
@@ -895,7 +1020,12 @@ it.
 | Tier 2 ships before its input exists | Without the free-text field (§18.2) it serves only `corpusMiss`; that is a reduced feature, not a broken one |
 | Tier 2 injection reaches a user | Allowlist, two tools only, schema validation, output marked unreviewed |
 | A provider deprecates the build model | The seams keep the pipeline portable; the artifact survives the provider regardless |
-| Biome resolution on device is wrong | The biome is optional; an unresolved biome degrades to class-level guidance rather than to a wrong cell |
+| Clay-activity resolution on device is wrong | A null degrades to the biome default and the response says the substance is generic; a wrong value yields guidance for a neighbouring family, which is quieter than a crash and therefore belongs in the feedback loop |
+| **The land-use overlay loses the interaction it approximates** | The review describes land use as interacting with texture, not merely adding to it. An overlay adds. Crossing it into the substance would be faithful and cost 87 artifacts against 44 — refused for review burden, not for money, and recorded here so the approximation is a known one |
+| **The soil map may not collapse into three clay-activity families** | The substance key depends on it and the dependency is one day old. §15.3 makes it the first check of slice 2; if it fails, the biome key returns as the fallback it now serves as |
+| A single-class classifier error produces opposite guidance | The editorial rule in §12.3: adjacent cells differ in degree, never direction |
+| Silty soils are silently sorted into a neighbouring class | The silt field-test caveat in §12.3, on every cell where Cambissolos or várzea are plausible |
+| The feature is measured against a promise it cannot keep | The name "dicas de manejo" implies prescription the design forbids. Raised to the UI/UX terminal in §18.2; not resolved here |
 | The proxy repository never gets built | The app path degrades exactly as it does today — `UnavailableResearchService` — so nothing regresses |
 
 ## 17. Open questions
@@ -916,7 +1046,7 @@ reviewing this document rather than by writing it.
 
    What review means is no longer open: §12.3 fixes it as complete, against an
    eight-item checklist. That makes the ask concrete enough to put to someone —
-   51 cells, eight checks each — and it makes the cost of the answer visible
+   44 artifacts, eight checks each — and it makes the cost of the answer visible
    before anyone agrees to it.
 
 2. **Is guidance at `(class, biome)` specific enough to be worth an agronomist's
@@ -930,22 +1060,24 @@ reviewing this document rather than by writing it.
 
 ### 17.2 Deferred with a stated trigger
 
-3. **How the remaining $29 is split.** Deferred to the measurement from slice 1
+3. **How the remaining $34 is split.** Deferred to the measurement from slice 1
    rather than guessed. The three candidate splits are costed in §15.1.
 4. **Whether composing two cells is adequate for an ambiguous verdict.** The
-   decision is to compose; the fallback is 36 precomputed pair cells at roughly
-   $8. The trigger is field feedback, and the question cannot be answered before
+   decision is to compose; the fallback is 18 precomputed pair cells at roughly
+   $4. The trigger is field feedback, and the question cannot be answered before
    #186 makes the verdict reachable from history.
 
 ### 17.3 Decided
 
 | Question | Decision | Recorded in |
 |---|---|---|
-| Biome resolution on device | Packed 0.1° grid, ~130 KB | §5.2 |
-| Ambiguous verdict | Compose two Tier 1 cells; no escalation | §5.3 |
+| Key resolution on device | Packed 0.1° grids for clay activity and biome, ~130 KB each | §5.2 |
+| Ambiguous verdict | Compose two Tier 1 cells; no escalation | §5.4 |
 | Tier 2 enabled in v1 | Yes, complete — with the input-field dependency named | §15, §18.2 |
 | Rebuild cadence | Twice a year, with its funding gap stated | §15.2 |
 | Coverage beyond Brazil | Brazil only; a foreign coordinate is a `corpusMiss` | §5.1 |
+| Substance key | Clay activity, not biome; biome moves to the institutional layer | §5.1 |
+| Land use | Added as a five-value overlay, asked at generation time | §5.3 |
 | Build tracing | Local JSONL, following the README's precedent | §11.1 |
 | Review protocol | Complete, against an eight-item checklist | §12.3 |
 | Tier 2 slicing | Split: 10a serves `corpusMiss` now, 10b waits on the input field | §15 |
@@ -999,9 +1131,25 @@ dependency for slice 10**:
    surface must not merge them into a single recommendation, because nothing
    synthesised them. This complements `verdict_ambiguous` in the roadmap's
    acceptance criteria, which already requires neither candidate to be asserted.
-4. **Absent regional coverage is stated, not hidden.** `coverage.unitLayerPresent`
-   false means the guidance is class-level only, and a record saved without
-   location is the normal case that produces it.
+4. **Absent coverage is stated, not hidden.** `coverage` reports each layer
+   separately — a generic substance layer, a missing institutional overlay, a
+   declined land use. A record saved without location is the normal case.
+5. **A land-use control: one tap, five options**, with declining allowed. The
+   values are `native_vegetation`, `pasture`, `annual_crop`,
+   `perennial_or_forest`, `exposed_or_degraded` (§5.3). It is asked at
+   tips-generation time, not at capture, so it does not touch the capture flow
+   this terminal is redesigning.
+
+**And one item for joint decision, not an ask.** The 2026-09-11 agronomic review
+found that **"dicas de manejo" promises an action the design forbids itself to
+give**, and that the feature will be measured against that promise and found
+empty. The glossary term is `CONTEXT.md`'s and the copy is this terminal's, so
+this document records the finding and does not rename anything. What the review
+suggests the feature actually is: not advice, but what a texture class changes
+about how the reader interprets their soil and their lab report. The same review
+places the real audience at the recém-formado, the técnico agrícola and the
+extension worker in an unfamiliar region — not the senior consultant, who already
+knows the content.
 
 Two items in `13-roadmap.md` §3.1 are answered by this document: the
 recommendation contract divergence is resolved in §7.1, and the
@@ -1078,40 +1226,60 @@ is that future. Regenerate with `dart run build_runner build
 --delete-conflicting-outputs`, and cover the migration with an in-memory Drift
 test.
 
-### 19.3 Region resolution
+### 19.3 Key resolution
 
 New files under `lib/core/services/region/`:
 
 | File | Contents |
 |---|---|
-| `region_resolver.dart` | `abstract RegionResolver` with `Future<Region?> resolve({double? latitude, double? longitude})` |
-| `grid_region_resolver.dart` | The packed-grid implementation of §5.2 |
-| `lib/models/region.dart` | `Region(country, unit, biome)`, `unit` and `biome` nullable |
+| `site_resolver.dart` | `abstract SiteResolver` with `Future<SiteKey> resolve({double? latitude, double? longitude, String? address})` |
+| `grid_site_resolver.dart` | The packed-grid implementation of §5.2, reading both grids |
+| `lib/models/site_key.dart` | `SiteKey(country, clayActivity, unit, biome)`, every field but `country` nullable |
+| `lib/models/land_use.dart` | The five-value enum of §5.3 |
+
+It resolves a **site**, not a region: after the 2026-09-11 re-key the value it
+produces carries the clay-activity family that keys the substance layer, the unit
+that keys the institutional overlay, and the biome that selects the Embrapa unit.
+Naming it `RegionResolver` would describe the smallest of the three.
+
+`SiteKey` returns a value rather than a nullable — an unresolved coordinate yields
+a `SiteKey` whose fields are null, not a null key, so a caller cannot forget to
+handle the case.
 
 **The controller resolves, not the service.** `ManagementTipsController` already
 owns orchestration — it validates the record, checks connectivity, calls the
-service and persists. Resolving a region is orchestration, so the resolver is
-injected there and `ResearchService.fetchTips` gains a `Region? region` named
-parameter. Keeping the resolver out of `ProxyResearchService` leaves that class a
-transport concern and keeps it fakeable without a grid asset.
+service and persists. Resolving the site is orchestration, so the resolver is
+injected there and `ResearchService.fetchTips` gains `SiteKey site` and
+`LandUse? landUse` named parameters. Keeping the resolver out of
+`ProxyResearchService` leaves that class a transport concern and keeps it fakeable
+without a grid asset.
 
-A null latitude or longitude yields a null region, which §6 defines as a valid
-request. The app never sends coordinates.
+**Land use comes from the UI, not from the resolver.** It is the one key part the
+device cannot derive, so it arrives as an argument from the widget that asked for
+it. A user who declines passes null, which §6 accepts.
+
+A null latitude or longitude yields an all-null `SiteKey`, which §6 defines as a
+valid request. The app never sends coordinates.
 
 ### 19.4 Assets
 
 ```
-assets/corpus/corpus.json        # the substance and overlay layers, version inside
-assets/corpus/biome-grid.bin     # the packed 0.1 degree grid of §5.2
+assets/corpus/corpus.json            # substance, land-use and institutional layers
+assets/corpus/biome-grid.bin         # packed 0.1 degree grid, institutional layer
+assets/corpus/clay-activity-grid.bin # packed 0.1 degree grid, substance layer
 ```
 
 `pubspec.yaml` gains `- assets/corpus/` alongside the existing
 `- assets/models/`.
 
-**Size ceiling: 500 KB for both files combined.** The estimate is roughly 255 KB
-of corpus and 130 KB of grid; the ceiling leaves headroom without letting the
-bundle grow unwatched. Exceeding it is a decision, not an accident — the spec that
-does so states what it bought.
+**Size ceiling: 500 KB for all three files combined.** The estimate is roughly
+200 KB of corpus — 44 artifacts, fewer than the 51 the biome key needed — plus
+about 130 KB per grid. That lands near 460 KB, which is inside the ceiling but not
+comfortably. The second grid arrived with the 2026-09-11 re-key, and if the real
+figures exceed the ceiling the first thing to try is a coarser lattice for the
+clay-activity grid, whose source map is generalised at national scale anyway.
+Exceeding the ceiling is a decision, not an accident — the spec that does so states
+what it bought.
 
 Loading is async and cached in memory for the process. It runs on the main
 isolate, so the `rootBundle` restriction that shapes `InferenceService` does not
@@ -1126,8 +1294,8 @@ staleness signal is what keeps that honest.
 `test/fixtures/corpus/`, following the `image_quality` and `patch_geometry`
 precedent already in `test/fixtures/`.
 
-Three cells, chosen so the fixture exercises the shapes that differ rather than
-three that look alike:
+Three artifacts, chosen so the fixture exercises the shapes that differ rather
+than three that look alike:
 
 1. A grounded cell with sources, both layers present.
 2. An abstained cell — sources found, nothing asserted.
@@ -1142,7 +1310,7 @@ out.
 
 | Slice | Files | Settled here | Its spec still decides |
 |---|---|---|---|
-| 6 | `region/`, `models/region.dart`, `management_tips_controller.dart`, `research_service.dart`, `proxy_research_service.dart` | Resolver interface, who calls it, forbidden fields | The grid's encoding and its source |
+| 6 | `region/`, `models/site_key.dart`, `models/land_use.dart`, `management_tips_controller.dart`, `research_service.dart`, `proxy_research_service.dart` | Resolver interface, who calls it, forbidden fields, land use as an argument | Both grids' encoding and their source maps |
 | 7 | `management_tips_table.dart`, `app_database.dart`, `drift_management_tips_repository.dart` | v5 column, nullability, migration shape | The staleness rule's exact comparison |
 | 8 | `assets/corpus/`, `pubspec.yaml`, a corpus loader | Asset paths, 500 KB ceiling, fallback precedence | Loader placement and its provider |
 | 9 | `management_tips_result.dart`, and the Details widget (UI terminal) | Null-safe parsing, defensive enums, defaults | Rendering, owned by the UI terminal |
