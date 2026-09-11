@@ -30,8 +30,10 @@ Three consequences follow that no per-request variant offers: a human reviews ev
   - `docs/adr/0001-research-agent-advisory-web-grounded.md` — marked Retired in place, keeping its number and file, with what survives and what was withdrawn stated.
   - `docs/architecture/research-agent.md` — rewritten as the design reference: current state, integration map, use case catalogue, architecture comparison, input and output contracts, source policy, `llm-wiki` strategy, security, observability, evaluation, offline behaviour, GenUI integration, delivery plan, risks, open questions, cross-terminal contracts.
   - `README.md` — the Engineering Decisions row for ADR 0001 marked Retired, and a row added for ADR 0022.
+  - The app implementation notes (§19 of the architecture document): the file-level decisions each app slice's spec consumes — domain-model defaults, the v4→v5 column, the region resolver's placement, the asset layout and its ceiling, the fixture corpus, and the slice map.
 - Does NOT include:
-  - Any code, in `lib/` or in a proxy repository. Every delivery slice in the architecture document passes its own Spec Gate first.
+  - Any code, in `lib/` or in a proxy repository. Every delivery slice in the architecture document passes its own Spec Gate first, including the schema migration §19.2 describes.
+  - The per-slice specs themselves, written one per gate by decision rather than all at once.
   - Any spend. The calibration probe that would replace this document's token estimates with measurements is slice 1 of that plan, not part of this change.
   - Creating the proxy repository.
   - Any change to `ml/`, the model, the preprocessing path, or the class list.
@@ -66,6 +68,10 @@ Three consequences follow that no per-request variant offers: a human reviews ev
 - `unverified_inputs_are_labelled`: the assumptions that were reasoned about but not checked are listed as inputs to the slice that depends on them, with what was and was not verified.
 - `value_question_is_open_and_cheaply_testable`: the design records that no evidence exists for the guidance being specific enough to be useful, and names the $1 probe as what answers it before the corpus is built.
 - `tier_two_slice_is_split_by_dependency`: the Tier 2 slice separates the predicate that depends on nothing external from the one waiting on another terminal.
+- `app_slices_have_settled_inputs`: for each app slice, the architecture document names the files it touches, what is already decided, and what its own spec must still decide.
+- `cache_compatibility_has_a_test`: the notes require a test that reads a payload written before the change through the new parser and asserts the documented defaults.
+- `coordinate_absence_is_asserted_on_the_wire`: the notes require the no-coordinate test to assert against the request body a fake transport receives, not against the method that builds it.
+- `app_development_needs_no_proxy`: slices 6 through 9 are stated to be developable and testable against the fixture corpus alone.
 - `new_ux_dependencies_are_declared`: the free-text input, the durable cap-exhaustion state, the two-readings presentation and the absent-coverage statement appear as asks to the UI/UX terminal.
 - `no_retry_on_not_analysed`: the design states that `notAnalysed` never escalates, per ADR 0011 and ADR 0015.
 - `budget_sums_within_the_allowance`: the delivery plan's budget table sums to no more than the stated one-time allowance.

@@ -779,10 +779,10 @@ app changes in this repository. Each passes its own Spec Gate.
 | 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | proxy | Injection fixture passes; citations 100% resolvable |
 | 4 | Cross-provider verification pass and the human review gate | proxy | No cell reaches the artifact unreviewed |
 | 5 | Corpus serving endpoint, schema validation, forbidden-field rejection | proxy | `400` on any forbidden key |
-| 6 | App: region resolver; request sheds coordinates | app | No coordinate in any outbound body |
-| 7 | App: corpus version comparison and cache invalidation | app | Stale cache refreshes; offline keeps serving |
-| 8 | App: bundled corpus snapshot and the offline path | app | Fresh install answers offline |
-| 9 | App: `category` and `evidenceStrength` rendering; per-tip feedback | app | Design-system sections render; flat fallback holds |
+| 6 | App: region resolver; request sheds coordinates (§19.3) | app | No coordinate in any outbound body |
+| 7 | App: corpus version comparison and cache invalidation; **schema v4→v5** (§19.2) | app | Stale cache refreshes; offline keeps serving; a pre-v5 row still parses |
+| 8 | App: bundled corpus snapshot and the offline path (§19.4) | app | Fresh install answers offline; both assets stay under 500 KB |
+| 9 | App: `category` and `evidenceStrength` rendering; per-tip feedback (§19.1) | app | Design-system sections render; flat fallback holds; an unknown enum member does not throw |
 | 10a | Tier 2 for `corpusMiss`: endpoint, cap, unreviewed marking | both | Cap fails closed; unreviewed output is visibly distinct; depends on nothing external |
 | 10b | Tier 2 for `userQuestion`, once the free-text input exists | both | 500-character limit enforced; `regionalContradiction` stays dormant until a model ships |
 | 11 | Auth: `idToken` capture and `serverClientId` (issue #95) | app | Proxy verifies by audience |
@@ -950,6 +950,10 @@ reviewing this document rather than by writing it.
 | Review protocol | Complete, against an eight-item checklist | §12.3 |
 | Tier 2 slicing | Split: 10a serves `corpusMiss` now, 10b waits on the input field | §15 |
 | What the product is | Academic deliverable and field product at once — so §11 is a live loop and the recurring cost is a funding requirement | §15.2 |
+| Where `corpusVersion` lives | A nullable column; schema v4→v5 | §19.2 |
+| Bundled corpus in v1 | Yes, both layers, under a 500 KB ceiling | §19.4 |
+| How the app is validated before a proxy exists | A three-cell fixture corpus versioned in `test/fixtures/corpus/` | §19.5 |
+| When slice specs are written | One per Spec Gate, not all at once; §19 fixes their inputs | §19 |
 
 ## 18. Cross-terminal contracts
 
@@ -1010,3 +1014,159 @@ Changes to `lib/models/management_tips_result.dart`,
 belong to this terminal. `lib/core/features/details/management_tips_section.dart`
 belongs to the UI terminal; the additive fields in §7 are declared here and
 rendered there, in slice 9.
+
+## 19. App implementation notes
+
+These are the file-level decisions taken on 2026-09-11 so that each app slice's
+spec is written against settled ground rather than re-deciding them. This section
+**authorises no code** and does not replace a slice's Spec Gate; it fixes the
+inputs those specs consume.
+
+### 19.1 Domain model
+
+`ManagementTipsResult`, `ManagementTip` and `TipSource` absorb the nine fields of
+§7. No new result type is introduced: a parallel type would split the cache, the
+repository and the UI for no gain.
+
+Every added field is **optional in `fromJson` with a stated default**, because of
+the cache boundary in §7 — rows written before this change are read by the new
+parser.
+
+| Field | On | Absent means |
+|---|---|---|
+| `category` | tip | `null` — render flat, do not group |
+| `evidenceStrength` | tip | `null` — render no strength badge |
+| `accessedAt` | source | `null` — show the source's own date only |
+| `tier` | source | `null` — show no tier |
+| `corpusVersion` | result | `null` — unknown, treated as stale at the next online check |
+| `limitations` | result | empty list |
+| `alerts` | result | empty list |
+| `followUpQuestions` | result | empty list |
+| `coverage` | result | `null` — say nothing about regional coverage |
+
+`toJson` always writes every field, so anything this version caches is complete.
+
+**Closed enumerations parse defensively.** An unrecognised `category` or
+`evidenceStrength` string degrades to the absent case rather than throwing.
+A corpus that adds a member must not break a client that predates it, and
+`ManagementTipsStatus.values.byName` — which throws on an unknown name — is the
+existing shape to avoid repeating here.
+
+### 19.2 Schema v4 → v5
+
+Add one nullable column to `management_tips`:
+
+```dart
+TextColumn get corpusVersion => text().named('corpus_version').nullable()();
+```
+
+The migration is cumulative, matching the existing style in `AppDatabase`:
+
+```dart
+if (from < 5) {
+  await m.addColumn(managementTips, managementTips.corpusVersion);
+}
+```
+
+Nullable rather than defaulted: a row cached before v5 genuinely has no known
+version, and a fabricated default would claim currency the row does not have. A
+null reads as stale at the next online check.
+
+This follows the precedent the table already documents — `retrievedAt` was
+duplicated out of the payload "for future staleness/eviction queries", and this
+is that future. Regenerate with `dart run build_runner build
+--delete-conflicting-outputs`, and cover the migration with an in-memory Drift
+test.
+
+### 19.3 Region resolution
+
+New files under `lib/core/services/region/`:
+
+| File | Contents |
+|---|---|
+| `region_resolver.dart` | `abstract RegionResolver` with `Future<Region?> resolve({double? latitude, double? longitude})` |
+| `grid_region_resolver.dart` | The packed-grid implementation of §5.2 |
+| `lib/models/region.dart` | `Region(country, unit, biome)`, `unit` and `biome` nullable |
+
+**The controller resolves, not the service.** `ManagementTipsController` already
+owns orchestration — it validates the record, checks connectivity, calls the
+service and persists. Resolving a region is orchestration, so the resolver is
+injected there and `ResearchService.fetchTips` gains a `Region? region` named
+parameter. Keeping the resolver out of `ProxyResearchService` leaves that class a
+transport concern and keeps it fakeable without a grid asset.
+
+A null latitude or longitude yields a null region, which §6 defines as a valid
+request. The app never sends coordinates.
+
+### 19.4 Assets
+
+```
+assets/corpus/corpus.json        # the substance and overlay layers, version inside
+assets/corpus/biome-grid.bin     # the packed 0.1 degree grid of §5.2
+```
+
+`pubspec.yaml` gains `- assets/corpus/` alongside the existing
+`- assets/models/`.
+
+**Size ceiling: 500 KB for both files combined.** The estimate is roughly 255 KB
+of corpus and 130 KB of grid; the ceiling leaves headroom without letting the
+bundle grow unwatched. Exceeding it is a decision, not an accident — the spec that
+does so states what it bought.
+
+Loading is async and cached in memory for the process. It runs on the main
+isolate, so the `rootBundle` restriction that shapes `InferenceService` does not
+apply here.
+
+The bundled copy is a **fallback**, never the authority: when the served corpus
+version is newer, it wins. A bundled snapshot ages between releases, and §13's
+staleness signal is what keeps that honest.
+
+### 19.5 The fixture corpus
+
+`test/fixtures/corpus/`, following the `image_quality` and `patch_geometry`
+precedent already in `test/fixtures/`.
+
+Three cells, chosen so the fixture exercises the shapes that differ rather than
+three that look alike:
+
+1. A grounded cell with sources, both layers present.
+2. An abstained cell — sources found, nothing asserted.
+3. A cell whose unit overlay is absent, so `coverage.unitLayerPresent` is false.
+
+It serves three purposes at once: the fake corpus for app development before a
+proxy exists, the golden for parse tests, and the contract test — if the proxy's
+output stops matching the fixture's shape, a test fails rather than a user finding
+out.
+
+### 19.6 Slice map
+
+| Slice | Files | Settled here | Its spec still decides |
+|---|---|---|---|
+| 6 | `region/`, `models/region.dart`, `management_tips_controller.dart`, `research_service.dart`, `proxy_research_service.dart` | Resolver interface, who calls it, forbidden fields | The grid's encoding and its source |
+| 7 | `management_tips_table.dart`, `app_database.dart`, `drift_management_tips_repository.dart` | v5 column, nullability, migration shape | The staleness rule's exact comparison |
+| 8 | `assets/corpus/`, `pubspec.yaml`, a corpus loader | Asset paths, 500 KB ceiling, fallback precedence | Loader placement and its provider |
+| 9 | `management_tips_result.dart`, and the Details widget (UI terminal) | Null-safe parsing, defensive enums, defaults | Rendering, owned by the UI terminal |
+| 10a | Proxy plus the app's error mapping | Cap fails closed; exhaustion is durable and never resets | Where the counter lives, and how exhaustion reaches the user |
+
+Slices 6 through 9 need **no proxy**. They are developed and validated against the
+fixture corpus, which is why the fixture is a repository asset rather than a
+throwaway.
+
+### 19.7 Testing
+
+Test-first, per the repo's policy. Fakes are hand-written in the house style —
+no `mockito` or `mocktail` — extending `test/support/management_tips_fakes.dart`,
+which already carries `FakeManagementTipsRepository`, `FakeResearchService` and
+`FakeConnectivityService`. Repository and migration tests use
+`AppDatabase.forTesting(NativeDatabase.memory())`.
+
+Two tests matter more than their size suggests, because both cover a silent
+failure rather than a loud one:
+
+- **A row cached before the change still parses.** Seed the table with a payload
+  written by today's `toJson`, read it through the new `fromJson`, assert the
+  result is intact and the new fields hold their documented defaults.
+- **No outbound request carries a coordinate.** Assert against the request body
+  the fake transport receives, not against the method that builds it, so a future
+  refactor cannot reintroduce the field behind a passing test.
+
