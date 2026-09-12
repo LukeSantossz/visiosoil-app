@@ -50,15 +50,27 @@ def write_fold(
     shuffled_control=False,
     runtime=RUNTIME,
     complete=True,
+    groups=("g",),
 ):
-    """One fold's artifacts, in the order a real run writes them."""
+    """One fold's artifacts, in the order a real run writes them.
+
+    ``groups`` is what the fold records as its test side. It defaults to a
+    placeholder, which is all the reuse check needed before SPEC 0063 — since
+    that change verifies the partition by comparing the scored groups against
+    the manifest's own test side, a fixture built over a real fold manifest has
+    to name real groups or it describes a fold of some other partition.
+    """
     write_fold_predictions(
         arm_dir,
         repeat=repeat,
         fold=fold,
         arm=arm,
         classes=list(cfg["classes"]),
-        records=[{"path": "a.jpg", "group": "g", "label": 0, "probabilities": [1.0, 0.0]}],
+        records=[
+            {"path": f"{group}.jpg", "group": group, "label": 0,
+             "probabilities": [1.0, 0.0]}
+            for group in groups
+        ],
         shuffled_control=shuffled_control,
         manifest_digest=digest,
     )
@@ -401,7 +413,13 @@ def test_the_single_fold_entry_point_reuses_a_matching_fold(tmp_path, monkeypatc
     from src.config import load_config, resolve_paths
 
     cfg = resolve_paths(load_config(config_path))
-    write_fold(arm_dir, 0, 0, cfg=cfg, digest=folds["manifest_digest"], arm="cnn")
+    from src.dataset import fold_split
+
+    test_side = sorted({entry["group"] for entry in fold_split(folds, 0, 0)["test"]})
+    write_fold(
+        arm_dir, 0, 0, cfg=cfg, digest=folds["manifest_digest"], arm="cnn",
+        groups=test_side,
+    )
 
     calls = []
     _single_fold_train(monkeypatch, tmp_path, calls=calls)
@@ -583,3 +601,286 @@ def test_a_resumed_arm_equals_an_uninterrupted_one(tmp_path):
     assert (
         fold_directory(tmp_path, 0, 0) / PREDICTIONS_FILENAME
     ).read_bytes() == before[0]
+
+
+# --- SPEC 0063: a fold drawn on another machine ----------------------------
+
+
+#: A configuration as a second machine would have resolved it. Only the four
+#: keys `resolve_paths` rewrites differ; everything that decides the experiment
+#: is identical.
+FOREIGN_CFG = {
+    "classes": ["Arenosa", "Argilosa"],
+    "data": {
+        "seed": 42,
+        "raw_dir": "/home/other/ml/data/raw",
+        "splits_dir": "/home/other/ml/data/splits",
+        "datasets_dir": "/home/other/ml/data/datasets",
+    },
+    "export": {"output_dir": "/home/other/ml/models"},
+}
+
+LOCAL_CFG = {
+    "classes": ["Arenosa", "Argilosa"],
+    "data": {
+        "seed": 42,
+        "raw_dir": r"C:\here\ml\data\raw",
+        "splits_dir": r"C:\here\ml\data\splits",
+        "datasets_dir": r"C:\here\ml\data\datasets",
+    },
+    "export": {"output_dir": r"C:\here\ml\models"},
+}
+
+
+def test_a_fold_whose_config_differs_only_in_paths_is_reusable(tmp_path):
+    """26.5 hours of finished folds are not thrown away over four strings.
+
+    SPEC 0057's `cnn` arm ran in WSL2 on this machine. Its configuration differs
+    from the Windows one in `raw_dir`, `splits_dir`, `datasets_dir` and
+    `export.output_dir`, and in nothing else — the class list, the evaluation
+    block, the seed and the training recipe are identical, and the recorded
+    manifest digest is the same. Before this, every one of those folds was
+    `stale`.
+    """
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=FOREIGN_CFG)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=LOCAL_CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.REUSABLE, reason
+
+
+def _real_config(**overrides):
+    """The shipped configuration, resolved, with one value changed.
+
+    Built from `load_config` rather than from a three-key toy. The first version
+    of these tests used a fixture holding `classes` and `data.seed` and nothing
+    else, and an adversarial review showed what that bought: dropping
+    `training`, `evaluation`, `preprocessing`, `model` and `augmentation` from
+    the comparison left the whole suite green, because no test had ever put one
+    of those sections in front of it.
+    """
+    from src.config import load_config, resolve_paths
+
+    cfg = resolve_paths(load_config())
+    for path, value in overrides.items():
+        section, _, key = path.partition(".")
+        if key:
+            cfg[section] = {**cfg[section], key: value}
+        else:
+            cfg[section] = value
+    return json.loads(json.dumps(cfg))
+
+
+def _on_another_machine(cfg):
+    """``cfg`` as a second machine would have resolved it, and nothing else."""
+    from src.crossval import MACHINE_LOCAL_CONFIG_KEYS
+
+    foreign = json.loads(json.dumps(cfg))
+    for section, key in MACHINE_LOCAL_CONFIG_KEYS:
+        foreign[section][key] = f"/home/other/ml/{section}/{key}"
+    return foreign
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "data.seed",
+        "evaluation.k",
+        "evaluation.repeats",
+        "evaluation.inner_k",
+        "training.epochs",
+        "training.learning_rate",
+        "model.dropout",
+        "preprocessing.canonical_mm_per_px",
+        "augmentation.rotation_degrees",
+        "classes",
+    ],
+)
+def test_a_fold_from_another_configuration_is_still_stale(tmp_path, changed):
+    """The exclusion narrows the comparison; it does not blanket-pass it.
+
+    Parametrised over the real configuration's sections rather than looped over
+    two keys of a toy: a loop stops at its first failing assertion, so the
+    second case is never reported, and the sections the reuse argument leans on
+    — the evaluation protocol, the training recipe, the patch geometry — were
+    not represented at all.
+    """
+    live = _real_config()
+    section, _, key = changed.partition(".")
+    if key:
+        current = live[section][key]
+        replacement = current + 1 if isinstance(current, (int, float)) else "other"
+        recorded = _real_config(**{changed: replacement})
+    else:
+        recorded = _real_config(**{section: ["Arenosa", "Media"]})
+
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=_on_another_machine(recorded))
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=live, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.STALE, f"{changed} was not noticed: {reason}"
+
+
+def test_the_real_configuration_round_trips_across_machines(tmp_path):
+    """The shipped config, resolved on a second machine, is still reusable.
+
+    The companion to the parametrised test above: that one proves the exclusion
+    refuses a real difference, this one proves it still accepts the case it
+    exists for, over every section of the configuration rather than three keys.
+    """
+    live = _real_config()
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=_on_another_machine(live))
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=live, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.REUSABLE, reason
+
+
+def test_the_excluded_keys_are_exactly_what_resolve_paths_rewrites():
+    """The list is the four `resolve_paths` makes absolute, asserted not assumed.
+
+    Read from the function's behaviour rather than from its source, so a fifth
+    resolved key cannot be added without a decision here: whatever
+    `resolve_paths` changes is what must be excluded, or a fold from another
+    machine is refused for a reason nobody intended.
+    """
+    from src.config import load_config, resolve_paths
+    from src.crossval import MACHINE_LOCAL_CONFIG_KEYS
+
+    before = load_config()
+    after = resolve_paths(json.loads(json.dumps(before)))
+
+    rewritten = {
+        (section, key)
+        for section, block in after.items()
+        if isinstance(block, dict)
+        for key, value in block.items()
+        if before.get(section, {}).get(key) != value
+    }
+
+    assert rewritten == set(MACHINE_LOCAL_CONFIG_KEYS)
+
+
+def test_a_fold_from_another_manifest_is_still_stale(tmp_path):
+    """The digest check is untouched, and it is what guards the data.
+
+    Excluding `datasets_dir` from the comparison is only safe because a fold
+    drawn over different data is refused before the configuration is read at
+    all. This asserts that, so the safety argument is not left as prose.
+    """
+    arm_dir = tmp_path / "cnn"
+    write_fold(arm_dir, 0, 0, cfg=FOREIGN_CFG, digest=OTHER_DIGEST)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=LOCAL_CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+    )
+
+    assert state is FoldReuse.STALE
+    assert "manifest" in reason
+
+
+# --- SPEC 0063: the partition the fold was drawn over ----------------------
+
+
+def _manifest_with_groups(assignment):
+    """A fold manifest whose repeat 0 assigns ``assignment`` group -> fold."""
+    groups = {
+        group: {
+            "sample_id": group,
+            "class": "Arenosa",
+            "label": 0,
+            "images": [f"images/{group}.jpg"],
+            "train_only": False,
+        }
+        for group in assignment
+    }
+    return {
+        "k": 2,
+        "repeats": 1,
+        "manifest_digest": DIGEST,
+        "classes": ["Arenosa", "Argilosa"],
+        "groups": groups,
+        "folds": {"0": dict(assignment)},
+    }
+
+
+def _fold_predicting(arm_dir, groups, manifest):
+    """One fold whose predictions name ``groups`` as its test side."""
+    write_fold_predictions(
+        arm_dir,
+        repeat=0,
+        fold=0,
+        arm="cnn",
+        classes=["Arenosa", "Argilosa"],
+        records=[
+            {"path": f"{g}.jpg", "group": g, "label": 0, "probabilities": [1.0, 0.0]}
+            for g in groups
+        ],
+        shuffled_control=False,
+        manifest_digest=DIGEST,
+    )
+    directory = fold_directory(arm_dir, 0, 0)
+    (directory / "config.json").write_text(json.dumps(CFG), encoding="utf-8")
+    (directory / RUNTIME_FILENAME).write_text(json.dumps(RUNTIME), encoding="utf-8")
+    write_fold_cost(arm_dir, 0, 0, trainings=1, seconds=[1.0])
+    return directory
+
+
+def test_a_fold_drawn_over_another_partition_is_stale(tmp_path):
+    """The path string was incidentally guarding the partition. Something must.
+
+    `manifest_digest` is a digest of `manifest.csv` — it identifies the dataset
+    *listing*, not the partition drawn over it. The partition is not a function
+    of the configuration either: `StratifiedGroupKFold` assigns differently
+    across scikit-learn releases, which is why the fold manifest records
+    `library_versions` at all.
+
+    So excluding `splits_dir` from the reuse comparison removed the only thing
+    that made a fold from a different partition stale, and a reused fold could
+    have trained on groups that are now its test side. Verified by content
+    rather than by a new field, so the folds that already exist — including the
+    26.5 hours this change exists to recover — can be checked too.
+    """
+    mine = _manifest_with_groups({"a": 0, "b": 0, "c": 1, "d": 1})
+    theirs_test_side = ["c", "d"]  # fold 0 of a partition that put a, b in fold 1
+
+    arm_dir = tmp_path / "cnn"
+    _fold_predicting(arm_dir, theirs_test_side, mine)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+        fold_manifest=mine,
+    )
+
+    assert state is FoldReuse.STALE, reason
+    assert "partition" in reason or "test side" in reason
+
+
+def test_a_fold_drawn_over_this_partition_is_reusable(tmp_path):
+    """The companion: the check accepts the fold it is meant to accept."""
+    mine = _manifest_with_groups({"a": 0, "b": 0, "c": 1, "d": 1})
+
+    arm_dir = tmp_path / "cnn"
+    _fold_predicting(arm_dir, ["a", "b"], mine)
+
+    state, reason = fold_reuse_state(
+        arm_dir, 0, 0,
+        cfg=CFG, manifest_digest=DIGEST, arm="cnn", shuffled_control=False,
+        fold_manifest=mine,
+    )
+
+    assert state is FoldReuse.REUSABLE, reason
