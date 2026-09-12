@@ -42,13 +42,21 @@ a path and whose difference does matter. The four are listed, and a test asserts
 the list is the four `resolve_paths` actually rewrites, so adding a fifth to that
 function without deciding about it here fails.
 
-**What makes the exclusion safe is that something else already guards the data.**
-The worry is that two different `datasets_dir` values point at genuinely
-different datasets, and the path is what would have caught it. It is not:
+**What the exclusion gives up, stated at its true size.** The worry is that two
+different `datasets_dir` values point at genuinely different datasets, and the
+path is what would have caught it. Part of that is already covered:
 `fold_reuse_state` compares `manifest_digest` before it reaches the
-configuration at all (`crossval.py:55`), and that digest is over the dataset
-manifest's own bytes. A different dataset under the same path is caught; the
-same dataset under a different path is what this stops refusing.
+configuration at all (`crossval.py:55`), so a different dataset *listing* under
+the same path is refused, and the same listing under a different path is what
+this stops refusing.
+
+The rest is not covered by the digest and was found by review rather than by
+this draft. The digest is over `manifest.csv`, so it says nothing about the
+partition drawn over it and nothing about the image bytes. The partition is
+replaced by a real check — see "The exclusion removed a guard" below. The image
+bytes are a recorded gap: two roots with a byte-identical manifest and
+re-encoded JPEGs now compare equal, where the path string previously refused
+them by accident.
 
 ### An arm that did not run is recorded, not raised
 
@@ -184,6 +192,57 @@ workaround an operator has to know, and it is not the criterion.
   never handed an entry without a `p_value`, which today raises `KeyError`
   inside it.
 
+Six criteria were added during implementation, by the adversarial review that
+stood in for R2. Each closes a hole this specification's first draft left, and
+they are recorded here rather than shipped as tests nothing specifies:
+
+- `the_loading_step_does_not_raise_on_an_absent_arm` — **the defect this change
+  claimed to fix was not fixed.** `evaluate` built its predictions by calling
+  `load_arm_predictions` for every registered arm, and that refuses an arm with
+  any fold missing, so `contrast_results` was never reached from the entry point
+  anybody uses. The recording was real and unreachable. The loading step is now
+  `executed_predictions`, extracted so it can be asserted without the ingested
+  dataset.
+- `an_arm_whose_predictions_are_empty_is_absent` — the predicate was key
+  presence, and `pooled_group_correctness({})` returns an empty mapping: an arm
+  with no predictions is a key that *is* there. It is emptiness.
+- `printing_a_not_executed_contrast_does_not_raise` — `_print_contrasts` reads
+  the same keys the correction does and runs **after** `contrasts.json` is
+  written, so the unguarded shape this spec analysed for Holm appeared a second
+  place and would have left the artifact on disk beside a traceback.
+- `a_started_arm_is_not_reported_as_never_started` — "never ran" and "ran and
+  stopped" are different facts, and an absence indistinguishable from a deletion
+  is a researcher degree of freedom: an arm whose numbers disappointed could be
+  removed and re-reported as never executed.
+- `a_family_whose_contrasts_all_went_unrun_reads_zero` and
+  `the_registered_family_is_recorded_beside_the_corrected_one` — the registered
+  family size is written beside the corrected one, so 3-registered / 2-corrected
+  is legible in the artifact rather than only in this document.
+- `a_fold_drawn_over_another_partition_is_stale` and its companion — see below.
+
+### The exclusion removed a guard, and it is replaced rather than mourned
+
+Excluding `data.splits_dir` took away the only thing that made a fold drawn over
+a **different partition** stale. Nothing else covered it: `manifest_digest` is a
+digest of `manifest.csv`, which identifies the dataset *listing* and not the
+partition drawn over it, and the partition is not a function of the
+configuration either — `StratifiedGroupKFold` assigns differently across
+scikit-learn releases, which is why the fold manifest records `library_versions`
+at all. A reused fold from another partition would put groups it trained on into
+its own test side, which is the leak the group protocol exists to prevent.
+
+The replacement verifies the partition **by content**: a fold records the groups
+it scored, and those are its test side. `_partition_disagreement` compares them
+against `fold_split`'s test side for that repeat and fold. No new field is
+needed, which matters because the folds this has to check were written before
+anyone thought to record one — among them the 26.5 hours being recovered. Where
+the manifest does not describe that fold at all the check stays silent, because
+having nothing to compare against is not a disagreement.
+
+This was verified against the real WSL2 folds before and after: their scored
+groups are identical to the committed partition's test side, and the partition
+signatures of the two `splits.json` files match exactly.
+
 ## Reproducibility
 
 ```sh
@@ -210,10 +269,17 @@ because it needs those directories present.
   asserts it rather than trusting it. What would invalidate it: a configuration
   key that is machine-local without going through `resolve_paths` — at which
   point a fold would be refused for a reason no one intended, loudly.
-- Assumption: `manifest_digest` is a sufficient guard that two folds describe
-  the same data. It is a SHA-256 over the dataset manifest's bytes and is
-  compared before the configuration, so the case the path was incidentally
-  guarding is already covered.
+- **Corrected during implementation.** This bullet claimed `manifest_digest` was
+  a sufficient guard that two folds describe the same data, and therefore that
+  the path was guarding nothing. It is a digest over `manifest.csv`, so it
+  guards that two folds describe the same *manifest*, which is less than the
+  spec assumed in two ways. It does not cover the partition — that is what
+  `_partition_disagreement` above now checks. And it does not cover the image
+  bytes: two roots with a byte-identical `manifest.csv` and re-encoded JPEGs
+  compare equal, where the path string previously refused them. That second gap
+  is recorded and not closed; closing it needs a content hash the manifest does
+  not carry, and it is not a gap this change opened alone — a re-encoded dataset
+  under the *same* path was already invisible.
 - Risk, accepted: a recovered fold's `runtime.json` may record a different
   library stack from the machine reading it. `require_uniform_runtime` refuses
   an arm whose own folds disagree, which is the guarantee that matters; across

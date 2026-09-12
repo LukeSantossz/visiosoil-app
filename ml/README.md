@@ -394,8 +394,17 @@ python -m src.evaluate --version v1 --contrasts      # the registered family
 each repeat's pooled group accuracy, the median and range across repeats,
 per-class figures flagged `"headline": false`, and what the run cost in
 trainings and wall-clock seconds. `--contrasts` writes `models/v1/contrasts.json`
-with each registered contrast's discordant counts, exact McNemar p-value, its
-Holm-corrected value and its minimum detectable effect.
+with an entry per registered contrast. A **computed** one carries its discordant
+counts, exact McNemar p-value, Holm-corrected value and minimum detectable
+effect. One naming an arm that did not run carries `outcome: "not_executed"`,
+the arms that are missing, their execution state — `never_started` and
+`incomplete` are different facts — and **no statistic at all**, because
+computing one against an empty arm would return p = 1.0 and read as a tie.
+
+The file records `registered_families` beside `families`: Holm corrects over the
+contrasts that ran, so a family registered with three and corrected over two is
+a deviation from the pre-registration, and both numbers are written down rather
+than one of them inferred.
 
 ## Export to TFLite
 
