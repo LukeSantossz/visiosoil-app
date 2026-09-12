@@ -271,6 +271,53 @@ MACHINE_LOCAL_CONFIG_KEYS = (
 )
 
 
+def _partition_disagreement(
+    header: Mapping, fold_manifest: Mapping, repeat: int, fold: int
+) -> str:
+    """Why this fold belongs to a different partition, or "" when it does not.
+
+    Compared by **content**, against the groups the fold actually scored, rather
+    than by a digest recorded in some new field: the folds this exists to check
+    were written before anyone thought to record one, and among them are the
+    26.5 hours SPEC 0063 recovers.
+
+    It is needed because excluding `data.splits_dir` from the configuration
+    comparison removed the only thing that made a fold from another partition
+    stale. Nothing else covers it: `manifest_digest` is a digest of
+    `manifest.csv`, which identifies the dataset *listing* and not the partition
+    drawn over it, and the partition is not a function of the configuration —
+    `StratifiedGroupKFold` assigns differently across scikit-learn releases,
+    which is why the fold manifest records `library_versions` at all.
+
+    What a disagreement means is the leak the group protocol exists to prevent:
+    groups the reused model trained on would become its test side.
+    """
+    from .dataset import fold_split
+
+    scored = {record["group"] for record in header.get("predictions", [])}
+    if not scored:
+        return ""
+
+    try:
+        expected = {entry["group"] for entry in fold_split(fold_manifest, repeat, fold)["test"]}
+    except (KeyError, ValueError):
+        return ""
+
+    # An empty expected side is not a disagreement: the manifest does not
+    # describe this fold, so the check has nothing to speak about and must not
+    # invent a refusal. Silence here is the same discipline as returning "" for
+    # a fold that recorded no groups.
+    if not expected or scored == expected:
+        return ""
+
+    moved = len(scored ^ expected)
+    return (
+        f"it scored a different test side from this partition — {moved} group(s) "
+        f"differ — so it was drawn over another set of folds and reusing it "
+        f"would put groups it trained on into its own test side"
+    )
+
+
 def comparable_config(cfg: Mapping) -> dict:
     """``cfg`` as the reuse check compares it: machine-local keys removed.
 
@@ -295,6 +342,7 @@ def fold_reuse_state(
     manifest_digest: str,
     arm: str,
     shuffled_control: bool,
+    fold_manifest: Mapping | None = None,
 ) -> tuple[FoldReuse, str]:
     """Classify one fold directory, and say why (SPEC 0056).
 
@@ -365,6 +413,11 @@ def fold_reuse_state(
             recorded_config = json.load(handle)
     except (json.JSONDecodeError, UnicodeDecodeError):
         return FoldReuse.STALE, f"its {CONFIG_FILENAME} does not parse"
+    if fold_manifest is not None:
+        moved = _partition_disagreement(header, fold_manifest, repeat, fold)
+        if moved:
+            return FoldReuse.STALE, moved
+
     if comparable_config(recorded_config) != comparable_config(cfg):
         return (
             FoldReuse.STALE,
@@ -453,6 +506,7 @@ def plan_arm_run(
             manifest_digest=fold_manifest["manifest_digest"],
             arm=arm,
             shuffled_control=shuffled_control,
+            fold_manifest=fold_manifest,
         )
         if state is FoldReuse.REUSABLE:
             reuse.append((repeat, fold))
@@ -715,6 +769,40 @@ def load_arm_predictions(
                     costs[(repeat, fold)] = json.load(handle)
 
     return predictions, costs
+
+
+def arm_execution(
+    arm_dir: Path | str, fold_manifest: Mapping
+) -> tuple[str, list[tuple[int, int]]]:
+    """Whether an arm ran, and which of its folds are missing.
+
+    Three states, kept apart because they mean different things to SPEC 0044's
+    condition 1 and an absence that cannot be told from a deletion is a
+    researcher degree of freedom:
+
+    - ``"complete"``: every fold of the protocol has predictions.
+    - ``"never_started"``: the arm directory holds none of them.
+    - ``"incomplete"``: some folds are present and some are not, which is a run
+      that stopped rather than one that never happened.
+
+    Reading this is what lets `evaluate` report an arm as not executed instead
+    of raising on the first missing file. `load_arm_predictions` still refuses a
+    partial arm, because a pooled figure over twenty-four of twenty-five folds
+    is not the figure the protocol defines.
+    """
+    arm_path = Path(arm_dir)
+    missing = [
+        (repeat, fold)
+        for repeat in range(fold_manifest["repeats"])
+        for fold in range(fold_manifest["k"])
+        if not (fold_directory(arm_path, repeat, fold) / PREDICTIONS_FILENAME).exists()
+    ]
+
+    if not missing:
+        return "complete", []
+    if len(missing) == fold_manifest["repeats"] * fold_manifest["k"]:
+        return "never_started", missing
+    return "incomplete", missing
 
 
 def run_arm(
