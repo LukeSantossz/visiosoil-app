@@ -374,8 +374,9 @@ def _not_executed(
         # never executed. Recording the state is what makes that visible.
         "execution": states,
         "note": (
-            f"{', '.join(absent)} has no complete set of predictions, so this "
-            f"contrast was not computed and is not a result. Run: {remedy}"
+            f"{', '.join(absent)} {'have' if len(absent) > 1 else 'has'} no "
+            f"complete set of predictions, so this contrast was not computed "
+            f"and is not a result. Run: {remedy}"
         ),
     }
 
