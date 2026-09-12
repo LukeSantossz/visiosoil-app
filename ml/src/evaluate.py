@@ -201,6 +201,7 @@ def contrast_results(
     *,
     alpha: float,
     power: float,
+    execution: Mapping[str, str] | None = None,
 ) -> dict:
     """Compute every registered contrast from the arms' pooled predictions.
 
@@ -235,9 +236,13 @@ def contrast_results(
     computed = []
     for contrast in registry:
         first, second = contrast["arms"]
-        absent = [arm for arm in (first, second) if arm not in correctness]
+        # Emptiness, not key presence. `pooled_group_correctness({})` returns an
+        # empty mapping, so an arm with no predictions is a key that *is* there
+        # and scores nothing — `one_contrast` then refuses it for the unrelated
+        # reason that the two arms were "not scored on the same groups".
+        absent = [arm for arm in (first, second) if not correctness.get(arm)]
         if absent:
-            results.append(_not_executed(contrast, absent, fold_manifest))
+            results.append(_not_executed(contrast, absent, fold_manifest, execution))
             continue
         record = one_contrast(
             contrast, correctness[first], correctness[second], alpha, power
@@ -256,9 +261,19 @@ def contrast_results(
     # the other.
     _apply_holm_within_families(computed)
 
-    families: dict[str, int] = {}
+    # Seeded from the registry so a family whose every contrast was not executed
+    # reads 0 rather than vanishing. "The family had no members" and "the family
+    # does not exist" are different facts, and a verdict reading `families` to
+    # state what was corrected needs the first one said out loud.
+    families: dict[str, int] = {entry["family"]: 0 for entry in registry}
     for contrast in computed:
-        families[contrast["family"]] = families.get(contrast["family"], 0) + 1
+        families[contrast["family"]] += 1
+
+    registered_families: dict[str, int] = {}
+    for entry in registry:
+        registered_families[entry["family"]] = (
+            registered_families.get(entry["family"], 0) + 1
+        )
 
     not_executed = sorted(
         {
@@ -276,18 +291,61 @@ def contrast_results(
         "power": power,
         "unit": "sample group",
         # Counted over the contrasts that were computed, which is what Holm
-        # corrected over. Where this disagrees with the registered family size
-        # the difference is an arm that did not run, and `not_executed` names
-        # it — a verdict quoting `families` without it would be quoting a
-        # correction whose basis it had not stated.
+        # corrected over. Where this disagrees with `registered_families` the
+        # difference is an arm that did not run, and `not_executed` names it —
+        # a verdict quoting `families` without it would be quoting a correction
+        # whose basis it had not stated.
         "families": families,
+        # The family as pre-registered, recorded beside the one that was
+        # corrected. SPEC 0044 fixes four contrasts before the first run, and
+        # correcting over three is a deviation from that registration; a reader
+        # must be able to see both numbers without opening `config.yaml`.
+        "registered_families": registered_families,
+        "registered_contrasts": [entry["name"] for entry in registry],
         "not_executed": not_executed,
         "contrasts": results,
     }
 
 
+def executed_predictions(
+    registry: Sequence[Mapping], output_dir, fold_manifest: Mapping
+) -> tuple[dict, dict[str, str]]:
+    """Predictions for the arms that ran, and every registered arm's state.
+
+    Extracted from :func:`evaluate` so the step can be tested. It was inline,
+    and it was where the defect lived: it called `load_arm_predictions` for
+    every registered arm, and that refuses a partial arm by design — a pooled
+    figure over twenty-four of twenty-five folds is not the figure the protocol
+    defines. One absent arm therefore raised before any contrast was computed,
+    including the contrasts whose two arms were both on disk. SPEC 0044 wants
+    that arm recorded, not raised.
+
+    Inline it was also untestable without the ingested dataset, because
+    :func:`evaluate` reaches the fold manifest through `load_folds_for_config`.
+    Here it takes the manifest as an argument and opens nothing but the arm
+    directories, so the criterion is asserted where CI runs.
+    """
+    from .crossval import arm_directory, arm_execution, load_arm_predictions
+
+    predictions_by_arm: dict = {}
+    execution: dict[str, str] = {}
+
+    for name in sorted({name for entry in registry for name in entry["arms"]}):
+        state, _ = arm_execution(arm_directory(output_dir, name), fold_manifest)
+        execution[name] = state
+        if state == "complete":
+            predictions_by_arm[name] = load_arm_predictions(
+                arm_directory(output_dir, name), fold_manifest
+            )[0]
+
+    return predictions_by_arm, execution
+
+
 def _not_executed(
-    contrast: Mapping, absent: Sequence[str], fold_manifest: Mapping
+    contrast: Mapping,
+    absent: Sequence[str],
+    fold_manifest: Mapping,
+    execution: Mapping[str, str] | None = None,
 ) -> dict:
     """A contrast that was not computed, because an arm it names never ran.
 
@@ -297,16 +355,27 @@ def _not_executed(
     0044 forbids: an arm that never ran reported as having not lost.
     """
     version = fold_manifest.get("dataset_version")
+    states = {arm: (execution or {}).get(arm, "unknown") for arm in absent}
+    # Every absent arm named, not only the first: a contrast between two arms
+    # that both failed to run would otherwise send the reader after one of them
+    # and leave the other to be discovered on the next attempt.
+    remedy = "; ".join(
+        f"python -m src.crossval --version {version} --arm {arm}" for arm in absent
+    )
     return {
         "name": contrast["name"],
         "arms": list(contrast["arms"]),
         "family": contrast["family"],
         "outcome": "not_executed",
         "not_executed_arms": list(absent),
+        # "never started" and "started and stopped" are different facts, and an
+        # absence that cannot be told from a deletion is a degree of freedom:
+        # an arm whose numbers disappointed could be removed and re-reported as
+        # never executed. Recording the state is what makes that visible.
+        "execution": states,
         "note": (
-            f"{', '.join(absent)} has no predictions, so this contrast was not "
-            f"computed and is not a result. Run it with: "
-            f"python -m src.crossval --version {version} --arm {absent[0]}"
+            f"{', '.join(absent)} has no complete set of predictions, so this "
+            f"contrast was not computed and is not a result. Run: {remedy}"
         ),
     }
 
@@ -380,19 +449,16 @@ def evaluate(
                 "ml/config.yaml before the run"
             )
 
-        arms = sorted({name for entry in registry for name in entry["arms"]})
-        predictions_by_arm = {
-            name: load_arm_predictions(
-                arm_directory(output_dir, name), fold_manifest
-            )[0]
-            for name in arms
-        }
+        predictions_by_arm, execution = executed_predictions(
+            registry, output_dir, fold_manifest
+        )
         results = contrast_results(
             registry,
             predictions_by_arm,
             fold_manifest,
             alpha=evaluation["alpha"],
             power=evaluation["power"],
+            execution=execution,
         )
         destination = output_dir / CONTRASTS_FILENAME
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -701,6 +767,18 @@ def _print_contrasts(results: Mapping, path: Path) -> None:
     print(f"Pre-registered contrasts — unit: {results['unit']}")
     print(f"{'=' * 50}")
     for contrast in results["contrasts"]:
+        # A not-executed contrast carries no statistic at all, so every key
+        # below is absent for it. The same unguarded-key shape as
+        # `_apply_holm_within_families`, and this is the second place it
+        # appears: printing after the file is written would have left the
+        # artifact on disk and the process dead in a traceback.
+        if contrast.get("outcome") == "not_executed":
+            missing = ", ".join(contrast["not_executed_arms"])
+            print(
+                f"{contrast['name']} ({contrast['family']}): not executed — "
+                f"{missing} has no complete set of predictions"
+            )
+            continue
         mde = contrast["minimum_detectable_effect"]
         rendered = "not detectable at any size" if mde is None else f"{mde:.4f}"
         print(
@@ -709,6 +787,16 @@ def _print_contrasts(results: Mapping, path: Path) -> None:
             f"p {contrast['p_value']:.4g}, Holm {contrast['p_value_holm']:.4g}, "
             f"MDE {rendered} over {contrast['pairs']} pair(s)"
         )
+
+    registered = results.get("registered_families", {})
+    corrected = results.get("families", {})
+    for family, size in sorted(registered.items()):
+        if corrected.get(family, 0) != size:
+            print(
+                f"note: the {family} family registered {size} contrast(s) and "
+                f"{corrected.get(family, 0)} were corrected over; the "
+                f"difference is an arm that did not run"
+            )
     print(f"contrasts saved to {path}")
 
 

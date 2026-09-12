@@ -984,19 +984,211 @@ def test_holm_corrects_over_the_computed_contrasts_only(folds):
 
 
 def test_a_not_executed_contrast_does_not_reach_the_correction(folds):
-    """The correction reads `p_value` unguarded, so it must never see one.
+    """Pin the coupling: the correction cannot survive a not-executed entry.
 
-    Asserted by making every computed contrast absent: the correction is then
-    handed an empty family, which is the boundary a `KeyError` would surface at.
+    Rewritten after an adversarial review showed the first version asserted
+    nothing new — it handed Holm an *empty* family, which exercises no boundary,
+    and the one mutation it caught was already caught next door.
+
+    What it pins now is the constraint itself. `_apply_holm_within_families`
+    reads `p_value` unguarded, so keeping not-executed entries out of the list
+    is not a preference — it is the only thing standing between this module and
+    a `KeyError`. A later reader tempted to "simplify" by passing `results`
+    instead of `computed` fails here, and the failure says why.
+    """
+    from src.evaluate import _apply_holm_within_families, _not_executed
+
+    entry = _not_executed(
+        {"name": "absent_vs_other", "arms": ["absent", "other"], "family": "primary"},
+        ["absent", "other"],
+        folds,
+    )
+
+    assert "p_value" not in entry
+    with pytest.raises(KeyError):
+        _apply_holm_within_families([entry])
+
+    # And the whole-family case still reports, rather than raising.
+    results = contrast_results(
+        [{"name": "absent_vs_other", "arms": ["absent", "other"], "family": "primary"}],
+        {},
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+    only = results["contrasts"][0]
+    assert only["outcome"] == "not_executed"
+    assert sorted(only["not_executed_arms"]) == ["absent", "other"]
+
+
+# --- SPEC 0063: the path `evaluate` actually takes --------------------------
+
+
+def _arm_on_disk(output_dir, arm, folds, *, complete=True):
+    """One arm's prediction files, as `run_arm` leaves them."""
+    from src.crossval import arm_directory, write_fold_predictions
+
+    arm_dir = arm_directory(output_dir, arm)
+    for repeat in range(folds["repeats"]):
+        for fold in range(folds["k"]):
+            if not complete and (repeat, fold) == (0, 0):
+                continue
+            write_fold_predictions(
+                arm_dir,
+                repeat=repeat,
+                fold=fold,
+                arm=arm,
+                classes=list(folds["classes"]),
+                records=[
+                    {
+                        "path": "a.jpg",
+                        "group": "g",
+                        "label": 0,
+                        "probabilities": [1.0] + [0.0] * (len(folds["classes"]) - 1),
+                    }
+                ],
+                shuffled_control=False,
+                manifest_digest=folds["manifest_digest"],
+            )
+    return arm_dir
+
+
+def test_the_loading_step_does_not_raise_on_an_absent_arm(tmp_path, folds):
+    """The defect lived here, not in `contrast_results`.
+
+    `evaluate` built `predictions_by_arm` by calling `load_arm_predictions` for
+    every registered arm, and that refuses an arm with any fold missing. So the
+    recording `contrast_results` learned to do was never reached from the entry
+    point anybody uses, and the first version of this change fixed a function
+    nothing but its own tests called.
+    """
+    from src.evaluate import executed_predictions
+
+    registry = [
+        {"name": "ran_vs_control", "arms": ["ran", "control"], "family": "primary"},
+        {"name": "absent_vs_control", "arms": ["absent", "control"], "family": "primary"},
+    ]
+    _arm_on_disk(tmp_path, "ran", folds)
+    _arm_on_disk(tmp_path, "control", folds)
+
+    predictions_by_arm, execution = executed_predictions(registry, tmp_path, folds)
+
+    assert sorted(predictions_by_arm) == ["control", "ran"]
+    assert execution["absent"] == "never_started"
+    assert execution["ran"] == "complete"
+
+
+def test_a_started_arm_is_not_reported_as_never_started(tmp_path, folds):
+    """"Never ran" and "ran and stopped" are different facts.
+
+    An absence that cannot be told from a deletion is a degree of freedom: an
+    arm whose numbers disappointed could be removed and re-reported as one that
+    was never executed. The state is recorded so that is visible.
+    """
+    from src.crossval import arm_execution
+
+    _arm_on_disk(tmp_path, "partial", folds, complete=False)
+
+    state, missing = arm_execution(tmp_path / "partial", folds)
+
+    assert state == "incomplete"
+    assert missing == [(0, 0)]
+
+
+def test_an_arm_whose_predictions_are_empty_is_absent(folds):
+    """Emptiness, not key presence.
+
+    `pooled_group_correctness({})` returns an empty mapping, so an arm with no
+    predictions is a key that *is* there and scores nothing. Testing `not in`
+    let it through, and `one_contrast` then refused it for the unrelated reason
+    that the two arms "were not scored on the same groups".
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+        "hollow": {},
+    }
+    registry = [
+        {"name": "hollow_vs_control", "arms": ["hollow", "control"], "family": "primary"},
+    ]
+
+    results = contrast_results(
+        registry, predictions_by_arm, folds, alpha=0.05, power=0.80
+    )
+
+    assert results["contrasts"][0]["outcome"] == "not_executed"
+    assert results["contrasts"][0]["not_executed_arms"] == ["hollow"]
+
+
+def test_a_family_whose_contrasts_all_went_unrun_reads_zero(folds):
+    """"No members" and "no such family" are different facts.
+
+    A verdict reading `families` to state what Holm corrected over needs the
+    first one said out loud, not inferred from a missing key.
     """
     registry = [
         {"name": "absent_vs_other", "arms": ["absent", "other"], "family": "primary"},
     ]
 
+    results = contrast_results(registry, {}, folds, alpha=0.05, power=0.80)
+
+    assert results["families"] == {"primary": 0}
+    assert results["registered_families"] == {"primary": 1}
+
+
+def test_the_registered_family_is_recorded_beside_the_corrected_one(folds):
+    """4 registered and 3 corrected must be legible without opening config.yaml.
+
+    Dropping a pre-registered contrast is a deviation from the registration.
+    It is the right call — Holm corrects for tests conducted — but a reader who
+    cannot see both numbers cannot tell a principled adjustment from a family
+    that was quietly resized after the p-values were visible.
+    """
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+
     results = contrast_results(
-        registry, {}, folds, alpha=0.05, power=0.80
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
     )
 
-    only = results["contrasts"][0]
-    assert only["outcome"] == "not_executed"
-    assert sorted(only["not_executed_arms"]) == ["absent", "other"]
+    assert results["registered_families"] == {"primary": 2}
+    assert results["families"] == {"primary": 1}
+    assert results["registered_contrasts"] == [
+        "strong_vs_control",
+        "absent_vs_control",
+    ]
+
+
+def test_printing_a_not_executed_contrast_does_not_raise(folds, capsys):
+    """The printer reads the same keys the correction does, and runs later.
+
+    `contrasts.json` is written before the summary is printed, so an unguarded
+    key here left the artifact on disk and killed the process in a traceback —
+    the worst of both. Same shape as `_apply_holm_within_families`, second
+    place it appears.
+    """
+    from src.evaluate import _print_contrasts
+
+    predictions_by_arm = {
+        "strong": fabricate(folds, correct_rate=1.0),
+        "control": fabricate(folds, correct_rate=0.2, seed=13),
+    }
+    results = contrast_results(
+        _registry_with_an_absent_arm(),
+        predictions_by_arm,
+        folds,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    _print_contrasts(results, Path("contrasts.json"))
+
+    printed = capsys.readouterr().out
+    assert "not executed" in printed
+    assert "registered 2 contrast(s) and 1 were corrected" in printed
