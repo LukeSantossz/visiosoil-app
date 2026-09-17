@@ -13,7 +13,13 @@ stance, grounding in citable sources, the abstain-or-emit rule, credentials
 living server-side, and the app↔proxy HTTP contract as the stable boundary. The
 app-side implementation built against that contract — `ResearchService`,
 `ProxyResearchService`, the `management_tips` table, the repository, the
-providers and the Details section — remains correct and is not rebuilt.
+providers and the Details section — is the baseline its successor builds on, not
+a layer it replaces: none of it is discarded, and none of it is left untouched
+either. ADR 0022's delivery slices repurpose `ProxyResearchService` from
+per-record tips to corpus fetch, put a local composer behind the same
+`ResearchService` seam, give `management_tips` a corpus-version column, and
+extend what the Details section renders. **The seam is what survives unedited**,
+and that is what makes the migration cheap.
 
 Three of its decisions did not survive re-audit in September 2026:
 
@@ -21,7 +27,7 @@ Three of its decisions did not survive re-audit in September 2026:
 |---|---|
 | Groq's `llama-3.3-70b-versatile` on the free tier | Announced deprecated 2026-06-17 and shut down 2026-08-16 for free and developer tiers |
 | A ten-step corrective-RAG chain per request, on a free tier | The published free daily token ceiling admits roughly four to seven requests per day across all users |
-| That chain reached through `ProxyResearchService` | Its fifteen model calls do not complete within the client's 20-second timeout, so every request would time out and retry twice |
+| That chain reached through `ProxyResearchService` | Its roughly fifteen model calls do not complete within the client's 20-second timeout, so every request would time out and retry twice |
 
 The pipeline design itself was not the error. ADR 0022 keeps it and moves it to
 build time, where its cost is proportional to a fixed corpus rather than to

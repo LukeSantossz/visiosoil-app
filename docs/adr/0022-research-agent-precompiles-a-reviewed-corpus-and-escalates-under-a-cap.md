@@ -52,13 +52,18 @@ not affected." The recommended replacements are `openai/gpt-oss-120b` and
 **The pipeline tier does not fit the free tier it was chosen for.** Groq's free
 limits for `gpt-oss-120b` are 30 requests per minute, 1,000 requests per day,
 8,000 tokens per minute and 200,000 tokens per day, at organisation scope. The
-ten-step pipeline in ADR 0001 issues roughly fifteen model calls per request —
-one query transformation, one grading call per candidate document, one
-generation, two graders and three consistency samples — over a context dominated
-by fetched source text. At an estimated 53,000 tokens per request, the daily
-token ceiling admits **about four requests per day across all users**; dropping
-consistency sampling raises it to about seven. The token estimate is this
-record's own and is not measured; the ceiling it is divided into is published.
+ten-step pipeline in ADR 0001 issues one query transformation, one grading call
+per candidate document, one generation, two graders and three consistency
+samples — `7 + candidates` model calls over a context dominated by fetched
+source text. ADR 0001 fixes no candidate-document count, so this record assumes
+**eight graded candidates**, which makes it roughly fifteen calls at an estimated
+53,000 tokens per request. At that estimate the daily token ceiling admits
+**about four requests per day across all users**; dropping consistency sampling
+raises it to about seven. Both the candidate count and the token figure are this
+record's own assumptions and are not measured; the ceiling they are divided into
+is published. A smaller candidate set lowers calls and tokens together — five
+candidates give twelve calls — and moves the ceiling into the high single
+digits, which is the same conclusion.
 Tavily's free tier, at 1,000 credits per month against three searches per
 request, is not the binding constraint. Groq's daily token budget is.
 
@@ -140,6 +145,12 @@ Clima Temperado).
 | Land-use overlay | 5 | What the dominant constraint becomes under that use |
 | Institutional overlay | 27 federative units, plus a 6-entry biome→Embrapa-unit table | State agency, extension service, the regional Embrapa unit |
 
+The **44 artifacts** counted for review and for the budget are the 12 substance
+cells, the 5 land-use overlays and the 27 unit overlays. The 6-entry
+biome→Embrapa-unit table is a lookup rather than generated guidance: it is read
+once as part of the corpus review, and it is not one of the 44 or a line in the
+budget.
+
 A lookup composes the three deterministically, with no model. The clay-activity
 family and the biome are both resolved on device from the coordinate; the
 federative unit comes from the address the app already derives; land use is the
@@ -182,7 +193,8 @@ An ambiguous verdict is deliberately **not** an escalation. Two candidate classe
 are two Tier 1 lookups, rendered as two readings rather than merged into one
 answer. That is free, offline and already reviewed; what it gives up is synthesis
 of the two, and the fallback if that proves inadequate is precomputing the six
-class pairs per biome.
+class pairs per clay-activity family — eighteen cells, costed in the
+architecture document's budget section.
 
 Tier 2 must not offer to research a record whose classification never ran. ADR
 0011 and ADR 0015 bind here: `notAnalysed` conflates six causes, and no surface
@@ -288,10 +300,14 @@ contract did not move at all.
 - **Biome alone** — rejected as losing the institutional layer. Which extension
   service a user should consult is a state fact.
 - **Full cross product of unit and biome** — rejected on review cost, not on
-  money. 208 reviewed artifacts against 51, with each agronomic correction
-  applied once per state rather than once per biome.
-- **Biome substance with a unit overlay, as decided** — chosen. It yields the
-  composite key at the review cost of the coarser one.
+  money. 208 reviewed artifacts against 51 under the biome key, and against the
+  44 that the clay-activity key below reduced it to, with each agronomic
+  correction applied once per state rather than once per biome.
+- **Clay-activity substance with unit and biome overlays, as decided** — chosen.
+  Keying substance by region at all yields the composite key at the review cost
+  of the coarser one; the 2026-09-11 review then moved substance off biome onto
+  clay activity, for the reason recorded above, and biome kept the institutional
+  layer it is actually a good key for.
 
 ### Live research
 
@@ -311,8 +327,9 @@ contract did not move at all.
 - **Guidance becomes reviewable before it is published**, and review becomes the
   release gate. This is a process obligation the previous design did not create:
   someone must read 44 artifacts, and a corpus release is blocked until they do.
-- **Specificity is capped at the corpus key.** Two records of the same class in
-  the same biome and state receive the same guidance. This is honest about what
+- **Specificity is capped at the corpus key.** Two records of the same class,
+  clay-activity family, federative unit, biome and land use receive the same
+  guidance. This is honest about what
   the inputs support — ADR 0001 said as much — but it is a real limitation and
   the interface must not imply otherwise.
 - **The corpus is coupled to the model's class list.** If a future ADR changes
