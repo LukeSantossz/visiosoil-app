@@ -1268,6 +1268,15 @@ released.
    ask grew on 2026-09-17**: with Tier 2 gone, a key the corpus does not cover no
    longer escalates, so "there is no coverage for this region" is an answer the
    surface must carry rather than a fallback behind a live request.
+6. **Offline no longer means "cannot answer".** New on 2026-09-17, found while
+   implementing SPEC 0066. `management_tips_section.dart` disables the refresh
+   button when the device is offline (`onPressed: online ? … : null`) and renders
+   a "Sem conexão" empty state. Both were correct while every result came from a
+   proxy. Tier 1 composes on the device, so an offline user can now be refused an
+   answer the app already holds. The controller's own connectivity gate was
+   removed for exactly this reason; this one is the surface's. Offline still
+   matters — it means the corpus cannot be *refreshed* — so the state does not
+   disappear, it changes meaning.
 5. **A land-use control: one tap, five options**, with declining allowed. The
    values are `native_vegetation`, `pasture`, `annual_crop`,
    `perennial_or_forest`, `exposed_or_degraded` (§5.3). It is asked at

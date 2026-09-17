@@ -9,35 +9,37 @@ and
 [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-09-17.
+Last updated: 2026-09-17. **A1 and A2 are done** (SPEC 0066): the app composes
+on the device and `researchServiceProvider` no longer returns
+`UnavailableResearchService`.
 
 ## 1. What exists today
 
-Verified by reading the files on 2026-09-17, not from memory. Everything below is
-on `main` and is covered by tests.
+Read from the files rather than remembered. The state below is after A1 and A2
+landed; everything is covered by tests.
 
 | File | What it does | State |
 |---|---|---|
-| `lib/core/services/research/research_service.dart` | The seam: `ResearchService.fetchTips`, `ResearchResult` sealed class, `ResearchFailureKind` with seven members, the `TokenProvider` typedef | Complete, unchanged by v1 except two added parameters (slice 6) |
-| `lib/core/services/research/proxy_research_service.dart` | HTTP transport: 20 s timeout, 3 attempts, typed failures, bearer token | Complete; **no caller until slice 8** |
-| `lib/core/services/research/http_transport.dart` | The injectable transport seam under `ProxyResearchService` | Complete |
-| `lib/core/services/research/unavailable_research_service.dart` | The safe default binding: no network call, reports `upstreamUnavailable` | Replaced in slice 6 |
-| `lib/core/services/research/management_tips_controller.dart` | Orchestration: validate, check connectivity, call the service, persist | **Changes in slice 6** — see §3 |
-| `lib/providers/research_service_provider.dart` | Binds the seam to `UnavailableResearchService` | Rebound in slice 6 |
-| `lib/providers/management_tips_controller_provider.dart` | Builds the controller | Gains the resolver in slice 6 |
-| `lib/providers/management_tips_repository_provider.dart` | Binds the repository | Unchanged |
-| `lib/models/management_tips_result.dart` | `ManagementTipsResult`, `ManagementTip`, `TipSource`, `ManagementTipsStatus` — **six fields on the result, two on a tip, four on a source** | **Extended in slice 9a** |
-| `lib/core/database/tables/management_tips_table.dart` | `management_tips`: `record_uuid` (PK), `payload_json`, `retrieved_at` | Gains one column in slice 7 |
-| `lib/core/data/repositories/management_tips_repository.dart` and its Drift implementation | Read-through cache over that table | Unchanged in shape |
-| `lib/core/features/details/management_tips_section.dart` | The result surface | **Owned by the UI/UX terminal** — not this workstream's to edit |
-| `test/support/management_tips_fakes.dart` | `FakeManagementTipsRepository`, `FakeResearchService`, `FakeConnectivityService` | Extended per slice |
-| `test/services/proxy_research_service_test.dart` | Transport behaviour | Unchanged |
+| `research_service.dart` | The seam: `fetchTips(record, {locale, site, landUse})`, `ResearchResult`, `ResearchFailureKind` | Complete for v1 |
+| `corpus_composer.dart` | `Corpus`, `CorpusCell` and the pure composition rule of §6.5 | Complete; pinned by `golden.json` |
+| `corpus_research_service.dart` | The Tier 1 binding: composes from the held corpus, no request at all | Complete |
+| `corpus_store.dart` | `CorpusStore` seam plus `AbsentCorpusStore`, the v1 binding | Loading and version comparison are A4's |
+| `region/site_resolver.dart`, `region/grid_site_resolver.dart` | `SiteResolver`, `PackedGrid` and the 27-unit address table | Complete; **both grids are optional and neither ships yet** |
+| `models/site_key.dart`, `models/land_use.dart` | `SiteKey`, `ClayActivity`, `Biome`, `LandUse` | Complete |
+| `models/management_tips_result.dart` | The result with all nine added fields and three statuses | Complete |
+| `management_tips_controller.dart` | Validate, resolve the site, call the service, persist. **No connectivity gate** | Complete for v1 |
+| `providers/research_service_provider.dart` | Binds the seam to `CorpusResearchService` | Complete |
+| `providers/corpus_store_provider.dart`, `providers/site_resolver_provider.dart` | The two new bindings | Rebound by A4 |
+| `proxy_research_service.dart`, `http_transport.dart` | HTTP transport: 20 s timeout, 3 attempts, typed failures | Complete; **no caller until A4** |
+| `unavailable_research_service.dart` | The old safe default | **Now unused** — kept until A4 proves the corpus path in the field |
+| `management_tips_table.dart` and its repository | Read-through cache: `record_uuid`, `payload_json`, `retrieved_at` | Gains one column in A3 |
+| `features/details/management_tips_section.dart` | The result surface | **Owned by the UI/UX terminal** — not this workstream's to edit |
+| `test/fixtures/corpus/` | `corpus.json`, `golden.json`, two `.bin` grids | Synthetic content, real shape |
 
-What does **not** exist: any corpus, any site resolver, any composer, any grid,
-`assets/corpus/`, `corpus/`, the proxy, and `test/fixtures/corpus/`.
+What does **not** exist: any real corpus, any real grid, `assets/corpus/`,
+`corpus/`, and the proxy.
 
-Schema version is **4**. `ManagementTipsStatus` has two members, `grounded` and
-`abstained`; §7 requires a third, `insufficient_evidence`.
+Schema version is **4**; A3 takes it to 5.
 
 ## 2. How to read this map
 
@@ -56,7 +58,7 @@ No proxy, no model, no network, no spend. This lane is what turns
 
 ### A1 — slice 9a: the result carries what composition produces
 
-**Ready.** Files: `lib/models/management_tips_result.dart`,
+**Done, SPEC 0066.** Files: `lib/models/management_tips_result.dart`,
 `test/models/management_tips_result_test.dart`.
 
 Adds the nine fields of §7 with the defaults §19.1 fixes: `category` and
@@ -78,7 +80,18 @@ with the documented defaults; an unknown `category` string does not throw.
 
 ### A2 — slice 6: the site key and the composition rule
 
-**Ready after A1.** New files:
+**Done, SPEC 0066**, with two deviations from the plan below, both recorded in
+that spec's commits rather than discovered later:
+
+- `ProxyResearchService` and `UnavailableResearchService` were touched after all.
+  `ResearchService.fetchTips` gained two named parameters, so every implementer
+  had to follow; the change is a signature and a comment in each, and no
+  behaviour moved.
+- The grids are **optional** on `GridSiteResolver`. They are a build product that
+  arrives with A4, and the federative unit resolves from the address without
+  them, so the resolver ships useful rather than waiting.
+
+New files:
 
 | File | Contents |
 |---|---|
@@ -118,7 +131,12 @@ empty composition yields `insufficient_evidence` with a non-empty disclaimer.
 
 ### A3 — slice 7: the cache records which corpus answered
 
-**Ready after A2.** Files: `management_tips_table.dart`, `app_database.dart`
+**Ready — this is the next slice.** It also carries a wart A2 introduced
+deliberately: an absent-corpus result is cached like any other, so a device that
+cached "no coverage" keeps showing it until the user refreshes, even after a
+corpus ships. A3 owns the staleness comparison, which is where the fix belongs;
+its `corpus_version` column is what makes the comparison possible.
+ Files: `management_tips_table.dart`, `app_database.dart`
 (schema 4 → 5), `drift_management_tips_repository.dart`, the generated Drift code,
 and a migration test.
 
@@ -148,9 +166,19 @@ exists.
 
 **Blocked — not this workstream's.** `management_tips_section.dart` belongs to
 the UI/UX terminal. What this workstream owes it is recorded in §18.2 of the
-design reference, and one item changed on 2026-09-17: with Tier 2 out of v1, the
-durable cap-exhaustion state is **withdrawn** as an ask, and the absent-coverage
-statement becomes the only new state the surface must carry.
+design reference, and two items changed on 2026-09-17.
+
+With Tier 2 out of v1, the durable cap-exhaustion state is **withdrawn** as an
+ask, and the absent-coverage statement becomes the only new state the surface
+must carry.
+
+And A2 falsified an assumption that surface still holds: **it disables the
+refresh button when the device is offline** (`onPressed: online ? … : null`) and
+renders a "Sem conexão" empty state. Both were right while every result came from
+a proxy. Tier 1 composes on the device, so an offline user can now be refused an
+answer the app already has. The controller's own gate was removed by A2; this one
+is the UI terminal's, and it is the last place where offline still means "cannot
+answer" instead of "cannot refresh".
 
 ## 4. Lane B — the corpus is built
 
