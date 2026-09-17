@@ -1,4 +1,6 @@
+import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
+import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Supplies the bearer token for a proxy request, or null when the caller is
@@ -65,5 +67,16 @@ abstract class ResearchService {
   /// Requests cited tips for [record]. [locale] selects the response language
   /// (defaults to `pt-BR` when null). Returns a typed [ResearchResult]; never
   /// throws into the caller.
-  Future<ResearchResult> fetchTips(SoilRecord record, {String? locale});
+  ///
+  /// [site] is the resolved corpus key and [landUse] the one part of it the
+  /// user supplies. Both are resolved by the caller rather than here: resolving
+  /// is orchestration, `ManagementTipsController` already owns orchestration,
+  /// and keeping the resolver out of an implementation leaves it fakeable
+  /// without a grid asset (`docs/architecture/research-agent.md` §19.3).
+  Future<ResearchResult> fetchTips(
+    SoilRecord record, {
+    String? locale,
+    SiteKey? site,
+    LandUse? landUse,
+  });
 }

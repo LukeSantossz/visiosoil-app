@@ -1,7 +1,12 @@
 import 'package:visiosoil_app/core/data/repositories/management_tips_repository.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/services/research/corpus_composer.dart';
+import 'package:visiosoil_app/core/services/research/corpus_store.dart';
+import 'package:visiosoil_app/core/services/research/http_transport.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
+import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// In-memory [ManagementTipsRepository] for tests.
@@ -33,9 +38,21 @@ class FakeResearchService implements ResearchService {
   final Future<ResearchResult> Function(SoilRecord record) handler;
   int calls = 0;
 
+  /// The site and land use the controller resolved, kept so a test can assert
+  /// what the controller passed without reaching into the service.
+  SiteKey? lastSite;
+  LandUse? lastLandUse;
+
   @override
-  Future<ResearchResult> fetchTips(SoilRecord record, {String? locale}) {
+  Future<ResearchResult> fetchTips(
+    SoilRecord record, {
+    String? locale,
+    SiteKey? site,
+    LandUse? landUse,
+  }) {
     calls++;
+    lastSite = site;
+    lastLandUse = landUse;
     return handler(record);
   }
 }
@@ -78,6 +95,9 @@ ManagementTipsResult groundedTips() => ManagementTipsResult(
 SoilRecord tipsRecord({
   String? uuid = 'rec-1',
   String? textureClass = 'Argilosa',
+  double? latitude,
+  double? longitude,
+  String? address,
 }) =>
     SoilRecord(
       id: 1,
@@ -86,6 +106,9 @@ SoilRecord tipsRecord({
       timestamp: '2026-06-26T12:00:00Z',
       textureClass: textureClass,
       confidenceScore: 0.9,
+      latitude: latitude,
+      longitude: longitude,
+      address: address,
     );
 
 /// Builders for non-grounded results.
@@ -120,4 +143,36 @@ class ManagementTipsResultBuilder {
         model: 'llama-3.3-70b',
         retrievedAt: DateTime.utc(2026, 6, 26, 12),
       );
+}
+
+/// An [HttpTransport] that fails the test if anything touches it.
+///
+/// Stronger than asserting that a request body carries no coordinate: Tier 1's
+/// claim is that **no per-record request exists at all**, and only a transport
+/// that reports being used can prove it.
+class FailIfTouchedTransport implements HttpTransport {
+  int calls = 0;
+
+  @override
+  Future<TransportResponse> postJson({
+    required Uri url,
+    required Map<String, String> headers,
+    required String body,
+  }) async {
+    calls++;
+    throw StateError(
+      'Tier 1 made a network request to $url; composition happens on the '
+      'device and must not reach a transport',
+    );
+  }
+}
+
+/// A [CorpusStore] holding the corpus it is given.
+class HeldCorpusStore implements CorpusStore {
+  HeldCorpusStore(this._corpus);
+
+  final Corpus? _corpus;
+
+  @override
+  Future<Corpus?> current() async => _corpus;
 }
