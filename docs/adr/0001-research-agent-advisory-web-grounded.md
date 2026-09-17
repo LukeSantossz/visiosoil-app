@@ -4,7 +4,34 @@ The Research Agent turns a Soil Record's texture class plus location metadata (G
 
 ## Status
 
-Accepted. The direction above and the decisions below are settled; the full design is modelled in [`docs/architecture/research-agent.md`](../architecture/research-agent.md). Accepting this ADR records the decision *direction* — it is **not** a Spec Gate pass. Implementation is deferred (no code this round) and each delivery slice goes through its own SPEC gate (`.standards/docs/standards/spec_method.md`) before any code.
+**Retired 2026-09-11**, superseded by
+[ADR 0022](0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md).
+Kept in place with its number and file, per the durable-numbering rule.
+
+What this record got right is kept unchanged by its successor: the advisory
+stance, grounding in citable sources, the abstain-or-emit rule, credentials
+living server-side, and the app↔proxy HTTP contract as the stable boundary. The
+app-side implementation built against that contract — `ResearchService`,
+`ProxyResearchService`, the `management_tips` table, the repository, the
+providers and the Details section — is the baseline its successor builds on, not
+a layer it replaces: none of it is discarded, and none of it is left untouched
+either. ADR 0022's delivery slices repurpose `ProxyResearchService` from
+per-record tips to corpus fetch, put a local composer behind the same
+`ResearchService` seam, give `management_tips` a corpus-version column, and
+extend what the Details section renders. **The seam is what survives unedited**,
+and that is what makes the migration cheap.
+
+Three of its decisions did not survive re-audit in September 2026:
+
+| This record decided | What was found |
+|---|---|
+| Groq's `llama-3.3-70b-versatile` on the free tier | Announced deprecated 2026-06-17 and shut down 2026-08-16 for free and developer tiers |
+| A ten-step corrective-RAG chain per request, on a free tier | The published free daily token ceiling admits roughly four to seven requests per day across all users |
+| That chain reached through `ProxyResearchService` | Its roughly fifteen model calls do not complete within the client's 20-second timeout, so every request would time out and retry twice |
+
+The pipeline design itself was not the error. ADR 0022 keeps it and moves it to
+build time, where its cost is proportional to a fixed corpus rather than to
+usage, and where a human can review its output before a user reads it.
 
 ### Decided
 - **Provider stack** — Groq (Llama 3.3 70B free tier) for the tool-calling model + Tavily (free search tier) for web search, both behind swappable `LLMClient` / `SearchClient` interfaces in the proxy.
