@@ -34,6 +34,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from .ablation import ABLATION_TRAINERS
 from .config import load_config, resolve_paths
 from .dataset import (
     FOLD_MANIFEST_FILENAME,
@@ -114,6 +115,11 @@ def _cnn_without_b_fold_trainer():
 #: per arm: the control reports what the class priors and the capture artefacts
 #: alone permit, and the most capable arm is the strongest floor to hold every
 #: other arm against.
+#:
+#: The four ablation arms are merged in from `ablation` rather than listed:
+#: they are derived from `descriptors.GROUPS`, so a fifth descriptor group
+#: arrives with its ablation arm registered instead of silently unmeasured
+#: (SPEC 0065).
 ARM_TRAINERS = {
     DEFAULT_ARM: _cnn_fold_trainer,
     SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
@@ -121,6 +127,7 @@ ARM_TRAINERS = {
     ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
     DESCRIPTOR_WITHOUT_B_ARM: _descriptor_without_b_fold_trainer,
     CNN_WITHOUT_B_ARM: _cnn_without_b_fold_trainer,
+    **ABLATION_TRAINERS,
 }
 
 
