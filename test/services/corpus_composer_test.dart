@@ -215,6 +215,32 @@ void main() {
       expect(corpus.clayActivityDefaultByBiome, isEmpty);
     });
 
+    test('an_empty_corpus_disclaimer_is_refused_by_name', () {
+      // The result contract says the disclaimer is never empty, and the composer
+      // falls back to the corpus's own when no substance cell carries one. An
+      // empty value there would produce a result that violates the contract
+      // silently, so it is refused where it enters rather than where it shows.
+      for (final value in const ['', '   ']) {
+        expect(
+          () => Corpus.fromJson(
+            {
+              'corpusVersion': 'bad',
+              'disclaimer': value,
+              'substance': <String, dynamic>{},
+            },
+            fetchedAt: fetchedAt,
+          ),
+          throwsA(isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('disclaimer'),
+          )),
+          reason: 'a disclaimer of ${value.isEmpty ? 'empty' : 'blanks'} must '
+              'not reach a composed result',
+        );
+      }
+    });
+
     test('a_citation_outside_its_layer_is_refused_by_name', () {
       // §12.1 makes an unresolvable citation a build failure, so composition may
       // assume resolvable input. A corpus that reaches a device with one anyway

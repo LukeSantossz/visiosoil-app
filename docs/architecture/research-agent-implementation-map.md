@@ -9,9 +9,12 @@ and
 [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-09-17. **A1 and A2 are done** (SPEC 0068): the app composes
-on the device and `researchServiceProvider` no longer returns
-`UnavailableResearchService`.
+Last updated: 2026-09-17. **A1 and A2 are done** (SPEC 0068): the composition
+path is wired end to end on the device and `researchServiceProvider` no longer
+returns `UnavailableResearchService`. **It has no corpus to compose from yet** —
+`corpusStoreProvider` binds `AbsentCorpusStore`, so every key answers
+`insufficient_evidence` and the surface reads that as absent coverage. Content
+arrives with A4, from Lane B.
 
 ## 1. What exists today
 
