@@ -1117,7 +1117,7 @@ it.
 | Human review does not happen | It is the release gate, not a recommendation; no artifact without it |
 | Reviewer lacks agronomic expertise | Would silently weaken the design's central guarantee. The reviewer's competence is recorded with the release, so a corpus reviewed by a non-specialist is labelled as one |
 | The corpus goes stale | `accessedAt` per source, corpus version, staleness in `alerts`, rebuild twice a year |
-| **The cadence outlives the budget** | Twice-yearly rebuilds cost ~$28/year against a reserve of at most $29. Year one is funded; year two needs recurring budget that does not exist. §15.2 states it rather than letting it surface as a stalled release |
+| **The cadence outlives the budget** | Twice-yearly rebuilds cost ~$28/year against a reserve of at most $34. Year one is funded; year two needs recurring budget that does not exist. §15.2 states it rather than letting it surface as a stalled release |
 | **Tier 2's runway is exhausted permanently** | A one-time allowance is not a monthly quota. The cap fails closed for good, so the interface treats exhaustion as durable, not temporary |
 | Guidance is too generic to be useful | Measured by the feedback loop in §11.3; if it fails, Tier 2 or richer inputs are the escalation |
 | Tier 2 cost overruns | Hard cap that fails closed; it degrades to Tier 1 rather than to an error |
