@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/region/grid_site_resolver.dart';
 import 'package:visiosoil_app/core/services/research/corpus_research_service.dart';
 import 'package:visiosoil_app/core/services/research/corpus_store.dart';
+import 'package:visiosoil_app/core/services/research/proxy_research_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:visiosoil_app/models/site_key.dart';
@@ -30,6 +31,20 @@ void main() {
     expect(
       container.read(researchServiceProvider),
       isA<CorpusResearchService>(),
+    );
+  });
+
+  test('no_per_record_request_exists_at_all', () {
+    // §6.1's claim, asserted where it can be: the bound service is not the
+    // transport-backed one, and `CorpusResearchService` has no transport in its
+    // construction — so there is no code path to reach, not merely one that is
+    // not taken.
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(researchServiceProvider),
+      isNot(isA<ProxyResearchService>()),
     );
   });
 
