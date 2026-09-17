@@ -48,12 +48,8 @@ class PackedGrid {
     required this.rows,
     required this.cols,
     required this.sourceId,
-    required Uint8List payload,
-    // An initializing formal cannot be used here: Dart has no private named
-    // parameter, and the payload is internal state rather than part of the
-    // constructor's vocabulary.
-    // ignore: prefer_initializing_formals
-  }) : _payload = payload;
+    required this._payload,
+  });
 
   static const int _formatVersion = 1;
   static const int _headerLength = 21;
@@ -133,14 +129,18 @@ class PackedGrid {
 /// address, because the app derives it already and a third grid would encode
 /// borders that a geocoder knows better.
 class GridSiteResolver implements SiteResolver {
-  GridSiteResolver({
-    required PackedGrid clayActivityGrid,
-    required PackedGrid biomeGrid,
+  /// Both grids are optional because they ship later than this resolver does:
+  /// they are a build product of the corpus pipeline, and the federative unit
+  /// resolves from the address without them. A null grid resolves its key part
+  /// to null, which §5.2 defines as valid and not fatal.
+  const GridSiteResolver({
+    PackedGrid? clayActivityGrid,
+    PackedGrid? biomeGrid,
   })  : _clay = clayActivityGrid,
         _biome = biomeGrid;
 
-  final PackedGrid _clay;
-  final PackedGrid _biome;
+  final PackedGrid? _clay;
+  final PackedGrid? _biome;
 
   @override
   Future<SiteKey> resolve({
@@ -148,20 +148,20 @@ class GridSiteResolver implements SiteResolver {
     double? longitude,
     String? address,
   }) async {
+    final unit = unitFromAddress(address);
     if (latitude == null || longitude == null) {
-      final unit = unitFromAddress(address);
       return unit == null ? const SiteKey.unresolved() : SiteKey(unit: unit);
     }
     return SiteKey(
       clayActivity: _atIndex(
         ClayActivity.values,
-        _clay.valueAt(latitude: latitude, longitude: longitude),
+        _clay?.valueAt(latitude: latitude, longitude: longitude) ?? 0,
       ),
       biome: _atIndex(
         Biome.values,
-        _biome.valueAt(latitude: latitude, longitude: longitude),
+        _biome?.valueAt(latitude: latitude, longitude: longitude) ?? 0,
       ),
-      unit: unitFromAddress(address),
+      unit: unit,
     );
   }
 

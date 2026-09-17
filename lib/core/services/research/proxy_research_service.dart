@@ -4,7 +4,9 @@ import 'dart:developer' as developer;
 
 import 'package:visiosoil_app/core/services/research/http_transport.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
+import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// [ResearchService] over the documented app↔proxy HTTP contract
@@ -53,7 +55,15 @@ class ProxyResearchService implements ResearchService {
   }
 
   @override
-  Future<ResearchResult> fetchTips(SoilRecord record, {String? locale}) async {
+  Future<ResearchResult> fetchTips(
+    SoilRecord record, {
+    String? locale,
+    // Accepted to satisfy the seam and deliberately unused: this transport is
+    // repurposed as the corpus fetcher in slice A4, and a corpus request carries
+    // no site key. Tier 2, which would use one, left v1 with ADR 0023.
+    SiteKey? site,
+    LandUse? landUse,
+  }) async {
     final uuid = record.uuid;
     final textureClass = record.textureClass;
     if (uuid == null ||
