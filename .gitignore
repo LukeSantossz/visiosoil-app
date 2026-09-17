@@ -119,3 +119,4 @@ assets/corpus/*.bin
 **/Flutter/GeneratedPluginRegistrant.swift
 # Local design-system reference export (not versioned)
 /VisioSoil Design System/
+corpus/out/

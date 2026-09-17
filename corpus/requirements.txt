@@ -1,0 +1,6 @@
+# The corpus build deliberately has no runtime dependencies: the chain is HTTP
+# to a local Ollama server and the standard library. ADR 0022 §20.4 refuses a
+# graph orchestrator, a hosted tracer and a vector store for this shape, and a
+# dependency that renders JavaScript would be a dependency that runs a source
+# page's code — which §10 refuses.
+pytest>=7.4.0,<9.0.0
