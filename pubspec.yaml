@@ -95,6 +95,7 @@ flutter:
 
   assets:
     - assets/models/
+    - assets/corpus/
 
   fonts:
     - family: Manrope
