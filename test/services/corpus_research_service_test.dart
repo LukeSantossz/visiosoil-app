@@ -1,10 +1,16 @@
 // The Tier 1 binding of the `ResearchService` seam: it composes from the held
 // corpus and makes no request at all.
 //
-// "No per-record request" is asserted against a transport that fails the test if
-// it is touched, rather than against an absent field in a request body. That is
-// the property §6.1 actually claims, and it is the one an absent-field assertion
-// cannot prove.
+// §6.1's claim is that **no per-record request exists**, and SPEC 0068 asked for
+// a transport fake that fails the test if touched. Writing that test showed the
+// guarantee is stronger than a fake can express: `CorpusResearchService` has no
+// transport collaborator at all, so there is nothing to inject a fake into. A
+// fake sitting beside the service, never wired to it, would have asserted
+// nothing while looking rigorous.
+//
+// What is asserted instead is the structural fact: the service is constructible
+// from a store alone, and the binding the app uses is not the transport-backed
+// one. `research_service_provider_test.dart` carries the second half.
 import 'dart:convert';
 import 'dart:io';
 
@@ -27,8 +33,11 @@ void main() {
       );
 
   group('composing from a held corpus', () {
-    test('composition_performs_zero_transport_calls', () async {
-      final transport = FailIfTouchedTransport();
+    test('composition_needs_nothing_but_a_store', () async {
+      // The whole service, built from a corpus and nothing else. There is no
+      // transport, no client, no URL and no token in its construction, which is
+      // what makes "no per-record request" a property of the type rather than of
+      // a code path a test has to reach.
       final service = CorpusResearchService(
         store: HeldCorpusStore(fixtureCorpus()),
       );
@@ -44,9 +53,7 @@ void main() {
       );
 
       expect(result, isA<ResearchSuccess>());
-      expect(transport.calls, 0,
-          reason: 'Tier 1 composes on the device; a request would reinstate the '
-              'coordinate egress the corpus key exists to remove');
+      expect((result as ResearchSuccess).tips.tips, hasLength(5));
     });
 
     test('a_composed_result_carries_the_corpus_version', () async {

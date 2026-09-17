@@ -91,8 +91,13 @@ repeat. Together they deliver one outcome: the app composes.
     It belongs to the UI/UX terminal. No change is required of it: it routes on
     `status == abstained || tips.isEmpty`, and an `insufficient_evidence` result
     has empty tips.
-  - `ProxyResearchService` and `http_transport.dart`. Untouched; they have no
-    caller until A4.
+  - `http_transport.dart`. Untouched; it has no caller until A4.
+    **`ProxyResearchService` was touched after all**, and so was
+    `UnavailableResearchService`: widening `ResearchService.fetchTips` obliges
+    every implementer to follow. In the proxy that is a signature and a comment,
+    with no behaviour moved. `UnavailableResearchService` was **deleted** rather
+    than widened — this slice is what replaced it, and leaving an unreferenced
+    class behind is the debt ADR 0023 refused to add to.
   - Any Tier 2 code, per ADR 0023.
   - The real grids and the real corpus. Both are Lane B's.
   - Any change to `ml/`, the model, the preprocessing path, or the class list.
@@ -141,9 +146,15 @@ Each becomes a test, written before its implementation.
 
 **The wiring**
 
-- `composition_performs_zero_transport_calls`: asserted with a transport fake that
-  fails the test if touched — stronger than asserting an absent field, and it is
-  the property §6.1 actually claims.
+- `composition_performs_zero_transport_calls`: **amended during implementation.**
+  The criterion asked for a transport fake that fails the test if touched, which
+  turned out to be unwritable in the useful sense: `CorpusResearchService` takes
+  a store and a composer and nothing else, so there is nothing to inject a fake
+  into, and a fake sitting beside it would have asserted nothing while looking
+  rigorous. The guarantee is stronger than the test would have proven and is
+  asserted as what it is — `composition_needs_nothing_but_a_store` builds the
+  service from a corpus alone, and `no_per_record_request_exists_at_all` asserts
+  the bound service is not the transport-backed one.
 - `absent_corpus_composes_insufficient_evidence`: with no corpus held, the service
   returns `ResearchSuccess` carrying an `insufficient_evidence` result, not a
   `ResearchFailure`.
