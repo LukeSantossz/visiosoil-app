@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/core/services/region/grid_site_resolver.dart';
+import 'package:visiosoil_app/core/services/region/corpus_grid_assets.dart';
 import 'package:visiosoil_app/core/services/research/corpus_research_service.dart';
-import 'package:visiosoil_app/core/services/research/corpus_store.dart';
+import 'package:visiosoil_app/core/services/research/asset_corpus_store.dart';
 import 'package:visiosoil_app/core/services/research/proxy_research_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
@@ -64,13 +64,14 @@ void main() {
     expect(tips.disclaimer.trim(), isNotEmpty);
   });
 
-  test('corpus_store_holds_nothing_until_the_asset_slice_lands', () async {
+  test('corpus_store_reads_the_bundle', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    final store = container.read(corpusStoreProvider);
-    expect(store, isA<AbsentCorpusStore>());
-    expect(await store.current(), isNull);
+    // It holds nothing while `assets/corpus/` carries no release, which is the
+    // state the composition rule defines; the binding is what changes when the
+    // corpus build ships, not the app.
+    expect(container.read(corpusStoreProvider), isA<AssetCorpusStore>());
   });
 
   test('site_resolver_resolves_the_unit_before_any_grid_ships', () async {
@@ -80,7 +81,7 @@ void main() {
     addTearDown(container.dispose);
 
     final resolver = container.read(siteResolverProvider);
-    expect(resolver, isA<GridSiteResolver>());
+    expect(resolver, isA<AssetGridSiteResolver>());
 
     final key = await resolver.resolve(
       latitude: -22.9,
