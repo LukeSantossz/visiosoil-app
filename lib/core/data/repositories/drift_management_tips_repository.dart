@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:visiosoil_app/core/data/repositories/management_tips_repository.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
@@ -16,13 +17,20 @@ class DriftManagementTipsRepository implements ManagementTipsRepository {
   final AppDatabase _db;
 
   @override
-  Future<ManagementTipsResult?> getByRecordUuid(String recordUuid) async {
+  Future<ManagementTipsResult?> getByRecordUuid(String recordUuid) async =>
+      (await getCached(recordUuid))?.result;
+
+  @override
+  Future<CachedManagementTips?> getCached(String recordUuid) async {
     final row = await (_db.select(_db.managementTips)
           ..where((t) => t.recordUuid.equals(recordUuid)))
         .getSingleOrNull();
     if (row == null) return null;
     final json = jsonDecode(row.payloadJson) as Map<String, dynamic>;
-    return ManagementTipsResult.fromJson(json);
+    return CachedManagementTips(
+      result: ManagementTipsResult.fromJson(json),
+      corpusVersion: row.corpusVersion,
+    );
   }
 
   @override
@@ -32,6 +40,9 @@ class DriftManagementTipsRepository implements ManagementTipsRepository {
             recordUuid: recordUuid,
             payloadJson: jsonEncode(result.toJson()),
             retrievedAt: result.retrievedAt.toUtc().toIso8601String(),
+            // Duplicated out of the payload so staleness is a column read rather
+            // than a decode of every row.
+            corpusVersion: Value(result.corpusVersion),
           ),
         );
   }

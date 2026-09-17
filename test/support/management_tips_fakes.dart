@@ -20,6 +20,18 @@ class FakeManagementTipsRepository implements ManagementTipsRepository {
       store[recordUuid];
 
   @override
+  Future<CachedManagementTips?> getCached(String recordUuid) async {
+    final result = store[recordUuid];
+    if (result == null) return null;
+    // The real repository reads the column; the fake reads the payload, and the
+    // Drift tests are what prove the two agree.
+    return CachedManagementTips(
+      result: result,
+      corpusVersion: result.corpusVersion,
+    );
+  }
+
+  @override
   Future<void> upsert(String recordUuid, ManagementTipsResult result) async {
     upsertCount++;
     store[recordUuid] = result;
