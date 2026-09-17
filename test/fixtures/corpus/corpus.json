@@ -1,0 +1,151 @@
+{
+  "_note": "Synthetic content, real shape. Every tip is marked [EXEMPLO] so it can never be mistaken for agronomic guidance; what is real here is the structure the composer reads. See docs/specs/0066.",
+  "corpusVersion": "fixture-2026.09.1",
+  "classListVersion": "v1-four-class",
+  "model": "fixture",
+  "builtAt": "2026-09-10T00:00:00.000Z",
+  "disclaimer": "[EXEMPLO] Orientação consultiva de fixture. Não substitui avaliação técnica presencial.",
+  "clayActivityDefaultByBiome": {
+    "cerrado": "tb_oxidic",
+    "amazonia": "tb_oxidic",
+    "mata_atlantica": "intermediate",
+    "caatinga": "ta_less_weathered",
+    "pampa": "ta_less_weathered",
+    "pantanal": "ta_less_weathered"
+  },
+  "substance": {
+    "Argilosa|tb_oxidic": {
+      "status": "grounded",
+      "disclaimer": "[EXEMPLO] Disclaimer da camada de substância.",
+      "tips": [
+        {
+          "text": "[EXEMPLO] Argilosa tb_oxidic: a textura não implica alta CTC.",
+          "citations": [0],
+          "category": "preparation",
+          "evidenceStrength": "strong"
+        },
+        {
+          "text": "[EXEMPLO] Leia o fósforo remanescente antes de concluir.",
+          "citations": [0, 1],
+          "category": "crops",
+          "evidenceStrength": "moderate"
+        }
+      ],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Substância A",
+          "url": "https://example.org/substancia-a",
+          "publisher": "Fixture",
+          "date": "2025-01-01",
+          "accessedAt": "2026-09-10T00:00:00.000Z",
+          "tier": 1
+        },
+        {
+          "title": "[EXEMPLO] Compartilhada",
+          "url": "https://example.org/compartilhada",
+          "publisher": "Fixture",
+          "tier": 2
+        }
+      ],
+      "limitations": [
+        "[EXEMPLO] Não substitui análise laboratorial.",
+        "[EXEMPLO] Sem histórico de manejo."
+      ],
+      "followUpQuestions": ["[EXEMPLO] Qual o histórico de calagem?"]
+    },
+    "Arenosa|ta_less_weathered": {
+      "status": "abstained",
+      "disclaimer": "[EXEMPLO] Disclaimer da célula que se abstém.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Busca sem fonte elegível",
+          "url": "https://example.org/sem-fonte",
+          "tier": 3
+        }
+      ],
+      "limitations": ["[EXEMPLO] Nenhuma fonte atendeu à política."]
+    },
+    "Media|intermediate": {
+      "status": "grounded",
+      "disclaimer": "[EXEMPLO] Disclaimer de Media.",
+      "tips": [
+        {
+          "text": "[EXEMPLO] Media declara sua própria largura.",
+          "citations": [0]
+        }
+      ],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Substância B",
+          "url": "https://example.org/substancia-b"
+        }
+      ]
+    }
+  },
+  "landUse": {
+    "pasture": {
+      "status": "grounded",
+      "tips": [
+        {
+          "text": "[EXEMPLO] Sob pastagem, a compactação domina.",
+          "citations": [0],
+          "category": "preparation",
+          "evidenceStrength": "limited"
+        }
+      ],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Uso da terra",
+          "url": "https://example.org/uso",
+          "tier": 2
+        }
+      ],
+      "limitations": ["[EXEMPLO] Não substitui análise laboratorial."]
+    }
+  },
+  "unit": {
+    "BR-SP": {
+      "status": "grounded",
+      "tips": [
+        {
+          "text": "[EXEMPLO] Procure a extensão rural do estado.",
+          "citations": [1, 0],
+          "category": "other"
+        }
+      ],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Compartilhada",
+          "url": "https://example.org/compartilhada",
+          "publisher": "Fixture",
+          "tier": 2
+        },
+        {
+          "title": "[EXEMPLO] Agência estadual",
+          "url": "https://example.org/agencia",
+          "tier": 1
+        }
+      ]
+    }
+  },
+  "biome": {
+    "cerrado": {
+      "status": "grounded",
+      "tips": [
+        {
+          "text": "[EXEMPLO] A unidade regional da Embrapa é a do Cerrado.",
+          "citations": [0]
+        }
+      ],
+      "sources": [
+        {
+          "title": "[EXEMPLO] Unidade regional",
+          "url": "https://example.org/unidade",
+          "tier": 1
+        }
+      ],
+      "alerts": ["[EXEMPLO] Alerta da camada institucional."]
+    }
+  }
+}
