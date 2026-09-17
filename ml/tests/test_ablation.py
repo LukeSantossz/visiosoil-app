@@ -98,8 +98,51 @@ def test_ablation_arm_runs_through_the_orchestrator():
         assert callable(fold_trainer_for(arm))
 
 
+def test_the_ablation_arm_binds_the_shortened_group_list():
+    """It is `probe_fold` with one group taken out, and the test says which.
+
+    White-box on purpose. An arm bound to `[group]` instead of every group but
+    it would be leave-one-**in** — a different experiment, filed under a name
+    saying the group was removed, and every downstream artifact would look
+    right. Nothing else in the suite can tell the two apart.
+    """
+    from src.arms.descriptors import descriptor_features
+    from src.arms.probe import probe_fold
+
+    for arm, group in ABLATION_ARMS.items():
+        trainer = fold_trainer_for(arm)
+        assert trainer.func is probe_fold
+
+        featuriser = trainer.keywords["featuriser"]
+        assert featuriser.func is descriptor_features
+        assert featuriser.keywords["groups"] == remaining_groups(group)
+
+
+def test_registering_the_ablation_arms_overwrites_no_arm_beside_them():
+    """The registry merges them in, and a merge is where a name silently wins.
+
+    `descriptors_without_b` is one letter away from the shape these names take,
+    so a descriptor group named after a capture population would replace the
+    population arm's trainer and nothing would say so.
+    """
+    from src.crossval import ARM_TRAINERS
+
+    named_elsewhere = set(ARM_TRAINERS) - set(ABLATION_ARMS)
+    assert len(ARM_TRAINERS) == len(named_elsewhere) + len(ABLATION_ARMS)
+    assert "descriptors_without_b" in named_elsewhere
+
+
 def test_an_ablation_fold_loads_through_the_protocols_own_loader(tmp_path, folds):
-    """A finished fold is read by `load_arm_predictions` like any other arm's."""
+    """A finished fold is read by `load_arm_predictions` like any other arm's.
+
+    The fold is written here rather than trained, and that is what this asserts:
+    the layout and the arm name. That an ablation arm *writes* the four
+    artifacts is `probe_fold`'s own guarantee, asserted over a synthetic dish by
+    `test_probe_arm.py::test_every_arm_writes_the_artifacts_the_protocol_reads`,
+    and it transfers because
+    `test_the_ablation_arm_binds_the_shortened_group_list` proves these arms are
+    that function with a shorter group list.
+    """
     arm = ablation_arm_name(GROUPS[0])
     arm_dir = tmp_path / "models" / "v1" / arm
 
