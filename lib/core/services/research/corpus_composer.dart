@@ -134,9 +134,7 @@ class Corpus {
           ? const {}
           : {
               for (final entry in defaults.entries)
-                if (ClayActivity.fromWire(entry.value as String?)
-                    case final activity?)
-                  entry.key: activity,
+                entry.key: ?ClayActivity.fromWire(entry.value as String?),
             },
     );
   }
@@ -177,12 +175,7 @@ class CorpusComposer {
     final biomeCell =
         site.biome == null ? null : corpus.biome[site.biome!.wireName];
 
-    final layers = <CorpusCell>[
-      if (substance != null) substance,
-      if (landUseCell != null) landUseCell,
-      if (unitCell != null) unitCell,
-      if (biomeCell != null) biomeCell,
-    ];
+    final layers = <CorpusCell>[?substance, ?landUseCell, ?unitCell, ?biomeCell];
 
     final tips = <ManagementTip>[];
     final sources = <TipSource>[];
