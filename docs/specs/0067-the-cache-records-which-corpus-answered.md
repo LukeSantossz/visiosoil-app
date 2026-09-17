@@ -106,6 +106,12 @@ Each becomes a test, written before its implementation.
   current one is still stale, because the rule is difference rather than age.
 - `payload_and_column_agree_after_a_round_trip`: the version in `payload_json`
   and the value in the column are the same string.
+- `a_database_older_than_v4_reaches_v5_without_a_duplicate_column`: **added
+  during implementation**, after the existing migration suite caught the defect.
+  The v4 step calls `createTable`, which builds the table from *today's*
+  definition, so a pre-v4 database already carries `corpus_version` when the v5
+  step runs and adding it again is `duplicate column name`. The v5 step is
+  therefore guarded by `from >= 4 && from < 5` rather than by `from < 5` alone.
 
 ## Reproducibility
 
@@ -128,6 +134,12 @@ disk is involved.
   nullable column. It is the same shape as the v1→v2 and v2→v3 steps already in
   `AppDatabase`, so the risk is in forgetting to regenerate rather than in the
   change itself; CI's `test` job fails loudly if the generated file is stale.
+- **This assumption was wrong about the cumulative step, and the suite caught
+  it.** A `createTable` in an earlier step builds the table from today's
+  definition, so "add a column in the next step" is only correct for databases
+  that reached the version where the table was created. The pattern is now
+  documented at the migration itself, because the next added column will meet
+  the same trap.
 - **Assumption:** a corpus version is a stable label for the life of a release.
   If the build emitted a different label for the same content, every row would
   read stale and be refreshed once — wasteful but not wrong.

@@ -134,7 +134,19 @@ empty composition yields `insufficient_evidence` with a non-empty disclaimer.
 
 ### A3 — slice 7: the cache records which corpus answered
 
-**Ready — this is the next slice.** It also carries a wart A2 introduced
+**Done, SPEC 0067.** Schema v5, a nullable `corpus_version` column,
+`CachedManagementTips.isStaleAgainst` reporting staleness by exact string
+inequality, and the wart below closed at the reporting level — A4 is what acts
+on it.
+
+One trap is worth carrying forward: the v5 migration step is guarded by
+`from >= 4 && from < 5`, not by `from < 5`, because the v4 step's `createTable`
+builds the table from today's definition and a pre-v4 database therefore already
+has the column. The next added column will meet the same trap.
+
+The original entry follows.
+
+**Was ready after A2.** It also carries a wart A2 introduced
 deliberately: an absent-corpus result is cached like any other, so a device that
 cached "no coverage" keeps showing it until the user refreshes, even after a
 corpus ships. A3 owns the staleness comparison, which is where the fix belongs;
