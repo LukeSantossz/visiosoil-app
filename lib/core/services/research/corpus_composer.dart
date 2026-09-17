@@ -121,10 +121,20 @@ class Corpus {
       };
     }
 
+    final disclaimer = json['disclaimer'] as String;
+    if (disclaimer.trim().isEmpty) {
+      // The result contract says the disclaimer is never empty, and this value
+      // is what a composition falls back to when no substance cell carries one.
+      // An empty value here would produce a contract-violating result silently,
+      // so it is refused where it enters rather than where it shows.
+      throw const FormatException('corpus disclaimer is empty; every composed '
+          'result must carry one');
+    }
+
     final defaults = json['clayActivityDefaultByBiome'] as Map<String, dynamic>?;
     return Corpus(
       corpusVersion: json['corpusVersion'] as String,
-      disclaimer: json['disclaimer'] as String,
+      disclaimer: disclaimer,
       fetchedAt: fetchedAt.toUtc(),
       substance: layer('substance'),
       landUse: layer('landUse'),
