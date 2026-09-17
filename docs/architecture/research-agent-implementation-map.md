@@ -164,7 +164,23 @@ a row cached before the change still parses.
 
 ### A4 — slice 8: the real corpus ships and refreshes
 
-**Ready after A3 for the bundled half; the refresh half is blocked.** Files:
+**Bundled half done, SPEC 0070.** `AssetCorpusStore` reads
+`assets/corpus/corpus.json` at first use and caches it; `AssetGridSiteResolver`
+reads both grids the same way. The providers are rebound, `pubspec.yaml` declares
+the directory, and the artifacts are git-ignored like the `.tflite` is. **A
+missing asset is a normal state and a malformed one throws with the asset
+named** — a corrupt build shipping as "no coverage" is the failure nobody would
+learn about.
+
+The resolver loads lazily rather than through a `FutureProvider`, so the provider
+graph stays synchronous and no `AsyncValue` reaches the result surface, which
+belongs to another terminal.
+
+**The refresh half is still blocked** on the release endpoint (Lane C), and the
+controller's connectivity gate returns with it — that is where offline means
+"cannot refresh". The original entry follows.
+
+**Was ready after A3 for the bundled half; the refresh half is blocked.** Files:
 `assets/corpus/` (three files), `pubspec.yaml`, a loader and its provider, and
 `proxy_research_service.dart` repurposed as the corpus fetcher.
 
@@ -258,7 +274,7 @@ ADR 0023 removes them from v1.
 ## 7. Order of execution
 
 ```
-A1 ──► A2 ──► A3 ──► A4 (bundled half)
+A1 ──► A2 ──► A3 ──► A4 (bundled half: DONE)
                        ▲
 B1 ──► B2 ──► B3 ──► B4 (blocked: reviewer)
                        │
