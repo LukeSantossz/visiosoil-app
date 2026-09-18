@@ -34,6 +34,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from .ablation import ABLATION_TRAINERS
 from .config import load_config, resolve_paths
 from .dataset import (
     FOLD_MANIFEST_FILENAME,
@@ -114,14 +115,47 @@ def _cnn_without_b_fold_trainer():
 #: per arm: the control reports what the class priors and the capture artefacts
 #: alone permit, and the most capable arm is the strongest floor to hold every
 #: other arm against.
-ARM_TRAINERS = {
-    DEFAULT_ARM: _cnn_fold_trainer,
-    SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
-    DESCRIPTOR_ARM: _descriptor_fold_trainer,
-    ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
-    DESCRIPTOR_WITHOUT_B_ARM: _descriptor_without_b_fold_trainer,
-    CNN_WITHOUT_B_ARM: _cnn_without_b_fold_trainer,
-}
+#:
+#: The four ablation arms are merged in from `ablation` rather than listed:
+#: they are derived from `descriptors.GROUPS`, so a fifth descriptor group
+#: arrives with its ablation arm registered instead of silently unmeasured
+#: (SPEC 0065).
+
+
+def merge_arm_trainers(*registries: Mapping[str, object]) -> dict:
+    """One registry from several, refusing a name that appears in two.
+
+    `**` would let the last mapping win silently, and the arm name is what a
+    result is filed under: a derived name colliding with a listed one would
+    replace that arm's trainer, and every artifact it wrote afterwards would
+    look right while naming a method it did not run.
+
+    Raises:
+        ValueError: Naming the arm that appears twice.
+    """
+    merged: dict = {}
+    for registry in registries:
+        for arm, trainer in registry.items():
+            if arm in merged:
+                raise ValueError(
+                    f"arm {arm!r} is registered twice; an arm name is what a "
+                    f"result is filed under and cannot mean two methods"
+                )
+            merged[arm] = trainer
+    return merged
+
+
+ARM_TRAINERS = merge_arm_trainers(
+    {
+        DEFAULT_ARM: _cnn_fold_trainer,
+        SHUFFLED_CONTROL_ARM: _cnn_fold_trainer,
+        DESCRIPTOR_ARM: _descriptor_fold_trainer,
+        ENCODER_PROBE_ARM: _encoder_probe_fold_trainer,
+        DESCRIPTOR_WITHOUT_B_ARM: _descriptor_without_b_fold_trainer,
+        CNN_WITHOUT_B_ARM: _cnn_without_b_fold_trainer,
+    },
+    ABLATION_TRAINERS,
+)
 
 
 def fold_trainer_for(arm: str):
