@@ -122,7 +122,20 @@ def rasterise(
     #
     # First-in-file still wins, because a cell is written only while it is still
     # unresolved. That keeps the semantics of the cell-major version it replaces.
-    for shape, record in zip(reader.shapes(), reader.records()):
+    shapes = reader.shapes()
+    records = reader.records()
+    if len(shapes) != len(records):
+        # `zip` would truncate to the shorter of the two and still produce a
+        # well-formed grid. The polygons it dropped would read as unresolved
+        # cells, which is indistinguishable from land the legend genuinely does
+        # not classify — wrong guidance rather than a failed build.
+        raise RasterisationError(
+            f"{path} has {len(shapes)} shape(s) but {len(records)} record(s); "
+            f"the SHP and DBF disagree and the grid would silently omit the "
+            f"difference"
+        )
+
+    for shape, record in zip(shapes, records):
         value = value_for(str(record[column]))
         if not isinstance(value, int) or not 0 <= value <= 255:
             raise RasterisationError(

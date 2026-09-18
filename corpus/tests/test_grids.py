@@ -63,6 +63,26 @@ def test_a_polygon_covering_a_cell_sets_its_value(tmp_path):
     assert cells == [1] * 9
 
 
+def test_a_dbf_with_fewer_records_than_shapes_is_refused(tmp_path):
+    """`zip` truncates silently, so a source whose SHP and DBF disagree would
+    rasterise the shorter of the two and still write a well-formed grid. Missing
+    polygons show up as unresolved cells, which is indistinguishable from land
+    the legend genuinely does not classify — wrong guidance, and no error."""
+    path = build_shapefile(
+        tmp_path,
+        [
+            (-47.0, -23.0, -46.9, -22.9, "LATOSSOLO"),
+            (-46.9, -23.0, -46.8, -22.9, "ARGISSOLO"),
+        ],
+    )
+    # Truncate the DBF to one record while the SHP keeps two shapes.
+    truncated = build_shapefile(tmp_path / "short", [(-47.0, -23.0, -46.9, -22.9, "LATOSSOLO")])
+    path.with_suffix(".dbf").write_bytes(truncated.with_suffix(".dbf").read_bytes())
+
+    with pytest.raises(RasterisationError, match="record"):
+        rasterise(path, spec(), field="classe", value_for=lambda name: 1)
+
+
 def test_a_cell_no_polygon_covers_is_unresolved(tmp_path):
     # A square covering only the south-west cell.
     path = build_shapefile(tmp_path, [(-47.0, -23.0, -46.9, -22.9, "LATOSSOLO")])

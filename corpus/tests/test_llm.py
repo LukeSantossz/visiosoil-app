@@ -91,6 +91,17 @@ class TestModelDigest:
         with pytest.raises(ModelRefused):
             client.model_digest()
 
+    def test_a_digest_that_is_not_a_string_is_refused(self):
+        # `str()` on a mapping or a list produces a plausible-looking value that
+        # identifies nothing, and `RunManifest` performs no runtime type check,
+        # so it would reach `modelDigest` and void the one promise the manifest
+        # exists to make.
+        for reported in ({"sha256": "abc"}, ["sha256:abc"], 12345):
+            client = OllamaClient(post=lambda url, payload, r=reported: {"digest": r})
+
+            with pytest.raises(ModelRefused, match="digest"):
+                client.model_digest()
+
     def test_a_reported_digest_is_returned(self):
         client = OllamaClient(post=lambda url, payload: {"digest": "sha256:abc"})
 
