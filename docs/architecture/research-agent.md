@@ -697,6 +697,19 @@ The sampled fractions are what the `regionalContradiction` predicate compares a
 classification against. Baking them removes a runtime dependency on a service
 that is currently degraded.
 
+> **Out of v1 since 2026-09-17, and not because the service is down.**
+> `regionalContradiction` is a **Tier 2 escalation predicate**, and
+> [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+> took Tier 2 out of v1. The sampled fractions have no other consumer, so
+> sampling SoilGrids is work v1 does not owe. It returns with Tier 2, alongside
+> the `.tflite` artifact the predicate also waits on.
+>
+> The point API was re-probed on 2026-09-17, twelve days after the first probe,
+> from the same kind of coordinate: **`502` after 41.5 s, then three consecutive
+> `503`.** It has not recovered, and it is worse than it was — which confirms the
+> decision to bake rather than call, and makes the bulk-coverage question a
+> Tier 2 problem rather than a v1 one.
+
 - **The national soil map** — Embrapa/IBGE at 1:5,000,000 and the state surveys at
   1:250,000 — is what the clay-activity grid of §5.2 is sampled from. At those
   scales a coordinate yields a distribution over map-unit associations rather than
@@ -1144,6 +1157,7 @@ it.
 
 | Assumption | What the check found |
 |---|---|
+| ISRIC SoilGrids coverage is obtainable in bulk | **Moot for v1.** Its only consumer is `regionalContradiction`, a Tier 2 predicate that ADR 0023 removed from v1. The point API was re-probed on 2026-09-17 and has not recovered — `502` after 41.5 s, then three `503` — so the question returns with Tier 2 rather than blocking anything now |
 | IBGE biome boundaries exist in rasterisable form | **Confirmed, and better than assumed.** Shapefiles on `geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/`, compatible with **1:250 000** rather than the coarser scale the ~130 KB estimate assumed. Public under the federal Open Data Policy (Decree 8.777/2016), free to use and redistribute with attribution |
 | The national soil map is obtainable and rasterisable | **Obtainable, but the obvious copy is licensed wrongly.** Embrapa's `brasil_solos_5m_20201104` — SiBCS 2006, third categorical level, 1:5 000 000 — is **CC BY-NC 3.0 BR, non-commercial only**, and its own metadata currently reports the download as *"Não disponível"*. §15.2 records that this product is **an academic deliverable and a field product at the same time**, so a non-commercial licence is not usable for it. **IBGE publishes the same class of product** under `informacoes_ambientais/pedologia/vetores/brasil_5000_mil/`, under the open-data policy above, and that is the copy the build must use |
 | Map units collapse cleanly into three clay-activity families | **Strongly indicated, from the classification system rather than the file.** SiBCS's **third categorical level — the grandes grupos — is itself defined with emphasis on clay activity** and on base saturation (Embrapa, *Níveis Categóricos do Sistema*), with the Ta/Tb split at the same 27 cmolc/kg the 2026-09-11 review verified. The national map is classified *to that level*, so the family is constitutive of the class name rather than something to infer from it. **What is not yet confirmed is the attribute table**, which nobody has opened |
