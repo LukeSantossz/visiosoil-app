@@ -350,8 +350,23 @@ and pyshp assumes utf-8**, so the first accented legend entry raised
 `UnicodeDecodeError`. The encoding is a property of the source and is now stated
 by the caller.
 
-What B2 still owes at its gate: the structured priors, and the search backend for
-the 27 unit overlays.
+The **six-entry biome-to-Embrapa-unit table** is written
+(`corpus/src/embrapa_units.py`), and writing it exposed a soft spot in ADR 0022's
+own reasoning. That record moved biome to the institutional layer because
+"Embrapa's decentralised units are themselves biome-shaped", and names four —
+Cerrados, Semiárido, Pantanal, Clima Temperado. **That holds for four of the six
+biomes, not for all of them.** The Amazon has two units rather than one, and
+**no unit is named for the Mata Atlântica at all**. The table says so in a caveat
+per entry instead of forcing a match, and points the Mata Atlântica at the unit
+whose remit is closest while noting that state extension is usually the better
+reference there.
+
+It is a lookup and not generated guidance, which is why it stays outside the 44
+reviewed artifacts.
+
+What B2 still owes at its gate: the structured priors — SoilGrids, whose point
+API was already found degraded on 2026-09-05 — and the search backend for the 27
+unit overlays.
 
 **Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
