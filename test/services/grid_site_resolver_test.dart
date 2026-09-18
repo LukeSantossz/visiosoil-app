@@ -109,6 +109,31 @@ void main() {
       );
     });
 
+    test('zero_cell_size_is_refused_at_parse_not_at_lookup', () {
+      // A zero divisor makes `valueAt` throw from `.floor()` on an infinity,
+      // at query time and without naming the asset. The format is read once and
+      // used on every capture, so the header is where it must be refused.
+      final bytes = PackedGridBuilder(
+        kind: GridKind.clayActivity,
+        cellMilliDegrees: 0,
+        originLatMilliDegrees: -23000,
+        originLonMilliDegrees: -47000,
+        rows: 1,
+        cols: 1,
+        sourceId: 'fixture-soil-map',
+        cells: const [1],
+      ).build();
+
+      expect(
+        () => PackedGrid.parse(bytes),
+        throwsA(isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('cell size'),
+        )),
+      );
+    });
+
     test('unknown_format_version_is_refused_rather_than_guessed', () {
       final bytes = clayGrid().build();
       bytes[4] = 9;
@@ -121,6 +146,44 @@ void main() {
           contains('version'),
         )),
       );
+    });
+  });
+
+  group('a grid is read as what it says it is', () {
+    // `GridKind` is written into every artifact so a grid cannot be read as the
+    // other one by accident. Nothing compared it, so the two `.bin` files could
+    // be swapped — by the build or by a release — and a biome index would read
+    // as a clay-activity family, since both enumerations have a member 1.
+    test('a_biome_grid_passed_as_the_clay_activity_grid_is_refused', () {
+      expect(
+        () => GridSiteResolver(
+          clayActivityGrid: PackedGrid.parse(biomeGrid().build()),
+          biomeGrid: PackedGrid.parse(clayGrid().build()),
+        ),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('clay-activity'), contains('kind 2')),
+        )),
+      );
+    });
+
+    test('a_clay_activity_grid_passed_as_the_biome_grid_is_refused', () {
+      expect(
+        () => GridSiteResolver(
+          clayActivityGrid: PackedGrid.parse(clayGrid().build()),
+          biomeGrid: PackedGrid.parse(clayGrid().build()),
+        ),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('biome'), contains('kind 1')),
+        )),
+      );
+    });
+
+    test('an_absent_grid_is_still_allowed', () {
+      expect(GridSiteResolver.new, returnsNormally);
     });
   });
 

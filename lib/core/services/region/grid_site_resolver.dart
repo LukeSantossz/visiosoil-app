@@ -88,6 +88,13 @@ class PackedGrid {
         'this build reads version $_formatVersion',
       );
     }
+    final cellMilliDegrees = data.getUint16(6);
+    if (cellMilliDegrees == 0) {
+      // A zero divisor makes every lookup throw from `.floor()` on an infinity,
+      // at query time and without naming the asset. The header is read once and
+      // used on every capture, so it is refused here.
+      throw const FormatException('packed grid declares a cell size of 0');
+    }
     final sourceLength = data.getUint8(20);
     final payloadStart = _headerLength + sourceLength;
     final rows = data.getUint16(16);
@@ -101,7 +108,7 @@ class PackedGrid {
     }
     return PackedGrid._(
       kind: data.getUint8(5),
-      cellMilliDegrees: data.getUint16(6),
+      cellMilliDegrees: cellMilliDegrees,
       originLatMilliDegrees: data.getInt32(8),
       originLonMilliDegrees: data.getInt32(12),
       rows: rows,
@@ -133,11 +140,31 @@ class GridSiteResolver implements SiteResolver {
   /// they are a build product of the corpus pipeline, and the federative unit
   /// resolves from the address without them. A null grid resolves its key part
   /// to null, which §5.2 defines as valid and not fatal.
-  const GridSiteResolver({
+  GridSiteResolver({
     PackedGrid? clayActivityGrid,
     PackedGrid? biomeGrid,
-  })  : _clay = clayActivityGrid,
-        _biome = biomeGrid;
+  })  : _clay = _ofKind(clayActivityGrid, GridKind.clayActivity, 'clay-activity'),
+        _biome = _ofKind(biomeGrid, GridKind.biome, 'biome');
+
+  /// Refuses a grid that is not the one this slot names.
+  ///
+  /// [GridKind] is written into every artifact so a grid cannot be read as the
+  /// other one by accident, and until this check existed nothing compared it.
+  /// The two `.bin` files are separate build products under separate names, so
+  /// a swap — in the build or in a release — was undetectable: both
+  /// enumerations have a member 1, so biome indices would have resolved to
+  /// clay-activity families and shown as guidance rather than as an error.
+  static PackedGrid? _ofKind(PackedGrid? grid, int expected, String slot) {
+    if (grid != null && grid.kind != expected) {
+      throw ArgumentError.value(
+        grid.kind,
+        'kind',
+        'the $slot grid slot was given a grid of kind ${grid.kind}, '
+            'not $expected',
+      );
+    }
+    return grid;
+  }
 
   final PackedGrid? _clay;
   final PackedGrid? _biome;
