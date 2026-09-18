@@ -301,15 +301,31 @@ def ablation_contrasts(
             )
         )
 
-    # Over the contrasts that were computed, which is what Holm's family is:
-    # correcting for four when three ran would penalise every one of them for a
-    # test nothing performed.
+    correct_within_family(contrasts)
+
+    return {"contrasts": contrasts, "not_executed": not_executed}
+
+
+def correct_within_family(contrasts: Sequence[dict]) -> list[dict]:
+    """Holm-correct these contrasts as one family, in place, from their raw p-values.
+
+    Over the contrasts it is given, which is what Holm's family is: correcting
+    for four when three ran would penalise every one of them for a test nothing
+    performed.
+
+    Applied from `p_value` rather than from whatever `p_value_holm` already
+    holds, so correcting a merged family is not correcting a correction. That is
+    what a split run needs: a contrast carried forward from `--groups lbp`
+    carries the Holm value of a family of one, and a report that merged it with
+    a second half would present two singly-corrected contrasts as one family of
+    two. The reading rule this module carries says the correction is within the
+    ablation family, and the family is what the report ends up holding.
+    """
     adjusted = holm_adjust([contrast["p_value"] for contrast in contrasts])
     for contrast, value in zip(contrasts, adjusted):
         contrast["p_value_holm"] = value
         contrast["family_size"] = len(contrasts)
-
-    return {"contrasts": contrasts, "not_executed": not_executed}
+    return list(contrasts)
 
 
 def write_ablation_report(

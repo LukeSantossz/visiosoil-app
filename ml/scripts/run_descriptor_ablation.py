@@ -33,6 +33,7 @@ from src.ablation import (  # noqa: E402
     BASE_ARM,
     ablation_arm_name,
     ablation_contrasts,
+    correct_within_family,
     write_ablation_report,
 )
 from src.config import load_config, resolve_paths  # noqa: E402
@@ -215,11 +216,19 @@ def main(argv: list[str] | None = None) -> int:
             costs.setdefault(arm, cost)
 
     carried_names = {entry["name"] for entry in carried}
+
+    # Corrected over what the report ends up holding, not over what this run
+    # computed. A carried contrast arrives with the Holm value of the family it
+    # was computed in — a family of one, for a single `--groups` half — and
+    # merging two of those would present them as one family of two while each
+    # said `family_size: 1`.
+    family = correct_within_family([*carried, *computed["contrasts"]])
+
     report = write_ablation_report(
         directory,
         version=version,
         manifest_digest=fold_manifest["manifest_digest"],
-        contrasts=[*carried, *computed["contrasts"]],
+        contrasts=family,
         not_executed=[
             entry
             for entry in computed["not_executed"]

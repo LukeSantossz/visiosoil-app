@@ -641,6 +641,16 @@ def test_a_partial_run_keeps_the_contrasts_the_previous_run_measured(monkeypatch
     names = {contrast["name"] for contrast in report["contrasts"]}
     assert names == {f"without_{first_group}", f"without_{second_group}"}
 
+    # And corrected as the family the report claims to be. Carrying a contrast
+    # forward carries the Holm value its own run computed, where it was a family
+    # of one; a merged report holding two such contrasts would say
+    # `family_size: 1` twice while presenting one ablation family.
+    from src.stats import holm_adjust
+
+    raw = [contrast["p_value"] for contrast in report["contrasts"]]
+    assert [contrast["p_value_holm"] for contrast in report["contrasts"]] == holm_adjust(raw)
+    assert {contrast["family_size"] for contrast in report["contrasts"]} == {2}
+
 
 def test_the_runner_refuses_a_version_the_configuration_does_not_carry(monkeypatch, tmp_path):
     """`run_arm` reloads the configuration from disk, so `--version` is a lie.
