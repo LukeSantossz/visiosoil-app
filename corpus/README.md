@@ -19,8 +19,15 @@ them in CI.
 **Its first real run produced a cell that is not worth reading** — true, cited,
 grounded, and a methodological aside rather than the correction of a wrong
 heuristic that a cell is supposed to be. The binding problem is which sources a
-substance cell may cite, not the model. That decision is open; the implementation
-map records the run and its verdict.
+substance cell may cite, not the model.
+
+**That decision was taken on 2026-09-18**: a substance cell cites Embrapa tier-1
+extension material — Sistemas de Produção, Circulares Técnicas, Boletins — which
+is what carries management recommendations, with SciELO demoted to corroboration.
+Most of that material is PDF and this fetcher reads HTML, so `pypdf` joins
+`pyshp` and the same cell is rebuilt and judged again **before any of the other
+43 is built**. The implementation map records the run, its verdict and the
+re-probe slice.
 
 ## Running the tests
 

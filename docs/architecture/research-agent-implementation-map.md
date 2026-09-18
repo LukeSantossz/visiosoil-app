@@ -9,13 +9,18 @@ and
 [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-09-17. **A1 and A2 are done** (SPEC 0068): the composition
-path is wired end to end on the device and `researchServiceProvider` no longer
-returns `UnavailableResearchService`. **It has no corpus to compose from yet.** A4 rebound
-`corpusStoreProvider` to the asset-backed store, so the app reads
-`assets/corpus/corpus.json` at first use — and no reviewed corpus artifact exists
-to put there. Every key therefore answers `insufficient_evidence` and the surface
-reads that as absent coverage. Content comes from Lane B.
+Last updated: 2026-09-18. **Lane A is done through A4's bundled half**
+(SPECs 0068, 0069, 0070): the composition path is wired end to end on the device,
+`researchServiceProvider` no longer returns `UnavailableResearchService`, the
+cache records which corpus answered, and the app reads `assets/corpus/` at first
+use. **It has no corpus to compose from yet** — no reviewed artifact exists to
+put there, so every key answers `insufficient_evidence` and the surface reads
+that as absent coverage. Content comes from Lane B.
+
+**Lane B has built its pipeline and measured it once** (SPEC 0071, plus the part
+of B2 recorded below). The verdict was that the pipeline works and the cell is
+not worth reading, and the Developer's answer to that on 2026-09-18 is recorded
+in B1: re-probe with management-guidance sources before any other cell is built.
 
 ## 1. What exists today
 
@@ -27,23 +32,24 @@ landed; everything is covered by tests.
 | `research_service.dart` | The seam: `fetchTips(record, {locale, site, landUse})`, `ResearchResult`, `ResearchFailureKind` | Complete for v1 |
 | `corpus_composer.dart` | `Corpus`, `CorpusCell` and the pure composition rule of §6.5 | Complete; pinned by `golden.json` |
 | `corpus_research_service.dart` | The Tier 1 binding: composes from the held corpus, no request at all | Complete |
-| `corpus_store.dart` | `CorpusStore` seam plus `AbsentCorpusStore`, the v1 binding | Loading and version comparison are A4's |
+| `corpus_store.dart` | `CorpusStore` seam plus `AbsentCorpusStore` | Complete; `AssetCorpusStore` is the bound implementation since A4 |
 | `region/site_resolver.dart`, `region/grid_site_resolver.dart` | `SiteResolver`, `PackedGrid` and the 27-unit address table | Complete; **both grids are optional and neither ships yet** |
 | `models/site_key.dart`, `models/land_use.dart` | `SiteKey`, `ClayActivity`, `Biome`, `LandUse` | Complete |
 | `models/management_tips_result.dart` | The result with all nine added fields and three statuses | Complete |
 | `management_tips_controller.dart` | Validate, resolve the site, call the service, persist. **No connectivity gate** | Complete for v1 |
 | `providers/research_service_provider.dart` | Binds the seam to `CorpusResearchService` | Complete |
 | `providers/corpus_store_provider.dart`, `providers/site_resolver_provider.dart` | The two new bindings | Rebound by A4 |
-| `proxy_research_service.dart`, `http_transport.dart` | HTTP transport: 20 s timeout, 3 attempts, typed failures | Complete; **no caller until A4** |
-| `unavailable_research_service.dart` | The old safe default | **Now unused** — kept until A4 proves the corpus path in the field |
-| `management_tips_table.dart` and its repository | Read-through cache: `record_uuid`, `payload_json`, `retrieved_at` | Gains one column in A3 |
+| `proxy_research_service.dart`, `http_transport.dart` | HTTP transport: 20 s timeout, 3 attempts, typed failures | Complete; **still no caller** — it serves A4's refresh half, which is blocked |
+| `unavailable_research_service.dart` | The old safe default | **Deleted** by A2; the corpus path replaced it |
+| `management_tips_table.dart` and its repository | Read-through cache: `record_uuid`, `payload_json`, `retrieved_at`, `corpus_version?` | Complete since A3 |
 | `features/details/management_tips_section.dart` | The result surface | **Owned by the UI/UX terminal** — not this workstream's to edit |
 | `test/fixtures/corpus/` | `corpus.json`, `golden.json`, two `.bin` grids | Synthetic content, real shape |
 
-What does **not** exist: any real corpus, any real grid, `assets/corpus/`,
-`corpus/`, and the proxy.
+What does **not** exist: any real corpus and the proxy. The real grids and
+`corpus/` were both built under B2; `assets/corpus/` exists and its artifacts are
+git-ignored build products.
 
-Schema version is **4**; A3 takes it to 5.
+Schema version is **5** since A3.
 
 ## 2. How to read this map
 
@@ -261,10 +267,27 @@ Two things the run also settled about sources, before the model was even reached
 material is in PDF and the extractor reads HTML only** — which is why the curated
 manifest is SciELO (tier 3, which §8.1 admits on its own).
 
-**What it needs next is a decision, not code**: which sources a substance cell may
-cite, given that they must carry management guidance rather than measurement
+**What it needed next was a decision, not code**: which sources a substance cell
+may cite, given that they must carry management guidance rather than measurement
 methodology, and given that the richest ones are PDFs the fetcher cannot read
 without a dependency.
+
+**The Developer took it on 2026-09-18: re-probe with management-guidance
+sources, read PDF, and measure again before any other cell is built.** Three
+parts, and the slice that carries them passes its own Spec Gate first:
+
+- `pypdf` joins `pyshp` in `corpus/requirements.txt`. ADR 0022 §20.4 refuses a
+  graph orchestrator, a hosted tracer, a vector store and a model gateway; a
+  file-format reader is none of them, which is the same reasoning that admitted
+  `pyshp` and is already written down there.
+- The curated manifest is recurated onto **Embrapa tier-1 extension material** —
+  Sistemas de Produção, Circulares Técnicas, Boletins — which is what carries
+  management recommendations. SciELO stays admissible and becomes corroboration
+  rather than the substance of a cell.
+- The same cell is rebuilt and judged again. **Scaling to the other 43 cells
+  stays blocked on that second judgement**, for the reason this slice's gate
+  already gives: a verdict of "not worth reading" stops the plan, and it has
+  been returned once.
 
 **Was: ready.** Builds one cell end to end with a local model and puts it in front of
 an agronomist. It no longer measures price, because there is none; it measures
@@ -375,10 +398,35 @@ page outside the policy is never read.
 
 Two details are worth carrying forward. The domain check matches on a **label
 boundary, not a string**: a suffix match would admit `notembrapa.br` and a prefix
-match `embrapa.br.evil.example`, and both have tests. And state agencies are
-consulted **before** the tier-1 suffixes, because most of them end in `.gov.br`
-and a broader entry would otherwise promote them from tier 2 to tier 1 —
-inflating the evidence a tip appears to rest on.
+match `embrapa.br.evil.example`, and both have tests. And a state domain must not
+be read as federal, because §8.2 then reads the evidence as stronger than it is.
+
+The first attempt at that second rule was wrong and the adversarial review of
+PR #242 caught it: nine state agencies were listed explicitly at tier 2 and
+consulted before the tier-1 suffixes, which left **eighteen of the twenty-seven
+units** matching the broad `gov.br` entry and coming back at tier 1. The overlays
+are keyed by all 27, so two thirds of them would have cited state extension
+material as federal. The separator is now structural — `.gov.br` delegates state
+and municipal government under `<org>.<uf>.gov.br`, so the label immediately
+before `gov.br` decides it, and no list has to be kept complete. **The price is
+stated in the code**: it also catches municipal domains, which §8.1 does not
+name, and tier 2 over-credits a municipality slightly where tier 1
+misrepresented an entire state.
+
+**These six modules have no gate-approved spec, and that is a defect rather than
+a shortcut.** SPEC 0071's Scope excludes "the search backend for the 27 unit
+overlays" and "the other 43 cells" in as many words, and no other spec covers
+`keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py`
+or `search.py`. `mf check spec` passes on them, which is the finding worth
+carrying: **the gate detects a specification that is missing, not code that has
+outrun one.** Three of them — `keys.py`, `embrapa_units.py` and `search.py` —
+also have no production caller until B3, which is the third and fourth and fifth
+entry in a debt this repository already records twice.
+
+One defect in this group has been fixed since and one is still open: the tier
+inflation described below was found and closed by the adversarial review of
+PR #242, and the coverage defect that review found in the app half is tracked as
+issue #246.
 
 **B2 owes nothing more at its gate for v1.** The last open item was the
 structured priors, and re-checking it settled it in a way nobody had noticed:
@@ -410,14 +458,27 @@ wrongly to unknown.
 
 **This slice's gate decides the search backend.** See §6.
 
-### B3 — slice 3: the build pipeline
+### B3 — slice 3: the whole corpus is built
 
-**Ready after B2.** Query transform, allowlisted search, source grading,
-generation with citations, grounding graders. The chain is CRAG-shaped: the grader
-is external and light, which is what makes a small local model adequate for it.
+**Blocked on B1's re-probe, not on code.** The chain B3 was written to build
+already exists and has run: query transform, allowlisted search, source grading,
+generation with citations, and the grounding graders, CRAG-shaped so that the
+grader stays external and light — which is what makes a small local model
+adequate for it. The allowlist is **our code now**, not a provider parameter, and
+the injection fixture of §12.4 passes.
 
-The allowlist is **our code now**, not a provider parameter. Gate: the injection
-fixture of §12.4 passes and every citation resolves.
+What B3 still owes is the **driver and the artifact**: today `probe.py` builds one
+cell, and B3 builds all 44 and assembles the release file the app already reads.
+That contract is fixed by `test/fixtures/corpus/corpus.json` and is not
+negotiable from this side — `corpusVersion`, `classListVersion`, `model`,
+`builtAt`, `disclaimer`, `clayActivityDefaultByBiome`, and the four layers
+`substance`, `landUse`, `unit` and `biome` — plus a run manifest for the build as
+a whole rather than per cell.
+
+It waits on B1's second judgement because building 43 more cells from a source
+policy that produced one unreadable cell would repeat the measured failure at
+forty-four times the cost. Gate: the 44 artifacts exist, every citation resolves,
+and the release file parses through `Corpus.fromJson` unchanged.
 
 ### B4 — slice 4: verification and the human review gate
 
@@ -439,23 +500,31 @@ ADR 0023 removes them from v1.
 
 | Question | Candidates | What separates them | Decided at |
 |---|---|---|---|
-| **Search backend for the build** | A curated document set with no live search; a self-hosted meta-search engine; a free search library | Injection surface, reproducibility, and how much manual curation 44 cells over 27 states actually needs | B2's Spec Gate |
-| **Generator and verifier models** | Any two Ollama-served families that fit 8 GB | Measured quality on one cell, not a guess | B1's measurement |
+| ~~Search backend for the build~~ | — | — | **Decided 2026-09-17: hybrid.** The substance layer is curated, because that is where quality decides everything and the source set is small; the 27 unit overlays search, because they only have to find one agency's page. `sources.py` and `search.py` are the two halves, and they enforce the allowlist differently on purpose |
+| ~~Generator model~~ | — | — | **Measured 2026-09-17:** `qwen2.5:7b` ran the whole chain without a failed step. The verifier is still unchosen, and §12 requires a different family from the generator |
+| **Which sources a substance cell may cite** | — | — | **Decided 2026-09-18**, see B1: Embrapa tier-1 extension material read from PDF, SciELO as corroboration |
 | **Who reviews the corpus** | None identified | — | Blocks B4; no fallback exists |
 
 ## 7. Order of execution
 
 ```
 A1 ──► A2 ──► A3 ──► A4 (bundled half: DONE)
-                       ▲
-B1 ──► B2 ──► B3 ──► B4 (blocked: reviewer)
-                       │
-                       └──► the corpus A4 ships
+     DONE   DONE   DONE ▲
+                        │
+B1 ──► B2 ──► B1' ──► B3 ──► B4 (blocked: reviewer)
+DONE  part   next     │
+                      └──► the corpus A4 ships
 
 Lane C ── not on the critical path ── A4 (refresh half), and nothing else in v1
 A5 ── UI/UX terminal ── after A1 lands the fields it renders
 ```
 
-A1 through A3 are the shortest path to the feature answering at all. They need no
-corpus, no model, no network and no proxy: they answer from the fixture, which is
-why the fixture is a repository asset rather than a throwaway.
+**B1'** is the re-probe: the same one cell, rebuilt from management-guidance
+sources read out of PDF, and judged again. It sits between B2 and B3 because B1's
+first verdict was that the cell is not worth reading, and nothing downstream is
+worth building until that answer changes.
+
+A1 through A3 were the shortest path to the feature answering at all. They needed
+no corpus, no model, no network and no proxy: they answer from the fixture, which
+is why the fixture is a repository asset rather than a throwaway. All three have
+landed, so the critical path is now entirely Lane B's.
