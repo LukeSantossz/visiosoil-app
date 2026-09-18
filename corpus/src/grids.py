@@ -1,0 +1,150 @@
+"""Rasterising a shapefile into the packed grid the app reads.
+
+The format is a contract between two languages: this writer produces it and the
+app's `PackedGrid.parse` (`lib/core/services/region/grid_site_resolver.dart`)
+consumes it. `tests/test_grids.py` asserts the bytes against the committed Dart
+fixture, because a contract tested on one side only is a contract that drifts —
+and a one-byte disagreement would show as wrong guidance rather than as an error.
+
+Sampling is at the **cell centre**, not by area majority. At 0.1° a cell is
+roughly 11 km across, and the source maps are generalised at national scale, so a
+majority rule would spend effort resolving boundaries the source does not
+actually know. §5.2 already accepts that error is confined to transition bands.
+"""
+
+from __future__ import annotations
+
+import struct
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
+
+import shapefile
+
+MAGIC = b"VSG1"
+FORMAT_VERSION = 1
+
+
+class RasterisationError(Exception):
+    """A grid that cannot be built, named rather than silently degraded.
+
+    A grid is a build product read by every lookup in the country, so a defect
+    here must stop the build: a grid that quietly resolves to zero would
+    downgrade every answer without anyone noticing.
+    """
+
+
+@dataclass(frozen=True)
+class GridSpec:
+    """The lattice a shapefile is sampled onto, and what the artifact records."""
+
+    kind: int
+    cell_milli_degrees: int
+    origin_lat_milli_degrees: int
+    origin_lon_milli_degrees: int
+    rows: int
+    cols: int
+    source_id: str
+
+    def centre(self, row: int, col: int) -> tuple[float, float]:
+        """The latitude and longitude sampled for a cell."""
+        half = self.cell_milli_degrees / 2
+        lat = (self.origin_lat_milli_degrees + row * self.cell_milli_degrees + half)
+        lon = (self.origin_lon_milli_degrees + col * self.cell_milli_degrees + half)
+        return lat / 1000, lon / 1000
+
+
+def _contains(rings: list[list[list[float]]], x: float, y: float) -> bool:
+    """Ray casting over a polygon's rings.
+
+    Written out rather than imported: the alternative readers pull GDAL, and the
+    only predicate this module needs is point-in-polygon over axis-agnostic
+    rings.
+    """
+    inside = False
+    for ring in rings:
+        for index in range(len(ring)):
+            x1, y1 = ring[index][0], ring[index][1]
+            x2, y2 = ring[index - 1][0], ring[index - 1][1]
+            if (y1 > y) != (y2 > y):
+                crossing = x1 + (y - y1) / (y2 - y1) * (x2 - x1)
+                if x < crossing:
+                    inside = not inside
+    return inside
+
+
+def _rings(shape) -> list[list[list[float]]]:
+    parts = list(shape.parts) + [len(shape.points)]
+    return [
+        [list(point) for point in shape.points[parts[i] : parts[i + 1]]]
+        for i in range(len(parts) - 1)
+    ]
+
+
+def rasterise(
+    path: Path,
+    spec: GridSpec,
+    *,
+    field: str,
+    value_for: Callable[[str], int],
+) -> list[int]:
+    """Samples [path] onto [spec]'s lattice, one byte per cell.
+
+    [value_for] turns an attribute value into the byte to store — 0 for
+    unresolved, otherwise the one-based index into the enumeration the grid's
+    kind names. Keeping it a parameter is what lets the clay-activity mapping
+    live in `clay_activity.py` and be tested on its own.
+    """
+    reader = shapefile.Reader(str(path))
+    names = [f[0] for f in reader.fields[1:]]
+    if field not in names:
+        raise RasterisationError(
+            f"{path} has no attribute {field!r}; it carries {names}"
+        )
+    column = names.index(field)
+
+    shapes = [
+        (_rings(shape), value_for(str(record[column])))
+        for shape, record in zip(reader.shapes(), reader.records())
+    ]
+    for _, value in shapes:
+        if not isinstance(value, int) or not 0 <= value <= 255:
+            raise RasterisationError(
+                f"value_for returned {value!r}, which is not a byte; the grid "
+                f"stores one byte per cell"
+            )
+
+    cells = []
+    for row in range(spec.rows):
+        for col in range(spec.cols):
+            lat, lon = spec.centre(row, col)
+            resolved = 0
+            for rings, value in shapes:
+                if value and _contains(rings, lon, lat):
+                    resolved = value
+                    break
+            cells.append(resolved)
+    return cells
+
+
+def write_packed_grid(spec: GridSpec, cells: list[int]) -> bytes:
+    """The artifact bytes, in the layout `PackedGrid` documents and parses."""
+    if len(cells) != spec.rows * spec.cols:
+        raise RasterisationError(
+            f"{len(cells)} cells for a {spec.rows} x {spec.cols} lattice"
+        )
+    source = spec.source_id.encode("utf-8")
+    if len(source) > 255:
+        raise RasterisationError("source id does not fit in one byte of length")
+    header = MAGIC + struct.pack(
+        ">BBHiiHHB",
+        FORMAT_VERSION,
+        spec.kind,
+        spec.cell_milli_degrees,
+        spec.origin_lat_milli_degrees,
+        spec.origin_lon_milli_degrees,
+        spec.rows,
+        spec.cols,
+        len(source),
+    )
+    return header + source + bytes(cells)

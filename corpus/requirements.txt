@@ -1,6 +1,15 @@
-# The corpus build deliberately has no runtime dependencies: the chain is HTTP
-# to a local Ollama server and the standard library. ADR 0022 §20.4 refuses a
-# graph orchestrator, a hosted tracer and a vector store for this shape, and a
-# dependency that renders JavaScript would be a dependency that runs a source
-# page's code — which §10 refuses.
+# What ADR 0022 §20.4 refuses is four named things — a graph orchestrator, a
+# hosted tracer, a vector store, and a model gateway at build time — none of
+# which is a file-format reader. An earlier version of this file generalised
+# that into "no runtime dependencies", which is a stronger claim than any record
+# supports and is corrected here.
+#
+# The chain itself needs nothing: it is HTTP to a local Ollama server and the
+# standard library. Reading the source *data* is where dependencies are owed,
+# and each one below says what it is for.
+
+# Reads the IBGE shapefiles the grids are rasterised from. Pure Python and
+# dependency-free itself, unlike fiona or geopandas, which pull GDAL.
+pyshp>=2.3.0,<3.0.0
+
 pytest>=7.4.0,<9.0.0
