@@ -27,9 +27,12 @@ from src.ablation import (
 from src.config import load_config
 from src.crossval import (
     COST_FILENAME,
+    RUNTIME_FILENAME,
+    SELECTION_AUDIT_FILENAME,
     fold_directory,
     fold_trainer_for,
     load_arm_predictions,
+    require_uniform_runtime,
     write_fold_predictions,
 )
 from src.dataset import create_folds, fold_split
@@ -125,11 +128,19 @@ def test_registering_the_ablation_arms_overwrites_no_arm_beside_them():
     so a descriptor group named after a capture population would replace the
     population arm's trainer and nothing would say so.
     """
-    from src.crossval import ARM_TRAINERS
+    from src.crossval import ARM_TRAINERS, merge_arm_trainers
 
     named_elsewhere = set(ARM_TRAINERS) - set(ABLATION_ARMS)
     assert len(ARM_TRAINERS) == len(named_elsewhere) + len(ABLATION_ARMS)
     assert "descriptors_without_b" in named_elsewhere
+
+    # The registry refuses the collision itself, rather than this test being the
+    # only thing standing between a duplicate name and a silently wrong artifact.
+    with pytest.raises(ValueError, match="descriptors_without_b"):
+        merge_arm_trainers(
+            {"descriptors_without_b": lambda: None},
+            {"descriptors_without_b": lambda: None},
+        )
 
 
 def test_an_ablation_fold_loads_through_the_protocols_own_loader(tmp_path, folds):
@@ -168,11 +179,26 @@ def test_an_ablation_fold_loads_through_the_protocols_own_loader(tmp_path, folds
                 shuffled_control=False,
                 manifest_digest=folds["manifest_digest"],
             )
-            (fold_directory(arm_dir, repeat, fold) / COST_FILENAME).write_text(
+            directory = fold_directory(arm_dir, repeat, fold)
+            (directory / COST_FILENAME).write_text(
                 json.dumps({"trainings": 4, "wall_clock_seconds": [1.0, 2.0, 3.0, 4.0]}),
                 encoding="utf-8",
             )
+            # All four artifacts, and not the two `load_arm_predictions` reads.
+            # The runner's read path is `require_uniform_runtime` *then* the
+            # loader, and the first refuses a fold with no `runtime.json`
+            # ("absent is not the same as matching"), so a fixture holding two
+            # artifacts would be refused by the very runner this models.
+            (directory / RUNTIME_FILENAME).write_text(
+                json.dumps({"deterministic_ops": True, "device": "CPU", "gpu_count": 0}),
+                encoding="utf-8",
+            )
+            (directory / SELECTION_AUDIT_FILENAME).write_text(
+                json.dumps({"repeat": repeat, "fold": fold, "read_groups": []}),
+                encoding="utf-8",
+            )
 
+    require_uniform_runtime(arm_dir, folds)
     loaded, costs = load_arm_predictions(arm_dir, folds)
 
     assert len(loaded) == folds["repeats"] * folds["k"]
@@ -226,9 +252,20 @@ def test_ablation_is_corrected_within_its_own_family():
     report = ablation_contrasts(scored, alpha=ALPHA, power=POWER)
 
     assert len(report["contrasts"]) == len(ABLATION_ARMS)
+
+    # Against `holm_adjust` of the family's own raw p-values, and not the
+    # tautology `p_value_holm >= p_value`: the smallest Holm multiplier is 1, so
+    # that inequality holds for a family of one, of four or of forty, and it
+    # would pass unchanged if this corrected over the wrong family. The fixture
+    # gives each arm a different accuracy so the four p-values differ, which is
+    # what makes a family-size error visible rather than a uniform shift.
+    from src.stats import holm_adjust
+
+    raw = [contrast["p_value"] for contrast in report["contrasts"]]
+    assert len(set(raw)) == len(raw)
+    assert [contrast["p_value_holm"] for contrast in report["contrasts"]] == holm_adjust(raw)
     for contrast in report["contrasts"]:
         assert contrast["family_size"] == len(ABLATION_ARMS)
-        assert contrast["p_value_holm"] >= contrast["p_value"]
 
 
 def test_the_correction_is_read_rather_than_the_raw_p_value():
@@ -377,3 +414,250 @@ def test_the_report_is_written_whichever_way_it_reads(tmp_path):
 
     assert report["carries_signal"] == []
     assert (tmp_path / ABLATION_DIRNAME / ABLATION_REPORT_FILENAME).is_file()
+
+
+# --- the direction a difference had, found by review of PR #241 --------------
+
+
+def test_a_group_whose_removal_improved_the_arm_does_not_carry_signal():
+    """`carries_signal` is a claim about contribution, so it has a direction.
+
+    The first draft read `abs(observed) >= mde` and never looked at the sign, so
+    a group whose removal made the arm *better* came back as carrying signal,
+    with the reading "the remaining groups do not replace what it contributed".
+    The E0 verdict reads that list.
+    """
+    helped = reading_cell(significant=True, observed=0.30, mde=0.16)
+    hurt = reading_cell(significant=True, observed=-0.30, mde=0.16)
+
+    assert helped["carries_signal"] is True
+    assert helped["favours"] == "full_arm"
+
+    assert hurt["carries_signal"] is False
+    assert hurt["favours"] == "ablated_arm"
+    assert hurt["cell"] != helped["cell"]
+
+
+def test_the_reading_says_which_way_a_resolved_difference_went():
+    """A cell that resolved in the ablated arm's favour says so in its prose."""
+    hurt = reading_cell(significant=True, observed=-0.30, mde=0.16)
+
+    assert "without" in hurt["reading"] or "better" in hurt["reading"]
+    assert "do not replace what it contributed" not in hurt["reading"]
+
+
+def test_an_absent_arm_carries_the_reason_it_was_absent():
+    """Three different failures reach this branch and the record must tell them apart.
+
+    `require_uniform_runtime` refusing an arm whose predictions exist is not
+    "no predictions were found for this arm", and the committed artifact is read
+    on a machine where the stderr is long gone.
+    """
+    groups = [f"g{index}" for index in range(10)]
+    absent = ablation_arm_name(GROUPS[1])
+    scored = {BASE_ARM: correctness(groups, wrong=groups[:2])}
+    for arm in ABLATION_ARMS:
+        if arm != absent:
+            scored[arm] = correctness(groups, wrong=groups[:5])
+
+    report = ablation_contrasts(
+        scored,
+        alpha=ALPHA,
+        power=POWER,
+        absent_reasons={absent: "3 fold(s) ran under different libraries"},
+    )
+
+    entry = report["not_executed"][0]
+    assert entry["arm"] == absent
+    assert "different libraries" in entry["note"]
+
+
+def test_an_absent_arm_with_no_reason_given_still_says_something_true():
+    groups = [f"g{index}" for index in range(10)]
+    absent = ablation_arm_name(GROUPS[1])
+    scored = {BASE_ARM: correctness(groups, wrong=groups[:2])}
+    for arm in ABLATION_ARMS:
+        if arm != absent:
+            scored[arm] = correctness(groups, wrong=groups[:5])
+
+    report = ablation_contrasts(scored, alpha=ALPHA, power=POWER)
+
+    assert report["not_executed"][0]["note"]
+
+
+def test_the_report_records_what_each_arm_cost(tmp_path):
+    """SPEC 0065's contention risk is mitigated by the artifact, or not at all.
+
+    The spec says the report "records the wall clock it observed rather than
+    claiming an uncontended figure". `runtimes` carries the device and the
+    library versions and no timing, so without this the promise was unkept.
+    """
+    groups = [f"g{index}" for index in range(12)]
+    scored = {BASE_ARM: correctness(groups, wrong=groups[:2])}
+    for arm in ABLATION_ARMS:
+        scored[arm] = correctness(groups, wrong=groups[:5])
+    computed = ablation_contrasts(scored, alpha=ALPHA, power=POWER)
+
+    report = write_ablation_report(
+        tmp_path / ABLATION_DIRNAME,
+        version="v1",
+        manifest_digest=FIXTURE_DIGEST,
+        contrasts=computed["contrasts"],
+        not_executed=computed["not_executed"],
+        seeds={"0": 42},
+        runtimes={BASE_ARM: {"device": "CPU"}},
+        costs={BASE_ARM: {"wall_clock_seconds_total": 3600.0, "trainings": 125}},
+    )
+
+    assert report["costs"][BASE_ARM]["wall_clock_seconds_total"] == 3600.0
+    assert "contention" in report["cost_note"]
+
+
+def test_the_descriptor_vocabulary_is_pinned_to_what_the_ablation_covers():
+    """A fifth descriptor group changes what every existing ablation fold means.
+
+    `descriptors_without_lbp` means "the other three groups" today and would
+    mean "the other four" tomorrow, and nothing a fold records would differ:
+    `fold_reuse_state` compares the manifest digest, the arm name, the control
+    flag, the partition and `config.json`, and the group list is in none of
+    them. So the vocabulary is pinned here, and adding a group fails this test
+    rather than silently pairing three-group predictions against a five-group
+    base arm.
+    """
+    assert GROUPS == ("first_order", "spectral", "lbp", "glcm")
+
+
+# --- the runner, found by review of PR #241 ----------------------------------
+
+
+def _stub_runner(monkeypatch, tmp_path, *, failing=(), version="v1"):
+    """Wire the runner to fake arms, so its control flow is testable without folds.
+
+    Everything the script reads from disk is replaced; what stays real is the
+    script's own sequencing, which is what these tests are about.
+    """
+    import scripts.run_descriptor_ablation as runner
+
+    cfg = {
+        "data": {"dataset_version": version, "splits_dir": str(tmp_path / "splits")},
+        "evaluation": {"alpha": ALPHA, "power": POWER},
+        "export": {"output_dir": str(tmp_path / "models")},
+    }
+    manifest = {"manifest_digest": FIXTURE_DIGEST, "seeds": {"0": 42}, "k": 1, "repeats": 1}
+    groups = [f"g{index}" for index in range(12)]
+    calls = []
+
+    def fake_run_arm(run_version, arm, config_path, force=False):
+        calls.append({"arm": arm, "force": force, "version": run_version})
+        if arm in failing:
+            raise failing[arm] if isinstance(failing, dict) else RuntimeError("died")
+        return {}
+
+    monkeypatch.setattr(runner, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(runner, "resolve_paths", lambda c: c)
+    monkeypatch.setattr(runner, "load_folds_for_config", lambda c, d: manifest)
+    monkeypatch.setattr(runner, "run_arm", fake_run_arm)
+    monkeypatch.setattr(runner, "require_uniform_runtime", lambda *a, **k: None)
+    monkeypatch.setattr(
+        runner,
+        "load_arm_predictions",
+        lambda arm_dir, folds: ({}, {(0, 0): {"trainings": 5, "wall_clock_seconds": [1.0]}}),
+    )
+    monkeypatch.setattr(runner, "first_runtime", lambda *a, **k: {"device": "CPU"})
+
+    def fake_correctness(predictions, arm_dir=None):
+        return correctness(groups, wrong=groups[:3])
+
+    monkeypatch.setattr(runner, "pooled_group_correctness", fake_correctness)
+    return runner, calls, tmp_path / "models" / version / ABLATION_DIRNAME
+
+
+def test_force_never_recomputes_the_gates_own_descriptor_arm(monkeypatch, tmp_path):
+    """`--force` on this runner must not reach a pre-registered gate arm.
+
+    SPEC 0065's Scope excludes running the gate's own arms, and `descriptors` is
+    one of SPEC 0044's four: `--force` reaching it overwrites finished folds and
+    the `metrics.json` the gate's own contrast was computed from.
+    """
+    runner, calls, _ = _stub_runner(monkeypatch, tmp_path)
+
+    assert runner.main(["--force"]) == 0
+
+    forced = {call["arm"]: call["force"] for call in calls}
+    assert forced[BASE_ARM] is False
+    assert all(forced[arm] is True for arm in ABLATION_ARMS)
+
+
+def test_an_arm_that_dies_of_any_exception_is_recorded_not_raised(monkeypatch, tmp_path):
+    """The rule is "recorded, not raised", and it held for `ValueError` alone.
+
+    A `FileNotFoundError` from a deleted image, or a `MemoryError` from the
+    refit, aborted the whole four-hour diagnostic after burning three of them.
+    """
+    absent = ablation_arm_name(GROUPS[2])
+    runner, _, directory = _stub_runner(
+        monkeypatch, tmp_path, failing={absent: MemoryError("out of memory")}
+    )
+
+    assert runner.main([]) == 0
+
+    report = json.loads((directory / ABLATION_REPORT_FILENAME).read_text(encoding="utf-8"))
+    assert [entry["arm"] for entry in report["not_executed"]] == [absent]
+    assert "out of memory" in report["not_executed"][0]["note"]
+
+
+def test_measuring_nothing_is_not_a_null_result(monkeypatch, tmp_path):
+    """Zero contrasts computed is "could not be run", which the exit code says.
+
+    Otherwise the runner prints "groups whose removal changed a scored result:
+    none" and exits 0, and a reader concludes the diagnostic found nothing when
+    it measured nothing.
+    """
+    everything = {arm: RuntimeError("no") for arm in ABLATION_ARMS}
+    runner, _, directory = _stub_runner(monkeypatch, tmp_path, failing=everything)
+
+    assert runner.main([]) == 1
+
+    report = json.loads((directory / ABLATION_REPORT_FILENAME).read_text(encoding="utf-8"))
+    assert report["contrasts"] == []
+    assert len(report["not_executed"]) == len(ABLATION_ARMS)
+
+
+def test_a_partial_run_keeps_the_contrasts_the_previous_run_measured(monkeypatch, tmp_path):
+    """`--groups` splits a four-hour run, and the second half must not truncate it.
+
+    `run_d6_sensitivity.py` carries exactly this workflow and exactly this
+    guard; the first draft of this runner mirrored the script and dropped it, so
+    the second half overwrote the first half's contrasts with entries saying the
+    arms were never run — while their predictions sat on disk.
+    """
+    first_group, second_group = GROUPS[0], GROUPS[1]
+    runner, _, directory = _stub_runner(monkeypatch, tmp_path)
+
+    assert runner.main(["--groups", first_group]) == 0
+    assert runner.main(["--groups", second_group]) == 0
+
+    report = json.loads((directory / ABLATION_REPORT_FILENAME).read_text(encoding="utf-8"))
+    names = {contrast["name"] for contrast in report["contrasts"]}
+    assert names == {f"without_{first_group}", f"without_{second_group}"}
+
+
+def test_the_runner_refuses_a_version_the_configuration_does_not_carry(monkeypatch, tmp_path):
+    """`run_arm` reloads the configuration from disk, so `--version` is a lie.
+
+    The write-back reaches this script's own copy and nothing else: `run_arm`
+    reads `dataset_version` out of the file. A `--version` that disagrees loads
+    one version's folds and files the result under another's name, and the
+    refusal it eventually produces names the manifest rather than the flag.
+    """
+    runner, _, _ = _stub_runner(monkeypatch, tmp_path, version="v1")
+
+    assert runner.main(["--version", "v2"]) == 1
+
+
+def test_the_runner_carries_forward_with_the_sensitivity_rule(monkeypatch, tmp_path):
+    """Asserted by identity: a second implementation could drift from this one."""
+    import scripts.run_descriptor_ablation as runner
+    from src.sensitivity import carry_forward_contrasts
+
+    assert runner.carry_forward_contrasts is carry_forward_contrasts

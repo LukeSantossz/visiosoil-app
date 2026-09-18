@@ -146,7 +146,13 @@ def reading_cell(
     else:
         favours = "neither"
 
-    if significant and resolvable:
+    # The sign is read, not only the magnitude. `carries_signal` is a claim that
+    # the group *contributed*, and a resolved difference in the other direction
+    # says the opposite — the arm scored better without it. The first draft
+    # tested `abs(observed) >= mde` and never looked at the sign it had just
+    # computed, so a group whose removal helped was reported as carrying signal,
+    # and SPEC 0044's verdict reads that list.
+    if significant and resolvable and favours == "full_arm":
         return {
             "cell": "significant_at_or_above_mde",
             "carries_signal": True,
@@ -155,6 +161,19 @@ def reading_cell(
                 "removing this group changed a scored result by more than this "
                 "experiment's own floor, so the remaining groups do not replace "
                 "what it contributed"
+            ),
+        }
+
+    if significant and resolvable:
+        return {
+            "cell": "significant_at_or_above_mde_favouring_the_ablated_arm",
+            "carries_signal": False,
+            "favours": favours,
+            "reading": (
+                "the arm scored better without this group by more than this "
+                "experiment's own floor. That is not a contribution, and it is "
+                "the one cell of this diagnostic that argues for changing the "
+                "feature set rather than describing it"
             ),
         }
 
@@ -216,6 +235,7 @@ def ablation_contrasts(
     *,
     alpha: float,
     power: float,
+    absent_reasons: Mapping[str, str] | None = None,
 ) -> dict:
     """Pair every ablation arm that ran against the full arm, and correct them.
 
@@ -223,6 +243,12 @@ def ablation_contrasts(
         correctness: Group-level correctness per arm name, as
             `evaluate.pooled_group_correctness` returns it. An ablation arm
             absent from it is one that did not run.
+        absent_reasons: Why an arm is absent, by arm name, from whoever knew.
+            Several different failures reach the same branch — the arm refused
+            to run, its folds were refused as a mixed stack, or the operator did
+            not ask for it — and a note that said "no predictions were found"
+            for all three would describe an integrity failure as an arm nobody
+            started. The committed artifact is read where the stderr is gone.
 
     Returns:
         The computed contrasts and the arms that did not run, the second named
@@ -241,6 +267,7 @@ def ablation_contrasts(
         )
 
     base = correctness[BASE_ARM]
+    reasons = dict(absent_reasons or {})
     contrasts: list[dict] = []
     not_executed: list[dict] = []
 
@@ -251,10 +278,10 @@ def ablation_contrasts(
                     "arm": arm,
                     "group": group,
                     "status": "not_executed",
-                    "note": (
-                        "no predictions were found for this arm, so no contrast "
-                        "was computed for it and it is not reported as having "
-                        "lost one"
+                    "note": reasons.get(
+                        arm,
+                        "this arm was not scored, so no contrast was computed "
+                        "for it and it is not reported as having lost one",
                     ),
                 }
             )
@@ -294,6 +321,7 @@ def write_ablation_report(
     not_executed: Sequence[Mapping],
     seeds: Mapping,
     runtimes: Mapping[str, Mapping | None],
+    costs: Mapping[str, Mapping] | None = None,
 ) -> dict:
     """Write the diagnostic, whichever way it reads.
 
@@ -305,6 +333,12 @@ def write_ablation_report(
         runtimes: What each arm's own folds recorded, read back from the
             artifacts rather than taken from the reporting process, so a report
             written on one machine cannot describe an arm that ran on another.
+        costs: What each arm's folds recorded spending, summed from their own
+            `cost.json`. SPEC 0065 accepts that an ablation run beside another
+            arm records contention as its own time, on condition that the report
+            says what it observed; `runtimes` carries the device and the library
+            versions and no timing at all, so without this the condition is
+            unmet.
     """
     read = [read_contrast(contrast) for contrast in contrasts]
 
@@ -326,6 +360,13 @@ def write_ablation_report(
             arm: dict(runtime) if runtime else None
             for arm, runtime in runtimes.items()
         },
+        "costs": {arm: dict(cost) for arm, cost in (costs or {}).items()},
+        "cost_note": (
+            "wall clock as each arm's own folds recorded it, contention "
+            "included. An arm that ran beside another on this machine recorded "
+            "the contention as its own time, and this is the figure observed "
+            "rather than a corrected one"
+        ),
     }
 
     destination = Path(directory)
