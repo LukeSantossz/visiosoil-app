@@ -379,9 +379,17 @@ consulted **before** the tier-1 suffixes, because most of them end in `.gov.br`
 and a broader entry would otherwise promote them from tier 2 to tier 1 —
 inflating the evidence a tip appears to rest on.
 
-What B2 still owes at its gate: the structured priors. SoilGrids' point API was
-found degraded on 2026-09-05 — one `200` with null values, then three `503` — and
-nothing since has re-checked it.
+**B2 owes nothing more at its gate for v1.** The last open item was the
+structured priors, and re-checking it settled it in a way nobody had noticed:
+those priors exist to feed `regionalContradiction`, which is a **Tier 2
+predicate**, and ADR 0023 took Tier 2 out of v1. They have no other consumer, so
+sampling SoilGrids is work v1 does not owe — it returns with Tier 2, alongside
+the `.tflite` artifact the same predicate waits on.
+
+The point API was re-probed on 2026-09-17 anyway, twelve days after the first
+probe: **`502` after 41.5 s, then three consecutive `503`.** Not recovered, and
+worse than before. That confirms §8.4's decision to bake rather than call, and
+moves the bulk-coverage question out of v1 with the predicate it serves.
 
 **Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
