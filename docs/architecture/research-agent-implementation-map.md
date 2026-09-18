@@ -277,11 +277,14 @@ other cells are built.
 ### B2 — slice 2: cells, region tables and structured sources
 
 **Ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
-the 27 unit overlays, and samples the structured sources. Carries the three
-unverified inputs §15.3 lists — bulk SoilGrids coverage, IBGE biome boundaries in
-rasterisable form, and the national soil map collapsing into three clay-activity
-families — each of which is a check, not an assumption, and the third is the one
-the substance key rests on.
+the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
+IBGE biome boundaries exist as open-data shapefiles at 1:250 000 — better than
+assumed. The national soil map is obtainable, but **Embrapa's copy is CC BY-NC,
+which this product cannot use** because §15.2 records it as a field product as
+well as an academic one; IBGE publishes the equivalent under the federal
+open-data policy, and that is the copy to read. The third — whether map units
+collapse into three clay-activity families — **is still open** and needs the
+attribute table rather than a metadata page. The substance key rests on it.
 
 **This slice's gate decides the search backend.** See §6.
 
