@@ -90,12 +90,13 @@ def family_for_soil_class(name: str | None) -> str | None:
         return None
     normalised = _normalise(name)
 
-    order = next(
-        (key for key in _ORDER_DEFAULTS if normalised.startswith(key)), None
-    )
-    if order is None:
+    # `startswith` alone accepts "LATOSSOLOX" and answers with the Latossolo
+    # default, which breaks the contract: a name the system does not recognise
+    # returns null rather than the nearest order's guess.
+    first = re.split(r"[\s,.;:/-]", normalised, maxsplit=1)[0]
+    order = _ORDER_DEFAULTS.get(first)
+    if first not in _ORDER_DEFAULTS:
         return None
-
     # The qualifier outranks the order's default: it is the measurement, while
     # the default is an inference from the order. Matched as a whole token —
     # as a substring it would be found inside words and mislabel the unit.
@@ -109,4 +110,4 @@ def family_for_soil_class(name: str | None) -> str | None:
     if re.search(r"\btb\b", normalised):
         return TB
 
-    return _ORDER_DEFAULTS[order]
+    return order

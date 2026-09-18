@@ -11,10 +11,11 @@ This file is the plan, and only the plan.
 
 Last updated: 2026-09-17. **A1 and A2 are done** (SPEC 0068): the composition
 path is wired end to end on the device and `researchServiceProvider` no longer
-returns `UnavailableResearchService`. **It has no corpus to compose from yet** —
-`corpusStoreProvider` binds `AbsentCorpusStore`, so every key answers
-`insufficient_evidence` and the surface reads that as absent coverage. Content
-arrives with A4, from Lane B.
+returns `UnavailableResearchService`. **It has no corpus to compose from yet.** A4 rebound
+`corpusStoreProvider` to the asset-backed store, so the app reads
+`assets/corpus/corpus.json` at first use — and no reviewed corpus artifact exists
+to put there. Every key therefore answers `insufficient_evidence` and the surface
+reads that as absent coverage. Content comes from Lane B.
 
 ## 1. What exists today
 

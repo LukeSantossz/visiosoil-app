@@ -63,7 +63,10 @@ have.
   - `lib/core/database/tables/management_tips_table.dart` — one nullable
     `corpus_version` column.
   - `lib/core/database/app_database.dart` — `schemaVersion` 4 → 5 and a
-    cumulative `if (from < 5)` step in the existing style.
+    cumulative step in the existing style, guarded `from >= 4 && from < 5`. Not
+    `from < 5` alone: the v4 step's `createTable` builds the table from today's
+    definition, so a pre-v4 database already carries the column. The acceptance
+    criteria below record how that was found.
   - `lib/core/database/app_database.g.dart` — regenerated.
   - `lib/core/data/repositories/management_tips_repository.dart` and its Drift
     implementation — write the column on upsert, and a read that reports the

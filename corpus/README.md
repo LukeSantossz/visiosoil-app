@@ -11,13 +11,16 @@ the ordered backlog is
 
 ## State
 
-**Slice B1 — the calibration probe — is partially built.** The chain, the source
-manifest, the cell contract, the run manifest and the Ollama client exist and are
-tested. What is missing before the probe can be run for real:
+**Slice B1 — the calibration probe — is built and has been run.** The chain, the
+source manifest, the cell contract, the run manifest, the Ollama client, the
+grids and the overlay search all exist and are tested, and `corpus-tests` runs
+them in CI.
 
-- `sources/substance.manifest.json`, the curated allowlist. It does not exist
-  yet; the probe needs the list of sources a substance cell may cite.
-- A `corpus-tests` job in `.github/workflows/ci.yml`, mirroring `ml-tests`.
+**Its first real run produced a cell that is not worth reading** — true, cited,
+grounded, and a methodological aside rather than the correction of a wrong
+heuristic that a cell is supposed to be. The binding problem is which sources a
+substance cell may cite, not the model. That decision is open; the implementation
+map records the run and its verdict.
 
 ## Running the tests
 
@@ -58,5 +61,9 @@ Two boundaries carry the safety properties:
   the contract names, so a field a source asked for is dropped rather than
   shipped.
 
-No runtime dependencies beyond the standard library. Prompts live in `prompts/`
-rather than in string literals because the run manifest records a prompt version.
+One runtime dependency: **`pyshp`**, which reads the IBGE shapefiles the grids
+are rasterised from. It is pure Python and pulls no GDAL. Everything else is the
+standard library — `requirements.txt` says what each entry is for.
+
+Prompts live in `prompts/` rather than in string literals because the run
+manifest records a prompt version.

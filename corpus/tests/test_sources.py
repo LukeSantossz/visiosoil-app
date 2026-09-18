@@ -102,3 +102,43 @@ def test_a_manifest_entry_without_a_url_is_refused(tmp_path):
 
     with pytest.raises(ValueError):
         SourceManifest.load(path)
+
+
+# --- The allowlist has to survive a redirect ---------------------------------
+
+
+def test_the_production_transport_refuses_a_redirect(tmp_path):
+    """A redirect is a second request, and the allowlist has to reach it.
+
+    `urlopen` follows redirects by default and only the first URL was checked, so
+    an allowlisted server that redirected to an internal or loopback address
+    would have the build fetch that destination and feed its text to the
+    pipeline. Refusing redirects outright is the smaller surface: a curated
+    source that moved is a manifest entry to update, which is a reviewed act.
+    """
+    from src.llm import RedirectRefused, _NoRedirect
+
+    handler = _NoRedirect()
+
+    with pytest.raises(RedirectRefused) as excinfo:
+        handler.redirect_request(
+            None, None, 302, "Found", {}, "http://169.254.169.254/latest/meta-data"
+        )
+
+    assert "169.254.169.254" in str(excinfo.value)
+
+
+def test_a_redirect_refusal_names_both_ends(tmp_path):
+    from src.llm import RedirectRefused, _NoRedirect
+
+    class Request:
+        full_url = "https://www.scielo.br/a"
+
+    with pytest.raises(RedirectRefused) as excinfo:
+        _NoRedirect().redirect_request(
+            Request(), None, 301, "Moved", {}, "https://elsewhere.invalid/x"
+        )
+
+    message = str(excinfo.value)
+    assert "scielo.br" in message
+    assert "elsewhere.invalid" in message

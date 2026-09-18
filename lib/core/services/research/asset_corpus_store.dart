@@ -67,24 +67,32 @@ class AssetCorpusStore implements CorpusStore {
       throw FormatException('$corpusAssetKey is not a JSON object: $error');
     }
 
-    final builtAt = json['builtAt'] as String?;
-    final fetchedAt = builtAt == null ? null : DateTime.tryParse(builtAt);
-    if (fetchedAt == null) {
-      // A bundled artifact with no build time has no honest `retrievedAt`, and
-      // substituting the load time would claim a freshness it does not have.
-      throw FormatException(
-        '$corpusAssetKey has no usable builtAt; a bundled corpus must say when '
-        'it was built',
-      );
-    }
-
+    // `TypeError` as well as `FormatException`: the corpus parser casts many
+    // fields, and a value of the wrong shape throws a `TypeError` that names the
+    // types and not the artifact. The contract is that a present, malformed
+    // corpus names the asset, so the whole read is normalised — not just the one
+    // field a previous fix reached.
     try {
+      final builtAt = json['builtAt'] as String?;
+      final fetchedAt = builtAt == null ? null : DateTime.tryParse(builtAt);
+      if (fetchedAt == null) {
+        // A bundled artifact with no build time has no honest `retrievedAt`, and
+        // substituting the load time would claim a freshness it does not have.
+        throw FormatException(
+          '$corpusAssetKey has no usable builtAt; a bundled corpus must say '
+          'when it was built',
+        );
+      }
       return Corpus.fromJson(json, fetchedAt: fetchedAt);
     } on FormatException catch (error) {
-      // Re-thrown with the asset named: the corpus parser reports which field is
-      // wrong, and the reader needs to know which artifact carried it.
+      if (error.message.contains(corpusAssetKey)) rethrow;
       throw FormatException('$corpusAssetKey is not a valid corpus: '
           '${error.message}');
+    } on TypeError catch (error) {
+      throw FormatException(
+        '$corpusAssetKey is not a valid corpus: a field has the wrong type '
+        '($error)',
+      );
     }
   }
 }

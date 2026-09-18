@@ -94,10 +94,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to commit SHAs rather than tags. A tag is mutable: whoever can
+      # move `v4` can run code in this job, and the restricted token above limits
+      # what that code may do without authenticating what the code is. The
+      # comment names the tag each SHA was at, so a reader can check it.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
