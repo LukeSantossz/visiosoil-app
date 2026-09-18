@@ -283,8 +283,14 @@ assumed. The national soil map is obtainable, but **Embrapa's copy is CC BY-NC,
 which this product cannot use** because §15.2 records it as a field product as
 well as an academic one; IBGE publishes the equivalent under the federal
 open-data policy, and that is the copy to read. The third — whether map units
-collapse into three clay-activity families — **is still open** and needs the
-attribute table rather than a metadata page. The substance key rests on it.
+collapse into three clay-activity families — **is answered from the
+classification system**: SiBCS's third categorical level, which is the level the
+map is classified at, is itself defined with emphasis on clay activity, at the
+same 27 cmolc/kg threshold. The family is constitutive of the class name rather
+than inferred from it. The attribute table itself is still unopened, and the
+mapping is **order first, qualifier second** — a Latossolo is low-activity by
+definition and carries no "Tb" in its name, so a string search would resolve it
+wrongly to unknown.
 
 **This slice's gate decides the search backend.** See §6.
 
