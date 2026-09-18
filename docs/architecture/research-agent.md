@@ -1140,6 +1140,19 @@ None of the three changes the architecture. All three change slice 2's estimate,
 and a wrong figure discovered during the build is worse than a cheap check before
 it.
 
+**Checked on 2026-09-17, and one of them is a blocker rather than an estimate.**
+
+| Assumption | What the check found |
+|---|---|
+| IBGE biome boundaries exist in rasterisable form | **Confirmed, and better than assumed.** Shapefiles on `geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/`, compatible with **1:250 000** rather than the coarser scale the ~130 KB estimate assumed. Public under the federal Open Data Policy (Decree 8.777/2016), free to use and redistribute with attribution |
+| The national soil map is obtainable and rasterisable | **Obtainable, but the obvious copy is licensed wrongly.** Embrapa's `brasil_solos_5m_20201104` — SiBCS 2006, third categorical level, 1:5 000 000 — is **CC BY-NC 3.0 BR, non-commercial only**, and its own metadata currently reports the download as *"Não disponível"*. §15.2 records that this product is **an academic deliverable and a field product at the same time**, so a non-commercial licence is not usable for it. **IBGE publishes the same class of product** under `informacoes_ambientais/pedologia/vetores/brasil_5000_mil/`, under the open-data policy above, and that is the copy the build must use |
+| Map units collapse cleanly into three clay-activity families | **Still unverified.** Neither metadata page states whether the attribute table carries the SiBCS Ta/Tb qualifier, which is what would make the family readable rather than inferred. It needs the attribute table itself, not a metadata page. **The substance key still rests on this** |
+
+The licence finding is the one that matters: it does not change the architecture,
+but it changes which file the build reads, and discovering it after a corpus had
+been built on the Embrapa copy would have meant rebuilding or shipping something
+the licence does not permit.
+
 ## 16. Risks and mitigations
 
 | Risk | Mitigation |
