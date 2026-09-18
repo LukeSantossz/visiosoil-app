@@ -364,9 +364,24 @@ reference there.
 It is a lookup and not generated guidance, which is why it stays outside the 44
 reviewed artifacts.
 
-What B2 still owes at its gate: the structured priors — SoilGrids, whose point
-API was already found degraded on 2026-09-05 — and the search backend for the 27
-unit overlays.
+**The search backend for the unit overlays is built** (`corpus/src/search.py`),
+following the Developer's hybrid decision: substance curated, overlays searched.
+The two halves enforce the allowlist differently on purpose — `sources.py`
+refuses any URL its manifest does not list, because a substance cell is where a
+poisoned page would do real damage; `search.py` lets the engine return what it
+returns and drops what §8.1 does not admit **before anything is fetched**, so a
+page outside the policy is never read.
+
+Two details are worth carrying forward. The domain check matches on a **label
+boundary, not a string**: a suffix match would admit `notembrapa.br` and a prefix
+match `embrapa.br.evil.example`, and both have tests. And state agencies are
+consulted **before** the tier-1 suffixes, because most of them end in `.gov.br`
+and a broader entry would otherwise promote them from tier 2 to tier 1 —
+inflating the evidence a tip appears to rest on.
+
+What B2 still owes at its gate: the structured priors. SoilGrids' point API was
+found degraded on 2026-09-05 — one `200` with null values, then three `503` — and
+nothing since has re-checked it.
 
 **Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
