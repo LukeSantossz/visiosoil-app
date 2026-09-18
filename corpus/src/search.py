@@ -81,6 +81,33 @@ _STATE_AGENCIES = tuple(e for e in ALLOWLIST if e.tier == 2)
 """Consulted before the tier-1 suffixes, since most end in `.gov.br` and would
 otherwise be promoted to tier 1 by a broader entry."""
 
+FEDERATIVE_UNITS = (
+    "ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms",
+    "mt", "pa", "pb", "pe", "pi", "pr", "rj", "rn", "ro", "rr", "rs", "sc",
+    "se", "sp", "to",
+)
+"""The 27 two-letter codes `.gov.br` gives the states and the Federal District.
+
+The explicit tier-2 list above names nine agencies, and the unit overlays are
+keyed by all 27 units, so the other eighteen states matched the `gov.br` entry
+and were returned as **tier 1** — a state extension page presented as federal
+evidence, which §8.2 then reads as stronger than it is.
+
+The separator is structural rather than a list somebody has to keep complete:
+`.gov.br` delegates state and municipal government under `<org>.<uf>.gov.br`,
+so the label immediately before `gov.br` decides it. **The price is stated**:
+this also catches municipal domains, which §8.1 does not name at all. Tier 2
+over-credits a municipality slightly; tier 1 misrepresented an entire state.
+"""
+
+
+def _is_state_gov_br(host: str) -> bool:
+    """Whether [host] sits under `<uf>.gov.br` rather than federal `gov.br`."""
+    labels = host.lower().rstrip(".").split(".")
+    if len(labels) < 3 or labels[-2:] != ["gov", "br"]:
+        return False
+    return labels[-3] in FEDERATIVE_UNITS
+
 
 def _is_within(host: str, domain: str) -> bool:
     """Whether [host] is [domain] or a subdomain of it.
@@ -98,6 +125,8 @@ def tier_for_domain(host: str) -> int | None:
     for entry in _STATE_AGENCIES:
         if _is_within(host, entry.domain):
             return entry.tier
+    if _is_state_gov_br(host):
+        return 2
     for entry in ALLOWLIST:
         if entry.tier != 2 and _is_within(host, entry.domain):
             return entry.tier
