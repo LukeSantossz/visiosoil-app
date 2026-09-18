@@ -88,6 +88,25 @@ def test_a_state_agency_domain_is_tier_two():
     assert tier_for_domain("www.iac.sp.gov.br") == 2
 
 
+def test_an_unlisted_state_agency_is_not_promoted_to_tier_one():
+    """The explicit list names nine agencies and the overlays are keyed by 27
+    federative units, so eighteen states matched `gov.br` and came back as tier
+    1 — federal evidence, on a state page. The label before `gov.br` is what
+    separates them, and it is a property of the namespace rather than a list
+    somebody has to keep complete."""
+    assert tier_for_domain("sedap.pa.gov.br") == 2
+    assert tier_for_domain("agricultura.go.gov.br") == 2
+    assert tier_for_domain("www.emater.pa.gov.br") == 2
+    assert tier_for_domain("df.gov.br") == 2
+
+
+def test_a_federal_domain_is_still_tier_one():
+    # The label before `gov.br` is not a federative unit in any of these.
+    assert tier_for_domain("www.gov.br") == 1
+    assert tier_for_domain("mapa.gov.br") == 1
+    assert tier_for_domain("www.ibge.gov.br") == 1
+
+
 def test_a_university_domain_is_tier_three():
     assert tier_for_domain("esalq.usp.br") == 3
     assert tier_for_domain("www.ufv.br") == 3
