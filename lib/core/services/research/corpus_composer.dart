@@ -52,9 +52,15 @@ class CorpusCell {
         }
       }
     }
+    final status = json['status'] as String?;
+    if (status == null) {
+      // The build refuses a generation that omits `status` for this reason: a
+      // default turned malformed output into a grounded cell carrying no
+      // guidance. Defaulting here would put the same cell back, one layer down.
+      throw FormatException('corpus cell "$key" has no status');
+    }
     return CorpusCell(
-      status: ManagementTipsStatus.fromWire(
-          (json['status'] as String?) ?? 'grounded'),
+      status: ManagementTipsStatus.fromWire(status),
       tips: tips,
       sources: sources,
       limitations: _strings(json['limitations']),

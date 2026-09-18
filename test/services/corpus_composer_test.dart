@@ -241,6 +241,33 @@ void main() {
       }
     });
 
+    test('a_cell_without_a_status_is_refused_by_name', () {
+      // The build refuses a generation that omits `status` for this exact
+      // reason: a default turned malformed output into a grounded cell carrying
+      // no guidance. The device reader kept the default, so the same malformed
+      // cell composed as grounded once it was in a corpus file.
+      expect(
+        () => Corpus.fromJson(
+          {
+            'corpusVersion': 'bad',
+            'disclaimer': 'x',
+            'substance': {
+              'Argilosa|tb_oxidic': {
+                'tips': <dynamic>[],
+                'sources': <dynamic>[],
+              },
+            },
+          },
+          fetchedAt: fetchedAt,
+        ),
+        throwsA(isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('status'), contains('Argilosa|tb_oxidic')),
+        )),
+      );
+    });
+
     test('a_citation_outside_its_layer_is_refused_by_name', () {
       // §12.1 makes an unresolvable citation a build failure, so composition may
       // assume resolvable input. A corpus that reaches a device with one anyway
