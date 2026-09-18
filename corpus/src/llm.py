@@ -26,6 +26,32 @@ OLLAMA_URL = "http://localhost:11434"
 HttpPost = Callable[[str, dict[str, Any]], dict[str, Any]]
 
 
+class RedirectRefused(Exception):
+    """A source that redirected somewhere the manifest does not list.
+
+    `urlopen` follows redirects by default, and `SourceManifest` validates only
+    the URL the build asked for. An allowlisted server redirecting to an internal
+    or loopback address would therefore have the build fetch that destination and
+    feed its text into the corpus pipeline — the allowlist enforced on the first
+    request only.
+
+    Refusing outright is the smaller surface. A curated source that genuinely
+    moved is a manifest entry to update, and updating the manifest is a reviewed
+    act, which is the property the curated half exists to have.
+    """
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Turns every redirect into [RedirectRefused]."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        origin = getattr(req, "full_url", "the source")
+        raise RedirectRefused(
+            f"{origin} redirected to {newurl}, which the source manifest does "
+            f"not list; add it there if the source moved"
+        )
+
+
 class ModelRefused(Exception):
     """The model returned something the step cannot use.
 
@@ -35,15 +61,22 @@ class ModelRefused(Exception):
     """
 
 
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirect())
+
+
 def http_transport(url: str) -> str:
-    """Reads a source over HTTP. Used by the probe, never by a test."""
+    """Reads a source over HTTP, refusing redirects.
+
+    Used by the probe, never by a test. See [RedirectRefused] for why a redirect
+    is a refusal rather than a hop.
+    """
     request = urllib.request.Request(
         url, headers={"User-Agent": "visiosoil-corpus-build/1.0"}
     )
     # 60 s rather than 30: institutional sites are slow, and a source that times
     # out fails the whole build by design, so the cost of being impatient is a
     # build that stops on a source that was merely slow.
-    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+    with _NO_REDIRECT_OPENER.open(request, timeout=60) as response:  # noqa: S310
         charset = response.headers.get_content_charset() or "utf-8"
         return response.read().decode(charset, errors="replace")
 
@@ -97,15 +130,43 @@ def parse_json_object(raw: str) -> dict[str, Any]:
     return parsed
 
 
+_ACCENTS = str.maketrans("áàãâäéêèëíîìïóôõòöúûùüçñ", "aaaaaeeeeiiiiooooouuuucn")
+
+_NEGATION = re.compile(r"\b(?:nao|not|nem)\b")
+_NEGATED_POSITIVE = re.compile(
+    r"\b(?:nao|not|nem)\s+(?:\w+\s+){0,2}?(?:yes|sim|true|relevante)\b"
+)
+_POSITIVE = re.compile(r"\b(?:yes|sim|true|relevante)\b")
+_NEGATIVE = re.compile(r"\b(?:no|false|irrelevante)\b")
+
+
 def parse_yes_no(raw: str) -> bool:
-    """A binary grade from [raw], or [ModelRefused]."""
-    lowered = raw.strip().lower()
-    for token in ("yes", "sim", "true", "relevante"):
-        if re.search(rf"\b{token}\b", lowered):
-            return True
-    for token in ("no", "não", "nao", "false", "irrelevante"):
-        if re.search(rf"\b{token}\b", lowered):
-            return False
+    """A binary grade from [raw], or [ModelRefused].
+
+    **A negation attached to a positive word makes the answer negative.** That is
+    the bug this shape exists for: "não relevante" contains `relevante`, so a
+    loop that returned on the first positive token answered `True` to an explicit
+    rejection — and the grader kept a source the model had thrown out, silently,
+    on every cell.
+
+    An answer carrying both polarities *without* that attachment — "sim e não" —
+    is refused rather than resolved, because picking whichever token appears
+    first turns a model's hedge into a decision nobody made.
+    """
+    lowered = raw.strip().lower().translate(_ACCENTS)
+
+    if _NEGATED_POSITIVE.search(lowered):
+        return False
+
+    positive = bool(_POSITIVE.search(lowered))
+    negative = bool(_NEGATIVE.search(lowered)) or bool(_NEGATION.search(lowered))
+
+    if positive and negative:
+        raise ModelRefused(f"grade says both yes and no: {raw[:120]!r}")
+    if positive:
+        return True
+    if negative:
+        return False
     raise ModelRefused(f"grade is neither yes nor no: {raw[:120]!r}")
 
 
@@ -139,12 +200,22 @@ class OllamaClient:
         return {name: version for name, (_, version) in self._prompts.items()}
 
     def model_digest(self) -> str:
-        """The digest Ollama reports for the loaded model, or a stated unknown."""
-        try:
-            payload = self._post(f"{self._base_url}/api/show", {"model": self.model})
-        except Exception:  # noqa: BLE001 - the manifest records what it could read
-            return "unknown"
-        return str(payload.get("digest") or payload.get("model_info", {}) or "unknown")
+        """The digest Ollama reports for the loaded model.
+
+        **Failure propagates.** The run manifest is the reproducibility guarantee
+        ADR 0023 put in place of a spend ledger, and a corpus generated against a
+        model nobody can name does not reproduce. Swallowing the lookup and
+        writing "unknown" would let the build finish while quietly voiding the
+        one thing that record exists to promise.
+        """
+        payload = self._post(f"{self._base_url}/api/show", {"model": self.model})
+        digest = payload.get("digest")
+        if not digest:
+            raise ModelRefused(
+                f"ollama reported no digest for {self.model}; the run manifest "
+                f"cannot identify what generated the corpus"
+            )
+        return str(digest)
 
     def _complete(self, prompt: str) -> str:
         payload = self._post(

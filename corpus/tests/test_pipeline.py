@@ -10,6 +10,7 @@ adequate here, and it is why every step below is tested through a fake
 import pytest
 
 from src.cell import CellValidationError
+from src.llm import ModelRefused
 from src.pipeline import (
     ABSTENTION_DISCLAIMER,
     SUBSTANCE_DISCLAIMER,
@@ -38,7 +39,9 @@ class ScriptedClient:
     """
 
     def __init__(self, *, queries=None, grades=None, generation=None, grounded=None):
-        self.queries = queries if queries is not None else ["q1", "q2"]
+        # Three, because `QUERY_COUNT` is three and the chain now refuses a
+        # transform step that returned fewer than it asked for.
+        self.queries = queries if queries is not None else ["q1", "q2", "q3"]
         self.grades = grades if grades is not None else {}
         self.generation = generation
         self.grounded = grounded if grounded is not None else [True]
@@ -273,3 +276,62 @@ def test_an_abstention_carries_the_abstention_disclaimer():
     outcome = build_cell(QUESTION, [source(0)], client=client)
 
     assert outcome.cell["disclaimer"] == ABSTENTION_DISCLAIMER
+
+
+# --- Validating what the model produced, before it is normalised -------------
+
+
+def test_a_missing_status_is_refused_not_defaulted():
+    # Defaulting to "grounded" turns malformed output into a grounded cell with
+    # no guidance in it.
+    client = ScriptedClient(generation={"tips": [], "limitations": []})
+
+    with pytest.raises(CellValidationError):
+        build_cell(QUESTION, [source(0)], client=client)
+
+
+def test_missing_tips_are_refused_not_defaulted():
+    client = ScriptedClient(generation={"status": "grounded", "limitations": []})
+
+    with pytest.raises(CellValidationError):
+        build_cell(QUESTION, [source(0)], client=client)
+
+
+def test_limitations_of_the_wrong_type_are_refused():
+    client = ScriptedClient(
+        generation={
+            "status": "grounded",
+            "tips": [{"text": "t", "citations": [0]}],
+            "limitations": "uma string, não uma lista",
+        }
+    )
+
+    with pytest.raises(CellValidationError):
+        build_cell(QUESTION, [source(0)], client=client)
+
+
+def test_a_boolean_citation_is_refused():
+    # `bool` is a subclass of `int` in Python, so `True` passes a naive range
+    # check and enters the artifact as citation 1.
+    client = ScriptedClient(
+        generation={
+            "status": "grounded",
+            "tips": [{"text": "t", "citations": [True]}],
+            "limitations": [],
+        }
+    )
+
+    with pytest.raises(CellValidationError):
+        build_cell(QUESTION, [source(0), source(1)], client=client)
+
+
+def test_transform_must_return_the_queries_it_was_asked_for():
+    with pytest.raises(ModelRefused):
+        build_cell(QUESTION, [source(0)], client=ScriptedClient(queries=["só uma"]))
+
+
+def test_transform_rejects_a_blank_query():
+    with pytest.raises(ModelRefused):
+        build_cell(
+            QUESTION, [source(0)], client=ScriptedClient(queries=["a", "  ", "c"])
+        )

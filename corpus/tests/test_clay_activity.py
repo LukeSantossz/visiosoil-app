@@ -180,3 +180,14 @@ def test_every_legend_entry_resolves_without_raising():
 
     for name in names:
         family_for_soil_class(name)
+
+
+def test_an_order_name_must_end_at_a_token_boundary():
+    # `startswith` alone accepts "LATOSSOLOX" and answers tb_oxidic, which
+    # violates the contract: a class name the system does not recognise returns
+    # None rather than the nearest order's default.
+    assert family_for_soil_class("LATOSSOLOX VERMELHO") is None
+    assert family_for_soil_class("LATOSSOLOIDE") is None
+    # And the real names still resolve.
+    assert family_for_soil_class("LATOSSOLO VERMELHO") == "tb_oxidic"
+    assert family_for_soil_class("Latossolo") == "tb_oxidic"

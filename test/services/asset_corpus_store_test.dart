@@ -102,6 +102,53 @@ void main() {
       );
     });
 
+    test('a_wrong_shaped_corpus_still_fails_with_the_asset_named', () async {
+      // Valid JSON and a usable builtAt, so it reaches `Corpus.fromJson` — where
+      // an unchecked cast throws `TypeError` rather than `FormatException`. The
+      // asset contract is that a present, malformed corpus names the asset; the
+      // earlier disclaimer fix covered one field, not the path.
+      final bundle = FakeAssetBundle({
+        AssetCorpusStore.corpusAssetKey: Uint8List.fromList(
+          utf8.encode(jsonEncode({
+            'corpusVersion': 'x',
+            'builtAt': '2026-09-10T00:00:00.000Z',
+            'substance': {'k': <String, dynamic>{}},
+          })),
+        ),
+      });
+
+      expect(
+        AssetCorpusStore(loadAsset: bundle.load).current(),
+        throwsA(isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains(AssetCorpusStore.corpusAssetKey),
+        )),
+      );
+    });
+
+    test('a_corpus_whose_layer_is_not_an_object_names_the_asset', () async {
+      final bundle = FakeAssetBundle({
+        AssetCorpusStore.corpusAssetKey: Uint8List.fromList(
+          utf8.encode(jsonEncode({
+            'corpusVersion': 'x',
+            'disclaimer': 'd',
+            'builtAt': '2026-09-10T00:00:00.000Z',
+            'substance': 'não é um objeto',
+          })),
+        ),
+      });
+
+      expect(
+        AssetCorpusStore(loadAsset: bundle.load).current(),
+        throwsA(isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains(AssetCorpusStore.corpusAssetKey),
+        )),
+      );
+    });
+
     test('a_corpus_without_a_built_at_is_refused', () async {
       final json =
           jsonDecode(utf8.decode(corpusBytes())) as Map<String, dynamic>

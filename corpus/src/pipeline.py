@@ -101,6 +101,7 @@ def build_cell(
         "+00:00", "Z"
     )
     queries = client.transform_queries(key, count=QUERY_COUNT)
+    _require_queries(queries)
 
     kept = [
         document
@@ -124,13 +125,18 @@ def build_cell(
 
     for attempt in range(1, max_attempts + 1):
         generated = client.generate_cell(key, kept)
+        # Checked **before** normalising, because a default applied to a missing
+        # field hides the fact that the model did not produce it: a missing
+        # `status` became "grounded" and missing `tips` became `[]`, so
+        # malformed output composed into a grounded cell carrying no guidance.
+        _require_generated_shape(generated)
         cell = build_cell_payload(
-            status=generated.get("status", "grounded"),
+            status=generated["status"],
             # Not `generated["disclaimer"]`: see SUBSTANCE_DISCLAIMER.
             disclaimer=SUBSTANCE_DISCLAIMER,
-            tips=generated.get("tips", []),
+            tips=generated["tips"],
             sources=source_array,
-            limitations=generated.get("limitations", []),
+            limitations=generated["limitations"],
         )
         # Validated before grounding: a cell that does not satisfy the contract
         # is a build failure however well supported its claims are, and this is
@@ -165,6 +171,45 @@ def build_cell(
         attempts=max_attempts,
         rejections=rejections,
     )
+
+
+def _require_generated_shape(generated: Any) -> None:
+    """Refuses model output the contract does not describe.
+
+    Every field the prompt asks for must be present and of the right type. A
+    default here would be this module deciding what the model meant.
+    """
+    if not isinstance(generated, dict):
+        raise CellValidationError("generation did not return an object")
+    for field, expected in (("status", str), ("tips", list), ("limitations", list)):
+        if field not in generated:
+            raise CellValidationError(f"generation omitted {field!r}")
+        if not isinstance(generated[field], expected):
+            raise CellValidationError(
+                f"generation returned {field!r} as "
+                f"{type(generated[field]).__name__}, not {expected.__name__}"
+            )
+    for item in generated["limitations"]:
+        if not isinstance(item, str):
+            raise CellValidationError("a limitation is not a string")
+
+
+def _require_queries(queries: Any) -> None:
+    """Refuses a transform step that did not do its job.
+
+    The point of the step is more than one phrasing, so fewer than asked for —
+    or a blank one — is a step that silently did not run.
+    """
+    from src.llm import ModelRefused
+
+    if not isinstance(queries, list) or len(queries) != QUERY_COUNT:
+        raise ModelRefused(
+            f"transform returned {len(queries) if isinstance(queries, list) else '?'} "
+            f"queries, not {QUERY_COUNT}"
+        )
+    for query in queries:
+        if not isinstance(query, str) or not query.strip():
+            raise ModelRefused(f"transform returned a blank query: {query!r}")
 
 
 def _abstention(

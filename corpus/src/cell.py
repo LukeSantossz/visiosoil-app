@@ -56,6 +56,12 @@ def validate_cell(cell: dict[str, Any], *, source_count: int) -> None:
                 f"the cited-sources rule exists to prevent"
             )
         for citation in citations:
+            # `bool` is a subclass of `int` in Python, so `True` would pass the
+            # range check below and enter the artifact as citation 1.
+            if isinstance(citation, bool):
+                raise CellValidationError(
+                    f"tip {position} has a boolean citation {citation!r}"
+                )
             if not isinstance(citation, int) or not 0 <= citation < source_count:
                 raise CellValidationError(
                     f"tip {position} has a citation {citation!r} with only "
