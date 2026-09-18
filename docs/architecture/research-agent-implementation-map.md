@@ -218,7 +218,54 @@ Local models, no spend, on the Developer's machine per ADR 0023. Python 3.12 in
 
 ### B1 — slice 1: the calibration probe
 
-**Ready.** Builds one cell end to end with a local model and puts it in front of
+**Built and run, SPEC 0069. First measured verdict: the pipeline works and the
+cell is not worth reading.**
+
+Run on 2026-09-17, `qwen2.5:7b`, seed 1234, three curated SciELO sources, cell
+`Argilosa|tb_oxidic`. The chain did everything it was asked: fetched, graded —
+dropping one of three documents — generated with citations, passed the grounding
+check on the first attempt, and wrote the cell and its run manifest to
+`corpus/out/`. **No step failed.**
+
+The cell it produced carries one tip:
+
+> A contribuição da argila e do carbono orgânico total (COT) para a capacidade
+> de troca de cátions (CTC) pode variar dependendo do método de extração
+> utilizado.
+
+True, cited, grounded, and useless to the reader this feature exists for. The
+2026-09-11 agronomic review said a cell should be four-fifths **corrections of
+wrong heuristics** — what the class does not mean, and what it changes about
+reading a lab report. This is a methodological aside about extraction methods.
+
+**The binding problem is source selection, not the model.** The model summarised
+faithfully what it was given, and what it was given was measurement studies. That
+distinction matters for what happens next: swapping in a larger model would not
+fix it, and the risk §16 records — "the guidance is correct but too generic to be
+worth reading" — now has evidence rather than speculation behind it.
+
+Two defects the run exposed, both fixed:
+
+- **The model wrote its own disclaimer** ("podem não refletir orientações
+  definitivas"), which hedges about the sources instead of stating the advisory
+  stance the design took. The build sets it now; the generate prompt is at
+  version 2 and no longer asks for one.
+- **A 30 s fetch timeout was too tight** for an institutional site, and since an
+  unreachable source fails the whole build by design, a merely slow source
+  stopped it. Now 60 s.
+
+Two things the run also settled about sources, before the model was even reached:
+`agencia.cnptia.embrapa.br` no longer resolves, and the Ageitec pages on
+`embrapa.br` are navigation shells with no prose. **Embrapa's substantive
+material is in PDF and the extractor reads HTML only** — which is why the curated
+manifest is SciELO (tier 3, which §8.1 admits on its own).
+
+**What it needs next is a decision, not code**: which sources a substance cell may
+cite, given that they must carry management guidance rather than measurement
+methodology, and given that the richest ones are PDFs the fetcher cannot read
+without a dependency.
+
+**Was: ready.** Builds one cell end to end with a local model and puts it in front of
 an agronomist. It no longer measures price, because there is none; it measures
 whether a locally built cell is worth reading, which is the open question of §17
 reached from the provider side.

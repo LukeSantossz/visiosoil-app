@@ -1,4 +1,4 @@
-version: 1
+version: 2
 
 Você escreve uma célula do corpus a partir **somente** dos documentos abaixo.
 
@@ -20,7 +20,9 @@ Chave: {{question}}
 Documentos:
 {{documents}}
 
+Não escreva ressalva: ela é fixa e o build a aplica.
+
 Responda **apenas** com um objeto JSON:
 
-{"status": "grounded", "disclaimer": "...", "tips": [{"text": "...",
-"citations": [0]}], "limitations": ["..."]}
+{"status": "grounded", "tips": [{"text": "...", "citations": [0]}],
+"limitations": ["..."]}

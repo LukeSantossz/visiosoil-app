@@ -29,6 +29,18 @@ from src.cell import (
 )
 from src.sources import FetchedSource
 
+SUBSTANCE_DISCLAIMER = (
+    "Orientação consultiva, baseada em fontes públicas citadas. "
+    "Não substitui análise laboratorial nem avaliação técnica presencial."
+)
+"""The advisory stance is a decision this design took, not a sentence a model
+improvises.
+
+The first probe run wrote "podem não refletir orientações definitivas", which
+hedges about the *sources* instead of stating what the feature is. A disclaimer
+the model writes varies per cell and drifts per model, so the build sets it and
+whatever the model offered is discarded."""
+
 ABSTENTION_DISCLAIMER = (
     "Nenhuma fonte elegível sustentou uma orientação para esta combinação. "
     "Consulte a assistência técnica local."
@@ -114,7 +126,8 @@ def build_cell(
         generated = client.generate_cell(key, kept)
         cell = build_cell_payload(
             status=generated.get("status", "grounded"),
-            disclaimer=generated.get("disclaimer", ""),
+            # Not `generated["disclaimer"]`: see SUBSTANCE_DISCLAIMER.
+            disclaimer=SUBSTANCE_DISCLAIMER,
             tips=generated.get("tips", []),
             sources=source_array,
             limitations=generated.get("limitations", []),
@@ -170,6 +183,7 @@ def _abstention(
 
 __all__ = [
     "ABSTENTION_DISCLAIMER",
+    "SUBSTANCE_DISCLAIMER",
     "BuildOutcome",
     "CellValidationError",
     "LLMClient",
