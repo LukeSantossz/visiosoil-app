@@ -306,9 +306,52 @@ and a model gateway at build time — and none of them is a file-format reader. 
 claim was a generalisation introduced in this repository's own requirements file
 and is corrected there.
 
-What B2 still owes at its gate: the downloaded source data and the real grids
-built from it, the structured priors, and the search backend for the 27 unit
-overlays.
+**The real grids are built, and the whole chain closes on real data.** IBGE's
+open-data shapefiles → `corpus/src/build_grids.py` → packed bytes →
+`PackedGrid.parse` → a `SiteKey`. `test/services/real_grid_assets_test.dart`
+resolves Brasília to the Cerrado and to a low-activity clay, Manaus to the
+Amazon, Petrolina to the Caatinga, Bagé to the Pampa, and a point in the Atlantic
+to nothing rather than to a guess. It skips when the artifacts are absent, since
+they are build products and git-ignored.
+
+| | Value |
+|---|---|
+| Lattice | 400 × 400 at 0.1°, Brazil's bounding box |
+| Clay-activity cells resolved | 60 146 of 160 000 |
+| Biome cells resolved | 69 530 of 160 000 |
+| Size | 156 KB each, 312 KB together — inside the 500 KB ceiling |
+| Size in an APK | 11 KB and 4 KB; the bundle compresses them |
+
+Biome resolves more cells than clay activity because several legend entries
+resolve to null by design — Neossolos, Organossolos, rock outcrops, dunes and
+water. **About 87 % of land cells carry a clay-activity family**, and the rest
+answer generically and say so, which §5.2 defines as valid.
+
+**Three defects the real data exposed, none of which any unit test would have
+caught:**
+
+- **The legend spells clay activity out** — "Argila de atividade alta/baixa" —
+  and never uses the Ta/Tb notation the SiBCS key uses. A guard written against
+  Ta/Tb alone matched nothing in the entire country. Seven of the sixty-nine
+  legend entries carry the phrase.
+- **The legend carries two spellings of one order**: "Argilossolo", the pre-SiBCS
+  form, holds five entries, and "Argissolo" the sixth. Keying on the modern
+  spelling would drop five sixths of them. One entry, "PVA Eutrófico", is a raw
+  map symbol that escaped into the description field and resolves to null rather
+  than being guessed at.
+- **The rasteriser was cell-major and did not survive scale.** 160 000 cells
+  against 2 959 polygons is every cell against every polygon — billions of
+  point-in-polygon tests in pure Python. Inverted to shape-major, clipped to each
+  polygon's own bounding box, it runs in 2 m 36 s. First-in-file still wins,
+  because a cell is written only while unresolved.
+
+And one that stopped the build before any of that: **the IBGE files are latin-1
+and pyshp assumes utf-8**, so the first accented legend entry raised
+`UnicodeDecodeError`. The encoding is a property of the source and is now stated
+by the caller.
+
+What B2 still owes at its gate: the structured priors, and the search backend for
+the 27 unit overlays.
 
 **Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**

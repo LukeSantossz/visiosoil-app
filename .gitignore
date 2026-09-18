@@ -120,3 +120,4 @@ assets/corpus/*.bin
 # Local design-system reference export (not versioned)
 /VisioSoil Design System/
 corpus/out/
+corpus/data/

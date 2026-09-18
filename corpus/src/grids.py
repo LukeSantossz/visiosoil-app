@@ -87,15 +87,21 @@ def rasterise(
     *,
     field: str,
     value_for: Callable[[str], int],
+    encoding: str = "utf-8",
 ) -> list[int]:
     """Samples [path] onto [spec]'s lattice, one byte per cell.
+
+    [encoding] is the source's, and it is stated rather than sniffed.
 
     [value_for] turns an attribute value into the byte to store — 0 for
     unresolved, otherwise the one-based index into the enumeration the grid's
     kind names. Keeping it a parameter is what lets the clay-activity mapping
     live in `clay_activity.py` and be tested on its own.
     """
-    reader = shapefile.Reader(str(path))
+    # The encoding is a property of the source, not a default worth guessing:
+    # pyshp assumes utf-8 and the IBGE files are latin-1, which surfaced as a
+    # `UnicodeDecodeError` on the first accented legend entry of the real build.
+    reader = shapefile.Reader(str(path), encoding=encoding)
     names = [f[0] for f in reader.fields[1:]]
     if field not in names:
         raise RasterisationError(
@@ -103,28 +109,60 @@ def rasterise(
         )
     column = names.index(field)
 
-    shapes = [
-        (_rings(shape), value_for(str(record[column])))
-        for shape, record in zip(reader.shapes(), reader.records())
-    ]
-    for _, value in shapes:
+    cells = [0] * (spec.rows * spec.cols)
+
+    # Iterated by shape rather than by cell, and clipped to each shape's own
+    # bounding box.
+    #
+    # Cell-major was the obvious shape and it does not survive real data: 160 000
+    # cells against 2 959 polygons is every cell tested against every polygon,
+    # which is billions of point-in-polygon tests in pure Python. A polygon's
+    # bounding box, which the shapefile already carries, bounds the cells it can
+    # possibly cover — and most cover a handful.
+    #
+    # First-in-file still wins, because a cell is written only while it is still
+    # unresolved. That keeps the semantics of the cell-major version it replaces.
+    for shape, record in zip(reader.shapes(), reader.records()):
+        value = value_for(str(record[column]))
         if not isinstance(value, int) or not 0 <= value <= 255:
             raise RasterisationError(
                 f"value_for returned {value!r}, which is not a byte; the grid "
                 f"stores one byte per cell"
             )
+        if not value:
+            continue
 
-    cells = []
-    for row in range(spec.rows):
-        for col in range(spec.cols):
-            lat, lon = spec.centre(row, col)
-            resolved = 0
-            for rings, value in shapes:
-                if value and _contains(rings, lon, lat):
-                    resolved = value
-                    break
-            cells.append(resolved)
+        min_lon, min_lat, max_lon, max_lat = shape.bbox
+        first_row, last_row = _cell_range(
+            min_lat, max_lat, spec.origin_lat_milli_degrees,
+            spec.cell_milli_degrees, spec.rows,
+        )
+        first_col, last_col = _cell_range(
+            min_lon, max_lon, spec.origin_lon_milli_degrees,
+            spec.cell_milli_degrees, spec.cols,
+        )
+        if first_row > last_row or first_col > last_col:
+            continue
+
+        rings = _rings(shape)
+        for row in range(first_row, last_row + 1):
+            for col in range(first_col, last_col + 1):
+                index = row * spec.cols + col
+                if cells[index]:
+                    continue
+                lat, lon = spec.centre(row, col)
+                if _contains(rings, lon, lat):
+                    cells[index] = value
     return cells
+
+
+def _cell_range(
+    low: float, high: float, origin_milli: int, cell_milli: int, count: int
+) -> tuple[int, int]:
+    """The inclusive index range a span covers, clipped to the lattice."""
+    first = int((low * 1000 - origin_milli) // cell_milli)
+    last = int((high * 1000 - origin_milli) // cell_milli)
+    return max(first, 0), min(last, count - 1)
 
 
 def write_packed_grid(spec: GridSpec, cells: list[int]) -> bytes:
