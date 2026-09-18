@@ -10,7 +10,12 @@ adequate here, and it is why every step below is tested through a fake
 import pytest
 
 from src.cell import CellValidationError
-from src.pipeline import BuildOutcome, build_cell
+from src.pipeline import (
+    ABSTENTION_DISCLAIMER,
+    SUBSTANCE_DISCLAIMER,
+    BuildOutcome,
+    build_cell,
+)
 from src.sources import FetchedSource
 
 
@@ -238,3 +243,33 @@ def test_the_outcome_names_the_cell_key():
 
     assert isinstance(outcome, BuildOutcome)
     assert outcome.key == QUESTION
+
+
+def test_the_disclaimer_is_the_designs_not_the_models():
+    """The advisory stance is a decision, not a sentence a model improvises.
+
+    The first real probe run produced "podem não refletir orientações
+    definitivas", which is hedging rather than the advisory stance ADR 0022
+    fixes. A disclaimer the model writes is a disclaimer that varies per cell and
+    drifts per model, so the build sets it.
+    """
+    client = ScriptedClient(
+        generation={
+            "status": "grounded",
+            "disclaimer": "Isto pode não ser definitivo.",
+            "tips": [{"text": "t", "citations": [0]}],
+            "limitations": [],
+        }
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["disclaimer"] == SUBSTANCE_DISCLAIMER
+
+
+def test_an_abstention_carries_the_abstention_disclaimer():
+    client = ScriptedClient(grades={"https://example.org/0": False})
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["disclaimer"] == ABSTENTION_DISCLAIMER
