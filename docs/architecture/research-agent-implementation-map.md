@@ -45,9 +45,12 @@ landed; everything is covered by tests.
 | `features/details/management_tips_section.dart` | The result surface | **Owned by the UI/UX terminal** — not this workstream's to edit |
 | `test/fixtures/corpus/` | `corpus.json`, `golden.json`, two `.bin` grids | Synthetic content, real shape |
 
-What does **not** exist: any real corpus and the proxy. The real grids and
-`corpus/` were both built under B2; `assets/corpus/` exists and its artifacts are
-git-ignored build products.
+What does **not** exist: any real corpus, and **the corpus release endpoint** —
+the proxy service Lane C would serve it from. The HTTP transport that would call
+it *is* implemented and tested, which is why the row above marks it complete and
+callerless; it is the server side that is missing, not the client. The real grids
+and `corpus/` were both built under B2; `assets/corpus/` exists and its artifacts
+are git-ignored build products.
 
 Schema version is **5** since A3.
 
