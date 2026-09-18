@@ -648,9 +648,18 @@ claim on its own. Tier 5 may only corroborate a claim already carried by a lower
 tier. A cell that cannot reach that bar emits `insufficient_evidence` rather
 than a weaker tip.
 
-Domains are an explicit allowlist passed to the search tool, so the constraint
-is enforced by the platform rather than by a post-filter over whatever the web
-returned.
+**Falsified by [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+on 2026-09-17.** This paragraph said domains were an explicit allowlist passed to
+the search tool, "so the constraint is enforced by the platform rather than by a
+post-filter". With the build on local models there is no such platform, and that
+was named as a cost rather than absorbed.
+
+What replaces it is stronger than a post-filter and weaker than a platform: for
+the substance layer the allowlist is a **committed manifest of sources**
+(`corpus/sources/substance.manifest.json`), and a URL it does not list is refused
+*before* it is fetched rather than filtered after. Adding a source is a reviewed
+act. For the unit overlays, which do search, the tier list above is a filter this
+repository implements and tests.
 
 ### 8.2 Evidence strength
 
