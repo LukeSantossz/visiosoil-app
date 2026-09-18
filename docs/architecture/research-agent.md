@@ -1146,12 +1146,23 @@ it.
 |---|---|
 | IBGE biome boundaries exist in rasterisable form | **Confirmed, and better than assumed.** Shapefiles on `geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/`, compatible with **1:250 000** rather than the coarser scale the ~130 KB estimate assumed. Public under the federal Open Data Policy (Decree 8.777/2016), free to use and redistribute with attribution |
 | The national soil map is obtainable and rasterisable | **Obtainable, but the obvious copy is licensed wrongly.** Embrapa's `brasil_solos_5m_20201104` — SiBCS 2006, third categorical level, 1:5 000 000 — is **CC BY-NC 3.0 BR, non-commercial only**, and its own metadata currently reports the download as *"Não disponível"*. §15.2 records that this product is **an academic deliverable and a field product at the same time**, so a non-commercial licence is not usable for it. **IBGE publishes the same class of product** under `informacoes_ambientais/pedologia/vetores/brasil_5000_mil/`, under the open-data policy above, and that is the copy the build must use |
-| Map units collapse cleanly into three clay-activity families | **Still unverified.** Neither metadata page states whether the attribute table carries the SiBCS Ta/Tb qualifier, which is what would make the family readable rather than inferred. It needs the attribute table itself, not a metadata page. **The substance key still rests on this** |
+| Map units collapse cleanly into three clay-activity families | **Strongly indicated, from the classification system rather than the file.** SiBCS's **third categorical level — the grandes grupos — is itself defined with emphasis on clay activity** and on base saturation (Embrapa, *Níveis Categóricos do Sistema*), with the Ta/Tb split at the same 27 cmolc/kg the 2026-09-11 review verified. The national map is classified *to that level*, so the family is constitutive of the class name rather than something to infer from it. **What is not yet confirmed is the attribute table**, which nobody has opened |
 
 The licence finding is the one that matters: it does not change the architecture,
 but it changes which file the build reads, and discovering it after a corpus had
 been built on the Embrapa copy would have meant rebuilding or shipping something
 the licence does not permit.
+
+**The clay-activity mapping is a per-order rule, not a search for "Ta" or "Tb" in
+a string**, and slice 2 writes it down before it rasterises anything. Ta/Tb
+appears in the great-group name only where it *differentiates* — Argissolos,
+Luvissolos, Planossolos, Cambissolos. Where the order already implies it, it is
+absent from the name and present in the definition: a Latossolo is low-activity
+by the definition of its own B horizon, and reading its name for "Tb" would find
+nothing and wrongly resolve to unknown. The table therefore maps **order first,
+qualifier second**, and an order that settles neither resolves to null — which
+§5.2 already defines as valid, with the substance layer answering generically and
+saying so.
 
 ## 16. Risks and mitigations
 
