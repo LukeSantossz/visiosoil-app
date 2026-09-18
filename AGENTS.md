@@ -71,7 +71,7 @@ libraries, or abstractions the project did not already establish.
 
 **VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (4 soil texture classes; the delivered archive holds five, and ADR 0016 keeps Siltosa out of the first model).
 
-**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite
+**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite. Two Python 3.12 side-builds produce assets the app reads and ship nothing at run time: `ml/` trains and exports the classifier, and `corpus/` builds the reviewed corpus the management-tips feature composes from.
 
 **Toolchain:** Flutter 3.44.1 / Dart 3.12.1, pinned to match CI (`.github/workflows/ci.yml`). Using another 3.x local SDK rewrites `pubspec.lock` on `flutter pub get`.
 
