@@ -24,9 +24,10 @@ substance cell may cite, not the model.
 **That decision was taken on 2026-09-18**: a substance cell cites Embrapa tier-1
 extension material — Sistemas de Produção, Circulares Técnicas, Boletins — which
 is what carries management recommendations, with SciELO demoted to corroboration.
-Most of that material is PDF and this fetcher reads HTML, so `pypdf` joins
-`pyshp` and the same cell is rebuilt and judged again **before any of the other
-43 is built**. The implementation map records the run, its verdict and the
+Most of that material is PDF and this fetcher reads HTML, so the re-probe slice
+**will add** `pypdf` alongside `pyshp` — it is not a dependency yet, and
+`requirements.txt` is the authority on what is — and rebuilds and judges the same
+cell again **before any of the other 43 is built**. The implementation map records the run, its verdict and the
 re-probe slice.
 
 ## Running the tests
@@ -68,8 +69,9 @@ Two boundaries carry the safety properties:
   the contract names, so a field a source asked for is dropped rather than
   shipped.
 
-One runtime dependency: **`pyshp`**, which reads the IBGE shapefiles the grids
-are rasterised from. It is pure Python and pulls no GDAL. Everything else is the
+One runtime dependency today: **`pyshp`**, which reads the IBGE shapefiles the
+grids are rasterised from. The re-probe slice adds a second, `pypdf`, for the
+reason under **State**; until that slice lands, this is the whole list. It is pure Python and pulls no GDAL. Everything else is the
 standard library — `requirements.txt` says what each entry is for.
 
 Prompts live in `prompts/` rather than in string literals because the run
