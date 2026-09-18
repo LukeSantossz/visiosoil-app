@@ -210,12 +210,16 @@ class OllamaClient:
         """
         payload = self._post(f"{self._base_url}/api/show", {"model": self.model})
         digest = payload.get("digest")
-        if not digest:
+        if not isinstance(digest, str) or not digest.strip():
+            # A non-string passes `str()` and reaches `modelDigest` looking like
+            # an identifier while naming nothing, and `RunManifest` performs no
+            # runtime type check. The type is part of the promise.
             raise ModelRefused(
-                f"ollama reported no digest for {self.model}; the run manifest "
-                f"cannot identify what generated the corpus"
+                f"ollama reported no usable digest for {self.model} "
+                f"({digest!r}); the run manifest cannot identify what generated "
+                f"the corpus"
             )
-        return str(digest)
+        return digest
 
     def _complete(self, prompt: str) -> str:
         payload = self._post(

@@ -137,6 +137,16 @@ def test_a_result_limit_is_honoured():
     assert len(search.find("q", limit=3)) == 3
 
 
+def test_a_zero_limit_returns_nothing():
+    """The bound is checked after the first result is appended, so `limit=0`
+    returned one. A caller asking for nothing must get nothing."""
+    search = WebSearch(
+        transport=fake_transport([("https://www.embrapa.br/a", "A")])
+    )
+
+    assert search.find("q", limit=0) == []
+
+
 def test_a_transport_failure_is_loud():
     def failing(query):
         raise OSError("no network")

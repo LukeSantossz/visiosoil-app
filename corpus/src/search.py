@@ -173,6 +173,11 @@ class WebSearch:
         A transport failure propagates: a search that silently returned nothing
         would make an overlay cell abstain for a reason nobody could see.
         """
+        if limit <= 0:
+            # The bound below is checked after a result is appended, so a limit
+            # of zero returned one.
+            return []
+
         seen: set[str] = set()
         results: list[SearchResult] = []
         for url, title in self._transport(query):
