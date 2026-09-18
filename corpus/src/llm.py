@@ -40,7 +40,10 @@ def http_transport(url: str) -> str:
     request = urllib.request.Request(
         url, headers={"User-Agent": "visiosoil-corpus-build/1.0"}
     )
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+    # 60 s rather than 30: institutional sites are slow, and a source that times
+    # out fails the whole build by design, so the cost of being impatient is a
+    # build that stops on a source that was merely slow.
+    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
         charset = response.headers.get_content_charset() or "utf-8"
         return response.read().decode(charset, errors="replace")
 
