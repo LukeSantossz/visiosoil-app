@@ -288,8 +288,27 @@ decision and one of them guards a risk ADR 0022 named:
   families, **order first and qualifier second**, with the Latossolo trap covered
   by a test.
 
-What B2 still owes at its gate: the rasterised grids themselves, the structured
-priors, and the search backend for the 27 unit overlays.
+A third piece followed, and it closes the loop on the format:
+`corpus/src/grids.py` rasterises an IBGE shapefile onto the 0.1° lattice and
+writes the packed artifact. **Its bytes are asserted against the committed Dart
+fixture**, so the format is a contract proven on both sides rather than on one —
+a one-byte disagreement between the build and `PackedGrid.parse` would show as
+wrong guidance, not as an error. Sampling is at the cell centre rather than by
+area majority: at 0.1° a cell is roughly 11 km across and the source maps are
+generalised at national scale, so a majority rule would resolve boundaries the
+source does not know.
+
+It took one dependency, `pyshp`, and the record needs correcting on that point.
+`corpus/requirements.txt` previously claimed the build "deliberately has no
+runtime dependencies". **That was not a recorded decision.** ADR 0022 §20.4
+refuses four named things — a graph orchestrator, a hosted tracer, a vector store
+and a model gateway at build time — and none of them is a file-format reader. The
+claim was a generalisation introduced in this repository's own requirements file
+and is corrected there.
+
+What B2 still owes at its gate: the downloaded source data and the real grids
+built from it, the structured priors, and the search backend for the 27 unit
+overlays.
 
 **Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
