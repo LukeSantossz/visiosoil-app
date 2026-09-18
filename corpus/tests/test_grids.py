@@ -146,3 +146,36 @@ def test_the_writer_matches_the_committed_dart_fixture():
 
     assert clay == (FIXTURE_GRIDS / "clay-activity-grid.bin").read_bytes()
     assert biome == (FIXTURE_GRIDS / "biome-grid.bin").read_bytes()
+
+
+def test_a_latin1_shapefile_is_read_when_told_so(tmp_path):
+    """The IBGE files are latin-1, and pyshp defaults to utf-8.
+
+    Found by running the real build: the first accented legend entry —
+    "Latossolo vermelho Distrófico" — raised `UnicodeDecodeError` and stopped it.
+    The encoding is a property of the source, so the caller states it.
+    """
+    path = tmp_path / "layer"
+    with shapefile.Writer(str(path), encoding="latin-1") as writer:
+        writer.field("classe", "C", size=80)
+        square(writer, -47.0, -23.0, -46.7, -22.7, "Latossolo vermelho Distrófico")
+
+    cells = rasterise(
+        path,
+        spec(),
+        field="classe",
+        value_for=lambda name: 1 if "Distrófico" in name else 0,
+        encoding="latin-1",
+    )
+
+    assert cells == [1] * 9
+
+
+def test_the_default_encoding_is_utf8(tmp_path):
+    path = build_shapefile(tmp_path, [(-47.0, -23.0, -46.7, -22.7, "Distrófico")])
+
+    cells = rasterise(
+        path, spec(), field="classe", value_for=lambda n: 1 if "ó" in n else 0
+    )
+
+    assert cells == [1] * 9

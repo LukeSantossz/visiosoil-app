@@ -26,6 +26,19 @@ TB = "tb_oxidic"
 TA = "ta_less_weathered"
 INTERMEDIATE = "intermediate"
 
+_SPELLED_OUT = {
+    "argila de atividade alta": TA,
+    "argila de atividade baixa": TB,
+}
+"""How the IBGE legend actually writes clay activity.
+
+The attribute table of `Solos_5000` was opened on 2026-09-17: it spells the
+qualifier out and **never uses the Ta/Tb notation**, so a guard written against
+Ta/Tb alone matches nothing in the whole country. Seven of its sixty-nine legend
+entries carry it — every Cambissolo haplico, every Gleissolo haplico, and the
+Neossolos fluvicos — and for those the map states the activity instead of leaving
+it to be inferred from the order."""
+
 _ORDER_DEFAULTS: dict[str, str | None] = {
     # Low-activity by the definition of the order itself, so the name carries no
     # qualifier and none should be looked for.
@@ -33,7 +46,12 @@ _ORDER_DEFAULTS: dict[str, str | None] = {
     "nitossolo": TB,
     # Ta/Tb differentiates within these orders, so the qualifier decides and the
     # default is only what holds in its absence.
+    # The legend carries both spellings: "Argilossolo" is pre-SiBCS and holds
+    # five of the six entries, "Argissolo" the sixth.
     "argissolo": TB,
+    "argilossolo": TB,
+    # High-activity clay with high aluminium, by the definition of the order.
+    "alissolo": TA,
     "cambissolo": INTERMEDIATE,
     "chernossolo": TA,
     "luvissolo": TA,
@@ -46,6 +64,10 @@ _ORDER_DEFAULTS: dict[str, str | None] = {
     # clay fraction — often because there is barely a clay fraction to speak of.
     "neossolo": None,
     "organossolo": None,
+    # In the legend, and not soils at all.
+    "afloramentos": None,
+    "dunas": None,
+    "massa": None,
 }
 
 _UNACCENTED = str.maketrans(
@@ -77,6 +99,11 @@ def family_for_soil_class(name: str | None) -> str | None:
     # The qualifier outranks the order's default: it is the measurement, while
     # the default is an inference from the order. Matched as a whole token —
     # as a substring it would be found inside words and mislabel the unit.
+    # Two spellings, because the IBGE legend uses one and the SiBCS key uses the
+    # other. The spelled-out phrase is what the real file carries.
+    for phrase, family in _SPELLED_OUT.items():
+        if phrase in normalised:
+            return family
     if re.search(r"\bta\b", normalised):
         return TA
     if re.search(r"\btb\b", normalised):

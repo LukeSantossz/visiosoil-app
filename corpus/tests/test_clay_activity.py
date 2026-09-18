@@ -96,3 +96,87 @@ def test_every_family_it_can_return_is_one_the_corpus_keys_by():
     for name in samples:
         family = family_for_soil_class(name)
         assert family is None or family in CLAY_ACTIVITIES
+
+
+# --- What the real IBGE legend turned out to look like -----------------------
+#
+# The attribute table of `Solos_5000` was opened on 2026-09-17 and it settles the
+# question §15.3 left open, though not the way the metadata suggested. The legend
+# carries clay activity **spelled out** — "Argila de atividade alta" / "baixa" —
+# and never as the Ta/Tb notation. A guard written against Ta/Tb alone finds
+# nothing in the whole country.
+
+
+def test_the_spelled_out_qualifier_is_read():
+    assert (
+        family_for_soil_class("Cambissolo háplico Argila de atividade alta Eutrófico")
+        == "ta_less_weathered"
+    )
+    assert (
+        family_for_soil_class("Gleissolo háplico Argila de atividade baixa Distrófico")
+        == "tb_oxidic"
+    )
+
+
+def test_the_spelled_out_qualifier_outranks_the_order_default():
+    # Neossolo settles nothing on its own, but this one says so in words.
+    assert (
+        family_for_soil_class("Neossolo flúvico Argila de atividade baixa Eutrófico")
+        == "tb_oxidic"
+    )
+    assert (
+        family_for_soil_class("Neossolo flúvico Argila de atividade alta Eutrófico")
+        == "ta_less_weathered"
+    )
+
+
+def test_the_legacy_spelling_argilossolo_is_the_same_order_as_argissolo():
+    # The legend carries both: five entries as "Argilossolo", the pre-SiBCS
+    # spelling, and one as "Argissolo". Keying on the modern spelling alone would
+    # drop five sixths of them.
+    assert family_for_soil_class("Argilossolo vermelho Distrófico") == "tb_oxidic"
+    assert family_for_soil_class("Argissolo acinzentado Distrófico") == "tb_oxidic"
+
+
+def test_an_alissolo_is_high_activity():
+    assert family_for_soil_class("Alissolo crômico Argilúvico") == "ta_less_weathered"
+
+
+def test_non_soil_map_units_resolve_to_null():
+    for name in (
+        "Afloramentos de rochas",
+        "Dunas",
+        "Massa Dagua Continental",
+        "Massa Dagua Costeira - Mar Territorial, 12 milhas",
+    ):
+        assert family_for_soil_class(name) is None, name
+
+
+def test_a_bare_map_symbol_left_in_the_description_resolves_to_null():
+    # "PVA Eutrófico" is a raw symbol that escaped into the description field.
+    # Guessing from it would be inventing a classification.
+    assert family_for_soil_class("PVA Eutrófico") is None
+
+
+def test_every_legend_entry_resolves_without_raising():
+    """The whole legend, exercised.
+
+    Sixty-nine entries is small enough to check exhaustively, and doing so is
+    what turns "the mapping looks right" into "the mapping covers the file".
+    """
+    import shapefile
+    from pathlib import Path
+
+    layer = Path(__file__).resolve().parent.parent / "data" / "solos" / "Solos_5000"
+    if not layer.with_suffix(".shp").exists():
+        import pytest as _pytest
+
+        _pytest.skip("source data is not downloaded; see corpus/README.md")
+
+    reader = shapefile.Reader(str(layer), encoding="latin-1")
+    fields = [f[0] for f in reader.fields[1:]]
+    column = fields.index("DSC_COMPON")
+    names = {str(record[column]) for record in reader.records()}
+
+    for name in names:
+        family_for_soil_class(name)
