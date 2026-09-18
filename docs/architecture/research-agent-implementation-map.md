@@ -276,7 +276,22 @@ other cells are built.
 
 ### B2 — slice 2: cells, region tables and structured sources
 
-**Ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
+**Partly built, ahead of its own gate**, because two pieces of it needed no
+decision and one of them guards a risk ADR 0022 named:
+
+- `corpus/src/keys.py` enumerates the 44 artifacts — 12 substance, 5 land-use, 27
+  unit — and **reads the class list from `lib/models/soil_texture_labels.dart`
+  rather than repeating it**. That is ADR 0022's own requirement: a list written
+  down twice lets the corpus drift away from the model it is keyed to, silently.
+  A missing or unparseable declaration fails loudly instead of falling back.
+- `corpus/src/clay_activity.py` maps a SiBCS great-group name to one of the three
+  families, **order first and qualifier second**, with the Latossolo trap covered
+  by a test.
+
+What B2 still owes at its gate: the rasterised grids themselves, the structured
+priors, and the search backend for the 27 unit overlays.
+
+**Was: ready after B1.** Enumerates the 12 substance cells, the 5 land-use overlays and
 the 27 unit overlays, and samples the structured sources. **Two of the three unverified inputs §15.3 lists were checked on 2026-09-17.**
 IBGE biome boundaries exist as open-data shapefiles at 1:250 000 — better than
 assumed. The national soil map is obtainable, but **Embrapa's copy is CC BY-NC,
