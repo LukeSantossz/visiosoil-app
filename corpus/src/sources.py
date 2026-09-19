@@ -1,0 +1,181 @@
+"""The curated source set, which *is* the allowlist.
+
+ADR 0023 moved allowlist enforcement out of a provider's platform — where
+`allowed_domains` used to enforce it — and into this code. So the manifest is not
+a hint: a URL it does not list cannot be fetched, and the refusal happens before
+the request rather than as a filter on the result. Filtering afterwards would
+mean the page had already been read.
+
+Curated here means a committed list of source URLs, not a folder of PDFs. The
+property wanted is that no page the build did not choose reaches the model, and a
+manifest gives that while also recording, per source, the digest of what was
+actually fetched — so a source that changes under us is visible rather than
+silent.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from dataclasses import dataclass
+from html.parser import HTMLParser
+from pathlib import Path
+from typing import Callable, Iterable
+
+
+class SourceNotAllowed(Exception):
+    """A URL the manifest does not list."""
+
+
+class SourceFetchError(Exception):
+    """A listed source that could not be read, or that carried no text.
+
+    Fatal by design: a cell citing a source that could not be read would ship a
+    citation pointing at nothing.
+    """
+
+
+@dataclass(frozen=True)
+class SourceEntry:
+    """One curated source, as the manifest lists it."""
+
+    url: str
+    title: str
+    publisher: str | None
+    tier: int | None
+
+
+@dataclass(frozen=True)
+class FetchedSource:
+    """A source that was read, with the digest of what was read."""
+
+    url: str
+    title: str
+    publisher: str | None
+    tier: int | None
+    text: str
+    digest: str
+
+
+class SourceManifest:
+    """The allowlist, loaded from `corpus/sources/*.manifest.json`."""
+
+    def __init__(self, entries: Iterable[SourceEntry]) -> None:
+        self._by_url = {entry.url: entry for entry in entries}
+        if not self._by_url:
+            raise ValueError("a source manifest with no sources cannot ground a cell")
+
+    @classmethod
+    def load(cls, path: Path) -> "SourceManifest":
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        entries = []
+        for index, item in enumerate(raw.get("sources", [])):
+            url = item.get("url")
+            if not url:
+                raise ValueError(f"source {index} in {path} has no url")
+            entries.append(
+                SourceEntry(
+                    url=url,
+                    title=item.get("title") or url,
+                    publisher=item.get("publisher"),
+                    tier=item.get("tier"),
+                )
+            )
+        return cls(entries)
+
+    @property
+    def entries(self) -> list[SourceEntry]:
+        return list(self._by_url.values())
+
+    def entry_for(self, url: str) -> SourceEntry:
+        """The entry for [url], or [SourceNotAllowed]."""
+        entry = self._by_url.get(url)
+        if entry is None:
+            raise SourceNotAllowed(
+                f"{url} is not in the source manifest; the manifest is the "
+                f"allowlist, so a source is added there before it is read"
+            )
+        return entry
+
+
+Transport = Callable[[str], str]
+
+
+def fetch_sources(
+    manifest: SourceManifest,
+    *,
+    transport: Transport,
+) -> list[FetchedSource]:
+    """Reads every source the manifest lists, in order.
+
+    [transport] is injected so the whole pipeline is testable without a network.
+    """
+    fetched = []
+    for entry in manifest.entries:
+        # Goes through `entry_for` rather than trusting the loop, so the
+        # allowlist is enforced on the one path that fetches.
+        allowed = manifest.entry_for(entry.url)
+        try:
+            body = transport(allowed.url)
+        except Exception as error:  # noqa: BLE001 - re-raised with the url named
+            raise SourceFetchError(
+                f"{allowed.url} could not be read: {error}"
+            ) from error
+        text = extract_text(body)
+        if not text.strip():
+            raise SourceFetchError(
+                f"{allowed.url} carried no readable text; a cell cannot cite it"
+            )
+        fetched.append(
+            FetchedSource(
+                url=allowed.url,
+                title=allowed.title,
+                publisher=allowed.publisher,
+                tier=allowed.tier,
+                text=text,
+                digest=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            )
+        )
+    return fetched
+
+
+class _TextExtractor(HTMLParser):
+    """Keeps text, drops markup, and drops what is never prose."""
+
+    _SKIP = {"script", "style", "noscript", "template"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._parts: list[str] = []
+        self._skipping = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._SKIP:
+            self._skipping += 1
+
+    def handle_endtag(self, tag):
+        if tag in self._SKIP and self._skipping:
+            self._skipping -= 1
+
+    def handle_data(self, data):
+        if not self._skipping:
+            self._parts.append(data)
+
+    @property
+    def text(self) -> str:
+        joined = " ".join(part.strip() for part in self._parts if part.strip())
+        return re.sub(r"\s+", " ", joined).strip()
+
+
+def extract_text(html: str) -> str:
+    """The readable text of [html].
+
+    Deliberately simple: the sources are institutional documents, not
+    applications, and a dependency that renders JavaScript would be a dependency
+    that runs a page's code — which is precisely what §10 refuses.
+    """
+    parser = _TextExtractor()
+    parser.feed(html)
+    parser.close()
+    return parser.text

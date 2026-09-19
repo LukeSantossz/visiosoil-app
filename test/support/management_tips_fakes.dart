@@ -1,7 +1,11 @@
 import 'package:visiosoil_app/core/data/repositories/management_tips_repository.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/services/research/corpus_composer.dart';
+import 'package:visiosoil_app/core/services/research/corpus_store.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
+import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// In-memory [ManagementTipsRepository] for tests.
@@ -14,6 +18,18 @@ class FakeManagementTipsRepository implements ManagementTipsRepository {
   @override
   Future<ManagementTipsResult?> getByRecordUuid(String recordUuid) async =>
       store[recordUuid];
+
+  @override
+  Future<CachedManagementTips?> getCached(String recordUuid) async {
+    final result = store[recordUuid];
+    if (result == null) return null;
+    // The real repository reads the column; the fake reads the payload, and the
+    // Drift tests are what prove the two agree.
+    return CachedManagementTips(
+      result: result,
+      corpusVersion: result.corpusVersion,
+    );
+  }
 
   @override
   Future<void> upsert(String recordUuid, ManagementTipsResult result) async {
@@ -33,9 +49,21 @@ class FakeResearchService implements ResearchService {
   final Future<ResearchResult> Function(SoilRecord record) handler;
   int calls = 0;
 
+  /// The site and land use the controller resolved, kept so a test can assert
+  /// what the controller passed without reaching into the service.
+  SiteKey? lastSite;
+  LandUse? lastLandUse;
+
   @override
-  Future<ResearchResult> fetchTips(SoilRecord record, {String? locale}) {
+  Future<ResearchResult> fetchTips(
+    SoilRecord record, {
+    String? locale,
+    SiteKey? site,
+    LandUse? landUse,
+  }) {
     calls++;
+    lastSite = site;
+    lastLandUse = landUse;
     return handler(record);
   }
 }
@@ -78,6 +106,9 @@ ManagementTipsResult groundedTips() => ManagementTipsResult(
 SoilRecord tipsRecord({
   String? uuid = 'rec-1',
   String? textureClass = 'Argilosa',
+  double? latitude,
+  double? longitude,
+  String? address,
 }) =>
     SoilRecord(
       id: 1,
@@ -86,6 +117,9 @@ SoilRecord tipsRecord({
       timestamp: '2026-06-26T12:00:00Z',
       textureClass: textureClass,
       confidenceScore: 0.9,
+      latitude: latitude,
+      longitude: longitude,
+      address: address,
     );
 
 /// Builders for non-grounded results.
@@ -120,4 +154,14 @@ class ManagementTipsResultBuilder {
         model: 'llama-3.3-70b',
         retrievedAt: DateTime.utc(2026, 6, 26, 12),
       );
+}
+
+/// A [CorpusStore] holding the corpus it is given.
+class HeldCorpusStore implements CorpusStore {
+  HeldCorpusStore(this._corpus);
+
+  final Corpus? _corpus;
+
+  @override
+  Future<Corpus?> current() async => _corpus;
 }
