@@ -2,8 +2,12 @@
 
 The verdict of [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md), run
 over dataset version `v1`. It is the gate the programme was built on top of
-without ever having tested: if no arm separates from a label-shuffled control by
-more than run-to-run variance, the product premise is wrong and Lane C stops.
+without ever having tested: if no arm clears a label-shuffled control — an exact
+McNemar test significant at α = 0.05 after Holm correction within the primary
+family, **and** a group-level difference at or above the minimum detectable
+effect that same contrast records — the product premise is wrong and Lane C
+stops. That predicate is SPEC 0044's and was fixed before the run; it is the
+only one this document holds the gate to.
 
 **This document does not adopt a method.** The adoption ADR is written against
 these numbers and is not this file, per SPEC 0044's own Design Decision.
@@ -223,10 +227,15 @@ in that environment, and that skip is expected here rather than a defect.
 | `encoder_probe` | GPU (RTX 3070) | WSL2 |
 | `descriptors` | CPU | Windows |
 
-The control was run on the same device as the arm it is the floor for, which is
-what keeps `cnn_vs_control` a statement about the method. The descriptor arm is
-scikit-learn over 26 features and is CPU-bound whatever the host, which SPEC 0044
-records in advance.
+The control runs the `cnn` trainer on permuted labels, and it ran on the same
+device as `cnn` and `encoder_probe`, which is what keeps `cnn_vs_control` and
+`encoder_probe_vs_control` statements about the method rather than about the
+host. `descriptors_vs_control` is the one contrast whose two arms ran on
+different devices: the descriptor arm is scikit-learn over 26 features with no
+GPU path and is CPU-bound whatever the host, which SPEC 0044 records in advance.
+That is a reason the device was not chosen for it, not a demonstration that
+device cannot affect it — what the comparison rests on is that an arm trained on
+permuted labels scores chance on either device.
 
 ## Cost
 
@@ -258,6 +267,12 @@ python -m src.crossval --version v1 --arm encoder_probe
 python -m src.evaluate --version v1 --contrasts
 python scripts/run_descriptor_ablation.py --version v1
 ```
+
+**Under Keras 3.14.0, not the 3.15.1 `ml/requirements.txt` pins.** Install the
+pinned requirements and then `pip install keras==3.14.0` over them; the section
+above records why the run diverges from the pin and that `test_requirements.py`
+skips in that environment rather than passing. Run under the pin, these commands
+reproduce the protocol and not these numbers.
 
 `--shuffled-control` and not `--arm shuffled_control`: the flag is what permutes
 the labels and the arm name follows from it, and `require_control_matches_arm`

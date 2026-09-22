@@ -26,11 +26,33 @@ VERDICT = REPOSITORY_ROOT / "docs" / "ml" / "e0-verdict.md"
 #: number anywhere in it.
 ARCHIVE_CLASSES = ("Arenosa", "Media", "Siltosa", "Muito Argilosa", "Argilosa")
 
+#: SPEC 0044's four adoption conditions, in the order the rule states them.
+ADOPTION_CONDITIONS = (
+    "Executed",
+    "Won the secondary contrast",
+    "Fast enough",
+    "Amendments accepted",
+)
+
 
 @pytest.fixture(scope="module")
 def verdict() -> str:
     assert VERDICT.is_file(), f"{VERDICT} is the gate's committed record and is missing"
     return VERDICT.read_text(encoding="utf-8")
+
+
+def condition_row(verdict: str, condition: str) -> list[str] | None:
+    """The cells of the table row recording [condition], or `None` if it has none.
+
+    Read as a row rather than as a substring because the criterion is that each
+    condition carries *its own* outcome: a document that names all four and
+    resolves three of them satisfies every substring search over the whole file
+    and is exactly what SPEC 0044 forbids.
+    """
+    for line in verdict.splitlines():
+        if line.startswith("|") and f"**{condition}**" in line:
+            return [cell.strip() for cell in line.strip().strip("|").split("|")]
+    return None
 
 
 def test_verdict_states_each_decision_rule_condition_by_name(verdict):
@@ -41,13 +63,24 @@ def test_verdict_states_each_decision_rule_condition_by_name(verdict):
     recording that as a lost comparison would put a conclusion in the record the
     experiment never reached.
     """
-    for condition in ("Executed", "Won the secondary contrast", "Fast enough", "Amendments accepted"):
-        assert condition in verdict, f"condition {condition!r} is not recorded by name"
+    for condition in ADOPTION_CONDITIONS:
+        cells = condition_row(verdict, condition)
+        assert cells is not None, f"condition {condition!r} is not recorded by name"
+        outcome = cells[2]
+        assert re.match(r"\*\*(yes|no)\b", outcome), (
+            f"condition {condition!r} is named but its row records "
+            f"{outcome!r} rather than met or not met"
+        )
 
-    # Each condition's row carries a verdict, and the document says which path
-    # ships rather than leaving it to be inferred from the table.
+    # An unmeasured condition and an unsought one are both recorded as not met,
+    # and each says which it is: "no" alone would let a later reader take the
+    # latency gate for a comparison the encoder lost.
+    assert condition_row(verdict, "Fast enough")[2] == "**no — not run**"
+    assert condition_row(verdict, "Amendments accepted")[2] == "**no — not sought**"
+
+    # And the document says which path ships rather than leaving it to be
+    # inferred from the table.
     assert "the descriptor path ships" in verdict
-    assert "not run" in verdict and "not sought" in verdict
 
 
 def test_verdict_is_committed_whichever_way_it_returns(verdict):
@@ -70,7 +103,13 @@ def test_the_divergence_from_the_pinned_stack_is_stated_rather_than_discovered(v
     A reader reproducing these numbers under the pin gets a different stack and
     nothing in the record would have told them.
     """
-    assert "3.15.1" in verdict
+    # Anchored on what pins the version rather than on the number: the number
+    # appears in the reproduction block too, so a bare substring search would
+    # survive the divergence section being quietly corrected to agree with the
+    # run.
+    assert re.search(r"`ml/requirements\.txt`[^.]*3\.15\.1", verdict), (
+        "the verdict does not say that `ml/requirements.txt` pins 3.15.1"
+    )
     assert re.search(r"reproduc\w+ .{0,40}3\.14\.0", verdict, re.IGNORECASE | re.DOTALL)
 
 
@@ -109,8 +148,28 @@ def test_negative_verdict_blocks_lane_c(verdict):
     cannot be re-read favourably later: at this N a failure to reject is not
     evidence for the null, and the consequence was fixed in advance.
     """
-    assert "signal was not demonstrated" in verdict
-    assert "no Lane C item would start" in verdict
+    # One conditional, not three phrases a reader has to join: the antecedent
+    # and both halves of the consequence in the same sentence. A document that
+    # carries the words scattered across sections passes every substring search
+    # while stating no rule at all.
+    rule = re.search(
+        # No `.` between the two halves: that is what makes this one sentence
+        # rather than two that happen to be adjacent.
+        r"had no arm cleared the control[^.]*no Lane C item would start[^.]*\.",
+        verdict,
+        re.IGNORECASE,
+    )
+    assert rule, "the negative-verdict rule is not recorded as one conditional"
+    assert "signal was not demonstrated" in rule.group(0)
+
+    # Stated once, and in the registered terms. SPEC 0044 defines clearing the
+    # control as Holm-corrected significance *and* a difference at or above the
+    # contrast's own minimum detectable effect; a looser predicate stated
+    # anywhere in this document is a second stop condition, and the gate has one.
+    assert "run-to-run variance" not in verdict, (
+        "the stop condition is stated as run-to-run variance, which SPEC 0044 "
+        "does not register"
+    )
 
     # And the document says which branch it actually took.
     assert "Signal was demonstrated" in verdict
