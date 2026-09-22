@@ -18,10 +18,23 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-from src.sources import FetchedSource
+from src.sources import PASSAGE_CHAR_LIMIT, PDF_SIGNATURE, FetchedSource
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 OLLAMA_URL = "http://localhost:11434"
+
+CONTEXT_TOKENS = 16384
+"""The context every request asks for. Left unset, Ollama picks a default from
+the machine's video memory — 4096 tokens on one with none — and cuts a longer
+prompt without saying so, so the same model and seed read different prompts on
+different machines. Three passages at `PASSAGE_CHAR_LIMIT` plus a template fit
+with room to spare."""
+
+MIN_CHARS_PER_TOKEN = 2
+"""A floor Portuguese prose does not approach, so a prompt under
+`PROMPT_CHAR_CEILING` fits the context in all but a table of bare numbers."""
+
+PROMPT_CHAR_CEILING = CONTEXT_TOKENS * MIN_CHARS_PER_TOKEN
 
 HttpPost = Callable[[str, dict[str, Any]], dict[str, Any]]
 
@@ -64,7 +77,7 @@ class ModelRefused(Exception):
 _NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirect())
 
 
-def http_transport(url: str) -> str:
+def http_transport(url: str) -> str | bytes:
     """Reads a source over HTTP, refusing redirects.
 
     Used by the probe, never by a test. See [RedirectRefused] for why a redirect
@@ -77,8 +90,18 @@ def http_transport(url: str) -> str:
     # out fails the whole build by design, so the cost of being impatient is a
     # build that stops on a source that was merely slow.
     with _NO_REDIRECT_OPENER.open(request, timeout=60) as response:  # noqa: S310
-        charset = response.headers.get_content_charset() or "utf-8"
-        return response.read().decode(charset, errors="replace")
+        return decode_body(response.read(), response.headers.get_content_charset())
+
+
+def decode_body(raw: bytes, charset: str | None) -> str | bytes:
+    """A PDF as its undecoded bytes, anything else as text in [charset].
+
+    A PDF is binary, and decoding it would hand the HTML extractor whatever text
+    survived — which it returns rather than failing.
+    """
+    if raw.startswith(PDF_SIGNATURE):
+        return raw
+    return raw.decode(charset or "utf-8", errors="replace")
 
 
 def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -222,13 +245,25 @@ class OllamaClient:
         return digest
 
     def _complete(self, prompt: str) -> str:
+        if len(prompt) > PROMPT_CHAR_CEILING:
+            # The server would cut it to the context and say nothing, so a
+            # manifest listing more passages than the context holds fails here.
+            raise ModelRefused(
+                f"prompt is {len(prompt)} characters, above the "
+                f"{PROMPT_CHAR_CEILING} a {CONTEXT_TOKENS}-token context is "
+                f"sure to hold; list fewer passages or narrow them"
+            )
         payload = self._post(
             f"{self._base_url}/api/generate",
             {
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0, "seed": self.seed},
+                "options": {
+                    "temperature": 0,
+                    "seed": self.seed,
+                    "num_ctx": CONTEXT_TOKENS,
+                },
             },
         )
         return str(payload.get("response", ""))
@@ -249,7 +284,7 @@ class OllamaClient:
         template, _ = self._prompts["grade"]
         raw = self._complete(
             template.replace("{{query}}", query).replace(
-                "{{document}}", document.text[:6000]
+                "{{document}}", document.text[:PASSAGE_CHAR_LIMIT]
             )
         )
         return parse_yes_no(raw)
@@ -259,7 +294,7 @@ class OllamaClient:
     ) -> dict[str, Any]:
         template, _ = self._prompts["generate"]
         rendered = "\n\n".join(
-            f"[{index}] {doc.title}\n{doc.text[:6000]}"
+            f"[{index}] {doc.title}\n{doc.text[:PASSAGE_CHAR_LIMIT]}"
             for index, doc in enumerate(documents)
         )
         raw = self._complete(
@@ -273,7 +308,8 @@ class OllamaClient:
         template, _ = self._prompts["ground"]
         raw = self._complete(
             template.replace("{{claim}}", tip_text).replace(
-                "{{evidence}}", "\n\n".join(text[:6000] for text in cited_texts)
+                "{{evidence}}",
+                "\n\n".join(text[:PASSAGE_CHAR_LIMIT] for text in cited_texts),
             )
         )
         return parse_yes_no(raw)
