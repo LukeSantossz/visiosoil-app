@@ -18,7 +18,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-from src.sources import PASSAGE_CHAR_LIMIT, PDF_SIGNATURE, FetchedSource
+from src.sources import (
+    PASSAGE_CHAR_LIMIT,
+    PDF_SIGNATURE,
+    PDF_SIGNATURE_WINDOW,
+    FetchedSource,
+)
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 OLLAMA_URL = "http://localhost:11434"
@@ -97,9 +102,11 @@ def decode_body(raw: bytes, charset: str | None) -> str | bytes:
     """A PDF as its undecoded bytes, anything else as text in [charset].
 
     A PDF is binary, and decoding it would hand the HTML extractor whatever text
-    survived — which it returns rather than failing.
+    survived — which it returns rather than failing. The signature is looked for
+    across the window readers search, not only at the first byte, so a PDF behind
+    a stray prefix stays bytes and is refused by the fetch.
     """
-    if raw.startswith(PDF_SIGNATURE):
+    if PDF_SIGNATURE in raw[:PDF_SIGNATURE_WINDOW]:
         return raw
     return raw.decode(charset or "utf-8", errors="replace")
 

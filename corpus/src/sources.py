@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from pypdf import PdfReader
-from pypdf.errors import PyPdfError
+from pypdf.errors import DependencyError, PyPdfError
 
 PASSAGE_CHAR_LIMIT = 6000
 """How much of one document the model reads. The client cuts at this length, so
@@ -42,6 +42,11 @@ passage can be named for them yet."""
 PDF_SIGNATURE = b"%PDF-"
 """What makes a body a PDF. Not the URL's suffix and not `Content-Type`, which
 institutional repositories set inconsistently."""
+
+PDF_SIGNATURE_WINDOW = 1024
+"""How far into a body readers look for the signature. A body carrying it
+anywhere in that window is kept as bytes, so one that does not open with it is
+refused rather than decoded into noise that passes for prose."""
 
 
 class SourceNotAllowed(Exception):
@@ -204,8 +209,8 @@ def _passage_text(entry: SourceEntry, body: str | bytes) -> str:
         return extract_text(body)
     if not body.startswith(PDF_SIGNATURE):
         raise SourceFetchError(
-            f"{entry.url} returned bytes that are not a PDF; nothing here can "
-            f"read them"
+            f"{entry.url} returned bytes that do not open with {PDF_SIGNATURE!r}; "
+            f"nothing here reads them"
         )
     text = extract_pdf_text(body, entry.pages, url=entry.url)
     if len(text) > PASSAGE_CHAR_LIMIT:
@@ -239,7 +244,9 @@ def extract_pdf_text(
             reader.pages[number - 1].extract_text() or ""
             for number in range(first, last + 1)
         )
-    except PyPdfError as error:
+    # `DependencyError` is what an AES-encrypted file raises, and it is not a
+    # `PyPdfError`, so naming only the latter let it escape without the URL.
+    except (PyPdfError, DependencyError) as error:
         raise SourceFetchError(f"{url} is not a readable PDF: {error}") from error
     return re.sub(r"\s+", " ", text).strip()
 
