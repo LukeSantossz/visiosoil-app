@@ -64,8 +64,11 @@ every one of them errors rather than passing vacuously.
 - `negative_verdict_blocks_lane_c`: a test fails when the verdict stops recording
   the rule that would have applied had no arm cleared the control, when that rule
   stops being one conditional — antecedent and both halves of the consequence in
-  a single sentence — or when the document states a second, looser stop
-  condition anywhere. The gate has one predicate, and SPEC 0044 is where it is
-  registered.
+  a single sentence — when the stop condition stops naming both registered
+  clauses, the Holm-corrected exact McNemar test and the contrast's own minimum
+  detectable effect, or when the document states a second, looser stop condition
+  anywhere. Both clauses positively and not only the wrong phrase negatively: a
+  predicate swapped for a looser one names neither and would otherwise pass. The
+  gate has one predicate, and SPEC 0044 is where it is registered.
 - Every assertion above is proved by mutation rather than asserted to work: each
   mutation of the verdict fails exactly the test named for it and no other.

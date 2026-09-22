@@ -164,8 +164,22 @@ def test_negative_verdict_blocks_lane_c(verdict):
 
     # Stated once, and in the registered terms. SPEC 0044 defines clearing the
     # control as Holm-corrected significance *and* a difference at or above the
-    # contrast's own minimum detectable effect; a looser predicate stated
-    # anywhere in this document is a second stop condition, and the gate has one.
+    # contrast's own minimum detectable effect, and the stop condition is the
+    # negation of exactly that. Both clauses are asserted rather than only the
+    # phrase that was wrong before, because a predicate swapped for a looser one
+    # — a macro-F1 threshold, a spread — names neither and would otherwise pass.
+    flat = " ".join(verdict.split())
+    stop = re.search(
+        r"if no arm clears a label-shuffled control.{0,400}?Lane C stops\.", flat
+    )
+    assert stop, "the stop condition is not stated where the document opens"
+    for clause in ("exact McNemar test", "Holm correction", "minimum detectable effect"):
+        assert clause in stop.group(0), (
+            f"the stop condition does not name {clause!r}, so it is not the "
+            f"predicate SPEC 0044 registered"
+        )
+
+    # And the one it used to state instead, which no section may reintroduce.
     assert "run-to-run variance" not in verdict, (
         "the stop condition is stated as run-to-run variance, which SPEC 0044 "
         "does not register"
