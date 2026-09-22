@@ -152,3 +152,31 @@ def test_a_cell_with_no_sources_but_tips_fails_the_contract():
 
     with pytest.raises(CellValidationError):
         validate_cell(broken, source_count=0)
+
+
+def test_the_run_manifest_records_the_page_range_its_digest_covers():
+    """A digest of a passage is only readable beside the pages it covers, and the
+    committed range can change between two runs of the same cell."""
+    passage = FetchedSource(
+        url="https://example.org/sistema.pdf",
+        title="Sistema de Produção",
+        publisher="Embrapa",
+        tier=1,
+        text="Trecho.",
+        digest="a" * 64,
+        pages=(12, 15),
+    )
+    manifest = RunManifest(
+        key="k",
+        model="m",
+        model_digest="d",
+        prompt_versions={},
+        seed=1,
+        sources=[passage, source(1)],
+        attempts=1,
+    )
+
+    recorded = {s["url"]: s["pages"] for s in manifest.to_json()["sources"]}
+
+    assert recorded["https://example.org/sistema.pdf"] == [12, 15]
+    assert recorded["https://example.org/1"] is None

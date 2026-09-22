@@ -11,11 +11,13 @@ import json
 import pytest
 
 from src.sources import (
+    PASSAGE_CHAR_LIMIT,
     SourceFetchError,
     SourceManifest,
     SourceNotAllowed,
     fetch_sources,
 )
+from tests.pdf_documents import make_pdf
 
 
 def manifest(tmp_path, entries):
@@ -142,3 +144,139 @@ def test_a_redirect_refusal_names_both_ends(tmp_path):
     message = str(excinfo.value)
     assert "scielo.br" in message
     assert "elsewhere.invalid" in message
+
+
+# --- A PDF source is read, and only the passage the manifest names -------------
+
+PDF_URL = "https://example.org/sistema-de-producao.pdf"
+
+
+def pdf_entry(pages=None):
+    item = entry(PDF_URL)
+    if pages is not None:
+        item["pages"] = pages
+    return item
+
+
+def test_a_pdf_source_is_read_as_text(tmp_path):
+    allowed = manifest(tmp_path, [pdf_entry()])
+    pdf = make_pdf(["Solos argilosos oxídicos retêm fósforo."])
+
+    fetched = fetch_sources(allowed, transport=lambda url: pdf)
+
+    assert fetched[0].text == "Solos argilosos oxídicos retêm fósforo."
+
+
+def test_a_pdf_passage_is_the_page_range_the_manifest_names(tmp_path):
+    """An extension document opens with a cover, a catalogue card and a table of
+    contents, so reading from page 1 feeds the model everything but guidance."""
+    allowed = manifest(tmp_path, [pdf_entry(pages=[2, 3])])
+    pdf = make_pdf(
+        [
+            "Capa e ficha catalográfica.",
+            "Primeira página do trecho.",
+            "Segunda página do trecho.",
+            "Referências.",
+        ]
+    )
+
+    fetched = fetch_sources(allowed, transport=lambda url: pdf)
+
+    assert fetched[0].text == "Primeira página do trecho. Segunda página do trecho."
+    assert fetched[0].pages == (2, 3)
+
+
+def test_a_pdf_passage_longer_than_the_budget_is_refused(tmp_path):
+    """The model reads PASSAGE_CHAR_LIMIT characters of a document. A passage
+    longer than that used to be cut without a word; it is refused instead, so the
+    fix is a narrower range in the manifest rather than a silent loss."""
+    allowed = manifest(tmp_path, [pdf_entry(pages=[1, 1])])
+    at_budget = make_pdf(["a" * PASSAGE_CHAR_LIMIT])
+    over_budget = make_pdf(["a" * (PASSAGE_CHAR_LIMIT + 1)])
+
+    assert len(fetch_sources(allowed, transport=lambda url: at_budget)[0].text) == (
+        PASSAGE_CHAR_LIMIT
+    )
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: over_budget)
+
+    message = str(excinfo.value)
+    assert PDF_URL in message
+    assert str(PASSAGE_CHAR_LIMIT + 1) in message
+
+
+def test_a_pdf_without_a_text_layer_fails_the_build(tmp_path):
+    # A scanned document has pages and no text. Citing it would ship a citation
+    # the model never read.
+    allowed = manifest(tmp_path, [pdf_entry()])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: make_pdf(["", ""]))
+
+    assert PDF_URL in str(excinfo.value)
+
+
+def test_an_unreadable_pdf_fails_the_build(tmp_path):
+    allowed = manifest(tmp_path, [pdf_entry()])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: b"%PDF-1.4\ntruncated")
+
+    assert PDF_URL in str(excinfo.value)
+
+
+def test_a_page_range_beyond_the_document_is_refused(tmp_path):
+    allowed = manifest(tmp_path, [pdf_entry(pages=[2, 5])])
+    pdf = make_pdf(["Um.", "Dois.", "Três."])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: pdf)
+
+    assert PDF_URL in str(excinfo.value)
+
+
+def test_a_page_range_on_a_source_that_is_not_a_pdf_is_refused(tmp_path):
+    """A range means the curator believed the source is a PDF. If it is not,
+    that belief is wrong, and reading the whole page instead would hide it."""
+    allowed = manifest(tmp_path, [pdf_entry(pages=[1, 1])])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(
+            allowed, transport=lambda url: "<html><body><p>Texto.</p></body></html>"
+        )
+
+    assert PDF_URL in str(excinfo.value)
+
+
+def test_a_body_in_bytes_that_is_not_a_pdf_is_refused(tmp_path):
+    allowed = manifest(tmp_path, [pdf_entry()])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: b"<html>binary?</html>")
+
+    assert PDF_URL in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "pages",
+    [[0, 2], [3, 1], [-1, 2], [1], [1, 2, 3], "1-2", [1.0, 2], [True, 2], {}],
+)
+def test_a_malformed_page_range_is_refused_at_load(tmp_path, pages):
+    path = tmp_path / "substance.manifest.json"
+    path.write_text(json.dumps({"sources": [pdf_entry(pages=pages)]}), encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        SourceManifest.load(path)
+
+    assert "pages" in str(excinfo.value)
+
+
+def test_the_committed_substance_manifest_loads():
+    """The manifest the probe reads by default parses under the schema, and the
+    Developer's 2026-09-18 decision holds in it: the substance of the cell comes
+    from tier 1, Embrapa's extension material."""
+    from src.probe import DEFAULT_MANIFEST
+
+    committed = SourceManifest.load(DEFAULT_MANIFEST)
+
+    assert sum(1 for source in committed.entries if source.tier == 1) >= 2
