@@ -140,10 +140,10 @@ serves it.
 | 1 | Management guidance for a classified record | class, region | Cited tips | At build time only | **v1 — Tier 1** |
 | 2 | Explain what the texture class means | class | Static explainer | No — compiled copy | **v1 — compiled, no agent** |
 | 3 | Why these tips and not others | corpus cell provenance | Source list + build date | No — read the artifact | **v1 — Tier 1** |
-| 4 | Free-text question about this record | question, class, region | Cited answer | **Yes** | **v1 — Tier 2** |
+| 4 | Free-text question about this record | question, class, region | Cited answer | **Yes** | Deferred — Tier 2 left v1 with ADR 0023; no budget, and no input field |
 | 5 | Guidance when the verdict is ambiguous | two candidate classes, region | Both cells, side by side | **No** — two Tier 1 lookups | **v1 — Tier 1 composition** |
 | 6 | Conflict between classification and regional soil data | class, region soil prior | Named discrepancy | **Yes** | v1 contract, dormant (no model) |
-| 7 | Region outside the corpus | class, region | Honest unavailability, or live research | **Yes** | **v1 — Tier 2** |
+| 7 | Region outside the corpus | class, region | Honest unavailability | **No** — since ADR 0023 | **v1 — the surface states the absent coverage**; live research deferred with Tier 2 |
 | 8 | Next steps after a result | verdict, record state | Primary action | No — `compose`, UX terminal | Out of scope here |
 | 9 | Ask the user for more context | — | Refinement question | No — a fixed question set per class | Deferred — no consumer |
 | 10 | Personalise by management context | land use | Which constraint dominates | No — an overlay layer | **v1 — land use only**; crop and season stay deferred |
@@ -648,9 +648,18 @@ claim on its own. Tier 5 may only corroborate a claim already carried by a lower
 tier. A cell that cannot reach that bar emits `insufficient_evidence` rather
 than a weaker tip.
 
-Domains are an explicit allowlist passed to the search tool, so the constraint
-is enforced by the platform rather than by a post-filter over whatever the web
-returned.
+**Falsified by [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+on 2026-09-17.** This paragraph said domains were an explicit allowlist passed to
+the search tool, "so the constraint is enforced by the platform rather than by a
+post-filter". With the build on local models there is no such platform, and that
+was named as a cost rather than absorbed.
+
+What replaces it is stronger than a post-filter and weaker than a platform: for
+the substance layer the allowlist is a **committed manifest of sources**
+(`corpus/sources/substance.manifest.json`), and a URL it does not list is refused
+*before* it is fetched rather than filtered after. Adding a source is a reviewed
+act. For the unit overlays, which do search, the tier list above is a filter this
+repository implements and tests.
 
 ### 8.2 Evidence strength
 
@@ -687,6 +696,19 @@ rather than called at runtime.
 The sampled fractions are what the `regionalContradiction` predicate compares a
 classification against. Baking them removes a runtime dependency on a service
 that is currently degraded.
+
+> **Out of v1 since 2026-09-17, and not because the service is down.**
+> `regionalContradiction` is a **Tier 2 escalation predicate**, and
+> [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+> took Tier 2 out of v1. The sampled fractions have no other consumer, so
+> sampling SoilGrids is work v1 does not owe. It returns with Tier 2, alongside
+> the `.tflite` artifact the predicate also waits on.
+>
+> The point API was re-probed on 2026-09-17, twelve days after the first probe,
+> from the same kind of coordinate: **`502` after 41.5 s, then three consecutive
+> `503`.** It has not recovered, and it is worse than it was — which confirms the
+> decision to bake rather than call, and makes the bulk-coverage question a
+> Tier 2 problem rather than a v1 one.
 
 - **The national soil map** — Embrapa/IBGE at 1:5,000,000 and the state surveys at
   1:250,000 — is what the clay-activity grid of §5.2 is sampled from. At those
@@ -999,9 +1021,19 @@ Slices 1–4 build the corpus and live in `corpus/` in **this** repository (§20
 slice 5 is the proxy's; slices 6–10 are app changes here. Each passes its own
 Spec Gate.
 
+> **Narrowed by
+> [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+> on 2026-09-17.** The $50 allowance was never
+> released, so the build runs on local open-source models and **slices 10a and
+> 10b leave v1**. The slice table below is kept as written and the amendments are
+> marked in place, because the plan's shape did not change — only its providers
+> and its last two rows. The ordered backlog, with what exists today and the
+> dependency order the slice numbers do not carry, is
+> [`research-agent-implementation-map.md`](research-agent-implementation-map.md).
+
 | # | Slice | Repo | Gate |
 |---|---|---|---|
-| 1 | **Calibration probe** — build one cell end to end; measure real token usage and cost, **and put that cell in front of an agronomist**; the dispatch guards and spend ledger of §20.5 | `corpus/` | Measured cost per cell replaces §15.1's estimate, **and the cell is judged useful rather than obvious** |
+| 1 | **Calibration probe** — build one cell end to end **and put that cell in front of an agronomist**. Per ADR 0023 it measures quality rather than price: there is no spend to measure, and the guards of §20.5 are replaced by the run manifest | `corpus/` | The cell exists, its citations resolve, **and it is judged useful rather than obvious** — a judgement of "not worth reading" stops the plan |
 | 2 | Cell enumeration, region tables, structured-source sampling (Embrapa, SoilGrids coverage, the soil map) | `corpus/` | 12 + 5 + 27 artifacts enumerated; priors sampled. **Three inputs are unverified — see §15.3** |
 | 3 | Build pipeline: query transform, allowlisted search, grading, generation with citations, grounding graders | `corpus/` | Injection fixture passes; citations 100% resolvable |
 | 4 | Cross-provider verification pass and the human review gate | `corpus/` | No cell reaches the artifact unreviewed |
@@ -1019,18 +1051,27 @@ client from #55. Slices 1–9 do not depend on it: until it lands, the proxy
 introspects the access token the app already holds, exactly as ADR 0001's
 two-phase bearer specified.
 
-**Slice 10 ships enabled in v1**, by the Developer's decision on 2026-09-11. It
-carries a dependency this document cannot satisfy: the `userQuestion` predicate
-needs a free-text input on the result surface, which does not exist and belongs
-to the UI/UX terminal (§18.2). Until that input ships, slice 10 serves only
-`corpusMiss`, and `regionalContradiction` stays dormant until a `.tflite`
-artifact exists.
+**Slice 10 shipped enabled in v1** by the Developer's decision on 2026-09-11, and
+**that decision was reversed on 2026-09-17 by ADR 0023**: with no budget there is
+no cap to fail closed and no runway to spend, so Tier 2 leaves v1 entirely. Its
+three predicates stay in the design and none is built. A key the corpus does not
+cover composes to `insufficient_evidence` and the surface says there is no
+coverage for that region, which §6.5 already defines as a valid composition.
+
+The output contract does not change: `followUpQuestions` and `alerts` were always
+optional with documented defaults, so a later Tier 2 fills fields that already
+exist rather than forcing a second migration.
 
 **Slice 4 is blocked**, not merely unscheduled: the human reviewer is not
 identified (§17). Slices 1 through 3 proceed without it, and the artifact cannot
 be released until it lifts.
 
 ### 15.1 Budget
+
+> **Contingent since 2026-09-17.** ADR 0023 records that the allowance below was
+> never released. This section costs the build a budget would pay for; today's
+> build costs nothing and buys a lower and still unmeasured quality. Kept as
+> written because it is what a funded rebuild reads.
 
 One-time allowance of $50 — **one time, not recurring**. September 2026 prices:
 Batch API at 50% of standard, web search at $10 per 1,000 searches, web fetch at
@@ -1067,6 +1108,11 @@ the estimate by more than a factor of two, the whole plan is re-costed before
 slice 2 begins.
 
 ### 15.2 What the budget does not cover
+
+> **Contingent since 2026-09-17**, for the same reason as §15.1. The rebuild
+> cadence below costs nothing to run locally, so the funding gap it names is a
+> gap in *quality* over time rather than in money: a rebuild happens when someone
+> runs it on the machine, and nothing forces that twice a year.
 
 **The product is both an academic deliverable and a field product at the same
 time** (Developer's decision, 2026-09-11). That is not a hedge, and it settles
@@ -1107,6 +1153,31 @@ None of the three changes the architecture. All three change slice 2's estimate,
 and a wrong figure discovered during the build is worse than a cheap check before
 it.
 
+**Checked on 2026-09-17, and one of them is a blocker rather than an estimate.**
+
+| Assumption | What the check found |
+|---|---|
+| ISRIC SoilGrids coverage is obtainable in bulk | **Moot for v1.** Its only consumer is `regionalContradiction`, a Tier 2 predicate that ADR 0023 removed from v1. The point API was re-probed on 2026-09-17 and has not recovered — `502` after 41.5 s, then three `503` — so the question returns with Tier 2 rather than blocking anything now |
+| IBGE biome boundaries exist in rasterisable form | **Confirmed, and better than assumed.** Shapefiles on `geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/`, compatible with **1:250 000** rather than the coarser scale the ~130 KB estimate assumed. Public under the federal Open Data Policy (Decree 8.777/2016), free to use and redistribute with attribution |
+| The national soil map is obtainable and rasterisable | **Obtainable, but the obvious copy is licensed wrongly.** Embrapa's `brasil_solos_5m_20201104` — SiBCS 2006, third categorical level, 1:5 000 000 — is **CC BY-NC 3.0 BR, non-commercial only**, and its own metadata currently reports the download as *"Não disponível"*. §15.2 records that this product is **an academic deliverable and a field product at the same time**, so a non-commercial licence is not usable for it. **IBGE publishes the same class of product** under `informacoes_ambientais/pedologia/vetores/brasil_5000_mil/`, under the open-data policy above, and that is the copy the build must use |
+| Map units collapse cleanly into three clay-activity families | **Strongly indicated, from the classification system rather than the file.** SiBCS's **third categorical level — the grandes grupos — is itself defined with emphasis on clay activity** and on base saturation (Embrapa, *Níveis Categóricos do Sistema*), with the Ta/Tb split at the same 27 cmolc/kg the 2026-09-11 review verified. The national map is classified *to that level*, so the family is constitutive of the class name rather than something to infer from it. **What is not yet confirmed is the attribute table**, which nobody has opened |
+
+The licence finding is the one that matters: it does not change the architecture,
+but it changes which file the build reads, and discovering it after a corpus had
+been built on the Embrapa copy would have meant rebuilding or shipping something
+the licence does not permit.
+
+**The clay-activity mapping is a per-order rule, not a search for "Ta" or "Tb" in
+a string**, and slice 2 writes it down before it rasterises anything. Ta/Tb
+appears in the great-group name only where it *differentiates* — Argissolos,
+Luvissolos, Planossolos, Cambissolos. Where the order already implies it, it is
+absent from the name and present in the definition: a Latossolo is low-activity
+by the definition of its own B horizon, and reading its name for "Tb" would find
+nothing and wrongly resolve to unknown. The table therefore maps **order first,
+qualifier second**, and an order that settles neither resolves to null — which
+§5.2 already defines as valid, with the substance layer answering generically and
+saying so.
+
 ## 16. Risks and mitigations
 
 | Risk | Mitigation |
@@ -1118,11 +1189,11 @@ it.
 | Reviewer lacks agronomic expertise | Would silently weaken the design's central guarantee. The reviewer's competence is recorded with the release, so a corpus reviewed by a non-specialist is labelled as one |
 | The corpus goes stale | `accessedAt` per source, corpus version, staleness in `alerts`, rebuild twice a year |
 | **The cadence outlives the budget** | Twice-yearly rebuilds cost ~$28/year against a reserve of at most $34. Year one is funded; year two needs recurring budget that does not exist. §15.2 states it rather than letting it surface as a stalled release |
-| **Tier 2's runway is exhausted permanently** | A one-time allowance is not a monthly quota. The cap fails closed for good, so the interface treats exhaustion as durable, not temporary |
+| ~~**Tier 2's runway is exhausted permanently**~~ — **moot in v1** (ADR 0023) | A one-time allowance is not a monthly quota. The cap fails closed for good, so the interface treats exhaustion as durable, not temporary |
 | Guidance is too generic to be useful | Measured by the feedback loop in §11.3; if it fails, Tier 2 or richer inputs are the escalation |
-| Tier 2 cost overruns | Hard cap that fails closed; it degrades to Tier 1 rather than to an error |
-| Tier 2 ships before its input exists | Without the free-text field (§18.2) it serves only `corpusMiss`; that is a reduced feature, not a broken one |
-| Tier 2 injection reaches a user | Allowlist, two tools only, schema validation, output marked unreviewed |
+| ~~Tier 2 cost overruns~~ — **moot in v1** (ADR 0023); returns with a budget | Hard cap that fails closed; it degrades to Tier 1 rather than to an error |
+| ~~Tier 2 ships before its input exists~~ | **Closed by ADR 0023**: Tier 2 is not in v1, so it cannot ship ahead of anything. The risk returns with a budget |
+| ~~Tier 2 injection reaches a user~~ — **moot in v1** (ADR 0023); every v1 output is reviewed | Allowlist, two tools only, schema validation, output marked unreviewed |
 | A provider deprecates the build model | The seams keep the pipeline portable; the artifact survives the provider regardless |
 | Clay-activity resolution on device is wrong | A null degrades to the biome default and the response says the substance is generic; a wrong value yields guidance for a neighbouring family, which is quieter than a crash and therefore belongs in the feedback loop |
 | **The land-use overlay loses the interaction it approximates** | The review describes land use as interacting with texture, not merely adding to it. An overlay adds. Crossing it into the substance would be faithful and cost 87 artifacts against 44 — refused for review burden, not for money, and recorded here so the approximation is a known one |
@@ -1177,14 +1248,14 @@ reviewing this document rather than by writing it.
 |---|---|---|
 | Key resolution on device | Packed 0.1° grids for clay activity and biome, ~130 KB each | §5.2 |
 | Ambiguous verdict | Compose two Tier 1 cells; no escalation | §5.4 |
-| Tier 2 enabled in v1 | Yes, complete — with the input-field dependency named | §15, §18.2 |
+| Tier 2 enabled in v1 | ~~Yes, complete~~ — **reversed 2026-09-17 by ADR 0023**: no budget, so Tier 2 leaves v1 and an uncovered key is answered by saying so | §15, ADR 0023 |
 | Rebuild cadence | Twice a year, with its funding gap stated | §15.2 |
 | Coverage beyond Brazil | Brazil only; a foreign coordinate is a `corpusMiss` | §5.1 |
 | Substance key | Clay activity, not biome; biome moves to the institutional layer | §5.1 |
 | Land use | Added as a five-value overlay, asked at generation time | §5.3 |
 | Build tracing | Local JSONL, following the README's precedent | §11.1 |
 | Review protocol | Complete, against an eight-item checklist | §12.3 |
-| Tier 2 slicing | Split: 10a serves `corpusMiss` now, 10b waits on the input field | §15 |
+| Tier 2 slicing | ~~Split: 10a now, 10b on the input field~~ — **moot since ADR 0023**: neither slice is in v1 | §15, ADR 0023 |
 | What the product is | Academic deliverable and field product at once — so §11 is a live loop and the recurring cost is a funding requirement | §15.2 |
 | Where `corpusVersion` lives | A nullable column; schema v4→v5 | §19.2 |
 | Bundled corpus in v1 | Yes, both layers, under a 500 KB ceiling | §19.4 |
@@ -1216,20 +1287,23 @@ failure stays a `ResearchFailureKind` rather than being folded into a status;
 flat fallback; and **no field names a UI component**, per §7.1.
 
 It asks the UI terminal to own: all layout and composition; the per-tip feedback
-control in §11.3; the visual distinction between reviewed corpus guidance and
-unreviewed Tier 2 output; and the copy for every degraded state in §13.
+control in §11.3; and the copy for every degraded state in §13. The visual
+distinction between reviewed corpus guidance and unreviewed Tier 2 output is
+**not owed in v1** — ADR 0023 removed the only source of unreviewed output, so
+everything the surface renders is reviewed.
 
-Four asks are new with the 2026-09-11 decisions, and the first is a **blocking
-dependency for slice 10**:
+Four asks were new with the 2026-09-11 decisions. **Two of them were withdrawn
+on 2026-09-17**, when ADR 0023 took Tier 2 out of v1: asks 1 and 2 below existed
+only to serve it. They are struck rather than deleted, so the UI terminal can see
+that the ask was retracted rather than forgotten, and both return if a budget is
+released.
 
-1. **A free-text input on the result surface.** The `userQuestion` predicate has
-   no entry point today — the Details screen has no text field. Tier 2 ships
-   enabled, so until this exists it serves only `corpusMiss`. The input needs a
-   length limit matching the contract's 500 characters, and it must be clear that
-   what follows is live and unreviewed.
-2. **Cap exhaustion is a durable state, not a transient one.** The budget is
-   one-time, so "try again later" is the wrong copy: when the runway is gone it
-   is gone. §15.2 states why.
+1. ~~**A free-text input on the result surface.**~~ **Withdrawn 2026-09-17.** The
+   `userQuestion` predicate has no entry point today and now has nothing to
+   reach: Tier 2 is out of v1, so nothing consumes the field. Not built.
+2. ~~**Cap exhaustion is a durable state, not a transient one.**~~ **Withdrawn
+   2026-09-17.** There is no cap, because there is no budget to cap. No copy is
+   owed for a state that cannot occur.
 3. **An ambiguous verdict renders as two readings, not one answer.** Composing
    two Tier 1 cells presents both candidate classes' guidance side by side. The
    surface must not merge them into a single recommendation, because nothing
@@ -1237,7 +1311,19 @@ dependency for slice 10**:
    acceptance criteria, which already requires neither candidate to be asserted.
 4. **Absent coverage is stated, not hidden.** `coverage` reports each layer
    separately — a generic substance layer, a missing institutional overlay, a
-   declined land use. A record saved without location is the normal case.
+   declined land use. A record saved without location is the normal case. **This
+   ask grew on 2026-09-17**: with Tier 2 gone, a key the corpus does not cover no
+   longer escalates, so "there is no coverage for this region" is an answer the
+   surface must carry rather than a fallback behind a live request.
+6. **Offline no longer means "cannot answer".** New on 2026-09-17, found while
+   implementing SPEC 0068. `management_tips_section.dart` disables the refresh
+   button when the device is offline (`onPressed: online ? … : null`) and renders
+   a "Sem conexão" empty state. Both were correct while every result came from a
+   proxy. Tier 1 composes on the device, so an offline user can now be refused an
+   answer the app already holds. The controller's own connectivity gate was
+   removed for exactly this reason; this one is the surface's. Offline still
+   matters — it means the corpus cannot be *refreshed* — so the state does not
+   disappear, it changes meaning.
 5. **A land-use control: one tap, five options**, with declining allowed. The
    values are `native_vegetation`, `pasture`, `annual_crop`,
    `perennial_or_forest`, `exposed_or_degraded` (§5.3). It is asked at
@@ -1257,7 +1343,8 @@ knows the content.
 
 Two items in `13-roadmap.md` §3.1 are answered by this document: the
 recommendation contract divergence is resolved in §7.1, and the
-`researchServiceProvider` blocker is addressed by slices 5–8.
+`researchServiceProvider` blocker is addressed by slice 6, which rebinds it with
+no proxy involved.
 
 ### 18.3 Shared files
 
@@ -1369,7 +1456,9 @@ a proxy:
 | `lib/core/services/research/corpus_store.dart` | Holds the corpus: bundled asset, downloaded release, version comparison |
 
 `ProxyResearchService` is repurposed rather than deleted: it becomes the corpus
-fetcher and, in slice 10, the Tier 2 client. Its timeout, retry and typed-failure
+fetcher and, if Tier 2 is ever funded, the Tier 2 client. It therefore has **no
+caller at all until slice 8** — recorded so it is not read as dead code. Its
+timeout, retry and typed-failure
 behaviour transfer unchanged, which is why it is kept.
 
 `researchServiceProvider` stops returning `UnavailableResearchService` in slice 6
@@ -1527,20 +1616,29 @@ the Tier 2 endpoint, is the proxy's.
 
 ### 20.3 Model and search providers
 
-| Use | Choice | Why |
+**Replaced on 2026-09-17 by [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).** The table below records what a
+*funded* build uses; it is not what runs today.
+
+| Use | Today (ADR 0023) | With a budget (ADR 0022) |
 |---|---|---|
-| Corpus build | Anthropic, pinned | The Batch API's 50% discount and `web_search`'s `allowed_domains`, which enforces the source allowlist at the platform rather than in our code |
-| Search and fetch | The model's server-side `web_search` and `web_fetch` | Removes Tavily entirely; fetch carries no charge beyond tokens |
-| Cross-provider verification | Via OpenRouter, model chosen per run | The Tier 2 account already exists, so no new credential; and the verifier must be swappable, since its whole purpose is to be a different vendor from the generator |
-| Tier 2 runtime | Via OpenRouter | Cross-provider fallback earns its fee where the dependency is live and the volume is small |
+| Corpus build | Ollama on `localhost:11434`, a 7–8 B open-source model | Anthropic, pinned, for the Batch API's 50% discount |
+| Search and fetch | **Open** — decided at slice 2's gate; the allowlist becomes a filter in our code | The model's server-side `web_search`, whose `allowed_domains` enforces the allowlist at the platform |
+| Verification | A local model of a **different family** than the generator | A second vendor via OpenRouter |
+| Tier 2 runtime | **Not in v1** | Via OpenRouter |
 
 Groq and Tavily, named by ADR 0001, are out entirely.
 
-**Portability is bought where it is cheap.** The build is pinned because routing
-it through a gateway would forfeit the batch discount and the platform-enforced
-allowlist — roughly $25 of capability to save roughly $3 of fee, on a one-time
-budget. The `LLMClient` and `SearchClient` seams ADR 0001 specified are kept, so a
-rebuild can move vendor without a rewrite.
+**Portability is bought where it is cheap, and where it is cheap changed with the
+budget.** ADR 0022 pinned the build because a gateway would forfeit the batch
+discount and the platform-enforced allowlist — roughly $25 of capability to save
+roughly $3 of fee. With no budget there is no discount and no platform, so
+pinning would buy nothing; the default is configurable instead. The `LLMClient`
+and `SearchClient` seams ADR 0001 specified are what make both true at once, and
+this is the rebuild moving through them.
+
+Losing `allowed_domains` is a real cost, stated rather than absorbed: §8's tier
+list is now a filter we implement, with the injection fixture of §12.4 behind it
+instead of a platform guarantee.
 
 ### 20.4 What is deliberately absent
 
@@ -1553,20 +1651,19 @@ rebuild can move vendor without a rewrite.
 
 ### 20.5 How the build runs
 
-**CI, under manual dispatch.** A workflow triggered by hand, never on push and
-never on a schedule.
+**Replaced on 2026-09-17 by [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md): the build runs on the Developer's
+machine, not in CI.**
 
-That choice has a consequence worth naming rather than discovering: the API key
-becomes a repository secret, and the budget is **one-time and finite**, so a job
-that spends it can be triggered by anyone with write access. Two guards follow,
-and they are part of slice 1 rather than an afterthought:
+ADR 0022 put it in CI under manual dispatch, and named the two guards that
+followed from a repository secret over a finite budget: a **required confirmation
+input** naming the expected spend, and a **spend ledger** committed alongside the
+corpus that refuses to start once the allowance would be exceeded. Both guards
+exist to protect money, and there is none to protect. CI also cannot serve a
+local model without a paid GPU runner, which would reintroduce the cost the
+decision avoids. Both guards return unchanged if a budget is released.
 
-- The workflow takes a **required confirmation input** — the operator types the
-  expected spend — and refuses to run without it.
-- The build keeps a **spend ledger** committed alongside the corpus, and refuses
-  to start when the recorded total would exceed the allowance. A guard that
-  fails closed is the only kind worth having against a budget that does not
-  replenish.
-
-A scheduled build was rejected for the same reason: automatic spending against a
-finite, non-renewing allowance is precisely the risk §15.2 records.
+The guard that replaces them answers a different question — not "was this
+affordable" but "can this be reproduced". The build writes a **run manifest**
+committed beside the corpus, recording model names and digests, the resolved
+source list, the prompt versions and the seed. A corpus whose manifest does not
+reproduce is not a corpus.

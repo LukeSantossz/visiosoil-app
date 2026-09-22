@@ -1,0 +1,473 @@
+{
+  "_note": "The composition contract of research-agent.md §6.5, written by hand rather than captured from the implementation: a golden recorded from the code it checks proves only that the code is stable, not that it is right. `fetchedAt` is 2026-09-10T00:00:00.000Z in every case.",
+  "cases": [
+    {
+      "name": "all_layers_present",
+      "input": {
+        "textureClass": "Argilosa",
+        "clayActivity": "tb_oxidic",
+        "unit": "BR-SP",
+        "biome": "cerrado",
+        "landUse": "pasture"
+      },
+      "expected": {
+        "status": "grounded",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Argilosa tb_oxidic: a textura não implica alta CTC.",
+            "citations": [0],
+            "category": "preparation",
+            "evidenceStrength": "strong"
+          },
+          {
+            "text": "[EXEMPLO] Leia o fósforo remanescente antes de concluir.",
+            "citations": [0, 1],
+            "category": "crops",
+            "evidenceStrength": "moderate"
+          },
+          {
+            "text": "[EXEMPLO] Sob pastagem, a compactação domina.",
+            "citations": [2],
+            "category": "preparation",
+            "evidenceStrength": "limited"
+          },
+          {
+            "text": "[EXEMPLO] Procure a extensão rural do estado.",
+            "citations": [4, 3],
+            "category": "other",
+            "evidenceStrength": null
+          },
+          {
+            "text": "[EXEMPLO] A unidade regional da Embrapa é a do Cerrado.",
+            "citations": [5],
+            "category": null,
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Substância A",
+            "url": "https://example.org/substancia-a",
+            "publisher": "Fixture",
+            "date": "2025-01-01",
+            "accessedAt": "2026-09-10T00:00:00.000Z",
+            "tier": 1
+          },
+          {
+            "title": "[EXEMPLO] Compartilhada",
+            "url": "https://example.org/compartilhada",
+            "publisher": "Fixture",
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Uso da terra",
+            "url": "https://example.org/uso",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Compartilhada",
+            "url": "https://example.org/compartilhada",
+            "publisher": "Fixture",
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Agência estadual",
+            "url": "https://example.org/agencia",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 1
+          },
+          {
+            "title": "[EXEMPLO] Unidade regional",
+            "url": "https://example.org/unidade",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 1
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer da camada de substância.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [
+          "[EXEMPLO] Não substitui análise laboratorial.",
+          "[EXEMPLO] Sem histórico de manejo."
+        ],
+        "alerts": ["[EXEMPLO] Alerta da camada institucional."],
+        "followUpQuestions": ["[EXEMPLO] Qual o histórico de calagem?"],
+        "coverage": {
+          "clayActivity": "tb_oxidic",
+          "substanceIsGeneric": false,
+          "unit": "BR-SP",
+          "unitLayerPresent": true,
+          "biome": "cerrado",
+          "landUse": "pasture",
+          "landUseLayerPresent": true
+        }
+      }
+    },
+    {
+      "name": "substance_only_every_overlay_absent",
+      "input": {
+        "textureClass": "Media",
+        "clayActivity": "intermediate",
+        "unit": null,
+        "biome": null,
+        "landUse": null
+      },
+      "expected": {
+        "status": "grounded",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Media declara sua própria largura.",
+            "citations": [0],
+            "category": null,
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Substância B",
+            "url": "https://example.org/substancia-b",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": null
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer de Media.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": "intermediate",
+          "substanceIsGeneric": false,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": null,
+          "landUse": null,
+          "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "land_use_declared_but_no_overlay_cell",
+      "input": {
+        "textureClass": "Media",
+        "clayActivity": "intermediate",
+        "unit": null,
+        "biome": null,
+        "landUse": "annual_crop"
+      },
+      "expected": {
+        "status": "grounded",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Media declara sua própria largura.",
+            "citations": [0],
+            "category": null,
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Substância B",
+            "url": "https://example.org/substancia-b",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": null
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer de Media.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": "intermediate",
+          "substanceIsGeneric": false,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": null,
+          "landUse": "annual_crop",
+          "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "substance_abstains_alone",
+      "input": {
+        "textureClass": "Arenosa",
+        "clayActivity": "ta_less_weathered",
+        "unit": null,
+        "biome": null,
+        "landUse": null
+      },
+      "expected": {
+        "status": "abstained",
+        "tips": [],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Busca sem fonte elegível",
+            "url": "https://example.org/sem-fonte",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 3
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer da célula que se abstém.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": ["[EXEMPLO] Nenhuma fonte atendeu à política."],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": "ta_less_weathered",
+          "substanceIsGeneric": false,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": null,
+          "landUse": null,
+          "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "substance_abstention_outranks_overlays_that_contributed",
+      "input": {
+        "textureClass": "Arenosa",
+        "clayActivity": "ta_less_weathered",
+        "unit": "BR-SP",
+        "biome": null,
+        "landUse": "pasture"
+      },
+      "expected": {
+        "status": "abstained",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Sob pastagem, a compactação domina.",
+            "citations": [1],
+            "category": "preparation",
+            "evidenceStrength": "limited"
+          },
+          {
+            "text": "[EXEMPLO] Procure a extensão rural do estado.",
+            "citations": [3, 2],
+            "category": "other",
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Busca sem fonte elegível",
+            "url": "https://example.org/sem-fonte",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 3
+          },
+          {
+            "title": "[EXEMPLO] Uso da terra",
+            "url": "https://example.org/uso",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Compartilhada",
+            "url": "https://example.org/compartilhada",
+            "publisher": "Fixture",
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Agência estadual",
+            "url": "https://example.org/agencia",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 1
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer da célula que se abstém.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [
+          "[EXEMPLO] Nenhuma fonte atendeu à política.",
+          "[EXEMPLO] Não substitui análise laboratorial."
+        ],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": "ta_less_weathered",
+          "substanceIsGeneric": false,
+          "unit": "BR-SP",
+          "unitLayerPresent": true,
+          "biome": null,
+          "landUse": "pasture",
+          "landUseLayerPresent": true
+        }
+      }
+    },
+    {
+      "name": "generic_substance_from_the_biome_default",
+      "input": {
+        "textureClass": "Argilosa",
+        "clayActivity": null,
+        "unit": null,
+        "biome": "cerrado",
+        "landUse": null
+      },
+      "expected": {
+        "status": "grounded",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Argilosa tb_oxidic: a textura não implica alta CTC.",
+            "citations": [0],
+            "category": "preparation",
+            "evidenceStrength": "strong"
+          },
+          {
+            "text": "[EXEMPLO] Leia o fósforo remanescente antes de concluir.",
+            "citations": [0, 1],
+            "category": "crops",
+            "evidenceStrength": "moderate"
+          },
+          {
+            "text": "[EXEMPLO] A unidade regional da Embrapa é a do Cerrado.",
+            "citations": [2],
+            "category": null,
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Substância A",
+            "url": "https://example.org/substancia-a",
+            "publisher": "Fixture",
+            "date": "2025-01-01",
+            "accessedAt": "2026-09-10T00:00:00.000Z",
+            "tier": 1
+          },
+          {
+            "title": "[EXEMPLO] Compartilhada",
+            "url": "https://example.org/compartilhada",
+            "publisher": "Fixture",
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Unidade regional",
+            "url": "https://example.org/unidade",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 1
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Disclaimer da camada de substância.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [
+          "[EXEMPLO] Não substitui análise laboratorial.",
+          "[EXEMPLO] Sem histórico de manejo."
+        ],
+        "alerts": ["[EXEMPLO] Alerta da camada institucional."],
+        "followUpQuestions": ["[EXEMPLO] Qual o histórico de calagem?"],
+        "coverage": {
+          "clayActivity": null,
+          "substanceIsGeneric": true,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": "cerrado",
+          "landUse": null,
+          "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "no_substance_cell_for_the_class",
+      "input": {
+        "textureClass": "Muito Argilosa",
+        "clayActivity": "tb_oxidic",
+        "unit": null,
+        "biome": null,
+        "landUse": null
+      },
+      "expected": {
+        "status": "insufficient_evidence",
+        "tips": [],
+        "sources": [],
+        "disclaimer": "[EXEMPLO] Orientação consultiva de fixture. Não substitui avaliação técnica presencial.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": "tb_oxidic",
+          "substanceIsGeneric": false,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": null,
+          "landUse": null,
+          "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "nothing_resolved_is_the_empty_composition",
+      "input": {
+        "textureClass": "Argilosa",
+        "clayActivity": null,
+        "unit": null,
+        "biome": null,
+        "landUse": null
+      },
+      "expected": {
+        "status": "insufficient_evidence",
+        "tips": [],
+        "sources": [],
+        "disclaimer": "[EXEMPLO] Orientação consultiva de fixture. Não substitui avaliação técnica presencial.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": null,
+          "substanceIsGeneric": true,
+          "unit": null,
+          "unitLayerPresent": false,
+          "biome": null,
+          "landUse": null,
+          "landUseLayerPresent": false
+        }
+      }
+    }
+  ]
+}

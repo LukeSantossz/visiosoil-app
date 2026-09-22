@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -41,6 +41,19 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             // v3 -> v4: management tips read-through cache (new table only).
             await migrator.createTable(managementTips);
+          }
+          if (from >= 4 && from < 5) {
+            // v4 -> v5: which corpus release answered. Nullable, so existing
+            // rows keep their data and read as stale rather than claiming a
+            // currency they never had.
+            //
+            // Guarded by `from >= 4` and not only by `from < 5`: the step above
+            // calls `createTable`, which creates the table from **today's**
+            // definition, so a database older than v4 already arrives here with
+            // the column. Adding it again is a `duplicate column name` error,
+            // which is how this guard was found.
+            await migrator.addColumn(
+                managementTips, managementTips.corpusVersion);
           }
         },
       );

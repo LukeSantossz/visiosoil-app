@@ -12,7 +12,7 @@
 
 **VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (4 soil texture classes; the delivered archive holds five, and ADR 0016 keeps Siltosa out of the first model).
 
-**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite
+**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite. Two Python 3.12 side-builds produce assets the app reads and ship nothing at run time: `ml/` trains and exports the classifier, and `corpus/` builds the reviewed corpus the management-tips feature composes from.
 
 **Toolchain:** Flutter 3.44.1 / Dart 3.12.1, pinned to match CI (`.github/workflows/ci.yml`). Using another 3.x local SDK rewrites `pubspec.lock` on `flutter pub get`.
 
@@ -85,6 +85,9 @@ flutter build apk --release
 
 # Run on connected device/emulator
 flutter run
+
+# Corpus build tests (Python 3.12, in corpus/ — no model and no network needed)
+python -m pytest corpus/tests -q
 ```
 
 ## Architecture
@@ -97,17 +100,17 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFL
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
 - **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
-- **Persistence:** Drift + SQLite with schema versioning (currently v4). Repository pattern abstracts Drift from UI
+- **Persistence:** Drift + SQLite with schema versioning (currently v5). Repository pattern abstracts Drift from UI
 - **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
-- **Research agent:** `ProxyResearchService` (HTTP) and a `management_tips` cache table exist, but `researchServiceProvider` returns `UnavailableResearchService` until #95 wires the proxy — no tip is fetched today (see ADR 0001)
+- **Research agent:** answers on the device. `researchServiceProvider` binds `CorpusResearchService`, which composes a `ManagementTipsResult` out of a reviewed corpus the app holds — no network, no proxy, no model at run time (ADR 0022, narrowed by ADR 0023). `ProxyResearchService` is kept as the transport for fetching corpus *releases*, and has no caller yet
 
 ### Key Architectural Decisions
 
 - **Repository pattern:** `SoilRecordRepository` (abstract) → `DriftSoilRecordRepository`. UI only imports the interface via providers, never Drift types directly
 - **Reactive data:** `watchAll()` stream from Drift feeds `StreamProvider`, so history/home auto-update on DB changes
 - **Testing DB:** `AppDatabase.forTesting(NativeDatabase.memory())` enables in-memory SQLite for repository tests
-- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`)
+- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`). The v5 step is the exception — `if (from >= 4 && from < 5)` — because the v4 step's `createTable` builds `management_tips` from today's definition, so a pre-v4 database already arrives with the v5 column
 - **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows
 
 ### Code Organization
@@ -131,9 +134,13 @@ lib/
 │   │   │                              #   sync_engine.dart
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
-│   │   └── research/                  # ResearchService, ProxyResearchService, HttpTransport,
-│   │                                  #   ManagementTipsController, UnavailableResearchService
-│   │                                  #   (the binding actually wired today)
+│   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
+│   │   │                              #   CorpusGridAssets, AssetGridSiteResolver
+│   │   └── research/                  # ResearchService, CorpusResearchService (the binding
+│   │                                  #   wired today), CorpusComposer, CorpusStore +
+│   │                                  #   AbsentCorpusStore + AssetCorpusStore,
+│   │                                  #   ManagementTipsController,
+│   │                                  #   ProxyResearchService + HttpTransport (no caller yet)
 │   ├── database/                      # Drift DB class + tables/ + generated code + mapper
 │   ├── data/
 │   │   ├── repositories/              # Abstract interfaces + Drift implementations
@@ -142,14 +149,16 @@ lib/
 │   └── features/                      # Screens: splash, onboarding, main, home, capture,
 │                                      #          history, details, preview, settings
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
-│                                      #   ManagementTipsResult
-└── providers/                         # 11 files declaring 22 providers (database, repository,
+│                                      #   ManagementTipsResult + TipsCoverage,
+│                                      #   SiteKey, ClayActivity, Biome, LandUse
+└── providers/                         # 15 files declaring 27 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
-                                       #   management tips, image storage, plus the history
-                                       #   filter/search and derived-stats providers)
+                                       #   corpus store, site resolver, management tips, image
+                                       #   storage, plus the history filter/search and
+                                       #   derived-stats providers)
 ```
 
-### Database Schema (v4)
+### Database Schema (v5)
 
 Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])`.
 
@@ -157,9 +166,9 @@ Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, Manag
 
 `sync_queue`: outbox of pending sync operations, drained by `SyncEngine`.
 
-`management_tips`: read-through cache for the research agent.
+`management_tips`: read-through cache for the research agent — `record_uuid`, `payload_json`, `retrieved_at`, `corpus_version?`. The version is nullable because a row cached before v5 has no known one, and a fabricated default would claim a currency it never had; `CachedManagementTips.isStaleAgainst` compares it by exact string inequality.
 
-Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`.
+Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions.
 
 ## Conventions
 
@@ -172,20 +181,22 @@ Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metad
 
 ## CI Pipeline
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, six jobs:
+GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, seven jobs:
 1. **analyze** — `flutter analyze`
 2. **test** — `flutter test` (installs `libsqlite3-dev` on Ubuntu for Drift; checks out with `fetch-depth: 0`, which the durable-numbering guard needs)
 3. **ml-tests** — `python -m pytest tests/` in `ml/` on Python 3.12, with `permissions: contents: read`
-4. **build** — `flutter build apk --release` (needs analyze + test + ml-tests), then verifies R8 kept the auth classes in the release DEX
-5. **build-ios** — `flutter build ios --release --no-codesign` on macOS (needs analyze + test)
-6. **smoke** — boots the minified release APK on an emulator (needs build)
+4. **corpus-tests** — `python -m pytest tests/` in `corpus/` on Python 3.12, mirroring `ml-tests`: same least-privilege token, actions pinned to commit SHAs, and no model or network because the chain is driven by a scripted client and the fetcher by an injected transport
+5. **build** — `flutter build apk --release` (needs analyze + test + ml-tests + corpus-tests), then verifies R8 kept the auth classes in the release DEX
+6. **build-ios** — `flutter build ios --release --no-codesign` on macOS (needs analyze + test)
+7. **smoke** — boots the minified release APK on an emulator (needs build)
 
 ## Current Limitations
 
 - No TFLite model artifact is tracked in the repo — `assets/models/` holds only `.gitkeep`, and `.gitignore` ignores both `assets/models/*.tflite` and `assets/models/spec.json`. `InferenceService` expects `assets/models/soil_classifier.tflite`; classification stays unavailable until the training pipeline exports that artifact into `assets/models/`
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
-- Management tips are wired to `UnavailableResearchService`, so the feature always reports unavailable until #95
+- Management tips compose on the device and answer offline, but **no reviewed corpus artifact exists yet**. `assets/corpus/` holds only `.gitkeep` and a README, and `corpus.json` plus both `.bin` grids are git-ignored the way the `.tflite` is. Until the corpus build releases one, every key composes to `insufficient_evidence` and the surface reads that as absent coverage — which is a normal state, not an error
+- The corpus **refresh** half is not built: there is no release endpoint, so a device can only ever read the bundled snapshot. That is where being offline means "cannot refresh", and it is also where the connectivity gate removed from `ManagementTipsController` belongs
 - `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
 
 ## Known Technical Debt
@@ -194,6 +205,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 - `InferenceService.classify` returns `null` for the six distinct causes ADR 0011 enumerates — a missing model asset, an isolate spawn failure, a timeout, a decode failure, a class-count mismatch, and an inference error — so the caller cannot tell a feature that was never available from a run that failed. ADR 0011 accepted this with an explicit price: **no result surface may offer retry on `notAnalysed` until SPEC 0035 lands**. ADR 0015 records the taxonomy that replaces it
 - The model's class list is four (ADR 0016, SPEC 0046) and the archive's vocabulary is five; `src.manifest.ARCHIVE_CLASSES` is what a manifest row may say and `cfg["classes"]` is what the model emits. `SoilTextureLabels.ordered` is asserted against `ml/config.yaml` by `test/standards/class_list_test.dart` (SPEC 0048), so the two languages can no longer drift. What remains is that several Python test modules still carry their own five-entry literal of the *archive* vocabulary, tied to `ARCHIVE_CLASSES` only in `test_manifest.py`
 - `ClassificationVerdict` (ADR 0011) and `ImageQualityAnalyzer` (SPEC 0030) are implemented and tested with zero production callers, each waiting on a wiring spec — the UI/UX terminal's roadmap items 2 and 6 respectively. Both are deliberate, and both are recorded in their specs' Scope
+- The corpus build carries **six modules that shipped ahead of their own Spec Gate** — `corpus/src/keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py` and `search.py`. SPEC 0071's Scope excludes them explicitly, and no other spec covers them. `mf check spec` passes anyway, so **the gate detects a missing specification but not code that outruns one**. Three of them — `keys.py`, `embrapa_units.py` and `search.py` — also have no production caller until the full corpus build lands
+- `TipsCoverage` reports `substanceIsGeneric: true` and `clayActivity: null` even when the composition reached a **family-specific** substance cell through `clayActivityDefaultByBiome`. The assumed family reaches no output field, so the reader cannot tell a generic answer from one inferred from biome — the proxy the 2026-09-11 agronomic review found lossy and ADR 0022 re-keyed away from. Pinned by `golden.json`'s `generic_substance_from_the_biome_default` case; fixing it is a contract change and is tracked as #246
 
 <!-- mf:role reviewer -->
 ## Reviewing here

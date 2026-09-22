@@ -87,8 +87,38 @@ jobs:
         working-directory: ml
         run: python -m pytest tests/ -v
 
+  corpus-tests:
+    runs-on: ubuntu-latest
+    # Same least-privilege reasoning as ml-tests, for the same reason: this job
+    # runs the corpus build's own code and its test dependency.
+    permissions:
+      contents: read
+    steps:
+      # Pinned to commit SHAs rather than tags. A tag is mutable: whoever can
+      # move `v4` can run code in this job, and the restricted token above limits
+      # what that code may do without authenticating what the code is. The
+      # comment names the tag each SHA was at, so a reader can check it.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: corpus/requirements.txt
+      - name: Install corpus dependencies
+        working-directory: corpus
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run corpus tests
+        working-directory: corpus
+        # No model and no network: the chain is driven by a scripted client and
+        # the fetcher by an injected transport, so this job is deterministic.
+        run: python -m pytest tests/ -v
+
   build:
-    needs: [analyze, test, ml-tests]
+    needs: [analyze, test, ml-tests, corpus-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
