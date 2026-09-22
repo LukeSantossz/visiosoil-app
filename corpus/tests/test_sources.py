@@ -280,3 +280,22 @@ def test_the_committed_substance_manifest_loads():
     committed = SourceManifest.load(DEFAULT_MANIFEST)
 
     assert sum(1 for source in committed.entries if source.tier == 1) >= 2
+
+
+def test_a_pdf_the_reader_cannot_decrypt_fails_the_build(tmp_path, monkeypatch):
+    """An AES-encrypted PDF makes pypdf raise `DependencyError`, which is not a
+    `PyPdfError`, so catching only the latter let it escape without the URL. One
+    Embrapa mirror of Circular Técnica 32 is encrypted exactly that way."""
+    import src.sources
+    from pypdf.errors import DependencyError
+
+    def encrypted(stream):
+        raise DependencyError("cryptography>=3.1 is required for AES algorithm")
+
+    monkeypatch.setattr(src.sources, "PdfReader", encrypted)
+    allowed = manifest(tmp_path, [pdf_entry()])
+
+    with pytest.raises(SourceFetchError) as excinfo:
+        fetch_sources(allowed, transport=lambda url: make_pdf(["Texto."]))
+
+    assert PDF_URL in str(excinfo.value)

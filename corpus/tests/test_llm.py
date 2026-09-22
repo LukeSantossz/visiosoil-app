@@ -213,3 +213,16 @@ class TestTheModelReadsAllOfIt:
             )
 
         assert requests == []
+
+
+def test_a_pdf_signature_after_leading_bytes_is_still_not_decoded():
+    """Readers find the signature anywhere in the first 1024 bytes. A PDF behind
+    a stray byte-order mark, decoded as text, would reach the HTML extractor and
+    come back as binary noise that passes as prose; kept as bytes, the fetch
+    refuses it because it does not open with the signature."""
+    from src.llm import decode_body
+    from tests.pdf_documents import make_pdf
+
+    mangled = b"\xef\xbb\xbf" + make_pdf(["Texto."])
+
+    assert decode_body(mangled, "utf-8") == mangled
