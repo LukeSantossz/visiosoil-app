@@ -795,7 +795,9 @@ def load_arm_predictions(
                     f"python -m src.crossval --arm {arm_path.name}"
                 )
             with open(path) as handle:
-                predictions[(repeat, fold)] = json.load(handle)["predictions"]
+                header = json.load(handle)
+            _require_fold_digest(header, fold_manifest, arm_path, repeat, fold)
+            predictions[(repeat, fold)] = header["predictions"]
 
             cost_path = directory / COST_FILENAME
             if cost_path.exists():
@@ -803,6 +805,41 @@ def load_arm_predictions(
                     costs[(repeat, fold)] = json.load(handle)
 
     return predictions, costs
+
+
+def _require_fold_digest(
+    header: Mapping, fold_manifest: Mapping, arm_path: Path, repeat: int, fold: int
+) -> None:
+    """Refuse a fold scored against a manifest other than the one being read.
+
+    The evaluation-side twin of :func:`fold_reuse_state` (SPEC 0074). A contrast
+    refuses two arms scored on different groups, but a manifest re-measured by
+    `measure_scale.py` keeps its groups and changes its digest — so without this,
+    an arm run before the re-measurement and one run after it were pooled as
+    though they described the same data, which SPEC 0044's
+    `every_arm_reads_the_same_fold_manifest` promises cannot happen.
+    """
+    expected = fold_manifest.get("manifest_digest")
+    recorded = header.get("manifest_digest")
+    if recorded == expected:
+        return
+    rerun = (
+        f"python -m src.crossval --version {arm_path.parent.name} "
+        f"--arm {arm_path.name} --force"
+    )
+    if recorded is None:
+        raise ValueError(
+            f"repeat {repeat} fold {fold} of {arm_path.name} records no manifest "
+            f"digest, so it cannot be shown to come from manifest "
+            f"{str(expected)[:12]}, which this evaluation reads. Re-run the arm: "
+            f"{rerun}"
+        )
+    raise ValueError(
+        f"repeat {repeat} fold {fold} of {arm_path.name} was scored against "
+        f"manifest {recorded[:12]}, and the fold manifest reads "
+        f"{str(expected)[:12]}; pooling it would report one arm over two "
+        f"datasets. Re-run the arm: {rerun}"
+    )
 
 
 def arm_execution(
