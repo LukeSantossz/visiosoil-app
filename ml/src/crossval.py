@@ -836,7 +836,7 @@ def _require_fold_digest(
         )
     raise ValueError(
         f"repeat {repeat} fold {fold} of {arm_path.name} was scored against "
-        f"manifest {recorded[:12]}, and the fold manifest reads "
+        f"manifest {str(recorded)[:12]}, and the fold manifest reads "
         f"{str(expected)[:12]}; pooling it would report one arm over two "
         f"datasets. Re-run the arm: {rerun}"
     )
