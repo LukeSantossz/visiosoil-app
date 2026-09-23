@@ -7,7 +7,30 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-09-11.
+Last updated: 2026-09-22.
+
+> **Revised 2026-09-22. The gate ran, the descriptor path is adopted, and the
+> release path is rebuilt around it.** Where anything below disagrees with this
+> note, this note wins, and each item it touches carries its own dated note too.
+>
+> - **C0's E0 gate ran and signal was demonstrated.** The verdict is
+>   [docs/ml/e0-verdict.md](../ml/e0-verdict.md) (PR #248, closes #216).
+>   `descriptors` clears the shuffled control by +0.4156 and `encoder_probe` by
+>   +0.4805, both clauses; **the incumbent `cnn` fails both clauses** (+0.1688,
+>   Holm p = 0.0596, below its 0.2434 minimum detectable effect). Lane C
+>   continues.
+> - **[ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+>   adopts the descriptor path** by SPEC 0044's pre-registered rule — the encoder
+>   failed conditions 2, 3 and 4 — **and decides that it runs as Dart
+>   arithmetic** over a `spec.json` of numbers, held to Python by a
+>   cross-language golden. ADR 0008 is amended: TFLite governs neural models, and
+>   the v1 classifier is not one.
+> - **What that moves:** A4's contract becomes numbers; A6's Dart half computes
+>   descriptors instead of batching through an interpreter, and becomes the
+>   critical path; A7 is a measurement rather than an adoption condition; B3's
+>   export becomes a fit written as numbers; C1's network sweeps and C3's
+>   quantization ladder have nothing to act on in v1; C2 is unchanged. §6 carries
+>   the new order.
 
 > **Revised 2026-08-25.** The lane structure below is sound and its premise is
 > not: **Lane C is no longer gated on images.** 221 photographs of 194 samples
@@ -248,11 +271,11 @@ Concretely, the end state is:
 |---|---|
 | Capture | The declared protocol is enforced, not merely described. One criteria set (SPEC 0030) governs both what enters the dataset and what the app accepts, so the two populations cannot drift apart **in photographic quality**. They still differ in subject: collection is bench-prepared, air-dried and sieved, deployment is in situ. Shared admission criteria cannot close that, and ADR 0009 records why |
 | Region of interest | A grid of fixed-size greyscale patches at a known physical scale, applied identically in Python and Dart ([ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md), SPEC 0037, item A6). No aspect-ratio squashing, no segmentation, no detector (ADR 0009). It was the largest centred square until ADR 0018 |
-| Inference | TFLite in an isolate (ADR 0008), reading labels, input size, normalization, and band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart |
+| Inference | The descriptor path computed in Dart ([ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)): 26 descriptors per patch, standardised and scored by a logistic regression, reading the class list, the descriptor fixed points, the standardiser, the coefficients and the band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart. It was TFLite in an isolate (ADR 0008) until the E0 gate ran |
 | Result | A calibrated distribution over all classes plus a status, not a single label. `failed` when the analysis could not run, and the UI derives its verdict bands from top-1 and the top1−top2 margin. `rejectedOod` is a **reserved** status for the "not soil" signal — whether it is produced by a trained negative class or by the quality gate plus a threshold is open, informed by E12 |
 | Persistence | Status, quality flags, model version, and dataset version stored beside the record (schema v5) |
 | Monitoring | Local-first aggregates, nothing transmitted (ADR 0013) |
-| Training | Deterministic, fail-loud, group-aware splits, versioned datasets, recorded experiments, and a post-conversion parity gate measured on real held-out images |
+| Training | Deterministic, fail-loud, group-aware splits, versioned datasets, recorded experiments, and a cross-language golden holding the Dart descriptors to the Python reference — the parity gate ADR 0024 puts where a post-conversion one used to be |
 
 ## 2. How to read this map
 
@@ -365,6 +388,17 @@ now replaces with the contract.
 satisfied.
 **Paired with:** B3, which must emit exactly what this reads. **The schema is
 defined in this spec and consumed by B3, not defined twice.**
+
+**Re-scoped 2026-09-22 by ADR 0024.** The adopted classifier is not a network,
+so the contract stops describing one. It carries the class list, the canonical
+scale and patch geometry, the descriptor fixed points, the feature order, the
+standardiser, the logistic coefficients and intercepts, and — after C2 — the
+band constants. The input-size and normalisation criteria below describe the
+path that failed the gate, and SPEC 0035's own revision note says which of its
+parts stand. What survives unchanged is the half that never depended on the
+model: `ClassificationOutcome` in place of the six conflated `null`s, and labels
+read from the contract rather than from Dart. A new spec re-specifies the
+schema.
 
 `InferenceService` stops hardcoding labels, input size, and normalization, and
 reads them from the tracked `assets/models/spec.json`. This file is owned by
@@ -489,6 +523,23 @@ dispersion metric. **Until it lands, training and inference disagree**, which is
 a train/serve skew SPEC 0053 opens deliberately and states: no model may be
 released between them.
 
+**Revised 2026-09-22 by ADR 0024: the Dart half is now the critical path, and it
+splits in two.** Nothing is batched through an interpreter any more. Each patch
+is described by the 26 features of `ml/src/descriptors.py`, reimplemented in
+Dart, and scored by the contract's standardiser and regression.
+
+- **The descriptors under a cross-language golden come first.** Committed
+  canonical patches carry the features and the distribution the Python reference
+  computes, and Dart reproduces them within a tolerance its spec fixes. This goes
+  first because it is the assumption that would reopen ADR 0024's runtime
+  decision, and it needs neither the scale reader nor a released model.
+- **The scale reader, the resample and the grid come second:** the A4-sheet
+  reader, the homography, the soil region on paper, a low-passed resample to the
+  canonical scale (#180's Dart half), the patch grid, the mean aggregation and
+  the dispersion metric. The descriptor path depends on scale more than the CNN
+  did — a spectral band is a physical wavelength only at the canonical — so ADR
+  0017's refusal is a precondition here.
+
 ### A7 — On-device patch-batch latency budget
 
 **Record:** none yet; the measurement is a document. **Depends on:** A6 for the
@@ -496,6 +547,13 @@ patch count. **Gate for:** C0's encoder-adoption rule.
 
 What a batch of patches costs per candidate encoder on the reference device —
 mid-range Android, at least 4 GB of RAM. Tracked as #215.
+
+**Revised 2026-09-22: this is no longer an adoption condition.** The encoder
+failed condition 2 whatever its latency, and ADR 0024 adopted the descriptor
+path. What stays worth measuring is what the Dart descriptors cost per
+photograph — up to 25 patches, dominated by one 160 by 160 FFT each — which is
+engineering feedback on the adopted path rather than a gate. It waits for the
+Dart descriptors to exist.
 
 It is here rather than inside C0 because it is an application measurement rather
 than an experiment over the dataset, and because
@@ -652,6 +710,15 @@ it without this terminal present.
 **Record:** SPEC, full tier. Closes the export half of #29 and #30.
 **Depends on:** B1, A4 (the `spec.json` schema), ADR 0012.
 
+**Re-scoped 2026-09-22 by ADR 0024.** There is no conversion to harden. The
+export refits the adopted pipeline over the whole splittable pool and population
+`B` (ADR 0021), selecting `C` by the same nested procedure, and writes the
+standardiser and the regression into `spec.json` as numbers. The cross-language
+golden stands where the post-conversion parity gate stood, so the criteria below
+about Keras, TFLite and `best_model.keras` describe the path that failed the
+gate. The release-commit rule (ADR 0012) and the one path resolution (#30) still
+hold.
+
 **Acceptance criteria**
 
 - The post-conversion parity gate runs on the real held-out test set, not on
@@ -676,6 +743,12 @@ it without this terminal present.
 **Record:** SPEC, spec-lite for the harness; the verdict is a document, not code.
 **Depends on:** B1, B2, and images existing.
 **Gate for:** everything below.
+
+**Done 2026-09-18.** The gate ran under
+[SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md), and its verdict is
+[docs/ml/e0-verdict.md](../ml/e0-verdict.md): signal demonstrated by two arms,
+the incumbent CNN failing its own control, and the descriptor path shipping by
+the pre-registered rule, adopted in ADR 0024. Lane C continues.
 
 **Every number below is produced under the evaluation protocol**, which is
 repeated stratified group k-fold with nested selection —
@@ -723,6 +796,13 @@ Real-only floor, corrected augmentation, compositing, backbone sweep
 (MobileNetV2 / MobileNetV3 / EfficientNet-Lite0), loss sweep (weighted CE vs
 focal). Exit gate: a recorded baseline in `ml/models/vN` with committed metrics.
 
+**Revised 2026-09-22 by ADR 0024: in v1 the sweeps have nothing to act on.** No
+network is trained, so the backbone, loss, augmentation and compositing sweeps
+(E1–E5) are out of v1, and E13's region-of-interest comparison was already
+superseded by ADR 0018's patches. What survives is the **site-held-out
+reporting** below, run on the adopted path. The recorded baseline is the E0
+verdict's `descriptors` arm.
+
 Two deliverables added 2026-08-11, both consequences of ADR 0014. Without them
 a run could complete every item above and still not produce what that ADR
 promises:
@@ -750,12 +830,20 @@ in the UI/UX terminal's design (0.70 / 0.45 / 0.15) are hypotheses about raw
 softmax; calibrating against raw output and later enabling scaling would shift
 every band silently.
 
+**Unchanged by ADR 0024.** A logistic regression's probabilities need
+calibrating as much as a network's. With no quantization step after it, #187's
+concern about calibrating before quantizing no longer arises.
+
 ### C3 — Quantization ladder (E8)
 
 Float32, float16, dynamic range, full int8. Selection criterion is accuracy
 **and** calibration, because quantization can preserve the argmax while
 destroying the probability the UI presents as a percentage. Feeds the release
 under ADR 0012.
+
+**Out of v1, 2026-09-22 (ADR 0024).** The adopted model is 160 numbers, which
+leaves nothing to quantize. The ladder returns only if a neural model is ever
+adopted, under ADR 0008 as amended.
 
 ### C4 — Conditional synthetic branch (E9–E12)
 
@@ -766,6 +854,47 @@ Not scheduled.
 ---
 
 ## 6. Order of execution
+
+**Rewritten 2026-09-22.** The gate ran — [docs/ml/e0-verdict.md](../ml/e0-verdict.md) —
+and [ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+adopted the descriptor path computed in Dart. Everything after the gate is now
+the release path of that decision:
+
+```
+C0 GATE (0044) ── done ── verdict ── ADR 0024: descriptor path, Dart runtime
+                                          │
+          ┌───────────────────────────────┼──────────────────────────┐
+          ▼                               ▼                          ▼
+  A6 Dart (1) descriptors          A4 contract of numbers      B3 release fit,
+     under the golden              + ClassificationOutcome     numbers → spec.json
+          │                               │                          │
+          ▼                               │                          │
+  A6 Dart (2) A4-sheet scale,             │                          │
+     resample, patch grid                 │                          │
+          └───────────────┬───────────────┴──────────────────────────┘
+                          ▼
+            wiring in InferenceService ── C2 calibration ── release
+
+A7 measures (1) on a device once it exists; A5 follows A4.
+```
+
+Recommended order, and why:
+
+1. **A6 Dart (1), the descriptors under the cross-language golden.** It is the one
+   assumption that would reopen ADR 0024's runtime decision, and it needs neither
+   the scale reader nor a released model, so it goes first.
+2. **A4, the contract of numbers**, with `ClassificationOutcome` in place of the
+   conflated `null`s. The schema is defined here and emitted by B3.
+3. **A6 Dart (2), the A4-sheet scale reader, the resample and the grid.** It is
+   the largest item and blocks any release: the descriptor path reads physical
+   wavelengths, so a photograph without a scale is refused rather than guessed
+   at.
+4. **B3, the release fit**, written into the contract as numbers.
+5. **The wiring, then C2.** Until the wiring lands, training and inference still
+   disagree, and SPEC 0053's rule stands: no model is released before then.
+
+**The order below is kept for the reasoning that produced it.** It ran up to the
+gate, and the gate has run.
 
 ```
 A1 (0030) ── done ──── their item 6, the capture gate
@@ -797,6 +926,8 @@ the scale it normalises to. **All three are now done** — B1's environment by S
 SPEC 0052, and A6's Python half by SPEC 0053 — so **C0's probe (#213) and then
 the C0 gate (#216) are the next items**, and they run over a pipeline that
 resamples to a measured canonical rather than to an assumed one.
+*Superseded 2026-09-22: both ran, and the gate's verdict is
+[docs/ml/e0-verdict.md](../ml/e0-verdict.md).*
 
 **Rewritten 2026-09-11, superseding the 2026-09-05 correction this replaces:
 both items that stood between the probe and the gate are done, and the gate is
@@ -806,7 +937,9 @@ settled it — **D6 stands unchanged**, so the gate runs the incumbent arms and
 nothing in the pipeline moved. SPEC 0057's runs carry over rather than being
 discarded, checked by SPEC 0056's reuse rule. A7 (#215) runs on an emulator and
 does not decide condition 3; see §3. A6's Dart half stays behind A4 and is a
-release blocker rather than a gate blocker.
+release blocker rather than a gate blocker. *Superseded 2026-09-22: the gate
+ran on 2026-09-17 and 2026-09-18, and its verdict is
+[docs/ml/e0-verdict.md](../ml/e0-verdict.md).*
 
 **Two measured costs the ~20 h estimate above does not carry**, both from SPEC
 0057's run and both worth folding into SPEC 0044's planning: `inner_k: 4` means
@@ -817,7 +950,8 @@ pipeline and not the convolutions. The CNN pair cost 46.5 hours against an
 estimate of six and a half.
 
 A4 waits on the UI/UX terminal's item 1, which makes the label list
-single-source. It is off the critical path to the gate.
+single-source. It is off the critical path to the gate. *Superseded
+2026-09-22: item 1 landed (#116), and A4 is on the release path above.*
 
 ## 7. Decisions required from you
 
