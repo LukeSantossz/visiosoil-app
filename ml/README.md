@@ -32,8 +32,13 @@ the fifth is in the manifest and in no fold. The two lists are
 `src.manifest.ARCHIVE_CLASSES` and `cfg["classes"]` (SPEC 0046).
 
 **The counts below are measured, as of 2026-08-25.** They replace an earlier
-planning estimate of 1,418 images that no run ever confirmed. The images
-themselves stay git-ignored by design; what is committed is the manifest. See
+planning estimate of 1,418 images that no run ever confirmed. **Nothing under
+`ml/data/datasets/` is committed**, the manifest included: a dataset version is a
+build product
+([ADR 0019](../docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md)),
+so these counts are a measurement that no CI run can re-check, and moving the
+archive to another machine means copying `ml/data/datasets/` rather than trusting the
+checkout. See
 [ADR 0016](../docs/adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md).
 
 The unit that matters is the **sample**, not the image: folds group on it, every
@@ -122,7 +127,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Key dependencies: `tensorflow==2.21.0`, `tf-keras==2.21.0`, `keras==3.14.0`. See `requirements.txt` for the full list.
+Key dependencies: `tensorflow==2.21.0`, `tf-keras==2.21.0`, `keras==3.15.1`. See `requirements.txt` for the full list.
 
 ### 4. Confirm the environment is the pinned one
 
