@@ -39,12 +39,6 @@ K = 5
 REPEATS = 3
 SEED = 42
 
-#: The manifest these fixtures' folds claim to come from. Named rather
-#: than omitted: SPEC 0056 treats a fold recording no digest as unproven,
-#: which is a state these tests are not about.
-FIXTURE_DIGEST = "f" * 64
-
-
 #: `write_version(extra_photographs=1)` gives this sample a third photograph;
 #: every other sample has the two the protocol prescribes.
 THREE_PHOTOGRAPH_GROUP = "Arenosa::Arenosa-0"
@@ -536,7 +530,7 @@ def test_fold_predictions_round_trip_through_the_fold_directory(tmp_path, folds)
             classes=folds["classes"],
             records=records,
             shuffled_control=False,
-            manifest_digest=FIXTURE_DIGEST,
+            manifest_digest=folds["manifest_digest"],
         )
         directory = fold_directory(arm_dir, repeat, fold)
         assert directory == arm_dir / f"repeat-{repeat}" / f"fold-{fold}"
@@ -565,7 +559,7 @@ def test_loading_an_arm_with_a_missing_fold_names_it(tmp_path, folds):
         classes=folds["classes"],
         records=fabricate(folds)[(0, 0)],
         shuffled_control=False,
-        manifest_digest=FIXTURE_DIGEST,
+        manifest_digest=folds["manifest_digest"],
     )
 
     with pytest.raises(FileNotFoundError, match="repeat 0 fold 1"):
@@ -676,7 +670,7 @@ def test_the_fold_cost_record_round_trips_into_the_metrics(tmp_path, folds):
             classes=folds["classes"],
             records=records,
             shuffled_control=False,
-            manifest_digest=FIXTURE_DIGEST,
+            manifest_digest=folds["manifest_digest"],
         )
         write_fold_cost(arm_dir, repeat, fold, trainings=5, seconds=[1.5] * 5)
 
@@ -702,7 +696,7 @@ def test_the_arm_metadata_says_whether_it_was_the_shuffled_control(tmp_path, fol
         classes=folds["classes"],
         records=fabricate(folds)[(0, 0)],
         shuffled_control=True,
-        manifest_digest=FIXTURE_DIGEST,
+        manifest_digest=folds["manifest_digest"],
     )
 
     metadata = read_fold_metadata(arm_dir, 0, 0)
