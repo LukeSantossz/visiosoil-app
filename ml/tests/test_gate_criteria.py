@@ -29,8 +29,11 @@ from src.crossval import (
     PREDICTIONS_FILENAME,
     RUNTIME_FILENAME,
     SELECTION_AUDIT_FILENAME,
+    SHUFFLED_CONTROL_ARM,
+    default_arm_name,
     fold_directory,
     load_arm_predictions,
+    require_control_matches_arm,
     run_arm,
     write_fold_cost,
     write_fold_predictions,
@@ -425,7 +428,8 @@ def test_minimum_detectable_effect_is_reported_for_every_contrast(folds):  # noq
     rows = _verdict_rows()
     assert len(rows) >= 8, f"read {len(rows)} row(s) of the verdict's tables"
     for name, observed, effect, reading in rows:
-        below = _number(effect) is None or _number(observed) < _number(effect)
+        # By magnitude: a difference is detectable in either direction.
+        below = _number(effect) is None or abs(_number(observed)) < _number(effect)
         if below:
             assert re.search(r"\b(no|neither|not)\b", reading.lower()), (
                 f"{name}: {observed} is below its effect {effect} and reads {reading!r}"
@@ -474,6 +478,26 @@ def test_an_arm_scored_against_another_manifest_is_refused_by_name(tmp_path, fol
     path.write_text(json.dumps(record))
     with pytest.raises(ValueError, match="repeat 0 fold 2.*no manifest digest"):
         load_arm_predictions(arm_dir, folds)
+
+
+@pytest.mark.parametrize("arm", ["descriptors", SHUFFLED_CONTROL_ARM])
+def test_the_refusal_names_a_command_the_arm_accepts(tmp_path, folds, arm):  # noqa: F811
+    """The refusal names the command that re-runs the arm, and that command has
+    to run: the control is started with `--shuffled-control`, and
+    `--arm shuffled_control` alone is refused before its first fold."""
+    arm_dir = tmp_path / "models" / "v1" / arm
+    _write_arm(arm_dir, folds, digest_of=lambda repeat, fold: "a" * 64)
+    with pytest.raises(ValueError) as raised:
+        load_arm_predictions(arm_dir, folds)
+    command = str(raised.value).split("Re-run the arm: ")[1].split()
+    assert command[:3] == ["python", "-m", "src.crossval"]
+    shuffled = "--shuffled-control" in command
+    named = command[command.index("--arm") + 1] if "--arm" in command else None
+    resolved = default_arm_name(named, shuffled)
+    require_control_matches_arm(resolved, shuffled)
+    assert resolved == arm
+    assert command[command.index("--version") + 1] == "v1"
+    assert "--force" in command
 
 
 # --- every_spec_0044_criterion_has_a_named_test -------------------------------
