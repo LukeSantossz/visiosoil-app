@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
-import 'package:tflite_flutter/tflite_flutter.dart' show TensorType;
+import 'package:tflite_flutter/tflite_flutter.dart' show ListShape, TensorType;
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 
@@ -327,6 +327,19 @@ void main() {
       expect(check(inputType: TensorType.uint8), mismatch);
       expect(check(outputType: TensorType.uint8), mismatch);
       expect(check(outputShape: const [1, 5]), mismatch);
+    });
+  });
+
+  group('InferenceService.outputRow', () {
+    test('reads the probabilities out of the tensor the interpreter fills', () {
+      // Built the way `runInference` builds it. `reshape` without a type
+      // argument yields `List<List<dynamic>>`, so a cast of the row to
+      // `List<double>` throws on every real run.
+      final output = List.filled(4, 0.25).reshape([1, 4]);
+      expect(() => output[0] as List<double>, throwsA(isA<TypeError>()));
+
+      expect(InferenceService.outputRow(output), [0.25, 0.25, 0.25, 0.25]);
+      expect(InferenceService.outputRow(output), isA<List<double>>());
     });
   });
 
