@@ -110,7 +110,7 @@ that none of them is unmatched.
 
 ## Alternatives Considered
 
-- **Rename the tests, as #249 proposed.** Rejected: four of them carry SPEC 0042
+- **Rename the tests, as #249 proposed.** Rejected: five of them carry SPEC 0042
   and SPEC 0054 criteria, and a rename would move the gap rather than close it.
 - **Loosen `criterion_tests` so one test can match several criteria.** Rejected,
   as #249 itself rejects it: the match is the contract, and a looser one reports
