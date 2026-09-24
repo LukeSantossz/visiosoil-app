@@ -26,6 +26,19 @@ takes the single grey plane as `uint8` values in row-major order. It returns a
   when the total is zero. A radius in `[edge_i, edge_{i+1})` goes to band `i`,
   the Nyquist radius itself goes to the top band, and anything past it is
   dropped. This is `searchsorted(side="right")` plus Python's closing rule.
+
+**A radius that equals an edge goes to the upper band, and "equals" is decided
+within `1e-9`.** Exact ties are structural, not rare. For a square patch the
+middle edge is `2·√(side/4) = √side`, which is a grid radius whenever `side` is a
+sum of two squares. For the production 160 px patch, edge 4 is `√160 =
+hypot(12, 4)`, and eight frequency bins sit on it. numpy's `geomspace` computes
+that edge two units in the last place below the correctly rounded `√160`, so a
+comparison on raw doubles is decided by how each language rounds a logarithm.
+The rule with a `1e-9` tie band is what the mathematics says. Before this spec's
+Gate it was checked to reproduce numpy's band map bin for bin on eight shapes,
+including 160×160, 37×53, 5×5, 80×80 and 128×128. The golden asserts it for
+every fixture shape, so the Dart port implements a rule rather than a
+coincidence of rounding.
 - `lbp`: P = 8, R = 1, neighbours anticlockwise from east. A neighbour scores
   one when it is **at least** the centre. The rotation-invariant uniform mapping
   gives 10 bins, over interior pixels, as fractions.
@@ -54,7 +67,9 @@ replacement, and nothing else changes.
 `test/fixtures/descriptors/golden.json`. It carries:
 
 - the feature names;
-- the eight band edges for each fixture shape;
+- the nine band edges for each fixture shape;
+- the band map for each fixture shape: the band of every frequency bin, with
+  -1 for a bin in no band, as base64 of an `int8` array in `fftfreq` order;
 - the fixtures themselves, each a name, a height and width, and its pixels as
   base64 of the raw `uint8` plane (no image codec stands between the two
   languages);
@@ -80,10 +95,11 @@ is exercised:
 for every feature. That is far inside any tolerance that could change a
 prediction, because the standardiser divides by scales of order one and above.
 So passing it shows the runtime decision stands, without needing a model to
-measure it against. The band edges are held to the same tolerance. The generator
-also refuses to write a fixture in which any radius falls within `1e-9` of an
-interior edge. At such a radius, the last bit of a logarithm would pick the band,
-and the two languages could disagree for no reason worth testing.
+measure it against. The band edges are held to the same tolerance. The band maps
+must match exactly. The generator refuses to write a golden whose Python band
+map differs from the tie rule's, and it refuses a shape with a radius strictly
+between `1e-9` and `1e-6` of an edge. There, neither the tie rule nor the raw
+comparison clearly holds.
 
 **Refusals mirror Python's.** An `ArgumentError` names the cause:
 
@@ -149,13 +165,19 @@ plane, and choosing that plane is the caller's job in A6 Dart (2).
   golden's list, in order.
 - `dart_band_edges_match_python`: for each fixture shape, the Dart band edges
   are within the tolerance of the golden's.
+- `dart_band_map_matches_python`: for each fixture shape, the Dart band of every
+  frequency bin equals the golden's band map.
 - `python_reproduces_the_golden`: `describe_patch` over each committed fixture
   equals the golden's features within the tolerance, and the feature names and
   edges equal the golden's.
 - `golden_generation_is_deterministic`: generating the golden twice gives
   identical JSON.
-- `no_fixture_radius_sits_on_a_band_edge`: no frequency radius of any fixture
-  shape is within `1e-9` of an interior band edge.
+- `python_band_map_follows_the_tie_rule`: for each fixture shape, the band map
+  of `src.descriptors` equals the tie rule's, and the golden's band map equals
+  both. The 160×160 shape has at least one bin on an interior edge, so the rule
+  is exercised where it matters.
+- `no_fixture_radius_sits_in_the_ambiguous_gap`: no frequency radius of any
+  fixture shape is between `1e-9` and `1e-6` of a band edge.
 - `golden_exercises_every_degenerate_branch`: the golden holds a fixture with
   zero deviation, one with zero banded energy, one with zero GLCM variance, and
   a non-square one.
@@ -188,8 +210,12 @@ Python 3.12 with the pinned stack in `ml/requirements.txt`, and numpy's
   multiply-adds per dish. That is not this spec's gate. It is recorded for A7,
   and the FFT alternative above is how it would be met.
 - **Risk:** a band edge that numpy's `geomspace` computes differently in its last
-  bit from Dart's `pow`. It is caught twice: by the edge criterion, and by the
-  generator's refusal to place a radius near an edge.
+  bit from Dart's `pow`. On its own that is harmless: the tie rule makes a band
+  independent of the last bit, and the band map criterion checks every bin.
+- **Assumption:** every radius within `1e-9` of an edge is equal to it in exact
+  arithmetic, and none merely comes close. Squared radii are integers, and
+  the edges are powers of the Nyquist ratio. The gap criterion checks that no
+  radius sits in the `[1e-9, 1e-6]` band around an edge, where this could fail.
 - **What would invalidate this spec:** a fixture on which the two languages
   disagree beyond the tolerance for a reason that cannot be removed. That is the
   finding ADR 0024 names as reopening the runtime, and it would be reported as
