@@ -1,3 +1,4 @@
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 
@@ -28,6 +29,7 @@ class CaptureUiState {
     this.address,
     this.classification = ClassificationStatus.idle,
     this.classificationResult,
+    this.classificationFailureCause,
     this.isCapturing = false,
     this.isSaving = false,
     this.generation = 0,
@@ -41,6 +43,10 @@ class CaptureUiState {
 
   final ClassificationStatus classification;
   final InferenceResult? classificationResult;
+
+  /// Why the last classification failed. Set only when [classification] is
+  /// [ClassificationStatus.failed]; the screen does not show it yet (SPEC 0078).
+  final ClassificationFailureCause? classificationFailureCause;
 
   final bool isCapturing;
   final bool isSaving;
@@ -60,6 +66,7 @@ class CaptureUiState {
     Object? address = _unset,
     ClassificationStatus? classification,
     Object? classificationResult = _unset,
+    Object? classificationFailureCause = _unset,
     bool? isCapturing,
     bool? isSaving,
     int? generation,
@@ -76,6 +83,9 @@ class CaptureUiState {
       classificationResult: identical(classificationResult, _unset)
           ? this.classificationResult
           : classificationResult as InferenceResult?,
+      classificationFailureCause: identical(classificationFailureCause, _unset)
+          ? this.classificationFailureCause
+          : classificationFailureCause as ClassificationFailureCause?,
       isCapturing: isCapturing ?? this.isCapturing,
       isSaving: isSaving ?? this.isSaving,
       generation: generation ?? this.generation,
@@ -97,6 +107,7 @@ class CaptureUiState {
       address: null,
       classification: ClassificationStatus.idle,
       classificationResult: null,
+      classificationFailureCause: null,
     );
   }
 }

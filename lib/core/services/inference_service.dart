@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
@@ -9,6 +10,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../../models/class_score.dart';
 import '../../models/soil_texture_labels.dart';
+import 'classification_report.dart';
 
 /// Result of soil texture classification inference.
 class InferenceResult {
@@ -33,7 +35,9 @@ class InferenceResult {
 /// Everything the inference isolate needs: the work to do, and the port to
 /// answer on.
 class InferenceRequest {
-  /// Port the entry point sends its [InferenceResult] (or `null`) back on.
+  /// Port the entry point sends its [ClassificationReport] back on. The
+  /// isolate's exit is wired to it too, so a worker that dies before answering
+  /// arrives as `null` rather than as silence.
   final SendPort responsePort;
   final String imagePath;
   final Uint8List modelBytes;
@@ -72,7 +76,7 @@ class InferenceService {
   /// Declared once in [SoilTextureLabels] and referenced here rather than
   /// copied, so a second declaration cannot drift out of step with this one.
   /// Public only so a test can assert that single source directly, matching
-  /// how [resolveTextureLabel] and [buildDistribution] are widened.
+  /// how [buildDistribution] is widened.
   @visibleForTesting
   static const List<String> textureLabels = SoilTextureLabels.ordered;
 
@@ -91,27 +95,32 @@ class InferenceService {
   Uint8List? _modelBytes;
   bool _isInitialized = false;
 
-  /// Set when the model asset is empty or absent — a build-time fact that
-  /// retrying cannot fix, so further initialization attempts are skipped.
-  bool _modelUnavailable = false;
+  /// Set when the model asset is empty — a build-time fact that retrying cannot
+  /// fix, so further initialization attempts are skipped and report it again.
+  ClassificationFailureCause? _permanentCause;
 
   /// Indicates whether the service is ready for inference.
   bool get isReady => _isInitialized && _modelBytes != null;
 
   /// Initializes the service by loading the model from assets.
   ///
-  /// Returns `true` once the model bytes are loaded, `false` otherwise. The
-  /// model is loaded as bytes so it can be passed to the isolate. Transient
-  /// failures are retried with a short backoff; an empty or absent model is a
-  /// build-time fact and is not retried (see [_modelUnavailable]).
+  /// Returns `null` once the model bytes are loaded, and the cause otherwise,
+  /// so no startup failure is flattened on its way to [classify]. The model is
+  /// loaded as bytes so it can be passed to the isolate.
+  ///
+  /// An empty asset is [ClassificationFailureCause.modelEmpty] and is not
+  /// retried. A loader that fails on every attempt is
+  /// [ClassificationFailureCause.modelMissing]: no model bytes were obtained. A
+  /// later call may still retry it, since a failed load is not always a missing
+  /// file, and none of ADR 0015's causes names a transient one (SPEC 0078).
   ///
   /// [assetLoader] and [retryDelay] are injectable for tests.
-  Future<bool> initialize({
+  Future<ClassificationFailureCause?> initialize({
     ModelAssetLoader? assetLoader,
     Duration retryDelay = _initRetryDelay,
   }) async {
-    if (_isInitialized) return true;
-    if (_modelUnavailable) return false;
+    if (_isInitialized) return null;
+    if (_permanentCause != null) return _permanentCause;
 
     final load = assetLoader ?? rootBundle.load;
 
@@ -123,12 +132,11 @@ class InferenceService {
         );
         if (byteData.lengthInBytes == 0) {
           // An empty model will not change without a new build: do not retry.
-          _modelUnavailable = true;
-          return false;
+          return _permanentCause = ClassificationFailureCause.modelEmpty;
         }
         _modelBytes = byteData.buffer.asUint8List();
         _isInitialized = true;
-        return true;
+        return null;
       } catch (e) {
         developer.log(
           'Failed to initialize InferenceService '
@@ -141,28 +149,28 @@ class InferenceService {
       }
     }
 
-    // Transient failures exhausted for this call; a later call may retry.
-    return false;
+    // Attempts exhausted for this call; a later call may retry.
+    return ClassificationFailureCause.modelMissing;
   }
 
   /// Runs soil texture classification on an image.
   ///
-  /// [imagePath] is the absolute path of the image to classify.
-  /// Returns `null` if the service is not initialized or if an error occurs.
+  /// [imagePath] is the absolute path of the image to classify. Always returns
+  /// a report: the result when the run succeeded, the named cause otherwise.
   ///
   /// This is the single timeout governing a classification: callers await it
   /// rather than layering one of their own, because only this method holds the
   /// isolate handle and can therefore stop the work instead of abandoning it.
   ///
   /// [timeout] and [entryPoint] are injectable for tests.
-  Future<InferenceResult?> classify(
+  Future<ClassificationReport> classify(
     String imagePath, {
     Duration timeout = _inferenceTimeout,
     InferenceIsolateEntry entryPoint = _inferenceEntryPoint,
   }) async {
     if (!isReady) {
-      final initialized = await initialize();
-      if (!initialized) return null;
+      final cause = await initialize();
+      if (cause != null) return ClassificationReport.failed(cause);
     }
 
     // Spawned rather than `Isolate.run` so the timeout has a handle to kill.
@@ -171,23 +179,40 @@ class InferenceService {
     final responsePort = ReceivePort();
     Isolate? isolate;
     try {
-      // Passes the model as bytes since rootBundle does not work in isolates
-      isolate = await Isolate.spawn(
-        entryPoint,
-        InferenceRequest(
-          responsePort: responsePort.sendPort,
-          imagePath: imagePath,
-          modelBytes: _modelBytes!,
-        ),
+      try {
+        // Passes the model as bytes since rootBundle does not work in isolates.
+        // The exit is sent to the same port, so a worker that dies before
+        // answering is reported now rather than when the timeout fires.
+        isolate = await Isolate.spawn(
+          entryPoint,
+          InferenceRequest(
+            responsePort: responsePort.sendPort,
+            imagePath: imagePath,
+            modelBytes: _modelBytes!,
+          ),
+          onExit: responsePort.sendPort,
+        );
+      } catch (e) {
+        developer.log('classify() could not spawn: $e',
+            name: 'InferenceService');
+        return const ClassificationReport.failed(
+          ClassificationFailureCause.isolateFailure,
+        );
+      }
+
+      final Object? message;
+      try {
+        message = await responsePort.first.timeout(timeout);
+      } on TimeoutException {
+        return const ClassificationReport.failed(
+          ClassificationFailureCause.timeout,
+        );
+      }
+      if (message is ClassificationReport) return message;
+      // `null` is the exit notice: the worker ended without answering.
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.isolateFailure,
       );
-      final result = await responsePort.first.timeout(timeout);
-      return result as InferenceResult?;
-    } catch (e) {
-      developer.log(
-        'classify() failed: $e',
-        name: 'InferenceService',
-      );
-      return null;
     } finally {
       // Releases the worker and the port on every path. On success the isolate
       // has already done its work; on timeout or error this is what stops it.
@@ -199,21 +224,37 @@ class InferenceService {
   /// Entry point of the inference isolate: runs the work and answers on the
   /// request's port. Static so it can be sent to a spawned isolate.
   static Future<void> _inferenceEntryPoint(InferenceRequest request) async {
-    final result = await _runInference(request);
-    request.responsePort.send(result);
+    final report = await runInference(request.imagePath, request.modelBytes);
+    request.responsePort.send(report);
   }
 
-  /// Runs the actual inference (called inside the isolate).
-  static Future<InferenceResult?> _runInference(InferenceRequest params) async {
+  /// Runs the actual inference (called inside the isolate). Each stage reports
+  /// its own cause: the image, then the interpreter, then its output.
+  @visibleForTesting
+  static Future<ClassificationReport> runInference(
+    String imagePath,
+    Uint8List modelBytes,
+  ) async {
+    final imageFile = File(imagePath);
+    if (!imageFile.existsSync()) {
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.imageMissing,
+      );
+    }
+
+    img.Image? image;
     try {
-      // Loads and preprocesses the image
-      final imageFile = File(params.imagePath);
-      if (!imageFile.existsSync()) return null;
+      image = img.decodeImage(imageFile.readAsBytesSync());
+    } catch (e) {
+      developer.log('decode failed: $e', name: 'InferenceService');
+    }
+    if (image == null) {
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.imageUndecodable,
+      );
+    }
 
-      final imageBytes = imageFile.readAsBytesSync();
-      final image = img.decodeImage(imageBytes);
-      if (image == null) return null;
-
+    try {
       // Resizes to the size expected by the model
       final resized = img.copyResize(
         image,
@@ -226,59 +267,87 @@ class InferenceService {
       final input = _imageToInputTensor(resized);
 
       // Loads the model from bytes (works in an isolate)
-      final interpreter = Interpreter.fromBuffer(params.modelBytes);
+      final interpreter = Interpreter.fromBuffer(modelBytes);
 
       // `finally` releases the native handle on every exit: the success path,
       // the early return for an incompatible model, and any throw from tensor
       // inspection or the run itself.
       try {
-        // Output shape: [1, numClasses]
-        final outputShape = interpreter.getOutputTensor(0).shape;
-        final numClasses = outputShape.last;
-        final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
+        // Rejects an incompatible model instead of fabricating a label.
+        final inputTensor = interpreter.getInputTensor(0);
+        final outputTensor = interpreter.getOutputTensor(0);
+        final mismatch = checkTensors(
+          inputShape: inputTensor.shape,
+          inputType: inputTensor.type,
+          outputShape: outputTensor.shape,
+          outputType: outputTensor.type,
+        );
+        if (mismatch != null) return ClassificationReport.failed(mismatch);
 
-        // Runs inference
+        final numClasses = outputTensor.shape.last;
+        final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
         interpreter.run(input, output);
 
-        // Finds the class with the highest probability
-        final probabilities = (output[0] as List<double>);
-        int maxIndex = 0;
-        double maxProb = probabilities[0];
-        for (int i = 1; i < probabilities.length; i++) {
-          if (probabilities[i] > maxProb) {
-            maxProb = probabilities[i];
-            maxIndex = i;
-          }
-        }
-
-        // Rejects incompatible models instead of fabricating a label.
-        final label = resolveTextureLabel(maxIndex, numClasses);
-        if (label == null) return null;
-
-        final distribution = buildDistribution(probabilities, numClasses);
-        if (distribution == null) return null;
-
-        // The argmax loop above feeds the compatibility guard only. Top-1 comes
-        // from the distribution, so `distribution.first` and these two fields
-        // cannot disagree; `buildDistribution` having already refused any
-        // non-finite probability is what makes that safe, since the loop
-        // compares with `>` and the sort with `compareTo`, which order NaN
-        // oppositely.
-        return InferenceResult(
-          textureClass: distribution.first.label,
-          confidenceScore: distribution.first.probability,
-          distribution: distribution,
-        );
+        return interpretOutput(output[0] as List<double>);
       } finally {
         interpreter.close();
       }
     } catch (e) {
       developer.log(
-        'InferenceService._runInference failed: $e',
+        'InferenceService.runInference failed: $e',
         name: 'InferenceService',
       );
-      return null;
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.interpreterError,
+      );
     }
+  }
+
+  /// The mismatch between the loaded interpreter's tensors and what this path
+  /// builds and reads, or `null` when they agree: a `[1, 224, 224, 3]` float32
+  /// input, and a float32 output of one probability per known label.
+  @visibleForTesting
+  static ClassificationFailureCause? checkTensors({
+    required List<int> inputShape,
+    required TensorType inputType,
+    required List<int> outputShape,
+    required TensorType outputType,
+  }) {
+    final inputAgrees =
+        listEquals(inputShape, const [1, _inputSize, _inputSize, 3]) &&
+            inputType == TensorType.float32;
+    final outputAgrees = outputShape.length == 2 &&
+        outputShape.first == 1 &&
+        outputShape.last == textureLabels.length &&
+        outputType == TensorType.float32;
+    return inputAgrees && outputAgrees
+        ? null
+        : ClassificationFailureCause.modelContractMismatch;
+  }
+
+  /// The report for one output tensor: a mismatch when it does not carry one
+  /// value per known label, an invalid output when a value is not a
+  /// probability, and the result otherwise.
+  @visibleForTesting
+  static ClassificationReport interpretOutput(List<double> probabilities) {
+    if (probabilities.length != textureLabels.length) {
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.modelContractMismatch,
+      );
+    }
+    final distribution = buildDistribution(probabilities, probabilities.length);
+    if (distribution == null) {
+      return const ClassificationReport.failed(
+        ClassificationFailureCause.outputInvalid,
+      );
+    }
+    // Top-1 comes from the distribution, so `distribution.first` and these two
+    // fields cannot disagree.
+    return ClassificationReport.ok(InferenceResult(
+      textureClass: distribution.first.label,
+      confidenceScore: distribution.first.probability,
+      distribution: distribution,
+    ));
   }
 
   /// Converts an image to a [1, 224, 224, 3] float32 input tensor.
@@ -302,16 +371,6 @@ class InferenceService {
       ),
     );
     return input;
-  }
-
-  /// Maps the predicted [index] to a soil texture label, rejecting models whose
-  /// output [numClasses] does not match the known labels (returns null) so an
-  /// incompatible model never yields a fabricated, plausible-looking result.
-  @visibleForTesting
-  static String? resolveTextureLabel(int index, int numClasses) {
-    if (numClasses != textureLabels.length) return null;
-    if (index < 0 || index >= textureLabels.length) return null;
-    return textureLabels[index];
   }
 
   /// Builds the full distribution from an output tensor, highest probability
@@ -371,6 +430,6 @@ class InferenceService {
   void dispose() {
     _modelBytes = null;
     _isInitialized = false;
-    _modelUnavailable = false;
+    _permanentCause = null;
   }
 }
