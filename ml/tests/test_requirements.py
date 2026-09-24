@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements.txt"
+README = Path(__file__).resolve().parents[1] / "README.md"
 
 #: The two libraries whose version changes the fold assignment. Others in the
 #: file matter to the training result; these two matter to which photographs a
@@ -127,3 +128,80 @@ def test_the_installed_stack_matches_the_requirements_pins():
             "results were obtained under a configuration the project does not "
             "ship, and the fold assignment depends on it: " + "; ".join(divergent)
         )
+
+
+# --- The README describes the same stack (SPEC 0075) -------------------------
+
+#: A specifier as the README writes one, inside backticks: a distribution with
+#: its constraints, or a bare range quoted after the distribution was named in
+#: prose. Anything else the README says about a version is history or example —
+#: "scikit-learn 1.5.2 and 1.8.0 partition the same groups differently" — and is
+#: not a claim about what to install.
+NAMED_SPECIFIER = re.compile(r"`([A-Za-z0-9_.\-]+)((?:==|>=|<=|~=)[^`]+)`")
+BARE_SPECIFIER = re.compile(r"`((?:==|>=|<=|~=)[^`]+)`")
+
+#: Words that turn a clause about committing a file into one about not
+#: committing it.
+NEGATIONS = ("not", "nothing", "never", "ignored")
+
+
+def _rendered(constraints) -> str:
+    return ",".join(f"{operator}{bound}" for operator, bound in constraints)
+
+
+def _clauses(text: str) -> list[str]:
+    """The README's clauses, one per sentence or semicolon-separated part.
+
+    Split at the semicolon as well as the full stop because the sentence this
+    guards was two claims joined by one: "The images themselves stay git-ignored
+    by design; what is committed is the manifest." Read as one sentence, its
+    first half's negation would have excused its second half.
+    """
+    flat = " ".join(text.split())
+    return [part for part in re.split(r"[.;!?](?:\s+|$)", flat) if part]
+
+
+def test_the_readme_claims_no_dataset_file_is_committed():
+    """ADR 0019 commits nothing under `ml/data/datasets/`, the manifest
+    included, and `test_dataset_gitignore.py` asserts it of the tree. The README
+    is what a person moving the archive to another machine reads."""
+    offenders = [
+        clause
+        for clause in _clauses(README.read_text(encoding="utf-8"))
+        if "committed" in clause.lower()
+        and any(word in clause.lower() for word in ("manifest", "dataset"))
+        and not any(word in clause.lower() for word in NEGATIONS)
+    ]
+
+    assert not offenders, (
+        "ml/README.md says something under the dataset directory is committed, "
+        "and ADR 0019 commits nothing there:\n  - " + "\n  - ".join(offenders)
+    )
+
+
+def test_every_version_the_readme_names_is_the_pinned_one():
+    """The README is how a machine gets set up, and the installed-stack check
+    above skips rather than fails when the stack diverges, so a wrong version
+    here is installed and then goes unreported."""
+    text = README.read_text(encoding="utf-8")
+    pins = parse_pins(REQUIREMENTS.read_text(encoding="utf-8"))
+    pinned_ranges = {_rendered(constraints) for constraints in pins.values()}
+
+    named = NAMED_SPECIFIER.findall(text)
+    assert named, "the README names no pinned version, so this check reads nothing"
+
+    wrong = []
+    for name, specifier in named:
+        claimed = _rendered(parse_pins(name + specifier)[name.lower()])
+        actual = _rendered(pins.get(name.lower(), []))
+        if claimed != actual:
+            wrong.append(
+                f"{name}{specifier}, where requirements.txt has {actual or 'nothing'}"
+            )
+    for specifier in BARE_SPECIFIER.findall(text):
+        if _rendered(parse_pins("unnamed" + specifier)["unnamed"]) not in pinned_ranges:
+            wrong.append(f"{specifier}, which no line of requirements.txt pins")
+
+    assert not wrong, "ml/README.md names versions it does not pin:\n  - " + (
+        "\n  - ".join(wrong)
+    )
