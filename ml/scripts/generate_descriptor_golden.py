@@ -193,7 +193,9 @@ def build_golden() -> dict:
     """The golden as a JSON-ready mapping.
 
     Raises:
-        ValueError: If a fixture shape puts a radius on an interior band edge.
+        ValueError: If a fixture shape has a radius between `TIE` and
+            `AMBIGUOUS` of a band edge, or if the reference's band map for a
+            shape is not the tie rule's.
     """
     fixtures: List[dict] = []
     shapes = []
