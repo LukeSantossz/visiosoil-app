@@ -194,12 +194,13 @@ def probe_fold(
         The runtime record this fold ran under.
     """
     # Imported here rather than at module scope because `src.train` imports
-    # TensorFlow, and a descriptor arm that needed the training stack to seed
-    # itself would be a descriptor arm that cannot run where TensorFlow cannot
-    # be installed. Seeding is shared with the incumbent rather than
-    # reimplemented: SPEC 0054 requires both arms to be seeded exactly as it is,
-    # and the runtime record is what a later comparison reads to decide whether
-    # two runs are comparable at all.
+    # TensorFlow: deferring it keeps the arms importable and bindable where
+    # TensorFlow is absent. Running a fold still needs it, because this line
+    # imports it — SPEC 0074 records that `descriptor_arm_trains_without_a_gpu`
+    # is about the GPU, not the training stack. Seeding is shared with the
+    # incumbent rather than reimplemented: SPEC 0054 requires both arms to be
+    # seeded exactly as it is, and the runtime record is what a later comparison
+    # reads to decide whether two runs are comparable at all.
     from ..train import _by_class, _relabel, control_seed, seed_everything
 
     runtime = seed_everything(
