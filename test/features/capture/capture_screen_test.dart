@@ -10,6 +10,8 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
@@ -17,18 +19,26 @@ import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
 
+/// Answers with a report built from the handler's result: a result is `ok`,
+/// and `null` stands for a run that failed. The cause is fixed because none of
+/// these tests is about which one it was; the one that is sets its own.
 class _FakeInference extends InferenceService {
-  _FakeInference(this._handler);
+  _FakeInference(this._handler, {this.cause = ClassificationFailureCause.timeout});
 
   final Future<InferenceResult?> Function(String imagePath) _handler;
+  final ClassificationFailureCause cause;
 
   @override
-  Future<InferenceResult?> classify(
+  Future<ClassificationReport> classify(
     String imagePath, {
     Duration? timeout,
     InferenceIsolateEntry? entryPoint,
-  }) =>
-      _handler(imagePath);
+  }) async {
+    final result = await _handler(imagePath);
+    return result == null
+        ? ClassificationReport.failed(cause)
+        : ClassificationReport.ok(result);
+  }
 }
 
 void main() {
@@ -140,6 +150,41 @@ void main() {
     await capture(tester);
 
     expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+  });
+
+  testWidgets('capture_screen_renders_a_failed_report_without_a_result',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        inferenceServiceProvider.overrideWithValue(_FakeInference(
+          (_) async => null,
+          cause: ClassificationFailureCause.modelMissing,
+        )),
+      ],
+      child: MaterialApp(
+        home: CaptureScreen(
+          pickFromCamera: () async => XFile(samplePath),
+          locate: () async => null,
+          checkCameraPermission: () async => AppPermissionStatus.granted,
+          requestCameraPermission: () async => AppPermissionStatus.granted,
+        ),
+      ),
+    ));
+
+    await capture(tester);
+
+    // The failed state the screen renders today, and no result.
+    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    for (final label in ['Arenosa', 'Argilosa', 'Media']) {
+      expect(find.textContaining(label), findsNothing);
+    }
+    // The state class is private; `uiState` is its test-only view.
+    final uiState =
+        (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
+            as CaptureUiState;
+    expect(uiState.classificationFailureCause,
+        ClassificationFailureCause.modelMissing);
+    expect(uiState.classificationResult, isNull);
   });
 
   testWidgets('tapping retry reruns classification and shows the result',

@@ -2,6 +2,7 @@
 // that replaced the five scattered booleans + request token.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 
@@ -80,5 +81,18 @@ void main() {
     // Transient guards and the permission are deliberately left untouched.
     expect(fresh.isCapturing, isTrue);
     expect(fresh.cameraPermission, AppPermissionStatus.granted);
+  });
+
+  test('a failure cause is kept by copyWith and cleared by a new capture', () {
+    final failed = const CaptureUiState().copyWith(
+      classification: ClassificationStatus.failed,
+      classificationFailureCause: ClassificationFailureCause.timeout,
+    );
+    expect(failed.classificationFailureCause, ClassificationFailureCause.timeout);
+    expect(
+      failed.copyWith(isSaving: true).classificationFailureCause,
+      ClassificationFailureCause.timeout,
+    );
+    expect(failed.startingCapture(1).classificationFailureCause, isNull);
   });
 }
