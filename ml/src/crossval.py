@@ -823,9 +823,16 @@ def _require_fold_digest(
     recorded = header.get("manifest_digest")
     if recorded == expected:
         return
+    # The control is started by its flag, not its name: `--arm shuffled_control`
+    # alone is refused by `require_control_matches_arm`.
+    selector = (
+        "--shuffled-control"
+        if arm_path.name == SHUFFLED_CONTROL_ARM
+        else f"--arm {arm_path.name}"
+    )
     rerun = (
         f"python -m src.crossval --version {arm_path.parent.name} "
-        f"--arm {arm_path.name} --force"
+        f"{selector} --force"
     )
     if recorded is None:
         raise ValueError(
