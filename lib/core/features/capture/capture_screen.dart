@@ -10,7 +10,7 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
-import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
@@ -61,6 +61,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   /// token. See [CaptureUiState] for why location and classification are
   /// independent axes rather than one flat enum.
   CaptureUiState _state = const CaptureUiState();
+
+  /// The state as it stands, for a test to read what the screen does not show.
+  @visibleForTesting
+  CaptureUiState get uiState => _state;
 
   late final CameraImagePicker _pickFromCamera =
       widget.pickFromCamera ?? _defaultPickFromCamera;
@@ -178,24 +182,33 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           _state.copyWith(classification: ClassificationStatus.running));
     }
 
-    InferenceResult? result;
+    ClassificationReport report;
     try {
       final inferenceService = ref.read(inferenceServiceProvider);
       // No deadline here: `classify` owns the only one, because it holds the
       // isolate handle and can stop the work. A second timeout at this layer
       // would abandon the future while the isolate kept running.
-      result = await inferenceService.classify(imagePath);
+      report = await inferenceService.classify(imagePath);
     } catch (e) {
-      developer.log('Classification failed: $e', name: 'CaptureScreen');
-      result = null;
+      // `classify` reports its failures rather than throwing, so this is a
+      // defect in it; the screen still lands in the failed state.
+      developer.log('Classification threw: $e', name: 'CaptureScreen');
+      report = const ClassificationReport.failed(
+        ClassificationFailureCause.interpreterError,
+      );
+    }
+    if (report.cause != null) {
+      developer.log('Classification failed: ${report.cause!.name}',
+          name: 'CaptureScreen');
     }
 
     if (!mounted || generation != _state.generation) return;
     setState(() => _state = _state.copyWith(
-          classificationResult: result,
-          classification: result == null
-              ? ClassificationStatus.failed
-              : ClassificationStatus.done,
+          classificationResult: report.result,
+          classificationFailureCause: report.cause,
+          classification: report.outcome == ClassificationOutcome.ok
+              ? ClassificationStatus.done
+              : ClassificationStatus.failed,
         ));
   }
 
