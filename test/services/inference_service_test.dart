@@ -358,7 +358,7 @@ void main() {
     // The causes are the backticked names in the table's rows.
     final tableRows = adr
         .split('\n')
-        .where((line) => line.startsWith('| `'))
+        .where((line) => line.trimLeft().startsWith('|') && line.contains('`'))
         .join('\n');
     final named = RegExp(r'`(\w+)`')
         .allMatches(tableRows)
