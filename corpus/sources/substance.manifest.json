@@ -1,27 +1,30 @@
 {
-  "_note": "The curated allowlist for the substance layer. A URL that is not listed here cannot be fetched — src/sources.py refuses it before the request, not after. Adding a source is a reviewed act: it is the one place a page enters the build. Every entry was fetched and confirmed to carry body prose on 2026-09-17; the tier column is the source policy of research-agent.md §8.1.",
+  "_note": "The curated allowlist for the substance layer. A URL that is not listed here cannot be fetched — src/sources.py refuses it before the request, not after. Adding a source is a reviewed act: it is the one place a page enters the build. Recurated on 2026-09-22 onto Embrapa tier-1 extension material per the Developer's decision of 2026-09-18 (SPEC 0072); the three SciELO articles of the first run left this cell because, as HTML, they reach the model only as their first 6,000 characters. `pages` is [first, last] in physical pages of the file, 1-based and inclusive — not the numbers printed on them. Every entry was fetched through src.llm.http_transport on 2026-09-22 and returned a PDF directly, without a redirect, with a text layer, and a passage within PASSAGE_CHAR_LIMIT; the tier column is the source policy of research-agent.md §8.1.",
   "cell": "Argilosa|tb_oxidic",
   "sources": [
     {
-      "url": "https://www.scielo.br/j/rbcs/a/8vsM78tm3NdwtjwmLxtqrQG/?lang=pt",
-      "title": "Contribuição de constituintes de solo à capacidade de troca de cátions obtida por diferentes métodos de extração",
-      "publisher": "Revista Brasileira de Ciência do Solo",
-      "tier": 3,
-      "why": "What actually carries CEC in a clayey tropical soil, measured rather than asserted — the claim the tb_oxidic family turns on."
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+      "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+      "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+      "tier": 1,
+      "pages": [1, 1],
+      "why": "How a phosphorus result is read: the Mehlich-1 figure means something different at each clay range while the resin figure does not — the correction a clayey class makes to reading a lab report. 3,476 characters."
     },
     {
-      "url": "https://www.scielo.br/j/pat/a/nhK3wr9Nr3j5pfmNpvdfvyB/?lang=pt",
-      "title": "Qualidade de latossolos vermelhos e vermelho-amarelos sob vegetação nativa de cerrado",
-      "publisher": "Pesquisa Agropecuária Tropical",
-      "tier": 3,
-      "why": "Reference values for undisturbed clayey Latossolos, which is what a reader needs to tell a degraded profile from a normal one."
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+      "title": "Guia prático para interpretação de resultados de análises de solo",
+      "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+      "tier": 1,
+      "pages": [12, 13],
+      "why": "A low CEC points to kaolinite rather than to little clay, and in weathered soils most of the CEC comes from organic matter — the heuristic 'clayey means fertile' is what tb_oxidic falsifies. 2,958 characters."
     },
     {
-      "url": "https://www.scielo.br/j/rbcs/a/wSkMrB6rR48qr9qBbbd8XHr/?lang=pt",
-      "title": "Atributos físicos e químicos de um latossolo vermelho-amarelo sob pastagens com diferentes históricos de uso",
-      "publisher": "Revista Brasileira de Ciência do Solo",
-      "tier": 3,
-      "why": "What management history does to the same soil — the interaction the land-use overlay approximates."
+      "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+      "title": "Uso de gesso agrícola nos solos do Cerrado",
+      "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+      "tier": 1,
+      "pages": [6, 8],
+      "why": "A clayey Latossolo stores more water than a sandy one, and roots reach it only where the subsoil's acidity was corrected — liming the plough layer does not. Older than ten years, so research-agent.md §8.3 surfaces its age. 4,916 characters."
     }
   ]
 }

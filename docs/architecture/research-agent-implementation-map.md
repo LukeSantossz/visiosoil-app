@@ -9,7 +9,7 @@ and
 [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-09-18. **Lane A is done through A4's bundled half**
+Last updated: 2026-09-22. **Lane A is done through A4's bundled half**
 (SPECs 0068, 0069, 0070): the composition path is wired end to end on the device,
 `researchServiceProvider` no longer returns `UnavailableResearchService`, the
 cache records which corpus answered, and the app reads `assets/corpus/` at first
@@ -21,6 +21,8 @@ that as absent coverage. Content comes from Lane B.
 of B2 recorded below). The verdict was that the pipeline works and the cell is
 not worth reading, and the Developer's answer to that on 2026-09-18 is recorded
 in B1: re-probe with management-guidance sources before any other cell is built.
+**The re-probe's code is built** (SPEC 0072) and the run is next; building it
+found that the first run's model never read an article body, which B1 records.
 
 ## 1. What exists today
 
@@ -292,6 +294,40 @@ parts, and the slice that carries them passes its own Spec Gate first:
   already gives: a verdict of "not worth reading" stops the plan, and it has
   been returned once.
 
+**The first two parts are built, SPEC 0072 (2026-09-22); the run and its
+judgement are not.** Building them found that the first verdict rested on less
+than it appeared to. Re-fetched through the build's own code, the two SciELO
+articles that still answer are 42,213 and 40,462 characters long and their
+introductions start at 9,660 and 8,280, while the client sent the model
+`text[:6000]` — so **the model summarised a title, the author affiliations and an
+abstract, never an article body**. And the client set no `num_ctx`, so the
+server cut each prompt at a default it chose from video memory, 4,096 tokens on a
+machine with none. The first verdict stands as a record of what that run
+produced; what it does not establish is that SciELO's *bodies* would have read
+the same way.
+
+What changed, so the second run measures one thing:
+
+- `pypdf` reads a PDF, recognised by its `%PDF-` signature.
+- A manifest entry names `pages: [first, last]`, the passage it contributes —
+  curation, the same reviewed act as choosing the source.
+- A PDF passage longer than `PASSAGE_CHAR_LIMIT` is refused at fetch instead of
+  cut in the client; the constant is shared, so the two cannot drift.
+- Every request pins `num_ctx` at 16,384, and a prompt longer than twice that in
+  characters is refused before it is sent.
+- The manifest holds three Embrapa tier-1 passages — Circular Técnica 33
+  (Cerrados, 2016) p. 1, Documentos 206 (Tabuleiros Costeiros, 2015) pp. 12–13,
+  Circular Técnica 32 (Cerrados, 2005) pp. 6–8 — 11,350 characters in all. The
+  SciELO articles left this cell: as HTML they would still reach the model as
+  their first 6,000 characters.
+
+**HTML is still cut at 6,000 characters.** Nothing selects an HTML passage yet,
+which matters again at B3, whose unit overlays are HTML.
+
+To run it: `ollama pull qwen2.5:7b`, then `python -m src.probe --cell
+"Argilosa|tb_oxidic"`. On a machine with no GPU, the 300-second request timeout
+in `_post` may be too short for a full-context generation; that fails loudly.
+
 **Was: ready.** Builds one cell end to end with a local model and puts it in front of
 an agronomist. It no longer measures price, because there is none; it measures
 whether a locally built cell is worth reading, which is the open question of §17
@@ -515,7 +551,7 @@ A1 ──► A2 ──► A3 ──► A4 (bundled half: DONE)
      DONE   DONE   DONE ▲
                         │
 B1 ──► B2 ──► B1' ──► B3 ──► B4 (blocked: reviewer)
-DONE  part   next     │
+DONE  part   run next │
                       └──► the corpus A4 ships
 
 Lane C ── not on the critical path ── A4 (refresh half), and nothing else in v1
@@ -523,7 +559,8 @@ A5 ── UI/UX terminal ── after A1 lands the fields it renders
 ```
 
 **B1'** is the re-probe: the same one cell, rebuilt from management-guidance
-sources read out of PDF, and judged again. It sits between B2 and B3 because B1's
+sources read out of PDF, and judged again. Its code is SPEC 0072; the run and
+the judgement are what remain. It sits between B2 and B3 because B1's
 first verdict was that the cell is not worth reading, and nothing downstream is
 worth building until that answer changes.
 

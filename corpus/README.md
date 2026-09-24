@@ -24,11 +24,17 @@ substance cell may cite, not the model.
 **That decision was taken on 2026-09-18**: a substance cell cites Embrapa tier-1
 extension material — Sistemas de Produção, Circulares Técnicas, Boletins — which
 is what carries management recommendations, with SciELO demoted to corroboration.
-Most of that material is PDF and this fetcher reads HTML, so the re-probe slice
-**will add** `pypdf` alongside `pyshp` — it is not a dependency yet, and
-`requirements.txt` is the authority on what is — and rebuilds and judges the same
-cell again **before any of the other 43 is built**. The implementation map records the run, its verdict and the
-re-probe slice.
+
+**The code for the re-probe is built** (SPEC 0072), and building it found that the
+first verdict was reached on less than it seemed. The model read each document
+only up to its first 6,000 characters, which for the SciELO articles was a title,
+the author affiliations and an abstract, and the server cut each prompt at a
+context length chosen from the machine's video memory. So the fetcher now reads
+PDF, a manifest entry names the pages of its passage, a passage longer than the
+model reads is refused rather than cut, and every request pins its context. The
+manifest holds three Embrapa passages. **What is left is the run and its
+judgement**, before any of the other 43 cells is built. The implementation map
+records both runs' state.
 
 ## Running the tests
 
@@ -63,16 +69,19 @@ Two boundaries carry the safety properties:
 
 - **`sources.py` is the allowlist.** A URL the manifest does not list is refused
   before it is fetched, not filtered afterwards. ADR 0023 moved this enforcement
-  out of a provider's platform and into this code.
+  out of a provider's platform and into this code. For a PDF the manifest also
+  names the pages, so the passage is chosen by the same reviewed act as the
+  source.
 - **`cell.py` is the contract.** A page can persuade a model to emit anything; it
   cannot persuade this module to accept it. Every cell is rebuilt from the fields
   the contract names, so a field a source asked for is dropped rather than
   shipped.
 
-One runtime dependency today: **`pyshp`**, which reads the IBGE shapefiles the
-grids are rasterised from. The re-probe slice adds a second, `pypdf`, for the
-reason under **State**; until that slice lands, this is the whole list. It is pure Python and pulls no GDAL. Everything else is the
-standard library — `requirements.txt` says what each entry is for.
+Two runtime dependencies, both pure Python and both file-format readers:
+**`pyshp`**, which reads the IBGE shapefiles the grids are rasterised from and
+pulls no GDAL, and **`pypdf`**, which reads the Embrapa PDFs a substance cell
+cites. Everything else is the standard library — `requirements.txt` says what
+each entry is for.
 
 Prompts live in `prompts/` rather than in string literals because the run
 manifest records a prompt version.
