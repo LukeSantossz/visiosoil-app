@@ -891,7 +891,16 @@ Recommended order, and why:
    is a direct DFT at about 40 ms a patch on a desktop JIT. Whether that is fast
    enough on a device is A7's to measure.
 2. **A4, the contract of numbers**, with `ClassificationOutcome` in place of the
-   conflated `null`s. The schema is defined here and emitted by B3.
+   conflated `null`s. The schema is defined here and emitted by B3. **Done in
+   two halves.** SPEC 0078 replaced the `null`s with a report naming one of ADR
+   0015's twelve causes. SPEC 0079 defined the schema (`spec_version: 2`), with
+   `ml/src/contract.py` as its writer, which B3 calls. It added the Dart reader,
+   which produces `contractMalformed` and `contractUnsupported`, and the
+   arithmetic that turns patch features into a class distribution. That
+   arithmetic is held to scikit-learn's `predict_proba` by a golden, closing ADR
+   0024's class-distribution half. **Left for the wiring spec:** loading
+   `assets/models/spec.json` at run time (`contractMissing`), reading labels from
+   the contract, deleting `SoilTextureLabels`, and the label-literal sweep.
 3. **A6 Dart (2), the A4-sheet scale reader, the resample and the grid.** It is
    the largest item and blocks any release: the descriptor path reads physical
    wavelengths, so a photograph without a scale is refused rather than guessed
