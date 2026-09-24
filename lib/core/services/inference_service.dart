@@ -288,7 +288,7 @@ class InferenceService {
         final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
         interpreter.run(input, output);
 
-        return interpretOutput(output[0] as List<double>);
+        return interpretOutput(outputRow(output));
       } finally {
         interpreter.close();
       }
@@ -302,6 +302,16 @@ class InferenceService {
       );
     }
   }
+
+  /// The probabilities in the `[1, n]` tensor the interpreter filled.
+  ///
+  /// `reshape` without a type argument builds `List<List<dynamic>>`, so the row
+  /// is copied into a `List<double>` rather than cast: a cast throws on every
+  /// run, and the failure would read as an interpreter error.
+  @visibleForTesting
+  static List<double> outputRow(List output) => [
+        for (final value in output[0] as List) (value as num).toDouble(),
+      ];
 
   /// The mismatch between the loaded interpreter's tensors and what this path
   /// builds and reads, or `null` when they agree: a `[1, 224, 224, 3]` float32
