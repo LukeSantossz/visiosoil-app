@@ -882,7 +882,14 @@ Recommended order, and why:
 
 1. **A6 Dart (1), the descriptors under the cross-language golden.** It is the one
    assumption that would reopen ADR 0024's runtime decision, and it needs neither
-   the scale reader nor a released model, so it goes first.
+   the scale reader nor a released model, so it goes first. **Done by SPEC 0077,
+   and the assumption holds.** `lib/core/services/descriptors/patch_descriptors.dart`
+   reproduces all 26 features on nine fixtures, with a worst error of 1.8% of the
+   `1e-9` relative tolerance. It found one thing the reference never stated: at
+   160 px the middle band edge is exactly `√160`, a grid radius, so a radius on
+   an edge goes to the upper band by rule rather than by rounding. The spectrum
+   is a direct DFT at about 40 ms a patch on a desktop JIT. Whether that is fast
+   enough on a device is A7's to measure.
 2. **A4, the contract of numbers**, with `ClassificationOutcome` in place of the
    conflated `null`s. The schema is defined here and emitted by B3.
 3. **A6 Dart (2), the A4-sheet scale reader, the resample and the grid.** It is
