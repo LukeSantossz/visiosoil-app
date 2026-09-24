@@ -792,7 +792,7 @@ def load_arm_predictions(
                 raise FileNotFoundError(
                     f"repeat {repeat} fold {fold} of {arm_path.name} has no "
                     f"{PREDICTIONS_FILENAME} at {path}. Run the arm with: "
-                    f"python -m src.crossval --arm {arm_path.name}"
+                    f"{rerun_command(arm_path)}"
                 )
             with open(path) as handle:
                 header = json.load(handle)
@@ -805,6 +805,31 @@ def load_arm_predictions(
                     costs[(repeat, fold)] = json.load(handle)
 
     return predictions, costs
+
+
+def rerun_command(arm_dir: Path | str) -> str:
+    """The command that re-runs one arm, for a refusal to name (SPEC 0076).
+
+    Built from the arm directory, `<output_dir>/<version>/<arm>`, so it names
+    the version the refused folds were read from. The control is started by its
+    flag, not its name: `--arm shuffled_control` alone is refused by
+    `require_control_matches_arm`. The population probe is not an arm of this
+    module and has its own script.
+    """
+    # Deferred: `population_probe` imports the arms, and the arms import this
+    # module.
+    from .population_probe import POPULATION_PROBE_ARM
+
+    arm_path = Path(arm_dir)
+    version = arm_path.parent.name
+    if arm_path.name == POPULATION_PROBE_ARM:
+        return f"python scripts/run_population_probe.py --version {version}"
+    selector = (
+        "--shuffled-control"
+        if arm_path.name == SHUFFLED_CONTROL_ARM
+        else f"--arm {arm_path.name}"
+    )
+    return f"python -m src.crossval --version {version} {selector}"
 
 
 def _require_fold_digest(
@@ -823,17 +848,7 @@ def _require_fold_digest(
     recorded = header.get("manifest_digest")
     if recorded == expected:
         return
-    # The control is started by its flag, not its name: `--arm shuffled_control`
-    # alone is refused by `require_control_matches_arm`.
-    selector = (
-        "--shuffled-control"
-        if arm_path.name == SHUFFLED_CONTROL_ARM
-        else f"--arm {arm_path.name}"
-    )
-    rerun = (
-        f"python -m src.crossval --version {arm_path.parent.name} "
-        f"{selector} --force"
-    )
+    rerun = f"{rerun_command(arm_path)} --force"
     if recorded is None:
         raise ValueError(
             f"repeat {repeat} fold {fold} of {arm_path.name} records no manifest "
