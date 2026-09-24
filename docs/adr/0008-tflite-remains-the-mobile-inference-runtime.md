@@ -12,7 +12,25 @@ ONNX Runtime Mobile, and ExecuTorch are not adopted.
 Accepted. Recorded during the 2026-07-30 ML architecture study
 (`docs/architecture/soil-classification.md`, §12.3 and §15). No model artifact
 exists yet, so this decision governs the pipeline being built rather than one in
-production.
+production. Amended on 2026-09-22.
+
+### Amended 2026-09-22: the v1 classifier is not a neural model, and this record governs neural models
+
+The E0 gate's pre-registered rule selected the descriptor path, and
+[ADR 0024](0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+adopts it. That path is 26 classical descriptors per patch, a standardiser and a
+multinomial logistic regression — 160 numbers and one matrix product. It is
+computed in Dart from a contract of numbers, and no interpreter runs on it.
+
+**This record's scope narrows from "the soil texture classifier" to "any neural
+model the project ships".** For those, TFLite stays the only runtime, and every
+option rejected below stays rejected: Core ML, ONNX Runtime Mobile, ExecuTorch
+and a cloud endpoint.
+
+The cost this record warns about is not waived. A second implementation of the
+features does carry *a parity check … paid in perpetuity*, and ADR 0024 pays it
+as a cross-language golden. For this path, that golden replaces the
+post-conversion parity gate described under Consequences.
 
 ### Decided
 

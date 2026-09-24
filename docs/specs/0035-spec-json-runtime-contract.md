@@ -1,6 +1,21 @@
 # SPEC: refactor(inference): read the model contract from spec.json instead of hardcoding it
 
 
+> **Revised 2026-09-22. The contract this schema describes is a network's, and
+> the adopted classifier is not one.**
+> [ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+> adopts the descriptor path, which is computed in Dart. `spec.json` therefore
+> carries numbers — descriptor fixed points, the feature order, a standardiser,
+> logistic coefficients and intercepts — rather than an input size, a
+> normalisation mode and a `.tflite` beside it.
+>
+> **What stands:** the twelve causes of ADR 0015, the refusal to fall back
+> silently, the enum-plus-payload shape, and the rule that labels come from the
+> contract. **What does not:** the network fields of the schema below, and the
+> Dart preprocessing criterion written for a resized frame. The spec that
+> implements the contract re-specifies both, and this text is left as it was
+> approved.
+
 > **Revised 2026-08-25.** The schema below is incomplete against three decisions
 > taken after this specification was Gate-approved. The contract must declare
 > every value the model was trained under, and six are missing.

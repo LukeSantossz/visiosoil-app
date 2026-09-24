@@ -1,14 +1,37 @@
 # ML Terminal Handoff
 
 Short, current state of the vision/ML workstream for the other terminals.
-Last updated: 2026-09-11.
+Last updated: 2026-09-22.
 
 **Where the authority lives.** The tracked backlog is issues #178–#197. The
-decisions are ADRs 0008–0018. The plan is
+decisions are ADRs 0008–0021 and 0024. The plan is
 `docs/architecture/ml-implementation-map.md`. The 2026-07-30 study
 `docs/architecture/soil-classification.md` has drifted — 44 of 95 verified
 claims are not true as written (#189) — so **where a document and an issue
 disagree, the issue is right**. This file points; it does not duplicate.
+
+## What changed on 2026-09-22
+
+**The gate ran, and the method is decided.** The E0 verdict is
+[docs/ml/e0-verdict.md](../ml/e0-verdict.md) (PR #248, closes #216):
+
+- signal was demonstrated: `descriptors` clears the shuffled control by +0.4156
+  and `encoder_probe` by +0.4805, both clauses;
+- **the incumbent CNN failed its own control** on both clauses;
+- the pre-registered rule ships the **descriptor path**, because the encoder
+  failed three of its four adoption conditions.
+
+[ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+adopts that path and decides where it runs. **Dart computes 26 texture
+descriptors per patch and scores them with a logistic regression whose numbers
+live in `spec.json`**; a cross-language golden holds the Dart
+descriptors to Python; no interpreter runs. ADR 0008 is amended: TFLite governs
+neural models, and the v1 classifier is not one.
+
+For the UI/UX terminal, the contract below does not change shape — a
+distribution over four classes plus a verdict — but what produces it does, and
+the release path is longer than it looked. **Nothing in the app reads a scale
+yet**, and the adopted path refuses a photograph without one.
 
 ## What changed on 2026-08-25
 
@@ -24,6 +47,8 @@ described. Five decisions followed in one day.
 | **The model sees greyscale patches** | Patches of ~21 mm at 160 px, overlapping by half, inset from the region boundary — 25 for a 90 mm dish, 9 at the refusal floor of ~70 mm. Their disagreement is an image-quality criterion, **not** a confidence. [ADR 0018](../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) |
 | **The background gap largely closed itself** | A patch cut from inside the soil region is soil and nothing else, so dish-versus-paper stops mattering at the level the model sees. #192 drops to conditional, and the study's "severe" background rating is wrong |
 
+*Superseded 2026-09-22: the gate ran, and its verdict is
+[docs/ml/e0-verdict.md](../ml/e0-verdict.md).*
 **E0 is runnable, and as of 2026-09-11 there is nothing in front of it.** It was
 blocked on images for the whole programme and no longer is — it is specified by
 SPEC 0044 and tracked as **#216**, and the issue named here, #197, is closed.
@@ -57,7 +82,7 @@ mitigation of unproven sufficiency.
 
 | Decision | Record |
 |---|---|
-| TFLite is the only inference runtime | ADR 0008 |
+| TFLite is the runtime for neural models — amended 2026-09-22, since the v1 classifier is not one | ADR 0008 |
 | Fixed geometric region of interest and model-free quality checks; no segmentation, no learned detector. **A classical operator over an object of known size is not what this rejected** | ADR 0009, amended 2026-08-25 |
 | Generative synthetic data deferred; zero of five conditions hold, and a sixth is added | ADR 0010, re-checked 2026-08-25 |
 | Four-state verdict from margin and mass. **The app never shows nothing** — it always names the leading class, with a weak-evidence warning, an AI disclaimer, and advice to retake or consult a specialist | ADR 0011, amended 2026-08-25 |
@@ -69,6 +94,7 @@ mitigation of unproven sufficiency.
 | Greyscale patches of fixed physical size; mean aggregates; dispersion is a quality criterion | ADR 0018 |
 | No granulometry and no laboratory reference, anywhere in the project | ADR 0014, carried into ADR 0016 |
 | Five-way classification of the Embrapa groups; no granulometry regression, no ordinal loss | Study §12.2 |
+| The descriptor path is the v1 classifier, computed in Dart from a `spec.json` of numbers and held to Python by a golden | [ADR 0024](../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md) |
 
 ## Contract other terminals consume
 
@@ -122,15 +148,30 @@ what remains open.
 | Issue | |
 |---|---|
 | #194 | The out-of-distribution score, **built for v1** — with Siltosa excluded it is the only guard against a confident wrong answer on silty soil |
-| #185 | `Interpreter.fromBuffer` leaks the model on every classification |
-| #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field |
-| #29, #188 | Export parity on real data, calibration metrics |
+| #185 | `Interpreter.fromBuffer` leaks the model on every classification. It lives only as long as the interpreter path, which ADR 0024 retires when the wiring lands |
+| #187 | Calibration is scheduled before quantization; `spec.json` has no `temperature` or `quantization` field. Under ADR 0024 there is no quantization step, so only the `temperature` field survives |
+| #29, #188 | Export parity on real data, calibration metrics. The export's parity check becomes ADR 0024's cross-language golden |
 | #79 | The contract is not read; SPEC 0035 is specified and unimplemented |
 | #189 | The architecture study needs a resync |
 | #180 | **Half open, and not a gate blocker.** Its Python half is resolved: `patches.resample_to_canonical` resizes through Pillow, which scales a filter's support by the reduction factor, so the canonical downsample is low-passed; and `preprocess.preprocess` — the `tf.image.resize(antialias=False)` the issue names — is off the patch path. The **Dart** half survives: `inference_service.dart` still uses `Interpolation.linear`. It belongs to A6's Dart half and is a **release** blocker |
 | #229 | The `texture_class` axis of the spanning-group leak SPEC 0055 closed for the capture population. `v1` triggers neither, so it guards a future manifest |
 
 ## Order of work
+
+**Rewritten 2026-09-22. The gate ran, ADR 0024 adopted the descriptor path, and
+the order is now the release path of that decision.** The map's §6 carries the
+reasoning.
+
+1. **The Dart descriptors under the cross-language golden** — the first part of
+   A6's Dart half. It is the assumption that would reopen ADR 0024's runtime,
+   and it needs nothing else.
+2. **The contract of numbers** — A4, re-specifying SPEC 0035's schema, with
+   `ClassificationOutcome` in place of the conflated `null`s.
+3. **The A4-sheet scale reader, the resample and the patch grid** — the rest of
+   A6's Dart half, and the largest item. No release happens without it.
+4. **The release fit** — B3, written into the contract as numbers.
+5. **The wiring, then calibration (C2).** #215 measures item 1 on a device once
+   it exists.
 
 **Rewritten 2026-09-03.** The list this replaces opened with "convert HEIC" and
 ran E0 as issue #197. #196 and #179 are closed, #197 is closed, and two more
@@ -143,6 +184,7 @@ that list: nothing blocks the gate on defect grounds. #180's status was also
 wrong here — see the correction under **Known status** below. What blocks the
 gate now is a decision, not a defect.
 
+*Superseded 2026-09-22: the gate ran — [docs/ml/e0-verdict.md](../ml/e0-verdict.md).*
 **Rewritten 2026-09-11. The first two items are done and the gate is next.**
 SPEC 0057 ran and published its verdict, and
 [ADR 0021](../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
@@ -150,7 +192,7 @@ records the decision it informed: **D6 stands unchanged** — population `B` may
 train and may never be validated or tested on. Nothing in the pipeline moves, so
 the gate runs the incumbent arms.
 
-1. **C0, SPEC 0044 (#216)** — run the gate: four arms, four classes, verdict
+1. **C0, SPEC 0044 (#216)** — *ran 2026-09-18; [verdict](../ml/e0-verdict.md).* Run the gate: four arms, four classes, verdict
    committed either way. `descriptors`, `cnn`, `encoder_probe` and
    `shuffled_control`, unchanged, because ADR 0021 changed none of them. What
    SPEC 0057 computed is reusable here rather than discarded — same folds, same
@@ -176,7 +218,9 @@ photograph.
 greyscale patches; `InferenceService` still resizes the whole frame to 224 and
 keeps colour. That is deliberate — the Dart half needs SPEC 0035 — and it means
 **no model may be released between SPEC 0053 and SPEC 0035**. A green training
-run is not a shippable model until that closes.
+run is not a shippable model until that closes. Under ADR 0024 the rule reads
+the same with the names moved: no release before the Dart scale reader, the
+grid and the wiring land.
 
 ## Limitations that travel with every number
 
