@@ -103,9 +103,9 @@ ml/data/datasets/**
 ml/models/**/
 ml/notebooks/.ipynb_checkpoints/
 
-# ML generated assets (output of training pipeline)
+# ML generated assets (output of training pipeline). `assets/models/spec.json`
+# is tracked: it is the released descriptor contract (ADR 0012, SPEC 0082).
 assets/models/*.tflite
-assets/models/spec.json
 # Corpus release artifacts, ignored until a reviewed release exists (SPEC 0068).
 # Same treatment as the model artifact: the directory is tracked, its contents
 # are a build product until ADR 0012's equivalent decision is taken for them.
