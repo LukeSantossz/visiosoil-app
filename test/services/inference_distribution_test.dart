@@ -1,23 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/models/class_score.dart';
-import 'package:visiosoil_app/models/soil_texture_labels.dart';
+
+/// The shipped contract's classes, in its order. Written out here because a
+/// test may name a class, and `lib/` may not (SPEC 0083).
+const _labels = ['Arenosa', 'Media', 'Muito Argilosa', 'Argilosa'];
 
 void main() {
-  // The distribution is built from the output tensor by a pure function, so
-  // every criterion below runs against a synthetic tensor with no interpreter,
-  // no isolate, and no model asset.
+  // The distribution is built from the contract's output by a pure function,
+  // so every criterion below runs against a synthetic output with no isolate
+  // and no contract asset.
   List<ClassScore>? distributionOf(List<double> probabilities) =>
-      InferenceService.buildDistribution(probabilities, probabilities.length);
+      InferenceService.buildDistribution(probabilities, _labels);
 
   group('InferenceService.buildDistribution', () {
     test('contains every class, one entry per label', () {
       final distribution = distributionOf([0.1, 0.2, 0.3, 0.4])!;
 
-      expect(distribution, hasLength(SoilTextureLabels.ordered.length));
+      expect(distribution, hasLength(_labels.length));
       expect(
         distribution.map((score) => score.label).toSet(),
-        SoilTextureLabels.ordered.toSet(),
+        _labels.toSet(),
       );
     });
 
@@ -65,17 +68,17 @@ void main() {
       );
     });
 
-    test('returns null when the class count does not match the label list', () {
-      expect(InferenceService.buildDistribution([0.5, 0.5], 2), isNull);
+    test('returns null when the output does not carry one value per label', () {
+      expect(InferenceService.buildDistribution([0.5, 0.5], _labels), isNull);
       expect(
-        InferenceService.buildDistribution([0.2, 0.2, 0.2, 0.2, 0.1, 0.1], 6),
+        InferenceService.buildDistribution(
+            [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], _labels),
         isNull,
       );
-      // The five-class tensor this project shipped a label list for until
-      // SPEC 0046. A model still emitting five outputs is now incompatible,
-      // and is refused rather than silently relabelled.
+      // Five values against four labels, the count this project emitted until
+      // SPEC 0046: refused rather than silently relabelled.
       expect(
-        InferenceService.buildDistribution([0.2, 0.2, 0.2, 0.2, 0.2], 5),
+        InferenceService.buildDistribution([0.2, 0.2, 0.2, 0.2, 0.2], _labels),
         isNull,
       );
     });

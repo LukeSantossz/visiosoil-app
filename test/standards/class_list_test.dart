@@ -2,28 +2,34 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/models/soil_texture_labels.dart';
+import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';
 
-/// The model's class list exists in two languages, and until SPEC 0048 nothing
-/// compared them. `ml/config.yaml` is what the training reads and what the
-/// exported model's output order comes from; `SoilTextureLabels.ordered` is what
-/// the app maps that output onto. A change to one and not the other compiles,
-/// passes both suites, and mislabels every result.
+/// The model's class list used to exist in two languages, and until SPEC 0048
+/// nothing compared them. Since SPEC 0083 the app declares no class list of its
+/// own: it labels a classification with the shipped contract's classes. So the
+/// comparison is now between `ml/config.yaml`, which the training reads, and
+/// `assets/models/spec.json`, which the release fit wrote from it. A release
+/// fitted under another class list would compile, pass both suites, and
+/// mislabel every result.
 ///
 /// The file is parsed by pattern rather than with a YAML package: adding a
 /// dependency to the app for one test in `test/standards/` is a production-tree
 /// cost for a test-tree benefit, and `durable_numbering_test.dart` and
 /// `readme_adr_index_test.dart` already read repository files this way.
 void main() {
-  group('the class list agrees across both languages', () {
+  group('the shipped contract carries the configured classes', () {
     late List<String> configured;
 
     setUpAll(() {
       configured = _classesFromConfig(File('ml/config.yaml').readAsStringSync());
     });
 
-    test('dart label list matches the configured classes', () {
-      expect(SoilTextureLabels.ordered, configured);
+    test('the_shipped_contract_classes_are_the_configured_classes', () {
+      final parsed = parseDescriptorContract(
+        File('assets/models/spec.json').readAsStringSync(),
+      );
+      expect(parsed.cause, isNull);
+      expect(parsed.contract!.classes, configured);
     });
 
     // Anti-vacuity. If the `classes:` block gains an anchor, a merge key or a

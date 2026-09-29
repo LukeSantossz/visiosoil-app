@@ -14,7 +14,7 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 
 - **Guided field workflow** — a splash screen requests runtime permissions and a 3-step onboarding tutorial explains capture
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
-- **On-device classification path** — an isolate-based TensorFlow Lite pipeline labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. The inference code, retry handling and UI are complete, but **no trained model artifact ships with this repository**, so classification currently returns no result and records save without a texture class (see Known Issues)
+- **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The contract ships, but **nothing measures a photograph's scale yet**: the A4-sheet reader does not exist. So classification refuses every photograph with a named cause, and records save without a texture class (see Known Issues)
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
 - **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer
@@ -32,7 +32,7 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 | State management | Riverpod (`flutter_riverpod`) |
 | Navigation | GoRouter |
 | Data layer | Drift + SQLite (`sqlite3_flutter_libs`) |
-| On-device inference | TensorFlow Lite (`tflite_flutter`), isolate-based |
+| On-device inference | Descriptor arithmetic in Dart, isolate-based, from the released `spec.json` contract |
 | Model training | TensorFlow / Keras — MobileNetV2 transfer learning (in `ml/`) |
 | Device I/O | `image_picker` (camera), `geolocator` + `geocoding` (GPS), `share_plus` |
 | Auth | `google_sign_in`, session persisted via `flutter_secure_storage` |
@@ -44,7 +44,7 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 ```mermaid
 flowchart LR
     Cam[Camera + GPS] --> Cap[Capture screen]
-    Cap --> Inf[InferenceService\nTFLite in isolate]
+    Cap --> Inf[InferenceService\ndescriptor path in isolate]
     Cap --> Repo[SoilRecordRepository]
     Inf --> Repo
     Repo --> DB[(Drift / SQLite)]
@@ -61,15 +61,15 @@ Migrations are cumulative: **v1→v2** adds the classification columns; **v2→v
 
 Deletes are soft: a tombstone sets `deleted` and enqueues a sync operation instead of removing the row, and every read excludes tombstoned rows.
 
-The UI talks only to Riverpod providers, which depend on an abstract `SoilRecordRepository` — never on Drift types directly. TFLite inference runs in a separate Dart isolate to keep the UI thread free; model bytes are loaded from assets and passed into the isolate because `rootBundle` is unavailable there. The model itself is produced by a separate training pipeline under `ml/`, which is decoupled from the app and integrates through a `.tflite` artifact copied into `assets/models/`. The pipeline also emits a `spec.json` describing the labels and normalization, but the app does not read it yet — that contract is currently honored by hand on the Dart side.
+The UI talks only to Riverpod providers, which depend on an abstract `SoilRecordRepository` — never on Drift types directly. Classification runs in a separate Dart isolate to keep the UI thread free. The contract is read from assets and parsed once, then copied into the isolate, because `rootBundle` is unavailable there. The model itself is produced by a separate training pipeline under `ml/`, which is decoupled from the app and integrates through one file: the `spec.json` contract of numbers that `ml/src/release.py` writes and `ml/scripts/deploy_to_app.sh` copies into `assets/models/`. The app takes its class labels from that contract and from nowhere else.
 
 ## Engineering Decisions
 
 | Decision | Alternative considered | Why this approach |
 | --- | --- | --- |
 | Repository pattern abstracting Drift | UI queries Drift directly | UI imports only the interface, so the persistence backend (local DB, remote API, cache) can be swapped without touching screens |
-| TFLite inference in a separate isolate | Run inference on the main thread | Classification never blocks the UI; model bytes are passed as `Uint8List` since `rootBundle` cannot be used inside an isolate |
-| Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The intended integration contract is `spec.json`, but the app does not read it yet — the `.tflite` artifact is currently the only real interface |
+| Classification in a separate isolate | Run it on the main thread | Decoding, resampling and describing up to 25 patches never block the UI; the parsed contract is copied into the isolate, since `rootBundle` cannot be used there |
+| Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The integration contract is `spec.json`, which the app reads at run time |
 | Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v4) |
 | Image files stored outside the cache, repository-owned lifecycle ([ADR 0002](docs/adr/0002-image-file-storage-and-lifecycle.md)) | Keep the `image_picker` cache path in the DB | The picker's cache path is transient, so a stored record could outlive its photo; the repository copies into durable storage before the row is written |
 | Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
@@ -83,7 +83,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Target isolation is a fixed ROI plus a heuristic quality gate ([ADR 0009](docs/adr/0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md)) | Classical segmentation; a MobileNet-backbone segmentation model; a detector feeding the classifier | The capture protocol is enforced rather than compensated for. Detection is deferred rather than discarded — it is what would recover a real millimetres-per-pixel scale from the coin the protocol already asks for |
 | Synthetic image generation is deferred behind a measured gap ([ADR 0010](docs/adr/0010-synthetic-image-generation-deferred-behind-a-measured-gap.md)) | cGAN conditioned on the class and a VAE for minority-class oversampling, both rejected; diffusion img2img at low strength, deferred rather than rejected | Collection, corrected augmentation and compositing come first, and generation only if an ablation proves a downstream gain on a real-only test set. If field collection stalls, this is the record to revisit |
 | Classification uncertainty is a four-state verdict from the margin and the mass ([ADR 0011](docs/adr/0011-classification-verdict-from-margin-and-mass.md)) | A top-1 confidence percentage; Shannon entropy of the distribution | With four classes a single number cannot separate "one class, confidently" from "two classes, tied"; the app abstains when it can assert nothing and names two candidates when two hold the mass |
-| The released model artifact and its `spec.json` are tracked in git ([ADR 0012](docs/adr/0012-released-model-artifact-tracked-in-git.md)) — **decided, not yet in effect**: `.gitignore` still excludes both paths, and the entries go with SPEC 0035 | A GitHub Release plus a CI download step; Git LFS; a model registry | A clone at any commit builds an APK whose behaviour that commit fully determines, which is what makes a regression bisectable. Experiment outputs under `ml/models/` stay ignored |
+| The released model artifact and its `spec.json` are tracked in git ([ADR 0012](docs/adr/0012-released-model-artifact-tracked-in-git.md)) — **in effect for `spec.json`** since SPEC 0082. v1 ships no `.tflite` (ADR 0024), so that entry stays ignored | A GitHub Release plus a CI download step; Git LFS; a model registry | A clone at any commit builds an APK whose behaviour that commit fully determines, which is what makes a regression bisectable. Experiment outputs under `ml/models/` stay ignored |
 | Model monitoring is local-first ([ADR 0013](docs/adr/0013-local-first-model-monitoring.md)) | Server-side monitoring with sampled image upload | Aggregates stay on the device and no image, coordinate or record is transmitted; the field data is a client's, and there is no backend to receive it |
 | A classification reports an outcome and a named cause, never an absent value ([ADR 0015](docs/adr/0015-classification-reports-a-named-failure-cause.md)) | Keep returning `null` and add a separate failure getter; throw a typed exception per failure | One `null` reported a model that was never shipped and a run that timed out alike, so the interface could not tell "nothing to retry" from "retry is exactly right"; a second getter would be a separate read of mutable state with a classification in flight between them |
 | Dataset is the laboratory's sample archive photographed on a fixed rig, carrying the class name and no granulometry ([ADR 0014](docs/adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)) — **Retired**, superseded by ADR 0016 | Run a field collection campaign; link the laboratory reports into the pipeline | Described a collection that turned out to have already happened, under an arrangement differing on every axis it fixed. Its granulometry exclusion, its bench-to-field limitation and its Siltosa policy survive in ADR 0016; its rig, conditions, counts and scale-constancy claims are withdrawn |
@@ -195,7 +195,7 @@ visiosoil-app/
 │   │   ├── widgets/         # VisioAppBar, VisioButton, EmptyState, ErrorState,
 │   │   │                    #   LoadingIndicator, PermissionDeniedView, RouteErrorView
 │   │   ├── utils/           # LocationService (GPS + geocoding), formatters
-│   │   ├── services/        # InferenceService (TFLite, isolate), ImageStorageService,
+│   │   ├── services/        # InferenceService (descriptor path, isolate), ImageStorageService,
 │   │   │   │                #   ShareService, ConnectivityService, PermissionService,
 │   │   │   │                #   SyncEngine
 │   │   │   ├── auth/        # AuthService + Google implementation, secure credential store
@@ -211,7 +211,7 @@ visiosoil-app/
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # TF/Keras training pipeline (MobileNetV2 → TFLite)
-├── assets/models/           # Destination for the trained .tflite (artifact is git-ignored)
+├── assets/models/           # The released descriptor contract, spec.json (tracked)
 ├── docs/                    # specs/ (durable SPEC archive), adr/, architecture/
 └── test/                    # Unit, widget and repository tests (in-memory SQLite)
 ```
@@ -232,7 +232,7 @@ visiosoil-app/
 - [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
 - [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v4, soft deletes)
-- [x] On-device TFLite inference path into 4 soil texture classes, running in an isolate with retry and timeout handling — awaiting a trained model artifact to become functional
+- [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract — awaiting the A4-sheet scale reader to become functional
 - [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
 - [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
@@ -245,19 +245,18 @@ visiosoil-app/
 
 ### Pending
 
-- [ ] Train and deploy the production model, then export and ship the `.tflite` to `assets/models/`
+- [ ] Read the scale from the A4 sheet the sample is photographed on, so the shipped contract can classify
 - [x] Ingest the delivered archive as a dataset version — 221 photographs of 194 samples are ingested as `v1` ([SPEC 0040](docs/specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md)), and the collection premise the protocol described is withdrawn ([SPEC 0041](docs/specs/0041-close-the-collection-premise-in-the-records.md)). The images stay git-ignored; the manifest is committed
 - [ ] Track the artifacts a training run would produce — no checkpoint or metrics file is versioned, so no published run is reproducible from this repository
-- [x] Add a contract test asserting the label list agrees across the two languages — `test/standards/class_list_test.dart` reads the `classes:` block of `ml/config.yaml` and compares it to `SoilTextureLabels.ordered` ([SPEC 0048](docs/specs/0048-correct-the-records-that-still-say-five-classes.md)). The Python fixtures that still carry a literal carry the *archive's* five, which is a different list and is tied to `src.manifest.ARCHIVE_CLASSES` by `test_manifest.py`
-- [ ] Add an asset-existence test so a missing model cannot pass a green suite, and produce a genuinely release-signed APK in CI
-- [ ] Load labels, input size, and normalization from `spec.json` at runtime instead of hardcoding them in `InferenceService` — specified in [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md), not yet implemented
+- [x] Add a contract test asserting the label list agrees across the two languages — `test/standards/class_list_test.dart` reads the `classes:` block of `ml/config.yaml` and compares it to the shipped contract's classes ([SPEC 0048](docs/specs/0048-correct-the-records-that-still-say-five-classes.md), [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md)). The Python fixtures that still carry a literal carry the *archive's* five, which is a different list and is tied to `src.manifest.ARCHIVE_CLASSES` by `test_manifest.py`
+- [ ] Produce a genuinely release-signed APK in CI. A missing contract can no longer pass a green suite: `the_shipped_contract_loads` fails without `assets/models/spec.json`
+- [x] Read the class labels from `spec.json` at runtime instead of hardcoding them in `InferenceService` — done on the descriptor path by [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md). The input size and normalization [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specified belonged to the TFLite contract that ADR 0024 retired
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
 - [ ] Wire `ProxyResearchService` and per-user auth so management tips actually resolve
 
 ## Known Issues & Limitations
 
-- **No model artifact ships with the repo** — `assets/models/` contains only `.gitkeep` and `assets/models/*.tflite` is git-ignored, so classification does not work until a trained model is supplied by the pipeline.
-- **Labels and preprocessing are hardcoded in `InferenceService`** — `spec.json` is generated into `ml/models/<version>/` and copied into `assets/models/` by the deploy script, but it is git-ignored there and never read at runtime, so a pipeline change requires a matching manual edit on the Dart side. [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specifies the fix. Within Dart the list has one declaration, a test asserting the colour map covers it, and — since [SPEC 0048](docs/specs/0048-correct-the-records-that-still-say-five-classes.md) — a test asserting it against `ml/config.yaml`, so the two languages can no longer drift apart.
+- **Nothing measures a photograph's scale yet** — the descriptor path reads physical wavelengths, so a photograph without a measured scale is refused, never guessed at (ADR 0017). The A4-sheet reader does not exist, so every classification reports `measurementUnavailable` until it lands.
 - **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
 - **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.

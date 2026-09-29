@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/classification_verdict.dart';
-import 'package:visiosoil_app/models/soil_texture_labels.dart';
 
 /// Builds a descending distribution from probabilities, in canonical label
 /// order, so each test reads as the numbers the spec states.
@@ -12,11 +11,14 @@ import 'package:visiosoil_app/models/soil_texture_labels.dart';
 /// its five-class form by dropping one tail entry, chosen so that the top two
 /// shares — the only ones the factory reads — are the same numbers the case was
 /// written for.
+/// The shipped contract's classes, in its order (SPEC 0083).
+const _labels = ['Arenosa', 'Media', 'Muito Argilosa', 'Argilosa'];
+
 List<ClassScore> distributionOf(List<double> probabilities) {
   final scores = <ClassScore>[
     for (var i = 0; i < probabilities.length; i++)
       ClassScore(
-        label: SoilTextureLabels.ordered[i],
+        label: _labels[i],
         probability: probabilities[i],
       ),
   ];

@@ -937,6 +937,14 @@ Recommended order, and why:
 5. **The wiring, then C2.** Until the wiring lands, training and inference still
    disagree, and SPEC 0053's rule stands: no model is released before then. The
    wiring also takes the dispersion metric, which moved out of A6 Dart (2).
+   **The first half is done by SPEC 0083.** `classify` now runs the descriptor
+   path end to end, and labels come from the released contract. `SoilTextureLabels`
+   and `tflite_flutter` are gone, and ADR 0015's table is amended to thirteen
+   causes. Scale and soil region enter through a `PhotographMeasurer` seam. The
+   only measurer this build ships is `measurementUnavailable`, so every
+   photograph is refused by name until the A4-sheet reader replaces it. **Left
+   for the second half:** the dispersion metric, and the Python TFLite path
+   (`export.py` and the CNN training).
 
 **The order below is kept for the reasoning that produced it.** It ran up to the
 gate, and the gate has run.

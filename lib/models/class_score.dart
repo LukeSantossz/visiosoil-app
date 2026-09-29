@@ -4,7 +4,7 @@
 /// re-derive the index-to-label mapping — the way the label order diverged in
 /// the first place.
 class ClassScore {
-  /// Texture class name, one of `SoilTextureLabels.ordered`.
+  /// Texture class name, one of the shipped contract's classes (SPEC 0083).
   final String label;
 
   /// Probability the model assigned to [label], passed through from the output

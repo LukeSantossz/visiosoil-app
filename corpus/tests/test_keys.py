@@ -5,9 +5,10 @@ classes, cells for changed classes are orphaned. The artifact therefore carries 
 class-list version and the build derives keys from `SoilTextureLabels.ordered`
 rather than a literal, so the breakage is loud."
 
-So these tests read the app's Dart file. A literal here would satisfy itself and
-let the corpus drift away from the model it is keyed to — which is exactly the
-failure the ADR asked to be made loud.
+Since SPEC 0083 the app declares no class list of its own: it labels a result
+with the shipped contract's classes. So these tests read `assets/models/spec.json`.
+A literal here would satisfy itself and let the corpus drift away from the model
+it is keyed to — which is exactly the failure the ADR asked to be made loud.
 """
 
 import pytest
@@ -15,6 +16,7 @@ import pytest
 from src.keys import (
     BIOMES,
     CLAY_ACTIVITIES,
+    LABELS_PATH,
     LAND_USES,
     UNITS,
     read_texture_classes,
@@ -22,27 +24,32 @@ from src.keys import (
 )
 
 
-def test_the_class_list_is_read_from_the_app_not_repeated_here():
+def test_the_class_list_is_read_from_the_shipped_contract():
     classes = read_texture_classes()
 
     assert classes == ["Arenosa", "Media", "Muito Argilosa", "Argilosa"]
+    assert LABELS_PATH.parts[-3:] == ("assets", "models", "spec.json")
 
 
 def test_a_missing_class_list_fails_loudly(tmp_path):
-    missing = tmp_path / "soil_texture_labels.dart"
+    missing = tmp_path / "spec.json"
 
     with pytest.raises(FileNotFoundError):
         read_texture_classes(path=missing)
 
 
-def test_a_class_list_that_cannot_be_parsed_fails_loudly(tmp_path):
-    path = tmp_path / "soil_texture_labels.dart"
-    path.write_text("class SoilTextureLabels {}", encoding="utf-8")
+@pytest.mark.parametrize(
+    "document",
+    ['{"spec_version": 2}', '{"classes": []}', '{"classes": "Arenosa"}', "[]"],
+)
+def test_a_class_list_that_cannot_be_parsed_fails_loudly(tmp_path, document):
+    path = tmp_path / "spec.json"
+    path.write_text(document, encoding="utf-8")
 
     with pytest.raises(ValueError) as excinfo:
         read_texture_classes(path=path)
 
-    assert "ordered" in str(excinfo.value)
+    assert "classes" in str(excinfo.value)
 
 
 def test_there_are_twelve_substance_cells():

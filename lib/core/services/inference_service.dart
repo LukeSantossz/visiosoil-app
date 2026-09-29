@@ -6,11 +6,13 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
-import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../../models/class_score.dart';
-import '../../models/soil_texture_labels.dart';
 import 'classification_report.dart';
+import 'descriptors/descriptor_contract.dart';
+import 'descriptors/patch_descriptors.dart';
+import 'descriptors/patch_grid.dart';
+import 'descriptors/photograph_measurement.dart';
 
 /// Result of soil texture classification inference.
 class InferenceResult {
@@ -40,117 +42,122 @@ class InferenceRequest {
   /// arrives as `null` rather than as silence.
   final SendPort responsePort;
   final String imagePath;
-  final Uint8List modelBytes;
+
+  /// Parsed once by [InferenceService.initialize], and copied into the isolate:
+  /// it holds only lists, strings and numbers.
+  final DescriptorContract contract;
+  final PhotographMeasurer measurer;
 
   const InferenceRequest({
     required this.responsePort,
     required this.imagePath,
-    required this.modelBytes,
+    required this.contract,
+    required this.measurer,
   });
 }
 
 /// Signature of the inference isolate's entry point. Injected so tests can
-/// drive the timeout and teardown paths without a real TFLite model.
+/// drive the timeout and teardown paths without running the pipeline.
 ///
 /// An implementation must be a top-level or static function: a closure
 /// capturing local state cannot be sent to a spawned isolate.
 typedef InferenceIsolateEntry = void Function(InferenceRequest request);
 
-/// Signature for loading the model asset. Injected so tests can drive the
-/// initialization retry logic without the platform asset bundle.
-typedef ModelAssetLoader = Future<ByteData> Function(String key);
+/// Signature for loading the contract asset as text. Injected so tests can
+/// drive the initialization paths without the platform asset bundle.
+typedef ContractAssetLoader = Future<String> Function(String key);
 
-/// TensorFlow Lite inference service for soil texture classification.
+/// On-device soil texture classification by the descriptor path (ADR 0024,
+/// SPEC 0083).
 ///
-/// Loads the model from assets, preprocesses images, and runs inference
-/// on-device. Inference is executed in an isolate to avoid blocking the main
-/// thread.
+/// [initialize] reads the released contract. [classify] runs the photograph
+/// through the path in an isolate so the main thread is never blocked: decode,
+/// orient, measure, cut the canonical patch grid, describe each patch, and
+/// score the patches with the contract.
 class InferenceService {
-  static const String _modelPath = 'assets/models/soil_classifier.tflite';
+  InferenceService({this.measurer = measurementUnavailable});
 
-  /// Model input dimension (224x224 RGB).
-  static const int _inputSize = 224;
+  /// The released contract (SPEC 0082, ADR 0012).
+  static const String contractPath = 'assets/models/spec.json';
 
-  /// Soil texture classes aligned with ml/config.yaml, in model output order.
-  ///
-  /// Declared once in [SoilTextureLabels] and referenced here rather than
-  /// copied, so a second declaration cannot drift out of step with this one.
-  /// Public only so a test can assert that single source directly, matching
-  /// how [buildDistribution] is widened.
-  @visibleForTesting
-  static const List<String> textureLabels = SoilTextureLabels.ordered;
+  /// What measures a photograph's scale and soil region. This build has none
+  /// ([measurementUnavailable]); the A4-sheet reader supplies one.
+  final PhotographMeasurer measurer;
 
-  /// Maximum attempts to load the model before giving up for the current call.
+  /// Maximum attempts to load the contract before giving up for the current
+  /// call.
   static const int _maxInitAttempts = 3;
 
   /// Delay between initialization retries.
   static const Duration _initRetryDelay = Duration(milliseconds: 300);
 
-  /// Maximum time to wait for the model asset to load.
-  static const Duration _modelLoadTimeout = Duration(seconds: 5);
+  /// Maximum time to wait for the contract asset to load.
+  static const Duration _contractLoadTimeout = Duration(seconds: 5);
 
-  /// Maximum time to wait for a single inference run before giving up.
+  /// Maximum time to wait for a single classification before giving up.
   static const Duration _inferenceTimeout = Duration(seconds: 15);
 
-  Uint8List? _modelBytes;
-  bool _isInitialized = false;
+  DescriptorContract? _contract;
 
-  /// Set when the model asset is empty — a build-time fact that retrying cannot
-  /// fix, so further initialization attempts are skipped and report it again.
+  /// Set when the contract is malformed or unsupported: a build-time fact that
+  /// retrying cannot fix, so further initialization attempts report it again.
   ClassificationFailureCause? _permanentCause;
 
   /// Indicates whether the service is ready for inference.
-  bool get isReady => _isInitialized && _modelBytes != null;
+  bool get isReady => _contract != null;
 
-  /// Initializes the service by loading the model from assets.
+  /// Initializes the service by loading and parsing the released contract.
   ///
-  /// Returns `null` once the model bytes are loaded, and the cause otherwise,
-  /// so no startup failure is flattened on its way to [classify]. The model is
-  /// loaded as bytes so it can be passed to the isolate.
+  /// Returns `null` once the contract is parsed, and the cause otherwise, so
+  /// no startup failure is flattened on its way to [classify].
   ///
-  /// An empty asset is [ClassificationFailureCause.modelEmpty] and is not
-  /// retried. A loader that fails on every attempt is
-  /// [ClassificationFailureCause.modelMissing]: no model bytes were obtained. A
-  /// later call may still retry it, since a failed load is not always a missing
-  /// file, and none of ADR 0015's causes names a transient one (SPEC 0078).
+  /// A contract that parses to a refusal is
+  /// [ClassificationFailureCause.contractMalformed] or
+  /// [ClassificationFailureCause.contractUnsupported], and is not reloaded. A
+  /// loader that fails on every attempt is
+  /// [ClassificationFailureCause.contractMissing]: no contract text was
+  /// obtained. A later call may still retry that one.
   ///
   /// [assetLoader] and [retryDelay] are injectable for tests.
   Future<ClassificationFailureCause?> initialize({
-    ModelAssetLoader? assetLoader,
+    ContractAssetLoader? assetLoader,
     Duration retryDelay = _initRetryDelay,
   }) async {
-    if (_isInitialized) return null;
+    if (_contract != null) return null;
     if (_permanentCause != null) return _permanentCause;
 
-    final load = assetLoader ?? rootBundle.load;
+    final load = assetLoader ?? rootBundle.loadString;
 
     for (var attempt = 1; attempt <= _maxInitAttempts; attempt++) {
+      final String text;
       try {
-        final byteData = await load(_modelPath).timeout(
-          _modelLoadTimeout,
-          onTimeout: () => throw Exception('Timeout loading model'),
+        text = await load(contractPath).timeout(
+          _contractLoadTimeout,
+          onTimeout: () => throw Exception('Timeout loading the contract'),
         );
-        if (byteData.lengthInBytes == 0) {
-          // An empty model will not change without a new build: do not retry.
-          return _permanentCause = ClassificationFailureCause.modelEmpty;
-        }
-        _modelBytes = byteData.buffer.asUint8List();
-        _isInitialized = true;
-        return null;
       } catch (e) {
         developer.log(
-          'Failed to initialize InferenceService '
+          'Failed to load the contract '
           '(attempt $attempt/$_maxInitAttempts): $e',
           name: 'InferenceService',
         );
         if (attempt < _maxInitAttempts) {
           await Future<void>.delayed(retryDelay);
         }
+        continue;
       }
+      final parsed = parseDescriptorContract(text);
+      if (parsed.cause != null) {
+        // A broken or unsupported contract will not change without a new
+        // build: do not reload it.
+        return _permanentCause = parsed.cause;
+      }
+      _contract = parsed.contract;
+      return null;
     }
 
     // Attempts exhausted for this call; a later call may retry.
-    return ClassificationFailureCause.modelMissing;
+    return ClassificationFailureCause.contractMissing;
   }
 
   /// Runs soil texture classification on an image.
@@ -174,13 +181,10 @@ class InferenceService {
     }
 
     // Spawned rather than `Isolate.run` so the timeout has a handle to kill.
-    // `Isolate.run` exposes none, so its timeout can only stop awaiting while
-    // the worker keeps holding the native interpreter and the input tensor.
     final responsePort = ReceivePort();
     Isolate? isolate;
     try {
       try {
-        // Passes the model as bytes since rootBundle does not work in isolates.
         // The exit is sent to the same port, so a worker that dies before
         // answering is reported now rather than when the timeout fires.
         isolate = await Isolate.spawn(
@@ -188,13 +192,16 @@ class InferenceService {
           InferenceRequest(
             responsePort: responsePort.sendPort,
             imagePath: imagePath,
-            modelBytes: _modelBytes!,
+            contract: _contract!,
+            measurer: measurer,
           ),
           onExit: responsePort.sendPort,
         );
       } catch (e) {
-        developer.log('classify() could not spawn: $e',
-            name: 'InferenceService');
+        developer.log(
+          'classify() could not spawn: $e',
+          name: 'InferenceService',
+        );
         return const ClassificationReport.failed(
           ClassificationFailureCause.isolateFailure,
         );
@@ -224,16 +231,21 @@ class InferenceService {
   /// Entry point of the inference isolate: runs the work and answers on the
   /// request's port. Static so it can be sent to a spawned isolate.
   static Future<void> _inferenceEntryPoint(InferenceRequest request) async {
-    final report = await runInference(request.imagePath, request.modelBytes);
+    final report = await runInference(
+      request.imagePath,
+      request.contract,
+      request.measurer,
+    );
     request.responsePort.send(report);
   }
 
-  /// Runs the actual inference (called inside the isolate). Each stage reports
-  /// its own cause: the image, then the interpreter, then its output.
+  /// Runs the descriptor path (called inside the isolate). Each stage reports
+  /// its own cause: the image, the measurement, the grid, then the score.
   @visibleForTesting
   static Future<ClassificationReport> runInference(
     String imagePath,
-    Uint8List modelBytes,
+    DescriptorContract contract,
+    PhotographMeasurer measurer,
   ) async {
     final imageFile = File(imagePath);
     if (!imageFile.existsSync()) {
@@ -255,97 +267,90 @@ class InferenceService {
     }
 
     try {
-      // Resizes to the size expected by the model
-      final resized = img.copyResize(
-        image,
-        width: _inputSize,
-        height: _inputSize,
-        interpolation: img.Interpolation.linear,
-      );
+      // Orientation first, as `ImageOps.exif_transpose` is in Python: the
+      // measurement and the grid are in the displayed frame.
+      final frame = frameOf(img.bakeOrientation(image));
 
-      // Normalizes pixels to [0, 1] and converts to the model's format
-      final input = _imageToInputTensor(resized);
-
-      // Loads the model from bytes (works in an isolate)
-      final interpreter = Interpreter.fromBuffer(modelBytes);
-
-      // `finally` releases the native handle on every exit: the success path,
-      // the early return for an incompatible model, and any throw from tensor
-      // inspection or the run itself.
-      try {
-        // Rejects an incompatible model instead of fabricating a label.
-        final inputTensor = interpreter.getInputTensor(0);
-        final outputTensor = interpreter.getOutputTensor(0);
-        final mismatch = checkTensors(
-          inputShape: inputTensor.shape,
-          inputType: inputTensor.type,
-          outputShape: outputTensor.shape,
-          outputType: outputTensor.type,
+      final measured = measurer(frame);
+      final measurement = measured.measurement;
+      if (measurement == null) {
+        return ClassificationReport.failed(
+          measured.cause ?? ClassificationFailureCause.computationError,
         );
-        if (mismatch != null) return ClassificationReport.failed(mismatch);
-
-        final numClasses = outputTensor.shape.last;
-        final output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
-        interpreter.run(input, output);
-
-        return interpretOutput(outputRow(output));
-      } finally {
-        interpreter.close();
       }
+
+      final cut = canonicalPatches(
+        measurement.frame,
+        measuredMmPerPx: measurement.mmPerPx,
+        centreYPx: measurement.centreYPx,
+        centreXPx: measurement.centreXPx,
+        diameterPx: measurement.diameterPx,
+        canonicalMmPerPx: contract.canonicalMmPerPx,
+        patchPx: contract.patchPx,
+        strideFraction: contract.patchStrideFraction,
+        minPatches: contract.minPatches,
+      );
+      final patches = cut.patches;
+      if (patches == null) {
+        return ClassificationReport.failed(_causeOf(cut.refusal!));
+      }
+
+      final features = [
+        for (final patch in patches)
+          describePatch(patch, contract.patchPx, contract.patchPx),
+      ];
+      final Float64List probabilities;
+      try {
+        probabilities = contract.distribution(features);
+      } on ArgumentError catch (e) {
+        // A non-finite logit: the contract cannot score these patches.
+        developer.log('distribution refused: $e', name: 'InferenceService');
+        return const ClassificationReport.failed(
+          ClassificationFailureCause.outputInvalid,
+        );
+      }
+      return reportFor(probabilities, contract.classes);
     } catch (e) {
       developer.log(
         'InferenceService.runInference failed: $e',
         name: 'InferenceService',
       );
       return const ClassificationReport.failed(
-        ClassificationFailureCause.interpreterError,
+        ClassificationFailureCause.computationError,
       );
     }
   }
 
-  /// The probabilities in the `[1, n]` tensor the interpreter filled.
-  ///
-  /// `reshape` without a type argument builds `List<List<dynamic>>`, so the row
-  /// is copied into a `List<double>` rather than cast: a cast throws on every
-  /// run, and the failure would read as an interpreter error.
+  /// A decoded image as the interleaved RGB bytes the patch grid reads. Alpha
+  /// is dropped rather than composited, as Pillow's `convert("RGB")` does.
   @visibleForTesting
-  static List<double> outputRow(List output) => [
-        for (final value in output[0] as List) (value as num).toDouble(),
-      ];
-
-  /// The mismatch between the loaded interpreter's tensors and what this path
-  /// builds and reads, or `null` when they agree: a `[1, 224, 224, 3]` float32
-  /// input, and a float32 output of one probability per known label.
-  @visibleForTesting
-  static ClassificationFailureCause? checkTensors({
-    required List<int> inputShape,
-    required TensorType inputType,
-    required List<int> outputShape,
-    required TensorType outputType,
-  }) {
-    final inputAgrees =
-        listEquals(inputShape, const [1, _inputSize, _inputSize, 3]) &&
-            inputType == TensorType.float32;
-    final outputAgrees = outputShape.length == 2 &&
-        outputShape.first == 1 &&
-        outputShape.last == textureLabels.length &&
-        outputType == TensorType.float32;
-    return inputAgrees && outputAgrees
-        ? null
-        : ClassificationFailureCause.modelContractMismatch;
+  static RgbFrame frameOf(img.Image image) {
+    final rgb = image.convert(format: img.Format.uint8, numChannels: 3);
+    return RgbFrame(
+      rgb.width,
+      rgb.height,
+      Uint8List.fromList(rgb.getBytes(order: img.ChannelOrder.rgb)),
+    );
   }
 
-  /// The report for one output tensor: a mismatch when it does not carry one
-  /// value per known label, an invalid output when a value is not a
-  /// probability, and the result otherwise.
+  static ClassificationFailureCause _causeOf(PatchRefusal refusal) =>
+      switch (refusal) {
+        PatchRefusal.tooCoarse =>
+          ClassificationFailureCause.photographTooCoarse,
+        PatchRefusal.regionTooSmall =>
+          ClassificationFailureCause.soilRegionTooSmall,
+        PatchRefusal.outsideFrame =>
+          ClassificationFailureCause.soilRegionOutsideFrame,
+      };
+
+  /// The report for one distribution over [labels]: invalid output when it
+  /// does not carry one probability per label, and the result otherwise.
   @visibleForTesting
-  static ClassificationReport interpretOutput(List<double> probabilities) {
-    if (probabilities.length != textureLabels.length) {
-      return const ClassificationReport.failed(
-        ClassificationFailureCause.modelContractMismatch,
-      );
-    }
-    final distribution = buildDistribution(probabilities, probabilities.length);
+  static ClassificationReport reportFor(
+    List<double> probabilities,
+    List<String> labels,
+  ) {
+    final distribution = buildDistribution(probabilities, labels);
     if (distribution == null) {
       return const ClassificationReport.failed(
         ClassificationFailureCause.outputInvalid,
@@ -353,66 +358,36 @@ class InferenceService {
     }
     // Top-1 comes from the distribution, so `distribution.first` and these two
     // fields cannot disagree.
-    return ClassificationReport.ok(InferenceResult(
-      textureClass: distribution.first.label,
-      confidenceScore: distribution.first.probability,
-      distribution: distribution,
-    ));
-  }
-
-  /// Converts an image to a [1, 224, 224, 3] float32 input tensor.
-  static List<List<List<List<double>>>> _imageToInputTensor(img.Image image) {
-    final input = List.generate(
-      1,
-      (_) => List.generate(
-        _inputSize,
-        (y) => List.generate(
-          _inputSize,
-          (x) {
-            final pixel = image.getPixel(x, y);
-            // image 4.x returns num for r/g/b (0-255 for 8-bit images)
-            return [
-              pixel.r.toDouble() / 255.0,
-              pixel.g.toDouble() / 255.0,
-              pixel.b.toDouble() / 255.0,
-            ];
-          },
-        ),
+    return ClassificationReport.ok(
+      InferenceResult(
+        textureClass: distribution.first.label,
+        confidenceScore: distribution.first.probability,
+        distribution: distribution,
       ),
     );
-    return input;
   }
 
-  /// Builds the full distribution from an output tensor, highest probability
-  /// first, or null when [numClasses] does not match the label list.
+  /// Builds the full distribution over [labels], highest probability first, or
+  /// null when it does not carry one probability per label.
   ///
-  /// Probabilities are passed through verbatim. Renormalising them so they sum
-  /// to 1 would hide a model that exported logits rather than probabilities,
-  /// and would make every verdict threshold meaningless while looking correct.
+  /// Probabilities are passed through verbatim. Renormalising them would hide
+  /// a contract that scores wrongly, and would make every verdict threshold
+  /// meaningless while looking correct.
   ///
-  /// Ties break on canonical label order, ascending. Probability alone does not
-  /// order the distribution — two classes can hold the same value — and the
-  /// order is user-visible, because it decides which class is named as top-1
-  /// and which pair an ambiguous verdict puts on screen.
+  /// Ties break on the order of [labels], which is the contract's. Probability
+  /// alone does not order the distribution — two classes can hold the same
+  /// value — and the order is user-visible, because it decides which class is
+  /// named as top-1 and which pair an ambiguous verdict puts on screen.
   @visibleForTesting
   static List<ClassScore>? buildDistribution(
     List<double> probabilities,
-    int numClasses,
+    List<String> labels,
   ) {
-    if (numClasses != textureLabels.length) return null;
-    if (probabilities.length != textureLabels.length) return null;
+    if (probabilities.length != labels.length) return null;
     // A NaN sorts above every number under `compareTo`, so it would become the
-    // top-1 class and carry a NaN confidence into the result. A finite value
-    // outside the unit interval is the quieter version of the same problem: it
-    // sorts correctly, so nothing downstream signals anything is wrong, yet a
-    // 1.1 becomes the top-1 confidence and clears every verdict threshold.
-    // Rejecting the whole tensor matches how an incompatible model is handled:
-    // refuse rather than fabricate a plausible-looking result.
-    //
-    // This is a domain check on each value, not a check that the tensor is a
-    // probability distribution. Values that are individually valid can still
-    // sum to anything, and they are passed through as they are — detecting
-    // that belongs with calibration and the `spec.json` contract, not here.
+    // top-1 class and carry a NaN confidence into the result, and a finite
+    // value outside the unit interval would clear every verdict threshold.
+    // Refuse rather than fabricate a plausible-looking result.
     if (probabilities.any(
       (probability) => !ClassScore.isProbability(probability),
     )) {
@@ -420,26 +395,22 @@ class InferenceService {
     }
 
     final scores = <ClassScore>[
-      for (var index = 0; index < textureLabels.length; index++)
-        ClassScore(
-          label: textureLabels[index],
-          probability: probabilities[index],
-        ),
+      for (var index = 0; index < labels.length; index++)
+        ClassScore(label: labels[index], probability: probabilities[index]),
     ];
     scores.sort((first, second) {
       final byProbability = second.probability.compareTo(first.probability);
       if (byProbability != 0) return byProbability;
-      return textureLabels
+      return labels
           .indexOf(first.label)
-          .compareTo(textureLabels.indexOf(second.label));
+          .compareTo(labels.indexOf(second.label));
     });
     return List.unmodifiable(scores);
   }
 
   /// Releases the service's resources.
   void dispose() {
-    _modelBytes = null;
-    _isInitialized = false;
+    _contract = null;
     _permanentCause = null;
   }
 }

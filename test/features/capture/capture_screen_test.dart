@@ -158,7 +158,7 @@ void main() {
       overrides: [
         inferenceServiceProvider.overrideWithValue(_FakeInference(
           (_) async => null,
-          cause: ClassificationFailureCause.modelMissing,
+          cause: ClassificationFailureCause.measurementUnavailable,
         )),
       ],
       child: MaterialApp(
@@ -183,7 +183,7 @@ void main() {
         (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
             as CaptureUiState;
     expect(uiState.classificationFailureCause,
-        ClassificationFailureCause.modelMissing);
+        ClassificationFailureCause.measurementUnavailable);
     expect(uiState.classificationResult, isNull);
   });
 

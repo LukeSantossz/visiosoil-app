@@ -194,7 +194,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       // defect in it; the screen still lands in the failed state.
       developer.log('Classification threw: $e', name: 'CaptureScreen');
       report = const ClassificationReport.failed(
-        ClassificationFailureCause.interpreterError,
+        ClassificationFailureCause.computationError,
       );
     }
     if (report.cause != null) {
