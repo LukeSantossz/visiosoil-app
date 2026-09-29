@@ -286,4 +286,30 @@ void main() {
       expect(text, isNot(contains('?android:colorBackground')), reason: file.path);
     }
   });
+
+  test('android_12_splash_leaves_without_the_exit_animation', () {
+    // Found by name, so the package the activity lives in does not matter.
+    final activities = Directory('android/app/src/main/kotlin')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.uri.pathSegments.last == 'MainActivity.kt')
+        .toList();
+    expect(activities, hasLength(1));
+
+    // Comments stripped, so an explanation cannot stand in for the code.
+    final source = activities.single
+        .readAsStringSync()
+        .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+        .replaceAll(RegExp(r'//[^\n]*'), '');
+    expect(
+      source,
+      matches(RegExp(
+        r'if\s*\(\s*Build\.VERSION\.SDK_INT\s*>=\s*Build\.VERSION_CODES\.S\s*\)'
+        r'\s*\{\s*splashScreen\.setOnExitAnimationListener\s*\{\s*(\w+)\s*->'
+        r'\s*\1\.remove\(\)\s*\}\s*\}',
+      )),
+      reason: 'on Android 12+ the splash must leave without the platform exit '
+          'animation, which dims the tile and slides the window',
+    );
+  });
 }
