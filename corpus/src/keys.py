@@ -2,9 +2,11 @@
 
 ADR 0022 names the coupling this exists to guard: if a future ADR changes the
 four classes, cells for changed classes are orphaned, so **the build derives keys
-from `SoilTextureLabels.ordered` rather than from a literal**, and the breakage is
+from the model's class list rather than from a literal**, and the breakage is
 loud. A list repeated here would satisfy itself while the corpus drifted away
-from the model it is keyed to.
+from the model it is keyed to. ADR 0022 named `SoilTextureLabels.ordered`; since
+SPEC 0083 the app has no class list of its own and labels a result with the
+shipped contract's classes, so that is what the corpus reads.
 
 The other three vocabularies are the design's own — clay-activity families,
 land uses, federative units and biomes — and they are literals here because
@@ -13,14 +15,14 @@ nothing else in the repository owns them.
 
 from __future__ import annotations
 
-import re
+import json
 from pathlib import Path
 
 LABELS_PATH = (
     Path(__file__).resolve().parent.parent.parent
-    / "lib"
+    / "assets"
     / "models"
-    / "soil_texture_labels.dart"
+    / "spec.json"
 )
 
 CLAY_ACTIVITIES = ("tb_oxidic", "intermediate", "ta_less_weathered")
@@ -52,25 +54,22 @@ UNITS = (
 
 
 def read_texture_classes(path: Path | None = None) -> list[str]:
-    """The class list the model emits, read from the app's own declaration.
+    """The class list the model emits, read from the contract the app ships.
 
     Fails loudly rather than falling back to a literal: a corpus keyed to a class
     list nobody can find is a corpus keyed to nothing.
     """
     source = Path(path) if path is not None else LABELS_PATH
-    text = source.read_text(encoding="utf-8")
-    match = re.search(
-        r"List<String>\s+ordered\s*=\s*\[(.*?)\]", text, re.DOTALL
-    )
-    if not match:
+    document = json.loads(source.read_text(encoding="utf-8"))
+    classes = document.get("classes") if isinstance(document, dict) else None
+    if not isinstance(classes, list) or not classes:
         raise ValueError(
-            f"{source} declares no `List<String> ordered`; the corpus derives "
-            f"its keys from that list and will not guess at one"
+            f"{source} carries no `classes` list; the corpus derives its keys "
+            f"from that list and will not guess at one"
         )
-    classes = re.findall(r"'([^']+)'", match.group(1))
-    if not classes:
-        raise ValueError(f"{source} declares an empty `ordered` list")
-    return classes
+    if not all(isinstance(name, str) and name for name in classes):
+        raise ValueError(f"{source} carries `classes` that are not all names")
+    return list(classes)
 
 
 def substance_key(texture_class: str, clay_activity: str) -> str:
