@@ -172,6 +172,14 @@ Flutter 3.44.1, compile and target SDK 36.
   it at 192 dp, which API 36 measured. A platform or vendor that changes either
   size changes the tile's size on screen. Nothing in a unit test can see that,
   and a recording is how it is caught.
+- The exit listener makes the platform copy the splash view into the app before
+  removing it. On the API 36 emulator's software GPU, that took 0.35 s and
+  0.72 s from "Displayed" to "remove starting view" in logcat. In a third run
+  the copy had not even started until 1.17 s after "Displayed". The tile stays
+  still meanwhile, but the Dart splash's text fades in unseen underneath. A real
+  GPU should copy faster, which is unmeasured here. The device pass (#290)
+  checks it. Removing the listener restores the platform's exit at the cost of
+  the dim.
 - On the API 30 emulator's software GPU (SwiftShader), Impeller's OpenGL ES
   backend cannot link its gradient shader: "active uniforms exceed
   GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)". So every Flutter gradient in the app
