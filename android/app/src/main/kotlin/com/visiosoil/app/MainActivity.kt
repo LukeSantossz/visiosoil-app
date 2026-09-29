@@ -1,4 +1,4 @@
-package com.visiosoil.visiosoil_app
+package com.visiosoil.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -939,7 +939,11 @@ Recommended order, and why:
    Python's half-to-even rounding: 13,178 RGB triples have a luma of exactly .5,
    and Dart's `round` moves each of them one grey level. The golden is
    byte-exact on Windows and on an AVX-512 Linux host. **Next: the A4-sheet
-   reader, the homography and the soil region on paper.**
+   reader, the homography and the soil region on paper.** **Since 2026-09-29 it
+   is also the Google Play release's critical path**
+   ([ADR 0026](../adr/0026-the-first-play-release-waits-for-classification.md)):
+   v1 ships only once a photograph taken in the app gets a class. It waits on
+   test photographs taken on an A4 sheet.
 4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
    0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
    criterion, and refitted on all 204 photographs of `v1`, population `B`
