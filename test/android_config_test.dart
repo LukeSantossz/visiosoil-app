@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Guards the Android backup policy (#111).
+/// Guards the Android manifest: the backup policy (#111) and the app name
+/// (#280).
 ///
 /// The cleartext SQLite database and the captured `soil_images/` originals are
 /// confidential field data that must not leave the device. `allowBackup="false"`
@@ -15,6 +16,21 @@ void main() {
       File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
   final rulesFile =
       File('android/app/src/main/res/xml/data_extraction_rules.xml');
+
+  test('android_manifest_labels_the_app_visiosoil', () {
+    final application = RegExp(r'<application\b[^>]*>').firstMatch(manifest);
+    expect(
+      application,
+      isNotNull,
+      reason: '<application> is missing from AndroidManifest.xml',
+    );
+    expect(
+      application!.group(0),
+      contains('android:label="VisioSoil"'),
+      reason: 'the launcher, recent apps and permission dialogs show this '
+          'label; it must be VisioSoil, not the template placeholder',
+    );
+  });
 
   test('manifest_declares_allow_backup_false', () {
     expect(
