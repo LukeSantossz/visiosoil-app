@@ -76,6 +76,12 @@ The photograph's distribution is the mean of `p` over its patches. This is
 exactly `Pipeline.predict_proba` for a multinomial lbfgs `LogisticRegression`,
 then the mean in `_predict`.
 
+A patch whose logits are not all finite is refused rather than turned into NaN
+probabilities. That happens when a feature is a NaN or an infinity, and when a
+finite feature is large enough to overflow its logit. `predict_proba` refuses
+the first case in the same way, and one check on the logits covers both,
+because a non-finite feature always yields a non-finite logit.
+
 **Refusals are split by what the reader can do, as ADR 0015 groups them.**
 
 - **`contractMalformed`: the file is broken.** That covers text that does not
@@ -191,6 +197,9 @@ Dart:
 - `unknown_keys_are_ignored`
 - `a_photograph_with_no_patch_is_refused`: `distribution([])` and a patch of the
   wrong width raise an `ArgumentError`.
+- `a_patch_with_a_non_finite_logit_is_refused`: a patch holding a NaN, one
+  holding an infinity, and one whose finite features overflow a logit each raise
+  an `ArgumentError`. Added after R3 on PR #258.
 
 ## Reproducibility
 
@@ -212,7 +221,8 @@ Python 3.12, scikit-learn 1.5.2 and numpy 1.26.4 locally, within the ranges in
   broke it would fail rather than drift.
 - **Risk:** synthetic features do not exercise magnitudes a real fit produces.
   The arithmetic has no branch that depends on magnitude, and the softmax
-  subtracts the maximum logit, so overflow is not reachable.
+  subtracts the maximum logit, so no exponential overflows. A logit that is
+  itself not finite is refused, as the Design Decision says.
 - **What would invalidate this spec:** B3 finding that the release fit needs a
   field this schema cannot carry. It would then extend the schema, with a new
   `spec_version` if the change is not additive.
