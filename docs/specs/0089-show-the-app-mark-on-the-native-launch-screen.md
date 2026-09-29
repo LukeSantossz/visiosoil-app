@@ -16,22 +16,32 @@ tile at the same place and size, and the Dart splash's first frame shows that
 tile already in place, so nothing about the mark changes when Flutter takes
 over.
 
-- **One tile, drawn natively.** The tile is two drawables:
-  - `launch_tile.xml`, a rounded rectangle with the `primary` to `tertiary`
+- **One tile, drawn natively.** The tile is two vector drawables, so each
+  scales as a whole, corners and strokes included:
+  - `launch_tile.xml`, the rounded square with the `primary` to `tertiary`
     gradient the Dart splash paints;
-  - `launch_mark.xml`, a vector drawable of the brand mark in white.
+  - `launch_mark.xml`, the brand mark in white.
 
-  The vector is drawn from the same geometry `paintVisioSoilMark` uses. That
+  The mark is drawn from the same geometry `paintVisioSoilMark` uses. That
   geometry moves into one constant, which both the painter and a test read, so
   the two cannot drift.
 - **Android 11 and earlier.** `launch_background.xml` layers the app background
   (`AppColors.background`), then the 120 dp tile, then the 64 dp mark, centred.
 - **Android 12 and later.** `values-v31/styles.xml` sets
   `windowSplashScreenBackground` to the app background, and
-  `windowSplashScreenAnimatedIcon` to `launch_icon.xml`. That drawable is the
-  same tile and mark centred on the platform's 288 dp icon canvas, which the
-  system masks to a 192 dp circle. The tile's corners lie 85 dp from its centre,
-  so the mask never cuts them.
+  `windowSplashScreenAnimatedIcon` to `launch_icon.xml`, the same tile and mark.
+  - **Sizes.** The platform lays an icon without a background out in a 108 dp
+    box and shows it at 192 dp, masked to a circle. So `launch_icon.xml` draws
+    the tile and mark at 108/192 of the splash's sizes, 67.5 dp and 36 dp, and
+    they appear on screen at 120 dp and 64 dp. The tile's corners then lie 85 dp
+    from its centre, inside the 96 dp mask.
+  - **Exit.** `MainActivity` removes the system splash as soon as Flutter has
+    drawn, without the platform's exit animation. That animation fades the
+    icon, then the background, and slides the app window, so the tile would dim
+    for a quarter of a second at the hand-over.
+
+  The sizes are the ones the device check measured, not the 288 dp canvas the
+  platform's design guidance describes.
 - **Both modes are light.** The launch window and `NormalTheme` paint the app
   background in light and dark system modes, because the app has no dark theme
   on `main` (`MaterialApp` sets only `AppTheme.light`). The template's dark-mode
@@ -64,6 +74,14 @@ over.
    state.** Rejected: an animation that starts at the final state does not
    animate. The fade is kept where it adds something: on the text, which the
    native window does not show.
+5. **Keep the platform's splash exit animation.** Rejected after the device
+   check. With the tile matched, the exit is the only visible seam left: on API
+   36 the icon faded, then the background, and the app window slid by about
+   3 dp, over roughly 250 ms. Removing the splash view on exit leaves no frame
+   between the native tile and Flutter's.
+6. **Draw the tile as a `<shape>`.** Rejected after the device check: a shape's
+   corner radius is absolute, so drawing it at 67.5 dp for the Android 12 icon
+   keeps 24 dp corners, which the platform then scales to 43 dp.
 
 ## Scope
 
@@ -81,6 +99,9 @@ over.
     constant, which `paintVisioSoilMark` reads. What it paints does not change.
   - `lib/core/features/splash/splash_screen.dart`: the layout and animation
     above, and the tile constants.
+  - `MainActivity.kt`: the exit listener, on Android 12 and later. SPEC 0088
+    moves the file to the `com.visiosoil.app` package, so the listener lands
+    after that change, in the moved file.
   - `test/android_launch_screen_test.dart` and
     `test/features/splash/splash_screen_test.dart`, new.
 - Does NOT include:
@@ -97,10 +118,11 @@ over.
 - `launch_colours_are_the_splash_colours`: in `res/values/colors.xml`, the
   launch background equals `AppColors.background`, and the tile's gradient runs
   from `AppColors.primary` to `AppColors.tertiary`.
-- `launch_tile_matches_the_splash_tile`: `launch_tile.xml` has the splash
-  tile's corner radius, and its gradient runs from top-left to bottom-right.
-  Both `launch_background.xml` and `launch_icon.xml` draw it at the splash
-  tile's size, and draw the mark at the splash mark's size.
+- `launch_tile_matches_the_splash_tile`: `launch_tile.xml` is a vector whose
+  viewport is the splash tile's size. Its path is that square with the splash
+  tile's corner radius, and its gradient runs from the top-left corner to the
+  bottom-right one. `launch_background.xml` draws the tile and the mark at the
+  splash's sizes, and `launch_icon.xml` draws them at 108/192 of those sizes.
 - `launch_mark_draws_the_painted_mark`: `launch_mark.xml` draws exactly the
   ring, three grains and handle of the mark geometry, in white, on its 48-unit
   viewport.
@@ -109,8 +131,10 @@ over.
   order, centred, and it is the only `launch_background` drawable in `res/`.
 - `android_12_splash_shows_the_same_tile`: `LaunchTheme` in
   `res/values-v31/styles.xml` sets `windowSplashScreenBackground` to the launch
-  background and `windowSplashScreenAnimatedIcon` to `launch_icon.xml`, whose
-  canvas is 288 dp.
+  background and `windowSplashScreenAnimatedIcon` to `launch_icon.xml`.
+- `android_12_splash_leaves_without_the_exit_animation`: `MainActivity`, on
+  Android 12 and later, sets a splash-screen exit listener that removes the
+  splash view.
 - `no_window_paints_the_template_background`: `NormalTheme` paints the launch
   background, and no styles file under `res/` names `Theme.Black` or
   `?android:colorBackground`.
@@ -140,15 +164,20 @@ Flutter 3.44.1, compile and target SDK 36.
 
 ## Risks and Assumptions
 
-- Assumes the native window and the Flutter view share a centre. That holds
-  where Flutter draws edge to edge, which is every Android 15+ device, since the
-  app targets 35+. On Android 14 and earlier, Flutter does not draw behind the
-  navigation bar. So its centre may sit higher than the window's, by half that
-  bar. The API 30 recording measures the offset, and the pull request reports
-  it.
-- Assumes Android 12+ shows `windowSplashScreenAnimatedIcon` unscaled on its
-  288 dp canvas, which is the documented size for an icon without a
-  background.
+- Assumes the native window and the Flutter view share a centre. The device
+  check measured it on API 36 (1 px apart) and on API 30 with a three-button
+  navigation bar (1.5 px apart), where neither the launch window nor the Flutter
+  view extends under the bar.
+- Relies on the platform laying the Android 12+ icon out in 108 dp and showing
+  it at 192 dp, which API 36 measured. A platform or vendor that changes either
+  size changes the tile's size on screen. Nothing in a unit test can see that,
+  and a recording is how it is caught.
+- On the API 30 emulator's software GPU (SwiftShader), Impeller's OpenGL ES
+  backend cannot link its gradient shader: "active uniforms exceed
+  GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)". So every Flutter gradient in the app
+  renders without its fill there, the splash tile included. This change adds no
+  Flutter gradient, and whether a real low-end GPU hits the same limit is for
+  the device pass (#290).
 - If an app-level dark theme lands before this merges, the light-only premise is
   wrong and the night variant has to come back in this change.
 - SPEC 0088 is held by another open change. This spec merges after it.
