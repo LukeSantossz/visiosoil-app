@@ -7,7 +7,7 @@ implementation rather than design. The reasoning behind the choices lives in
 and 0012–0013; the current state for other terminals lives in
 `docs/architecture/ml-handoff.md`. This file is the plan, and only the plan.
 
-Last updated: 2026-09-22.
+Last updated: 2026-09-29.
 
 > **Revised 2026-09-22. The gate ran, the descriptor path is adopted, and the
 > release path is rebuilt around it.** Where anything below disagrees with this
@@ -540,6 +540,15 @@ Dart, and scored by the contract's standardiser and regression.
   did — a spectral band is a physical wavelength only at the canonical — so ADR
   0017's refusal is a precondition here.
 
+  **Split in two on 2026-09-29, at the Developer's call.** SPEC 0081 is the
+  first half, the grid from a measured scale. It covers the resample, the grey
+  plane, the geometry and the cut, ported from `_photograph_patches` byte for
+  byte ([ADR 0025](../adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md)).
+  The second half comes next: the A4-sheet reader, the homography and the soil
+  region on paper. The mean aggregation was already `DescriptorContract.distribution`
+  (SPEC 0079). The dispersion metric moves to the wiring, because it has no
+  Python reference, no consumer and no calibrated threshold.
+
 ### A7 — On-device patch-batch latency budget
 
 **Record:** none yet; the measurement is a document. **Depends on:** A6 for the
@@ -904,10 +913,16 @@ Recommended order, and why:
 3. **A6 Dart (2), the A4-sheet scale reader, the resample and the grid.** It is
    the largest item and blocks any release: the descriptor path reads physical
    wavelengths, so a photograph without a scale is refused rather than guessed
-   at.
+   at. **Split in two.** SPEC 0081 did the first half, cutting the grid from a
+   measured scale. Pillow's `BILINEAR` is ported byte for byte (ADR 0025), with
+   Python's half-to-even rounding: 13,178 RGB triples have a luma of exactly .5,
+   and Dart's `round` moves each of them one grey level. The golden is
+   byte-exact on Windows and on an AVX-512 Linux host. **Next: the A4-sheet
+   reader, the homography and the soil region on paper.**
 4. **B3, the release fit**, written into the contract as numbers.
 5. **The wiring, then C2.** Until the wiring lands, training and inference still
-   disagree, and SPEC 0053's rule stands: no model is released before then.
+   disagree, and SPEC 0053's rule stands: no model is released before then. The
+   wiring also takes the dispersion metric, which moved out of A6 Dart (2).
 
 **The order below is kept for the reasoning that produced it.** It ran up to the
 gate, and the gate has run.
