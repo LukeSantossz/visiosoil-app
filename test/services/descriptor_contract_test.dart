@@ -26,7 +26,8 @@ void main() {
     expect(
       file.existsSync(),
       isTrue,
-      reason: '$_goldenPath is missing. Regenerate it with '
+      reason:
+          '$_goldenPath is missing. Regenerate it with '
           '`cd ml && python scripts/generate_contract_golden.py`.',
     );
     golden = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
@@ -53,8 +54,8 @@ void main() {
 
   test('dart_distribution_matches_the_golden', () {
     final parsed = parseDescriptorContract(jsonEncode(golden['contract']));
-    final photographs =
-        (golden['photographs'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final photographs = (golden['photographs'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
     expect(photographs, isNotEmpty);
     for (final photograph in photographs) {
       final patches = [
@@ -69,8 +70,11 @@ void main() {
           .toList();
       expect(distribution.length, expected.length);
       for (var index = 0; index < expected.length; index++) {
-        expect(distribution[index], _near(expected[index]),
-            reason: '${photograph['name']}[$index]');
+        expect(
+          distribution[index],
+          _near(expected[index]),
+          reason: '${photograph['name']}[$index]',
+        );
       }
     }
   });
@@ -259,5 +263,34 @@ void main() {
       () => parsed.contract!.distribution([Float64List(25)]),
       throwsArgumentError,
     );
+  });
+
+  test('a_patch_with_a_non_finite_logit_is_refused', () {
+    final parsed = parseDescriptorContract(jsonEncode(golden['contract']));
+    final width = parsed.contract!.mean.length;
+    for (final value in [double.nan, double.infinity]) {
+      final patch = Float64List(width)..[3] = value;
+      expect(
+        () => parsed.contract!.distribution([patch]),
+        throwsArgumentError,
+        reason: '$value',
+      );
+    }
+
+    // Every feature one scale above its mean, against coefficients of 1e308:
+    // each term is finite and their sum is not.
+    final document = contract();
+    final regression = section(document, 'regression');
+    regression['coefficients'] = [
+      for (final _ in regression['coefficients'] as List<dynamic>)
+        List<double>.filled(width, 1e308),
+    ];
+    final overflowing = parseDescriptorContract(jsonEncode(document)).contract!;
+    final patch = Float64List.fromList([
+      for (var feature = 0; feature < width; feature++)
+        overflowing.mean[feature] + overflowing.scale[feature],
+    ]);
+    expect(patch.every((value) => value.isFinite), isTrue);
+    expect(() => overflowing.distribution([patch]), throwsArgumentError);
   });
 }
