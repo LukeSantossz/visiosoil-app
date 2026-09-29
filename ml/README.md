@@ -1,6 +1,6 @@
 # VisioSoil ML Pipeline
 
-Reproducible TensorFlow/Keras pipeline for training, evaluating, and exporting the soil texture classifier used in the VisioSoil mobile app.
+Reproducible TensorFlow/Keras pipeline for training, evaluating, and releasing the soil texture classifier used in the VisioSoil mobile app.
 
 ## Architecture
 
@@ -411,42 +411,38 @@ contrasts that ran, so a family registered with three and corrected over two is
 a deviation from the pre-registration, and both numbers are written down rather
 than one of them inferred.
 
-## Export to TFLite
+## Release
 
 ```bash
-python -m src.export --version v1
+python -m src.release --version v1 --model-version 1.0.0
 ```
 
-Converts the Keras model to TFLite (no quantization by default) and generates `models/v1/spec.json` — the integration contract the Flutter `InferenceService` is specified to consume. It does not read it yet: `SPEC 0035` is the change that makes the contract a runtime source, and until it lands the Dart side declares the same values in source.
+Fits the adopted descriptor pipeline once on all of `v1` and writes
+`models/v1/release/spec.json`, the contract of numbers the app scores with. Beside
+it, `selection.json` records why `C` was chosen, and never as a performance figure
+(SPEC 0082). The folds of the evaluation protocol exist to measure, not to
+nominate, so no fold's model is promoted: the release is its own fit.
 
-`src.export` reads `models/v1/model.keras`. Cross-validation produces one model
-per fold per repeat under `models/v1/<arm>/repeat-<r>/fold-<i>/`, and **which of
-them ships is a release decision this protocol does not make**: the folds exist
-to measure, not to nominate. Promoting a model to `models/v1/model.keras` is the
-step that precedes an export.
+There is no TFLite conversion. The v1 classifier is the descriptor path
+(ADR 0024), and SPEC 0084 removed the export that converted the CNN.
 
 ## Full Pipeline
 
-Run all three steps in sequence:
+Cross-validate one arm, then report it:
 
 ```bash
 python -m src.crossval --version v1 --arm cnn
 python -m src.evaluate --version v1 --arm cnn
-python -m src.export --version v1
 ```
 
-On macOS/Linux, you can also use the helper script:
-
-```bash
-bash scripts/train_and_export.sh v1
-```
+On macOS/Linux, `make train evaluate ARM=cnn` runs the same two steps.
 
 ### Configuration
 
 All hyperparameters, class names, preprocessing settings, and augmentation options are defined in `config.yaml` — the single source of truth for the pipeline.
 
 Key configuration sections:
-- `preprocessing.normalization`: `"mobilenet_v2"` — the only accepted value, and the only preprocessing contract the pipeline implements. The model bakes the [0,1] to [-1,1] conversion into its graph, `spec.json` declares `divide_255` to match, and `preprocessing.bake_into_model` must be `true` (SPEC 0034).
+- `preprocessing.normalization`: `"mobilenet_v2"` — the only accepted value, and the only preprocessing contract the pipeline implements. The CNN arm bakes the [0,1] to [-1,1] conversion into its graph, and `preprocessing.bake_into_model` must be `true` (SPEC 0034).
 - `model.unfreeze_at_epoch`: Epoch at which fine-tuning begins (backbone unfreezing).
 - `model.unfreeze_layers`: Number of top backbone layers to unfreeze.
 - `training.class_weights`: `"balanced"` for automatic class weight computation.
@@ -454,14 +450,14 @@ Key configuration sections:
 
 ## Deploy to App
 
-Copies `model.tflite` and `spec.json` to the Flutter `assets/models/` directory.
+Promotes `models/v1/release/spec.json` into the Flutter app as
+`assets/models/spec.json`, which is tracked (ADR 0012). The commit that adds it is
+the release record.
 
 **Windows (PowerShell):**
 
 ```powershell
-$version = "v1"
-Copy-Item "models\$version\model.tflite" "..\assets\models\soil_classifier.tflite"
-Copy-Item "models\$version\spec.json" "..\assets\models\spec.json"
+Copy-Item "models\v1\release\spec.json" "..\assets\models\spec.json"
 ```
 
 **macOS / Linux:**
@@ -470,7 +466,7 @@ Copy-Item "models\$version\spec.json" "..\assets\models\spec.json"
 bash scripts/deploy_to_app.sh v1
 ```
 
-After deploying, run `flutter build apk --release` to verify the build.
+After deploying, run `flutter test` and `flutter build apk --release` to verify the build.
 
 ## Versioning
 
@@ -488,27 +484,29 @@ Tests cover:
 - Config loading and validation (including new fields)
 - Preprocessing (mobilenet_v2 normalization, augmentation layers)
 - Model output (shape, probability sum, Rescaling layer, unfreeze)
-- TFLite export (loads, runs, Keras parity, spec.json contract)
+- The descriptor contract, the release fit, and the cross-language goldens the Dart side is held to
 
 ## Integration with Flutter App
 
-`spec.json` describes the model contract. **The Flutter `InferenceService` does
-not read it today** — it hardcodes the same values, which is issue #79 and what
-`docs/specs/0035-spec-json-runtime-contract.md` specifies away. The contract is:
-- **Input:** Divide pixel values by 255 → produces [0, 1] range.
-- **Model internal:** Rescaling layer converts [0, 1] → [-1, 1] (no Flutter code change needed).
-- **Output:** 5-class softmax probabilities.
+The app reads one file, `assets/models/spec.json`: the descriptor contract
+(`spec_version` 2) that `src.contract` writes and `src.release` fits. It carries
+the class list, the patch geometry and canonical scale, the descriptor settings,
+the standardiser and the regression. `InferenceService` parses it once and scores
+each photograph with it in Dart (SPEC 0079, SPEC 0083), so the class labels come
+from this file and from nowhere else.
 
 ## Artifacts per Version
 
 ```
 models/v1/
-├── model.tflite         # Deployable TFLite model
-├── model.keras          # Keras checkpoint (gitignored)
-├── best_model.keras     # Best checkpoint from Phase 2 (gitignored)
-├── spec.json            # Input/output contract for InferenceService
-├── metrics.json         # Accuracy, F1, per-class metrics
-├── config.json          # Snapshot of config.yaml used for training
-├── history.json         # Training history (loss, accuracy per epoch)
-└── confusion_matrix.png # Visual confusion matrix
+├── <arm>/
+│   ├── metrics.json          # The arm's report, read back from its folds
+│   └── repeat-<r>/fold-<i>/  # One fold: its config, predictions, cost and runtime records;
+│                             #   a CNN fold also saves model.keras and fine_tune.json
+└── release/
+    ├── spec.json             # The contract deploy_to_app.sh promotes
+    └── selection.json        # Why C was chosen; never a performance figure
 ```
+
+Everything under `models/` is git-ignored. The promoted `assets/models/spec.json`
+is the tracked copy.

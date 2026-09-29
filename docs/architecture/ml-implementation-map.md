@@ -733,8 +733,7 @@ hold.
 `spec.json` alone, and the first tracked release, `1.0.0` on `v1`. The
 criteria below about Keras, TFLite and `best_model.keras` retired with ADR
 0024, and so did #29's parity gate: the cross-language goldens stand where it
-stood. What is left of the TFLite path, `export.py` included, goes with the
-wiring.
+stood. What was left of the TFLite path, `export.py`, is removed by SPEC 0084.
 
 **Acceptance criteria**
 
@@ -851,6 +850,11 @@ every band silently.
 calibrating as much as a network's. With no quantization step after it, #187's
 concern about calibrating before quantizing no longer arises.
 
+**The dispersion metric joins C2, 2026-09-29 (SPEC 0084).** How much a
+photograph's patches disagree has no Python reference, no consumer and no
+threshold yet. C2 is where a threshold would be calibrated, so the metric is
+specified there or not at all.
+
 ### C3 — Quantization ladder (E8)
 
 Float32, float16, dynamic range, full int8. Selection criterion is accuracy
@@ -942,9 +946,13 @@ Recommended order, and why:
    and `tflite_flutter` are gone, and ADR 0015's table is amended to thirteen
    causes. Scale and soil region enter through a `PhotographMeasurer` seam. The
    only measurer this build ships is `measurementUnavailable`, so every
-   photograph is refused by name until the A4-sheet reader replaces it. **Left
-   for the second half:** the dispersion metric, and the Python TFLite path
-   (`export.py` and the CNN training).
+   photograph is refused by name until the A4-sheet reader replaces it.
+   **The second half is SPEC 0084, and it is narrower than planned.** It removes
+   the TFLite export, `export.py` and what only it used, and nothing else. The
+   CNN training stays, because the shuffled control *is* the CNN trained on
+   permuted labels: removing it would take the gate's control and leave E0's
+   verdict unreproducible, which is an ADR's call. The dispersion metric moves
+   to C2, where a threshold for it can be calibrated.
 
 **The order below is kept for the reasoning that produced it.** It ran up to the
 gate, and the gate has run.
