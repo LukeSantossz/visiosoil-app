@@ -728,6 +728,14 @@ about Keras, TFLite and `best_model.keras` describe the path that failed the
 gate. The release-commit rule (ADR 0012) and the one path resolution (#30) still
 hold.
 
+**Done 2026-09-29 by SPEC 0082.** The release fit, its provenance record
+(`models/v1/release/selection.json`), `deploy_to_app.sh` promoting
+`spec.json` alone, and the first tracked release, `1.0.0` on `v1`. The
+criteria below about Keras, TFLite and `best_model.keras` retired with ADR
+0024, and so did #29's parity gate: the cross-language goldens stand where it
+stood. What is left of the TFLite path, `export.py` included, goes with the
+wiring.
+
 **Acceptance criteria**
 
 - The post-conversion parity gate runs on the real held-out test set, not on
@@ -919,7 +927,13 @@ Recommended order, and why:
    and Dart's `round` moves each of them one grey level. The golden is
    byte-exact on Windows and on an AVX-512 Linux host. **Next: the A4-sheet
    reader, the homography and the soil region on paper.**
-4. **B3, the release fit**, written into the contract as numbers.
+4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
+   0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
+   criterion, and refitted on all 204 photographs of `v1`, population `B`
+   included. `C` from 1 to 100 is a plateau: 0.6770, 0.6771 and 0.6767. The
+   release is `assets/models/spec.json` `1.0.0`, tracked under ADR 0012 and
+   promoted by `deploy_to_app.sh`, and a rerun reproduces it byte for byte.
+   Its headline metrics are E0's estimate of the procedure.
 5. **The wiring, then C2.** Until the wiring lands, training and inference still
    disagree, and SPEC 0053's rule stands: no model is released before then. The
    wiring also takes the dispersion metric, which moved out of A6 Dart (2).
