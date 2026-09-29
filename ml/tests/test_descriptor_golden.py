@@ -49,6 +49,35 @@ def _close(actual: float, expected: float) -> bool:
     return abs(actual - expected) <= RELATIVE * abs(expected) + ABSOLUTE
 
 
+def _mismatches(actual, expected, path: str = "golden") -> list:
+    """Where `actual` departs from `expected` (SPEC 0080).
+
+    Floats may differ within the tolerance, because numpy's `log10` and `power`
+    give other last digits on another CPU. Everything else, types included, must
+    be equal exactly.
+    """
+    if type(actual) is not type(expected):
+        return [f"{path}: {type(actual).__name__} where {type(expected).__name__} was"]
+    if isinstance(expected, dict):
+        if actual.keys() != expected.keys():
+            return [f"{path}: keys {sorted(actual)} against {sorted(expected)}"]
+        return [
+            found
+            for key in expected
+            for found in _mismatches(actual[key], expected[key], f"{path}.{key}")
+        ]
+    if isinstance(expected, list):
+        if len(actual) != len(expected):
+            return [f"{path}: length {len(actual)} against {len(expected)}"]
+        return [
+            found
+            for index, (item, want) in enumerate(zip(actual, expected))
+            for found in _mismatches(item, want, f"{path}[{index}]")
+        ]
+    same = _close(actual, expected) if isinstance(expected, float) else actual == expected
+    return [] if same else [f"{path}: {actual!r} against {expected!r}"]
+
+
 def test_python_reproduces_the_golden():
     golden = _golden()
     assert golden["feature_names"] == list(feature_names())
@@ -109,8 +138,10 @@ def test_golden_generation_is_deterministic():
     first = generator.render(generator.build_golden())
     second = generator.render(generator.build_golden())
     assert first == second
-    assert first == GOLDEN_PATH.read_text(encoding="utf-8"), (
-        "the committed golden is not what the generator writes; rerun it"
+    mismatches = _mismatches(json.loads(first), _golden())
+    assert not mismatches, (
+        "the committed golden is not what the generator writes; rerun it: "
+        + "; ".join(mismatches[:5])
     )
 
 
