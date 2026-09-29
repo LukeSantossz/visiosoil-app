@@ -165,9 +165,20 @@ Flutter 3.44.1, compile and target SDK 36.
 ## Risks and Assumptions
 
 - Assumes the native window and the Flutter view share a centre. The device
-  check measured it on API 36 (1 px apart) and on API 30 with a three-button
-  navigation bar (1.5 px apart), where neither the launch window nor the Flutter
-  view extends under the bar.
+  check measured it in two places:
+  - on API 36, 1 px apart, where the app is edge to edge;
+  - on API 30 with a three-button navigation bar, 1.5 px apart, where neither
+    the launch window nor the Flutter view extends under the bar.
+
+  **API 31 to 34 is unmeasured.** Flutter does not draw under the navigation
+  bar there, and if the system splash centres its icon on the whole display, the
+  tile moves by half the bar at the hand-over: about 8 dp with gesture
+  navigation, 24 dp with three buttons. It would not vanish. No emulator image
+  for those levels was on the machine.
+- The Dart splash's text now sits below a tile centred in the whole view,
+  rather than in a `SafeArea` column. On a screen too short for it, as in a
+  landscape phone or at the largest font scale, the text is clipped at the
+  bottom instead of overflowing.
 - Relies on the platform laying the Android 12+ icon out in 108 dp and showing
   it at 192 dp, which API 36 measured. A platform or vendor that changes either
   size changes the tile's size on screen. Nothing in a unit test can see that,
