@@ -11,8 +11,11 @@ The pixels are stored as base64 of the raw ``uint8`` plane. No image codec
 stands between the two languages.
 
 Fixtures come from fixed seeds and integer arithmetic only, so a run with no
-source change writes a byte-identical file. A non-empty diff means an
-implementation changed, and the diff is the evidence.
+source change writes a byte-identical file on the same machine. On another CPU
+numpy's `log10` and `power` can move a band edge in its last digit, so the test
+compares a regeneration with the committed file within the tolerance (SPEC
+0080). A diff beyond the last digits means an implementation changed, and the
+diff is the evidence.
 
 Run from the `ml/` directory:
 
