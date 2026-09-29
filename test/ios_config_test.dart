@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Guards the iOS Google Sign-In configuration in `ios/Runner/Info.plist` (#66).
+/// Guards `ios/Runner/Info.plist`: the Google Sign-In configuration (#66) and
+/// the display name (#280).
 ///
 /// `GIDClientID` and the reversed-client-id URL scheme are what let the consent
 /// flow redirect back into the app on iOS. The values are public redirect
@@ -16,6 +17,18 @@ void main() {
       'com.googleusercontent.apps.510431694243-e47ime8ba2mhoa15jorp3i4s3u2g2v5g';
 
   final plist = File('ios/Runner/Info.plist').readAsStringSync();
+
+  test('ios_display_name_is_visiosoil', () {
+    final match =
+        RegExp(r'<key>CFBundleDisplayName</key>\s*<string>([^<]*)</string>')
+            .firstMatch(plist);
+    expect(
+      match,
+      isNotNull,
+      reason: 'CFBundleDisplayName is missing from ios/Runner/Info.plist',
+    );
+    expect(match!.group(1), 'VisioSoil');
+  });
 
   test('info_plist_declares_gidclientid', () {
     final match = RegExp(r'<key>GIDClientID</key>\s*<string>([^<]*)</string>')
