@@ -240,7 +240,7 @@ visiosoil-app/
 - [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
 - [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 436 Dart tests plus 234 Python tests under `ml/tests/`. Three Dart tests are skipped on a feature branch: an icon-generation test gated on `GENERATE_ICONS`, and the two spec-numbering contiguity guards, which run on `main` only
-- [x] CI pipeline of six jobs — `analyze`, `test` and `ml-tests` in parallel, then `build` (release APK) and `build-ios` (unsigned), then `smoke` booting the minified APK on an emulator — with the Flutter toolchain pinned in each of the four jobs that use it
+- [x] CI pipeline of eight jobs — `analyze`, `test`, `ml-tests`, `corpus-tests` and `gates` (the standards gates at the `mf` version `.framework.lock` pins, [SPEC 0085](docs/specs/0085-run-the-standards-gates-in-ci.md)) in parallel, then `build` (release APK) and `build-ios` (unsigned), then `smoke` booting the minified APK on an emulator — with the Flutter toolchain pinned in each of the four jobs that use it
 - [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
 
 ### Pending

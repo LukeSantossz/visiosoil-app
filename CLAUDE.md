@@ -258,7 +258,7 @@ Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metad
 
 ## CI Pipeline
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, seven jobs:
+GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, eight jobs:
 1. **analyze** — `flutter analyze`
 2. **test** — `flutter test` (installs `libsqlite3-dev` on Ubuntu for Drift; checks out with `fetch-depth: 0`, which the durable-numbering guard needs)
 3. **ml-tests** — `python -m pytest tests/` in `ml/` on Python 3.12, with `permissions: contents: read`
@@ -266,6 +266,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 5. **build** — `flutter build apk --release` (needs analyze + test + ml-tests + corpus-tests), then verifies R8 kept the auth classes in the release DEX
 6. **build-ios** — `flutter build ios --release --no-codesign` on macOS (needs analyze + test)
 7. **smoke** — boots the minified release APK on an emulator (needs build)
+8. **gates** — the standards gates the hooks run, so a clone that never wired `core.hooksPath` still meets them (SPEC 0085). It installs `mf` at the `framework_version` `.framework.lock` pins, from the release asset with its checksum verified, and fails if the binary reports another version. It runs `mf check` on a pull request, after restoring the head and base refs that `actions/checkout` leaves detached, and `mf check docs records agents design` on any other event
 
 ## Current Limitations
 

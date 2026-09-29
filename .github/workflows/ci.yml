@@ -117,6 +117,85 @@ jobs:
         # the fetcher by an injected transport, so this job is deterministic.
         run: python -m pytest tests/ -v
 
+  gates:
+    # The standards gates (#201, SPEC 0085). The hooks run `mf check` only on a
+    # clone that wired `core.hooksPath` and has the binary, so a pull request
+    # from anywhere else met no gate, and nothing said so.
+    # `.standards/docs/standards/INDEX.md` puts the same `mf check` in CI for
+    # that reason. Modelled on the framework's own `.github/workflows/gate.yml`.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # The spec, commit and branch gates read the range between the base
+          # branch and this one, and a shallow clone has neither end of it.
+          fetch-depth: 0
+          # The gates read what the .standards submodule supplies: the commit
+          # vocabulary, the documentation rules, the instruction-file source.
+          submodules: recursive
+          persist-credentials: false
+      - name: Install mf at the locked version
+        # The released binary `.framework.lock` pins, not a build from source:
+        # an adopter runs the version it adopted, and the checksum is what makes
+        # the download that binary.
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^framework_version = "\(.*\)"$/\1/p' .framework.lock)"
+          if [ -z "$version" ]; then
+            echo "::error::.framework.lock records no framework_version"
+            exit 1
+          fi
+          asset="mf_${version}_linux_amd64"
+          base="https://github.com/LukeSantossz/my-framework/releases/download/${version}"
+          dir="$RUNNER_TEMP/mf"
+          mkdir -p "$dir/bin"
+          curl -fsSL --retry 3 -o "$dir/$asset" "$base/$asset"
+          curl -fsSL --retry 3 -o "$dir/SHA256SUMS" "$base/SHA256SUMS"
+          # Only the asset's own line, so a missing entry fails rather than
+          # checking nothing.
+          (cd "$dir" && awk -v a="$asset" '$2 == a' SHA256SUMS | sha256sum -c -)
+          install -m 0755 "$dir/$asset" "$dir/bin/mf"
+          echo "$dir/bin" >> "$GITHUB_PATH"
+          export PATH="$dir/bin:$PATH"
+          reported="$(mf version)"
+          if [ "$reported" != "mf $version" ]; then
+            echo "::error::.framework.lock pins $version, but the binary reports: $reported"
+            exit 1
+          fi
+          echo "Gates ran with $reported, the version .framework.lock pins." >> "$GITHUB_STEP_SUMMARY"
+      - name: Gates (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          # Read through the environment rather than interpolated into the
+          # script: a branch name may contain a backtick or a dollar sign, and an
+          # expression pasted into a `run:` block is shell source.
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # actions/checkout leaves a pull request on a detached HEAD at the
+          # merge commit. The spec, commit and branch gates ask git which branch
+          # this is and what it adds over its base, and there the answers are
+          # "HEAD" and a base that exists only as a remote-tracking ref. Restoring
+          # both refs makes the job report on the change, not on the checkout.
+          git switch --force-create "$HEAD_REF" "$HEAD_SHA"
+          # A fork may propose its own `main`, and git refuses to force-update
+          # the branch it has checked out. With no second ref to restore, the
+          # three range gates report "on the base branch".
+          if [ "$HEAD_REF" != "$BASE_REF" ]; then
+            git branch --force "$BASE_REF" "origin/$BASE_REF"
+          fi
+          mf check
+      - name: Gates (no pull request)
+        if: github.event_name != 'pull_request'
+        # A push to main or dev, or a manual run, has no branch under review:
+        # the spec, commit and branch gates ran on the pull request. What is
+        # left to ask is whether the tree is in the state its standards
+        # describe, which is the four gates that read it.
+        run: mf check docs records agents design
+
   build:
     needs: [analyze, test, ml-tests, corpus-tests]
     runs-on: ubuntu-latest
