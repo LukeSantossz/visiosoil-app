@@ -64,6 +64,47 @@ def test_python_reproduces_the_golden():
             assert _close(float(actual), expected), shape
 
 
+def _nudged(value, ulps: int):
+    """`value` with every float moved `ulps` units in the last place."""
+    if isinstance(value, dict):
+        return {key: _nudged(item, ulps) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_nudged(item, ulps) for item in value]
+    if isinstance(value, float):
+        for _ in range(ulps):
+            value = float(np.nextafter(value, np.inf))
+    return value
+
+
+def test_golden_comparison_tolerates_last_digit_drift():
+    golden = _golden()
+    assert _mismatches(_nudged(golden, 3), golden) == []
+
+
+_SAMPLE = {
+    "edges": [2.0, 12.649110640673515],
+    "fixtures": [{"name": "ramp", "height": 160, "pixels": "AAEC"}],
+}
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param(lambda d: d["edges"].__setitem__(1, 12.6491107), id="float"),
+        pytest.param(lambda d: d["fixtures"][0].__setitem__("pixels", "AAED"), id="string"),
+        pytest.param(lambda d: d["fixtures"][0].__setitem__("height", 161), id="integer"),
+        pytest.param(lambda d: d["edges"].__setitem__(0, 2), id="integer_for_a_float"),
+        pytest.param(lambda d: d["edges"].append(80.0), id="length"),
+        pytest.param(lambda d: d["fixtures"][0].pop("name"), id="missing_key"),
+        pytest.param(lambda d: d.__setitem__("spec", "0077"), id="extra_key"),
+    ],
+)
+def test_golden_comparison_catches_a_real_change(change):
+    changed = json.loads(json.dumps(_SAMPLE))
+    change(changed)
+    assert _mismatches(changed, _SAMPLE)
+
+
 def test_golden_generation_is_deterministic():
     first = generator.render(generator.build_golden())
     second = generator.render(generator.build_golden())
