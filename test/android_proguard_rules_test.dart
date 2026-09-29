@@ -62,7 +62,7 @@ void main() {
       );
       expect(
         ci.contains('adb install -r apk/app-release.apk') &&
-            ci.contains('adb shell pidof com.visiosoil.visiosoil_app') &&
+            ci.contains('adb shell pidof com.visiosoil.app') &&
             ci.contains('logcat -d --pid='),
         isTrue,
         reason: 'the smoke job no longer installs the release APK, checks the '
