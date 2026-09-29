@@ -551,8 +551,17 @@ Dart, and scored by the contract's standardiser and regression.
 
 ### A7 — On-device patch-batch latency budget
 
-**Record:** none yet; the measurement is a document. **Depends on:** A6 for the
-patch count. **Gate for:** C0's encoder-adoption rule.
+**Record:** [`docs/ml/descriptor-path-cost.md`](../ml/descriptor-path-cost.md),
+measured by SPEC 0086. **Depends on:** A6 for the patch count. **Gate for:**
+C0's encoder-adoption rule, until 2026-09-22.
+
+**Measured 2026-09-29 (SPEC 0086).** One classification of a worst-case 12 MP
+photograph takes 5.5 s median and 6.1 s at most, end to end, on the
+`android_emulator` AVD in profile mode. That fits the 15 s timeout with about
+2.5× to spare. The decode is 3.5 s of it, about 80 % of the phases. The 26
+descriptors cost about 23 ms a patch, 0.6 s for 25. So if anything is ever
+optimised, it is the decode. The emulator-to-phone caveat below still holds in
+both directions.
 
 What a batch of patches costs per candidate encoder on the reference device —
 mid-range Android, at least 4 GB of RAM. Tracked as #215.
