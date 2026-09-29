@@ -120,7 +120,10 @@ void main() {
       final src = _packed('lib/core/features/splash/splash_screen.dart');
       expect(src, isNot(contains('circular(32)')));
       expect(src, isNot(contains('primary.withValues(alpha:0.3)')));
-      expect(src, contains('circular(AppRadius.xl)'));
+      // The radius is named for the native launch drawables (SPEC 0089), and
+      // the name is the xl token.
+      expect(src, contains('logoTileRadius=AppRadius.xl'));
+      expect(src, contains('circular(SplashScreen.logoTileRadius)'));
       expect(src, contains('AppColors.shadowBrand'));
     });
 

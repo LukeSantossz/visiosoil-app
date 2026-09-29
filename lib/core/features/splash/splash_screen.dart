@@ -17,6 +17,13 @@ import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
+  /// The logo tile's edge, the mark's edge inside it, and the tile's corner
+  /// radius, in logical pixels. The Android launch drawables draw the same tile
+  /// and are pinned to these (SPEC 0089).
+  static const double logoTileSize = 120;
+  static const double logoMarkSize = 64;
+  static const double logoTileRadius = AppRadius.xl;
+
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
@@ -117,15 +124,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               children: [
                 // Logo container
                 Container(
-                  width: 120,
-                  height: 120,
+                  width: SplashScreen.logoTileSize,
+                  height: SplashScreen.logoTileSize,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [AppColors.primary, AppColors.tertiary],
                     ),
-                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    borderRadius:
+                        BorderRadius.circular(SplashScreen.logoTileRadius),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.shadowBrand,
@@ -134,7 +142,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ],
                   ),
-                  child: const VisioSoilLogo(size: 64, color: Colors.white),
+                  child: const VisioSoilLogo(
+                    size: SplashScreen.logoMarkSize,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 // App name
