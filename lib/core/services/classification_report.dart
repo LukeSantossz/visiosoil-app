@@ -2,7 +2,7 @@
 /// SPEC 0078).
 ///
 /// `classify` used to return `null` for every failure, so the app could not tell
-/// a model that was never shipped from a run that timed out. A report always
+/// a contract that was never shipped from a run that timed out. A report always
 /// carries an outcome, and a failed one always carries a named cause.
 library;
 
@@ -21,24 +21,28 @@ enum ClassificationOutcome {
 
 /// Why a classification failed, grouped by what the reader can do about it.
 ///
-/// The order is ADR 0015's table, column by column.
+/// The order is ADR 0015's current table, column by column: the one under its
+/// 2026-09-29 amendment (SPEC 0083).
 enum ClassificationFailureCause {
   // Nothing to do: the build is wrong.
   contractMissing,
   contractMalformed,
-  modelMissing,
-  modelEmpty,
 
-  // Retrying is the right response.
+  /// Nothing in this build measures scale. Retired by the A4-sheet reader.
+  measurementUnavailable,
+
+  // Retry, or retake the photograph.
   timeout,
-  interpreterError,
+  computationError,
   isolateFailure,
   imageMissing,
   imageUndecodable,
+  photographTooCoarse,
+  soilRegionTooSmall,
+  soilRegionOutsideFrame,
 
-  // Re-export the model.
+  // Re-release the contract.
   contractUnsupported,
-  modelContractMismatch,
   outputInvalid,
 }
 
