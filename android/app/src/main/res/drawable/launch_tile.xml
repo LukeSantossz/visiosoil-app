@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Dart splash's logo tile, drawn natively so the launch window shows it
+     before Flutter's first frame: a SplashScreen.logoTileSize square with
+     SplashScreen.logoTileRadius corners, filled with the primary to tertiary
+     gradient from the top-left corner to the bottom-right one (SPEC 0089). A
+     vector rather than a shape, so the corners scale with the size it is drawn
+     at, as launch_icon.xml needs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <path android:pathData="M24,0 H96 A24,24 0 0 1 120,24 V96 A24,24 0 0 1 96,120 H24 A24,24 0 0 1 0,96 V24 A24,24 0 0 1 24,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endColor="@color/launch_tile_end"
+                android:endX="120"
+                android:endY="120"
+                android:startColor="@color/launch_tile_start"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+</vector>
