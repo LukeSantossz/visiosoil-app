@@ -15,6 +15,42 @@ whose Design Decisions it records. It discharges the debt
 deliberately: that record shipped `notAnalysed` derived from a `null` meaning
 six different things, and priced the acceptance as **no result surface may offer
 retry on `notAnalysed` until A4 lands**. This is A4's half of that bargain.
+Amended on 2026-09-29.
+
+### Amended 2026-09-29: the descriptor path replaces the causes only TFLite could produce
+
+[SPEC 0083](../specs/0083-wire-the-descriptor-path-into-the-inference-service.md)
+wires the descriptor path of
+[ADR 0024](0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+into `classify` and removes the TFLite path. The table under Decided is kept as
+it was approved, and **this table is the current one.**
+
+- **Three causes leave.** `modelMissing`, `modelEmpty` and
+  `modelContractMismatch` described a model asset and an interpreter's tensors,
+  and there is neither any more.
+- **One is renamed.** `interpreterError` becomes `computationError`: the path
+  can still throw, and there is no interpreter.
+- **Four arrive.**
+  - `measurementUnavailable`: nothing in this build measures scale. It is
+    retired by the A4-sheet reader
+    ([ADR 0017](0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
+  - `photographTooCoarse`, `soilRegionTooSmall` and `soilRegionOutsideFrame`:
+    SPEC 0081's three patch-grid refusals. ADR 0017 places them where the user
+    can retake the photograph.
+
+The remedies are unchanged, and the third column now names what is re-released:
+a contract, not a model.
+
+| Nothing to do — the build is wrong | Retry, or retake the photograph | Re-release the contract |
+| --- | --- | --- |
+| `contractMissing` | `timeout` | `contractUnsupported` |
+| `contractMalformed` | `computationError` | `outputInvalid` |
+| `measurementUnavailable` | `isolateFailure` | |
+| | `imageMissing` | |
+| | `imageUndecodable` | |
+| | `photographTooCoarse` | |
+| | `soilRegionTooSmall` | |
+| | `soilRegionOutsideFrame` | |
 
 ### Decided
 
