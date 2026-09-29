@@ -11,9 +11,13 @@ from pathlib import Path
 
 ML_ROOT = Path(__file__).resolve().parents[1]
 
-#: A call into TensorFlow's converter, or a reach for the deleted module by
-#: either of the names it was imported under.
-EXPORT_REFERENCE = re.compile(r"\btf\.lite\b|\bsrc\.export\b|from \.export import")
+#: A call into TensorFlow's converter, or a reach for the deleted module in any
+#: import form: `src.export`, `from .export import`, and `from . import export`
+#: or `from src import export`.
+EXPORT_REFERENCE = re.compile(
+    r"\btf\.lite\b|\bsrc\.export\b|from \.export import"
+    r"|from (?:\.|src) import [^\n]*\bexport\b"
+)
 
 
 def test_the_training_package_has_no_tflite_export():
