@@ -15,11 +15,7 @@ import 'package:image/image.dart' as img;
 
 import 'image_quality_criteria.dart';
 import 'image_quality_report.dart';
-
-/// ITU-R BT.601 luma, on 8-bit channel values as `double`, no rounding.
-const double _lumaR = 0.299;
-const double _lumaG = 0.587;
-const double _lumaB = 0.114;
+import 'luma.dart';
 
 /// Fixed points of the metric definitions. These are not thresholds and are not
 /// tunable: changing one changes what the metric means, so both languages and
@@ -101,7 +97,8 @@ class ImageQualityAnalyzer {
       final green = pixel.g.toDouble();
       final blue = pixel.b.toDouble();
 
-      final value = _lumaR * red + _lumaG * green + _lumaB * blue;
+      // BT.601 on 8-bit channel values as `double`, with no rounding.
+      final value = lumaRed * red + lumaGreen * green + lumaBlue * blue;
       luma[i++] = value;
 
       sumRed += red;
