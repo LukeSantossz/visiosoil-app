@@ -10,9 +10,9 @@
 <!-- mf:role shared -->
 ## This project
 
-**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device AI classification using TensorFlow Lite (4 soil texture classes; the delivered archive holds five, and ADR 0016 keeps Siltosa out of the first model).
+**VisioSoil** — Cross-platform Flutter mobile app for geolocated soil texture analysis. Agronomists photograph soil samples, record GPS coordinates, and get on-device classification by classical texture descriptors computed in Dart from a released contract of numbers (ADR 0024; 4 soil texture classes; the delivered archive holds five, and ADR 0016 keeps Siltosa out of the first model).
 
-**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite / TFLite. Two Python 3.12 side-builds produce assets the app reads and ship nothing at run time: `ml/` trains and exports the classifier, and `corpus/` builds the reviewed corpus the management-tips feature composes from.
+**Stack:** Flutter 3.x / Dart 3.12+ / Riverpod / GoRouter / Drift+SQLite, and no ML runtime: the classifier is Dart arithmetic over `assets/models/spec.json`. Two Python 3.12 side-builds produce assets the app reads and ship nothing at run time: `ml/` trains and exports the classifier, and `corpus/` builds the reviewed corpus the management-tips feature composes from.
 
 **Toolchain:** Flutter 3.44.1 / Dart 3.12.1, pinned to match CI (`.github/workflows/ci.yml`). Using another 3.x local SDK rewrites `pubspec.lock` on `flutter pub get`.
 
@@ -95,13 +95,13 @@ python -m pytest corpus/tests -q
 ### Layer Overview
 
 ```
-UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / TFLite
+UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / descriptor path
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
 - **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
 - **Persistence:** Drift + SQLite with schema versioning (currently v5). Repository pattern abstracts Drift from UI
-- **AI inference:** TFLite model runs in a separate Dart `Isolate` via `InferenceService` to avoid blocking UI. Model bytes loaded from assets since `rootBundle` is unavailable in isolates
+- **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer`, and this build ships only `measurementUnavailable` (SPEC 0083)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
 - **Research agent:** answers on the device. `researchServiceProvider` binds `CorpusResearchService`, which composes a `ManagementTipsResult` out of a reviewed corpus the app holds — no network, no proxy, no model at run time (ADR 0022, narrowed by ADR 0023). `ProxyResearchService` is kept as the transport for fetching corpus *releases*, and has no caller yet
 
@@ -127,7 +127,7 @@ lib/
 │   │                                  #   ErrorState, LoadingIndicator, PermissionDeniedView,
 │   │                                  #   RouteErrorView
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
-│   ├── services/                      # inference_service.dart (TFLite, isolate-based),
+│   ├── services/                      # inference_service.dart (descriptor path, isolate-based),
 │   │   │                              #   image_storage_service.dart (EXIF strip boundary),
 │   │   │                              #   share_service.dart + share_content_builder.dart,
 │   │   │                              #   connectivity_service.dart, permission_service.dart,
@@ -192,7 +192,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 
 ## Current Limitations
 
-- The released classifier is `assets/models/spec.json`, which is tracked: the descriptor contract `1.0.0`, fitted on `v1` by `ml/src/release.py` and promoted by `ml/scripts/deploy_to_app.sh` (SPEC 0082, ADR 0012). **Nothing in the app reads it yet.** `InferenceService` still runs the TFLite path and expects `assets/models/soil_classifier.tflite`, which no longer exists for v1 (ADR 0024). So classification stays unavailable until the wiring replaces that path with the descriptor contract, and until the A4-sheet reader measures the scale on the device
+- The released classifier is `assets/models/spec.json`, which is tracked: the descriptor contract `1.0.0`, fitted on `v1` by `ml/src/release.py` and promoted by `ml/scripts/deploy_to_app.sh` (SPEC 0082, ADR 0012). `InferenceService` reads it and runs the descriptor path (SPEC 0083). **Nothing measures a photograph's scale yet**, because the only measurer is `measurementUnavailable`. So every classification is refused with that cause until the A4-sheet reader lands, and a scale is never guessed (ADR 0017)
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
 - Management tips compose on the device and answer offline, but **no reviewed corpus artifact exists yet**. `assets/corpus/` holds only `.gitkeep` and a README, and `corpus.json` plus both `.bin` grids are git-ignored the way the `.tflite` is. Until the corpus build releases one, every key composes to `insufficient_evidence` and the surface reads that as absent coverage — which is a normal state, not an error
@@ -201,8 +201,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 
 ## Known Technical Debt
 
-- Labels and preprocessing are hardcoded in `InferenceService`, and the released `assets/models/spec.json` is not read at runtime. The reader (`descriptor_contract.dart`, SPEC 0079) and the patch grid (`patch_grid.dart`, SPEC 0081) exist, and the wiring that connects them to `InferenceService` is not built yet (#79). `ml/src/export.py` still describes the TFLite export that ADR 0024 retired
-- `InferenceService.classify` reports a `ClassificationReport` — an outcome and, on failure, one of ADR 0015's twelve named causes — since SPEC 0078. `parseDescriptorContract` (SPEC 0079) already produces `contractMalformed` and `contractUnsupported`, and `contractMissing` has no producer yet. None of the three reaches `classify` until the wiring connects the descriptor contract to `InferenceService`, and `rejectedOod` has no producer at all. The capture state carries the cause, but no screen shows it and none offers a cause-specific retry: which causes earn a retry is the UI/UX terminal's roadmap item 2
+- `ml/src/export.py` and the CNN training path under `ml/` still describe the TFLite export that ADR 0024 retired. The app no longer depends on `tflite_flutter` (SPEC 0083), so nothing on the Dart side consumes them
+- `InferenceService.classify` reports a `ClassificationReport` — an outcome and, on failure, one of ADR 0015's thirteen named causes, as amended by SPEC 0083 — since SPEC 0078. `initialize` produces the three contract causes, every photograph reports `measurementUnavailable` until the A4-sheet reader lands, and `rejectedOod` has no producer at all. The capture state carries the cause, but no screen shows it and none offers a cause-specific retry: which causes earn a retry is the UI/UX terminal's roadmap item 2
 - The model's class list is four (ADR 0016, SPEC 0046) and the archive's vocabulary is five; `src.manifest.ARCHIVE_CLASSES` is what a manifest row may say and `cfg["classes"]` is what the model emits. `SoilTextureLabels.ordered` is asserted against `ml/config.yaml` by `test/standards/class_list_test.dart` (SPEC 0048), so the two languages can no longer drift. What remains is that several Python test modules still carry their own five-entry literal of the *archive* vocabulary, tied to `ARCHIVE_CLASSES` only in `test_manifest.py`
 - `ClassificationVerdict` (ADR 0011) and `ImageQualityAnalyzer` (SPEC 0030) are implemented and tested with zero production callers, each waiting on a wiring spec — the UI/UX terminal's roadmap items 2 and 6 respectively. Both are deliberate, and both are recorded in their specs' Scope
 - The corpus build carries **six modules that shipped ahead of their own Spec Gate** — `corpus/src/keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py` and `search.py`. SPEC 0071's Scope excludes them explicitly, and no other spec covers them. `mf check spec` passes anyway, so **the gate detects a missing specification but not code that outruns one**. Three of them — `keys.py`, `embrapa_units.py` and `search.py` — also have no production caller until the full corpus build lands
