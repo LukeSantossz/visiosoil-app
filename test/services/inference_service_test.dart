@@ -1,21 +1,33 @@
-// Acceptance criteria for SPEC 0078: `classify` reports an outcome and a named
-// cause, never null. Each test named after a criterion carries its name
-// exactly; `docs/specs/0078-classify-reports-an-outcome-and-a-named-cause.md`.
+// Acceptance criteria for SPEC 0083, the descriptor path wired into
+// `InferenceService`, and for the SPEC 0078 criteria it keeps: `classify`
+// reports an outcome and a named cause, never null. Each test named after a
+// criterion carries its name exactly;
+// `docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md`.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show FlutterError;
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
-import 'package:tflite_flutter/tflite_flutter.dart' show ListShape, TensorType;
 import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';
+import 'package:visiosoil_app/core/services/descriptors/patch_descriptors.dart';
+import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
+import 'package:visiosoil_app/core/services/descriptors/photograph_measurement.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 
-// Isolate entry points must be top-level (or static) so they can be sent to a
-// spawned isolate; a closure capturing test state is not sendable.
+const _shippedContract = 'assets/models/spec.json';
+
+/// The side of the synthetic photographs: enough soil at the canonical scale
+/// for a 3 x 3 grid of 160 px patches, which needs a disc of about 453 px.
+const _side = 520;
+
+// Isolate entry points and the measurers sent to them must be top-level: a
+// closure capturing test state is not sendable to a spawned isolate.
 
 const _result = InferenceResult(textureClass: 'Media', confidenceScore: 0.75);
 
@@ -25,8 +37,7 @@ void respondingEntry(InferenceRequest request) {
 }
 
 /// Keeps the isolate alive without ever responding, so the timeout fires with
-/// a live isolate to kill — an entry point that simply returns would let the
-/// isolate exit on its own and prove nothing.
+/// a live isolate to kill.
 void hangingEntry(InferenceRequest request) {
   ReceivePort(); // an open port keeps this isolate from terminating
 }
@@ -36,12 +47,8 @@ void throwingEntry(InferenceRequest request) {
   throw StateError('the worker died before answering');
 }
 
-/// Writes a marker, blocks, then overwrites it. `sleep` blocks the isolate
-/// outright, so nothing cooperative can interrupt it: if the second write never
+/// Writes a marker, blocks, then overwrites it: if the second write never
 /// lands, the isolate was killed rather than merely abandoned.
-///
-/// [InferenceRequest.imagePath] carries the marker path — this entry point does
-/// no inference, so the field is free to reuse as the test channel.
 void markerEntry(InferenceRequest request) {
   final marker = File(request.imagePath);
   marker.writeAsStringSync('started');
@@ -49,9 +56,43 @@ void markerEntry(InferenceRequest request) {
   marker.writeAsStringSync('started+finished');
 }
 
+/// The shipped contract's canonical scale, read the way the service reads it.
+double _canonical() =>
+    (jsonDecode(
+              File(_shippedContract).readAsStringSync(),
+            )['geometry']['canonical_mm_per_px']
+            as num)
+        .toDouble();
+
+/// A measurer that finds the soil filling the frame, at the canonical scale.
+({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
+wholeFrameMeasurer(RgbFrame frame) => (
+  measurement: PhotographMeasurement(
+    frame: frame,
+    mmPerPx: _canonical(),
+    centreYPx: frame.height / 2.0,
+    centreXPx: frame.width / 2.0,
+    diameterPx: math.min(frame.width, frame.height).toDouble(),
+  ),
+  cause: null,
+);
+
+/// Seeded noise, the same bytes on every run and every host.
+Uint8List _noise(int width, int height, int seed) {
+  final random = math.Random(seed);
+  return Uint8List.fromList(
+    List<int>.generate(width * height * 3, (_) => random.nextInt(256)),
+  );
+}
+
 void main() {
-  ByteData bytesOfLength(int length) =>
-      Uint8List.fromList(List<int>.filled(length, 1)).buffer.asByteData();
+  late DescriptorContract contract;
+
+  setUpAll(() {
+    contract = parseDescriptorContract(
+      File(_shippedContract).readAsStringSync(),
+    ).contract!;
+  });
 
   Directory tempDir(String name) {
     final dir = Directory.systemTemp.createTempSync(name);
@@ -61,23 +102,36 @@ void main() {
     return dir;
   }
 
+  Future<String> shippedLoader(String key) => File(key).readAsString();
+
   Future<InferenceService> readyService() async {
     final service = InferenceService();
-    await service.initialize(
-      assetLoader: (_) async => bytesOfLength(8),
-      retryDelay: Duration.zero,
+    expect(
+      await service.initialize(
+        assetLoader: shippedLoader,
+        retryDelay: Duration.zero,
+      ),
+      isNull,
     );
     return service;
   }
 
+  /// A lossless photograph of [rgb] on disk, so the decoded frame is [rgb].
+  String writePng(Uint8List rgb, int width, int height, String name) {
+    final image = img.Image.fromBytes(
+      width: width,
+      height: height,
+      bytes: rgb.buffer,
+      numChannels: 3,
+    );
+    return (File(
+      p.join(tempDir(name).path, 'soil.png'),
+    )..writeAsBytesSync(img.encodePng(image))).path;
+  }
+
   group('InferenceService.initialize', () {
-    test('returns null once the loader succeeds', () async {
-      final service = InferenceService();
-      final cause = await service.initialize(
-        assetLoader: (_) async => bytesOfLength(8),
-        retryDelay: Duration.zero,
-      );
-      expect(cause, isNull);
+    test('the_shipped_contract_loads', () async {
+      final service = await readyService();
       expect(service.isReady, isTrue);
     });
 
@@ -86,19 +140,19 @@ void main() {
       final service = InferenceService();
       final cause = await service.initialize(
         retryDelay: Duration.zero,
-        assetLoader: (_) async {
+        assetLoader: (key) async {
           calls++;
           if (calls < 3) throw Exception('transient');
-          return bytesOfLength(8);
+          return shippedLoader(key);
         },
       );
       expect(cause, isNull);
       expect(calls, 3);
     });
 
-    test('missing_model_asset_yields_model_missing', () async {
+    test('missing_contract_asset_yields_contract_missing', () async {
       var calls = 0;
-      Future<ByteData> loader(String _) async {
+      Future<String> loader(String _) async {
         calls++;
         throw FlutterError('Unable to load asset');
       }
@@ -114,20 +168,20 @@ void main() {
         retryDelay: Duration.zero,
       );
 
-      expect(first, ClassificationFailureCause.modelMissing);
-      expect(second, ClassificationFailureCause.modelMissing);
+      expect(first, ClassificationFailureCause.contractMissing);
+      expect(second, ClassificationFailureCause.contractMissing);
       expect(callsAfterFirst, 3); // bounded attempts per call
       expect(calls, greaterThan(callsAfterFirst)); // a later call may retry
     });
 
-    test('empty_model_asset_yields_model_empty', () async {
+    test('malformed_contract_yields_contract_malformed', () async {
       var calls = 0;
-      Future<ByteData> loader(String _) async {
+      final service = InferenceService();
+      Future<String> loader(String _) async {
         calls++;
-        return bytesOfLength(0);
+        return '{ not json';
       }
 
-      final service = InferenceService();
       final first = await service.initialize(
         assetLoader: loader,
         retryDelay: Duration.zero,
@@ -137,19 +191,9 @@ void main() {
         retryDelay: Duration.zero,
       );
 
-      expect(first, ClassificationFailureCause.modelEmpty);
-      expect(second, ClassificationFailureCause.modelEmpty);
-      expect(calls, 1); // an empty model is permanent: not reloaded
-    });
-
-    test('failed_initialize_returns_the_cause', () async {
-      final service = InferenceService();
-      final cause = await service.initialize(
-        assetLoader: (_) async => bytesOfLength(0),
-        retryDelay: Duration.zero,
-      );
-      expect(cause, ClassificationFailureCause.modelEmpty);
-      expect(service.isReady, isFalse);
+      expect(first, ClassificationFailureCause.contractMalformed);
+      expect(second, ClassificationFailureCause.contractMalformed);
+      expect(calls, 1); // a build fact: not reloaded
 
       // `classify` reports the same cause, without spawning a worker.
       final report = await service.classify(
@@ -157,44 +201,98 @@ void main() {
         entryPoint: respondingEntry,
       );
       expect(report.outcome, ClassificationOutcome.failed);
-      expect(report.cause, ClassificationFailureCause.modelEmpty);
+      expect(report.cause, ClassificationFailureCause.contractMalformed);
       expect(report.result, isNull);
+    });
 
-      final ready = await readyService();
+    test('unsupported_contract_yields_contract_unsupported', () async {
+      var calls = 0;
+      final document =
+          jsonDecode(File(_shippedContract).readAsStringSync())
+                as Map<String, dynamic>
+            ..['spec_version'] = 3;
+      final service = InferenceService();
+      Future<String> loader(String _) async {
+        calls++;
+        return jsonEncode(document);
+      }
+
       expect(
-        await ready.initialize(assetLoader: (_) async => bytesOfLength(8)),
-        isNull,
+        await service.initialize(
+          assetLoader: loader,
+          retryDelay: Duration.zero,
+        ),
+        ClassificationFailureCause.contractUnsupported,
       );
+      expect(
+        await service.initialize(
+          assetLoader: loader,
+          retryDelay: Duration.zero,
+        ),
+        ClassificationFailureCause.contractUnsupported,
+      );
+      expect(calls, 1);
     });
   });
 
   group('InferenceService.classify', () {
-    test('successful_run_yields_ok_with_the_distribution', () async {
-      final service = await readyService();
+    test('a_measured_photograph_is_classified_with_the_contract', () async {
+      final rgb = _noise(_side, _side, 1);
+      final path = writePng(rgb, _side, _side, 'visiosoil_measured');
+      final service = InferenceService(measurer: wholeFrameMeasurer);
+      await service.initialize(
+        assetLoader: shippedLoader,
+        retryDelay: Duration.zero,
+      );
 
+      // Through the isolate, with the measurer sent to it.
       final report = await service.classify(
-        '/unused.jpg',
-        entryPoint: respondingEntry,
-      );
-
-      expect(report.outcome, ClassificationOutcome.ok);
-      expect(report.cause, isNull);
-      expect(report.result!.textureClass, 'Media');
-      expect(report.result!.confidenceScore, 0.75);
-
-      // The worker's own output step: the distribution and its tie-breaking
-      // are `buildDistribution`'s, unchanged.
-      const probabilities = [0.3, 0.3, 0.1, 0.3];
-      final interpreted = InferenceService.interpretOutput(probabilities);
-      expect(interpreted.outcome, ClassificationOutcome.ok);
-      expect(
-        interpreted.result!.distribution,
-        InferenceService.buildDistribution(probabilities, 4),
+        path,
+        timeout: const Duration(seconds: 60),
       );
       expect(
-        interpreted.result!.textureClass,
-        interpreted.result!.distribution.first.label,
+        report.outcome,
+        ClassificationOutcome.ok,
+        reason: '${report.cause}',
       );
+
+      // What the parts give for the same frame, composed by hand.
+      final frame = RgbFrame(_side, _side, rgb);
+      final measured = wholeFrameMeasurer(frame).measurement!;
+      final patches = canonicalPatches(
+        measured.frame,
+        measuredMmPerPx: measured.mmPerPx,
+        centreYPx: measured.centreYPx,
+        centreXPx: measured.centreXPx,
+        diameterPx: measured.diameterPx,
+        canonicalMmPerPx: contract.canonicalMmPerPx,
+        patchPx: contract.patchPx,
+        strideFraction: contract.patchStrideFraction,
+        minPatches: contract.minPatches,
+      ).patches!;
+      final expected = contract.distribution([
+        for (final patch in patches)
+          describePatch(patch, contract.patchPx, contract.patchPx),
+      ]);
+
+      final distribution = report.result!.distribution;
+      expect(
+        distribution.map((score) => score.label).toSet(),
+        contract.classes.toSet(),
+      );
+      for (final score in distribution) {
+        expect(
+          score.probability,
+          expected[contract.classes.indexOf(score.label)],
+          reason: score.label,
+        );
+      }
+      final probabilities = [
+        for (final score in distribution) score.probability,
+      ];
+      expect(probabilities, [...probabilities]..sort((a, b) => b.compareTo(a)));
+      expect(report.result!.textureClass, distribution.first.label);
+      expect(report.result!.confidenceScore, distribution.first.probability);
     });
 
     test('inference_timeout_yields_timeout', () async {
@@ -214,8 +312,6 @@ void main() {
       final marker = File(p.join(tempDir('visiosoil_kill').path, 'marker.txt'));
       final service = await readyService();
 
-      // The timeout is long enough for the isolate to spawn and write the first
-      // marker, and far shorter than the 1500ms block that follows it.
       final report = await service.classify(
         marker.path,
         timeout: const Duration(milliseconds: 400),
@@ -223,13 +319,12 @@ void main() {
       );
 
       expect(report.cause, ClassificationFailureCause.timeout);
-      expect(marker.existsSync(), isTrue,
-          reason: 'the isolate must have started before the timeout fired');
-
-      // Wait past the point where an un-killed isolate would have finished its
-      // block and overwritten the marker.
+      expect(
+        marker.existsSync(),
+        isTrue,
+        reason: 'the isolate must have started before the timeout fired',
+      );
       await Future<void>.delayed(const Duration(milliseconds: 1800));
-
       expect(
         marker.readAsStringSync(),
         'started',
@@ -264,128 +359,176 @@ void main() {
       );
 
       expect(report.cause, ClassificationFailureCause.isolateFailure);
-      expect(clock.elapsed, lessThan(const Duration(seconds: 5)),
-          reason: 'a dead worker is reported at once, not at the timeout');
+      expect(
+        clock.elapsed,
+        lessThan(const Duration(seconds: 5)),
+        reason: 'a dead worker is reported at once, not at the timeout',
+      );
     });
   });
 
   group('InferenceService.runInference', () {
-    final modelBytes = Uint8List.fromList(List<int>.filled(64, 7));
+    Future<ClassificationReport> run(
+      String path,
+      PhotographMeasurer measurer,
+    ) => InferenceService.runInference(path, contract, measurer);
 
     test('missing_image_file_yields_image_missing', () async {
       final missing = p.join(tempDir('visiosoil_missing').path, 'absent.jpg');
 
-      final report = await InferenceService.runInference(missing, modelBytes);
+      final report = await run(missing, wholeFrameMeasurer);
 
       expect(report.outcome, ClassificationOutcome.failed);
       expect(report.cause, ClassificationFailureCause.imageMissing);
     });
 
     test('undecodable_image_yields_image_undecodable', () async {
-      final file = File(p.join(tempDir('visiosoil_garbage').path, 'noise.jpg'))
-        ..writeAsBytesSync(List<int>.generate(512, (index) => index * 37 % 251));
+      final file = File(
+        p.join(tempDir('visiosoil_garbage').path, 'noise.jpg'),
+      )..writeAsBytesSync(List<int>.generate(512, (index) => index * 37 % 251));
 
-      final report = await InferenceService.runInference(file.path, modelBytes);
+      final report = await run(file.path, wholeFrameMeasurer);
 
       expect(report.cause, ClassificationFailureCause.imageUndecodable);
     });
 
-    test('interpreter_error_yields_interpreter_error', () async {
-      final file = File(p.join(tempDir('visiosoil_png').path, 'soil.png'))
-        ..writeAsBytesSync(img.encodePng(img.Image(width: 16, height: 16)));
+    test('no_measurer_yields_measurement_unavailable', () async {
+      final path = writePng(_noise(64, 48, 2), 64, 48, 'visiosoil_unmeasured');
 
-      // Bytes that are not a TFLite flatbuffer: the interpreter refuses them
-      // whether or not the native library loads on the test host.
-      final report = await InferenceService.runInference(file.path, modelBytes);
+      final report = await run(path, measurementUnavailable);
 
-      expect(report.cause, ClassificationFailureCause.interpreterError);
+      expect(report.outcome, ClassificationOutcome.failed);
+      expect(report.cause, ClassificationFailureCause.measurementUnavailable);
+      // And it is what a service built with no measurer uses.
+      expect(InferenceService().measurer, measurementUnavailable);
     });
-  });
 
-  group('InferenceService.checkTensors', () {
-    ClassificationFailureCause? check({
-      List<int> inputShape = const [1, 224, 224, 3],
-      TensorType inputType = TensorType.float32,
-      List<int> outputShape = const [1, 4],
-      TensorType outputType = TensorType.float32,
-    }) =>
-        InferenceService.checkTensors(
-          inputShape: inputShape,
-          inputType: inputType,
-          outputShape: outputShape,
-          outputType: outputType,
+    test('patch_refusals_yield_their_causes', () async {
+      final path = writePng(
+        _noise(_side, _side, 3),
+        _side,
+        _side,
+        'visiosoil_refused',
+      );
+
+      PhotographMeasurer measuring({
+        double scale = 1.0,
+        double? centreY,
+        double diameter = _side * 1.0,
+      }) =>
+          (frame) => (
+            measurement: PhotographMeasurement(
+              frame: frame,
+              mmPerPx: _canonical() * scale,
+              centreYPx: centreY ?? frame.height / 2.0,
+              centreXPx: frame.width / 2.0,
+              diameterPx: diameter,
+            ),
+            cause: null,
+          );
+
+      expect(
+        (await run(path, measuring(scale: 1.1))).cause,
+        ClassificationFailureCause.photographTooCoarse,
+      );
+      expect(
+        (await run(path, measuring(diameter: 200))).cause,
+        ClassificationFailureCause.soilRegionTooSmall,
+      );
+      expect(
+        (await run(path, measuring(centreY: 120))).cause,
+        ClassificationFailureCause.soilRegionOutsideFrame,
+      );
+    });
+
+    test('orientation_is_baked_before_measuring', () async {
+      // Stored 60 wide and 40 tall, tagged to be displayed rotated a quarter
+      // turn, so the displayed frame is 40 wide and 60 tall.
+      final image = img.Image(width: 60, height: 40);
+      image.exif.imageIfd.orientation = 6;
+      final path = (File(
+        p.join(tempDir('visiosoil_exif').path, 'soil.jpg'),
+      )..writeAsBytesSync(img.encodeJpg(image))).path;
+
+      final seen = <(int, int)>[];
+      await run(path, (frame) {
+        seen.add((frame.width, frame.height));
+        return (
+          measurement: null,
+          cause: ClassificationFailureCause.measurementUnavailable,
         );
+      });
 
-    test(
-        'interpreter_disagreeing_with_the_app_yields_model_contract_mismatch',
-        () {
-      expect(check(), isNull);
+      expect(seen, [(40, 60)]);
+    });
 
-      const mismatch = ClassificationFailureCause.modelContractMismatch;
-      expect(check(inputShape: const [1, 160, 160, 3]), mismatch);
-      expect(check(inputShape: const [1, 224, 224, 1]), mismatch);
-      expect(check(inputType: TensorType.uint8), mismatch);
-      expect(check(outputType: TensorType.uint8), mismatch);
-      expect(check(outputShape: const [1, 5]), mismatch);
+    test('a_throw_in_the_pipeline_yields_computation_error', () async {
+      final path = writePng(_noise(32, 32, 4), 32, 32, 'visiosoil_throw');
+
+      final report = await run(
+        path,
+        (frame) => throw StateError('the measurer failed'),
+      );
+
+      expect(report.outcome, ClassificationOutcome.failed);
+      expect(report.cause, ClassificationFailureCause.computationError);
     });
   });
 
-  group('InferenceService.outputRow', () {
-    test('reads the probabilities out of the tensor the interpreter fills', () {
-      // Built the way `runInference` builds it. `reshape` without a type
-      // argument yields `List<List<dynamic>>`, so a cast of the row to
-      // `List<double>` throws on every real run.
-      final output = List.filled(4, 0.25).reshape([1, 4]);
-      expect(() => output[0] as List<double>, throwsA(isA<TypeError>()));
-
-      expect(InferenceService.outputRow(output), [0.25, 0.25, 0.25, 0.25]);
-      expect(InferenceService.outputRow(output), isA<List<double>>());
-    });
-  });
-
-  group('InferenceService.interpretOutput', () {
+  group('InferenceService.buildDistribution', () {
     test('non_probability_output_yields_output_invalid', () {
       for (final probabilities in [
         [double.nan, 0.2, 0.3, 0.4],
         [1.1, 0.0, 0.0, 0.0],
         [-0.1, 0.4, 0.4, 0.3],
       ]) {
-        final report = InferenceService.interpretOutput(probabilities);
-        expect(report.outcome, ClassificationOutcome.failed);
-        expect(report.cause, ClassificationFailureCause.outputInvalid,
-            reason: '$probabilities');
+        expect(
+          InferenceService.buildDistribution(probabilities, contract.classes),
+          isNull,
+          reason: '$probabilities',
+        );
+        final report = InferenceService.reportFor(
+          probabilities,
+          contract.classes,
+        );
+        expect(
+          report.cause,
+          ClassificationFailureCause.outputInvalid,
+          reason: '$probabilities',
+        );
       }
-    });
-
-    test('a tensor of the wrong length is a mismatch, not an invalid output',
-        () {
-      final report = InferenceService.interpretOutput([0.2, 0.3, 0.5]);
-      expect(report.cause, ClassificationFailureCause.modelContractMismatch);
     });
   });
 
   test('failure_causes_follow_adr_0015', () {
-    final adr = File(
+    final lines = File(
       'docs/adr/0015-classification-reports-a-named-failure-cause.md',
-    ).readAsStringSync();
-    // The causes are the backticked names in the table's rows.
-    final tableRows = adr
-        .split('\n')
-        .where((line) => line.trimLeft().startsWith('|') && line.contains('`'))
+    ).readAsLinesSync();
+    // The current table is the first one after the latest "Amended" heading;
+    // the table under Decided is kept as it was approved.
+    final amended = lines.lastIndexWhere(
+      (line) => line.startsWith('### Amended'),
+    );
+    expect(amended, isNot(-1), reason: 'ADR 0015 carries no amendment');
+    final table = lines
+        .skip(amended)
+        .skipWhile((line) => !line.trimLeft().startsWith('|'))
+        .takeWhile((line) => line.trimLeft().startsWith('|'))
+        .where((line) => line.contains('`'))
         .join('\n');
-    final named = RegExp(r'`(\w+)`')
-        .allMatches(tableRows)
-        .map((match) => match.group(1)!)
-        .toSet();
+    final named = RegExp(
+      r'`(\w+)`',
+    ).allMatches(table).map((match) => match.group(1)!).toSet();
 
-    expect(ClassificationFailureCause.values, hasLength(12));
+    expect(ClassificationFailureCause.values, hasLength(13));
     expect(
       ClassificationFailureCause.values.map((cause) => cause.name).toSet(),
       named,
     );
-    expect(
-      ClassificationOutcome.values.map((outcome) => outcome.name),
-      ['ok', 'rejectedOod', 'failed'],
-    );
+    expect(ClassificationOutcome.values.map((outcome) => outcome.name), [
+      'ok',
+      'rejectedOod',
+      'failed',
+    ]);
   });
 }
