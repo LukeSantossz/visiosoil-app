@@ -70,7 +70,7 @@ def write_config(tmp_path, *, classes=CLASSES, seed=SEED, k=K, repeats=REPEATS):
         },
         "model": {"architecture": "mobilenetv2", "dropout": 0.5},
         "training": {"epochs": 5, "batch_size": 8, "learning_rate": 0.001},
-        "export": {"quantization": "none", "output_dir": str(tmp_path / "models")},
+        "export": {"output_dir": str(tmp_path / "models")},
     }
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(config), encoding="utf-8")

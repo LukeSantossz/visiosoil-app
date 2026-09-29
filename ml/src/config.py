@@ -58,14 +58,13 @@ _REQUIRED_MODEL_KEYS = {"architecture", "dropout"}
 _REQUIRED_TRAINING_KEYS = {"epochs", "batch_size", "learning_rate"}
 _VALID_ARCHITECTURES = {"mobilenetv2"}
 # One entry, because the pipeline implements one preprocessing contract:
-# `build_model` bakes Rescaling(2.0, -1.0) into the graph unconditionally, and
-# `_build_spec` declares `divide_255` to match it. `imagenet` was accepted here
+# `build_model` bakes Rescaling(2.0, -1.0) into the graph unconditionally, so
+# its input is [0, 1] and nothing else. `imagenet` was accepted here
 # and served by `normalize_imagenet`, but no code path ever removed the baked
 # rescaling, so that configuration trained the backbone on 2v - 1 over the
 # imagenet range and raised nothing. SPEC 0034 removes the value rather than the
 # layer; adding a second contract means adding the model code path with it.
 _VALID_NORMALIZATIONS = {"mobilenet_v2"}
-_VALID_QUANTIZATIONS = {"dynamic_range", "float16", "none"}
 
 # Input size the pretrained weights of each architecture were trained at. Any
 # other size loads without error and silently degrades transfer learning.
@@ -241,9 +240,8 @@ def _validate(cfg: dict) -> None:
             raise ValueError("preprocessing.bake_into_model must be a boolean")
 
     # `build_model` adds Rescaling(2.0, -1.0) unconditionally and never reads
-    # this flag, while `export.py` does read it to declare the preprocessing
-    # contract in spec.json. Declaring the rescaling absent while the graph
-    # performs it is a train/serve skew produced by configuration alone.
+    # this flag. Declaring the rescaling absent while the graph performs it
+    # would misstate the model's preprocessing through configuration alone.
     if pre["normalization"] == "mobilenet_v2" and not pre.get("bake_into_model", False):
         raise ValueError(
             "preprocessing.bake_into_model must be true for mobilenet_v2 "
@@ -369,12 +367,6 @@ def _validate(cfg: dict) -> None:
             )
     else:
         training["deterministic_ops"] = True
-
-    # export
-    export = cfg["export"]
-    quantization = export.get("quantization", "dynamic_range")
-    if quantization not in _VALID_QUANTIZATIONS:
-        raise ValueError(f"quantization must be one of {_VALID_QUANTIZATIONS}")
 
 
 def _validate_evaluation(evaluation: dict) -> None:

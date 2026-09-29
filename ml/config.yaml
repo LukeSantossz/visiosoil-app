@@ -143,6 +143,7 @@ training:
   # needs the throughput; the effective value is recorded in metrics.json.
   deterministic_ops: true
 
+# The models root every module writes under. The block keeps its old name; the
+# TFLite export it also configured was removed by SPEC 0084.
 export:
-  quantization: "none"
   output_dir: "models"

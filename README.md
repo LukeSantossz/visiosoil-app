@@ -210,7 +210,7 @@ visiosoil-app/
 │   └── providers/           # 11 files declaring 22 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
-├── ml/                      # TF/Keras training pipeline (MobileNetV2 → TFLite)
+├── ml/                      # E0's evaluation arms and the descriptor release fit
 ├── assets/models/           # The released descriptor contract, spec.json (tracked)
 ├── docs/                    # specs/ (durable SPEC archive), adr/, architecture/
 └── test/                    # Unit, widget and repository tests (in-memory SQLite)

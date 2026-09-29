@@ -99,9 +99,9 @@ def prepare_for_mobilenet_v2(patches: np.ndarray) -> np.ndarray:
 
     It coincides with ``keras.applications.mobilenet_v2.preprocess_input``. That
     is a check on the convention, not the reason for it: this project's
-    normalisation contract is declared in ``spec.json`` and asserted by
-    ``tests/test_tflite_inference.py``, and following the exported contract is
-    what keeps the arm comparable to the model that would ship.
+    normalisation contract is ``mobilenet_v2`` (SPEC 0034), which ``build_model``
+    bakes into the fine-tuned network as ``Rescaling(2.0, -1.0)``, and following
+    it is what keeps the arm comparable to the ``cnn`` arm.
 
     Getting this wrong is invisible: embeddings computed from [0, 1] pixels have
     the same shape, the same dtype and no meaning.

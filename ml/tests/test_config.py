@@ -55,7 +55,6 @@ def valid_config() -> dict:
             "class_weights": "balanced",
         },
         "export": {
-            "quantization": "none",
             "output_dir": "models",
         },
     }
@@ -278,7 +277,7 @@ def test_valid_augmentation_ranges_are_accepted(valid_config):
 
 
 def test_baked_rescaling_must_match_the_declared_contract(valid_config):
-    """build_model rescales unconditionally; export.py reads this flag."""
+    """build_model rescales unconditionally, so the flag must say it does."""
     valid_config["preprocessing"]["bake_into_model"] = False
     path = _write_config(valid_config)
     with pytest.raises(ValueError, match="bake_into_model"):
@@ -544,6 +543,15 @@ def test_the_shipped_config_declares_the_protocol_ADR_0020_fixed():
     assert cfg["evaluation"]["power"] == 0.8
     assert "val_split" not in cfg["data"]
     assert "test_split" not in cfg["data"]
+
+
+def test_the_shipped_config_declares_no_quantization():
+    """Only the TFLite export read `export.quantization`, and SPEC 0084 removed it.
+
+    `output_dir` keeps the block's old name because every module reads it as the
+    models root.
+    """
+    assert set(load_config()["export"]) == {"output_dir"}
 
 
 # --- SPEC 0047: keys that mean what they say -------------------------------
