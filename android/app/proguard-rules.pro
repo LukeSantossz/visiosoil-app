@@ -1,7 +1,3 @@
-# TFLite Flutter plugin — keep rules for R8
--keep class org.tensorflow.lite.** { *; }
--dontwarn org.tensorflow.lite.**
-
 # --- Auth stack keep rules (issue #69) ---
 #
 # These rules are defensive. Verified by mutation (dropping the -keep line and
