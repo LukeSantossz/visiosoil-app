@@ -138,6 +138,11 @@ non-finite logit becomes, and what a value that is not a probability becomes.
     becomes `computationError`.
   - `lib/models/soil_texture_labels.dart` deleted, `SoilTextureColors.all`
     removed, and `ClassScore`'s documentation updated.
+  - `corpus/src/keys.py`, which read the class list out of that Dart file so
+    that the corpus is keyed to the model's classes (ADR 0022). It now reads
+    them from the shipped contract, which is where the app reads them too. CI
+    found this consumer on PR #262; the search for readers had covered `lib/`
+    and `test/` and not `corpus/`.
   - `pubspec.yaml` and `pubspec.lock` lose `tflite_flutter`, and
     `android/app/proguard-rules.pro` loses its TFLite keep rule.
   - The tests:
@@ -195,6 +200,12 @@ Dart:
   texture class under `lib/`.
 - `the_shipped_contract_classes_are_the_configured_classes`: in
   `class_list_test.dart`.
+
+Python, in `corpus/`:
+
+- `the_class_list_is_read_from_the_shipped_contract`: `read_texture_classes`
+  returns `assets/models/spec.json`'s classes. A missing contract raises
+  `FileNotFoundError`, and a contract with no class list raises `ValueError`.
 
 ## Reproducibility
 
