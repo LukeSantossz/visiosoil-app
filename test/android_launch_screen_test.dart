@@ -168,33 +168,14 @@ void main() {
         .toList();
     expect(paths, hasLength(2 + VisioSoilMarkGeometry.grains.length));
 
-    /// The commands of a path, and every number in it, in order.
-    (String, List<double>) parse(String path) {
-      final data = attribute(path, 'pathData')!;
-      return (
-        data.replaceAll(RegExp(r'[^A-Za-z]'), ''),
-        RegExp(r'-?\d+(?:\.\d+)?')
-            .allMatches(data)
-            .map((m) => double.parse(m.group(0)!))
-            .toList(),
-      );
-    }
-
     // A circle is two half arcs from its leftmost point.
     List<double> circle(Offset centre, double r) =>
         [centre.dx - r, centre.dy, r, r, 0, 1, 0, 2 * r, 0, r, r, 0, 1, 0, -2 * r, 0];
 
-    void expectNumbers(List<double> actual, List<double> expected) {
-      expect(actual, hasLength(expected.length));
-      for (var i = 0; i < expected.length; i++) {
-        expect(actual[i], closeTo(expected[i], 1e-9));
-      }
-    }
-
     const white = '#FFFFFFFF';
 
     final ring = paths.first;
-    final (ringCommands, ringNumbers) = parse(ring);
+    final (ringCommands, ringNumbers) = parsePath(ring);
     expect(ringCommands, 'Maa');
     expectNumbers(
       ringNumbers,
@@ -209,7 +190,7 @@ void main() {
 
     for (final (i, grain) in VisioSoilMarkGeometry.grains.indexed) {
       final path = paths[1 + i];
-      final (commands, numbers) = parse(path);
+      final (commands, numbers) = parsePath(path);
       expect(commands, 'Maa');
       expectNumbers(numbers, circle(grain.centre, grain.radius));
       expect(attribute(path, 'fillColor'), white);
@@ -217,7 +198,7 @@ void main() {
     }
 
     final handle = paths.last;
-    final (handleCommands, handleNumbers) = parse(handle);
+    final (handleCommands, handleNumbers) = parsePath(handle);
     expect(handleCommands, 'ML');
     expectNumbers(handleNumbers, [
       VisioSoilMarkGeometry.handleStart.dx,
