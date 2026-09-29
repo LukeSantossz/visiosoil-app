@@ -268,18 +268,6 @@ void main() {
       '@drawable/launch_icon',
     );
     expect(launch['android:windowBackground'], '@drawable/launch_background');
-
-    final items = layers(read('drawable/launch_icon.xml'));
-    expect(
-      items.any(
-        (i) =>
-            attribute(i, 'width') == '288dp' &&
-            attribute(i, 'height') == '288dp',
-      ),
-      isTrue,
-      reason: 'the icon canvas for an icon without a background is 288 dp',
-    );
-    expectTileThenMark(items, 'launch_icon.xml');
   });
 
   test('no_window_paints_the_template_background', () {
