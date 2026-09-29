@@ -1,49 +1,18 @@
-"""One checkpoint resolver, called by every reader (SPEC 0047).
+"""The checkpoint filename, declared once (SPEC 0047, SPEC 0084).
 
-One test per acceptance criterion, named after the criterion. None of them needs
-TensorFlow, which is itself one of the criteria: resolving an artifact path is a
-question about a directory, and the reporting layer answers it on machines where
-the training stack cannot be installed.
+SPEC 0047 made one resolver the path every reader took. Its only reader was the
+TFLite export, and SPEC 0084 removed both, so its three resolver criteria went
+with them. Neither remaining test needs TensorFlow, which is itself one of the
+criteria: resolving an artifact path is a question about a directory, and the
+reporting layer answers it on machines where the training stack cannot be
+installed.
 """
 
 import ast
 import re
 from pathlib import Path
 
-import pytest
-
-from src.model_paths import (
-    CHECKPOINT_FILENAME,
-    LEGACY_CHECKPOINT_FILENAME,
-    find_model_checkpoint,
-)
-
 SRC = Path(__file__).resolve().parents[1] / "src"
-
-
-def test_resolver_prefers_keras_over_h5(tmp_path):
-    """With both formats present, the `.keras` checkpoint wins."""
-    (tmp_path / CHECKPOINT_FILENAME).write_bytes(b"keras")
-    (tmp_path / LEGACY_CHECKPOINT_FILENAME).write_bytes(b"h5")
-
-    assert find_model_checkpoint(tmp_path) == tmp_path / CHECKPOINT_FILENAME
-
-
-def test_resolver_falls_back_to_h5(tmp_path):
-    """A checkpoint in the Keras 2 format still loads."""
-    (tmp_path / LEGACY_CHECKPOINT_FILENAME).write_bytes(b"h5")
-
-    assert find_model_checkpoint(tmp_path) == tmp_path / LEGACY_CHECKPOINT_FILENAME
-
-
-def test_resolver_failure_names_both_paths(tmp_path):
-    """"Not found" is ambiguous about which format was expected, so say both."""
-    with pytest.raises(FileNotFoundError) as raised:
-        find_model_checkpoint(tmp_path)
-
-    message = str(raised.value)
-    assert str(tmp_path / CHECKPOINT_FILENAME) in message
-    assert str(tmp_path / LEGACY_CHECKPOINT_FILENAME) in message
 
 
 def test_resolver_needs_no_tensorflow():

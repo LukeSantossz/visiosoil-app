@@ -55,7 +55,6 @@ def valid_config() -> dict:
             "class_weights": "balanced",
         },
         "export": {
-            "quantization": "none",
             "output_dir": "models",
         },
     }
@@ -278,7 +277,7 @@ def test_valid_augmentation_ranges_are_accepted(valid_config):
 
 
 def test_baked_rescaling_must_match_the_declared_contract(valid_config):
-    """build_model rescales unconditionally; export.py reads this flag."""
+    """build_model rescales unconditionally, so the flag must say it does."""
     valid_config["preprocessing"]["bake_into_model"] = False
     path = _write_config(valid_config)
     with pytest.raises(ValueError, match="bake_into_model"):

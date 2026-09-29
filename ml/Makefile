@@ -1,4 +1,4 @@
-.PHONY: setup folds train evaluate contrasts export deploy test pipeline all clean
+.PHONY: setup folds train evaluate contrasts deploy test pipeline all clean
 
 PYTHON = .venv/bin/python
 PIP = .venv/bin/pip
@@ -22,14 +22,6 @@ evaluate:
 
 contrasts:
 	$(PYTHON) -m src.evaluate --version $(VERSION) --contrasts
-
-# Not part of `pipeline`: cross-validation produces one model per fold per
-# repeat under models/$(VERSION)/$(ARM)/repeat-<r>/fold-<i>/, and src.export
-# reads models/$(VERSION)/model.keras. Which fold's model ships is a release
-# decision the evaluation protocol does not make, so promoting one is a
-# deliberate step and not something `make pipeline` should do on the way past.
-export:
-	$(PYTHON) -m src.export --version $(VERSION)
 
 deploy:
 	bash scripts/deploy_to_app.sh $(VERSION)
