@@ -67,31 +67,29 @@ def test_resolver_needs_no_tensorflow():
     assert not imported & {"tensorflow", "keras", "tf_keras"}
 
 
-def test_one_resolver_is_called_by_every_reader():
-    """No module resolves a checkpoint path inline, and none repeats the name.
+def test_the_checkpoint_filename_is_declared_once():
+    """`train.py` saves through the constant, and no resolver is left over.
 
-    A source-level check, which is weaker than executing the modules and is
-    paired with the behavioural criteria above. It exists to stop the
-    duplication #30 is about from coming back, which the behavioural tests
-    cannot see: a re-inlined copy would pass every one of them.
+    The TFLite export was the only reader of a checkpoint, and SPEC 0084 removed
+    it together with `find_model_checkpoint`. What #30 is about still holds on
+    the writing side: a re-inlined filename would be a second source for the
+    next reader to disagree with, and no behavioural test would see it.
     """
-    readers = {
-        "export.py": "find_model_checkpoint",
-        "train.py": "CHECKPOINT_FILENAME",
-    }
+    import src.model_paths as model_paths
 
-    for filename, expected in readers.items():
-        source = (SRC / filename).read_text(encoding="utf-8")
-        assert expected in source, f"{filename} does not use {expected}"
+    assert not hasattr(model_paths, "find_model_checkpoint")
 
-        # The literal filename, outside the module that declares it. A comment
-        # may mention it; a path expression may not.
-        code = "\n".join(
-            line for line in source.splitlines() if not line.lstrip().startswith("#")
-        )
-        assert not re.search(r'["\']model\.keras["\']', code), (
-            f"{filename} repeats the checkpoint filename as a literal"
-        )
-        assert not re.search(r'["\']model\.h5["\']', code), (
-            f"{filename} repeats the legacy checkpoint filename as a literal"
-        )
+    source = (SRC / "train.py").read_text(encoding="utf-8")
+    assert "CHECKPOINT_FILENAME" in source, "train.py does not use CHECKPOINT_FILENAME"
+
+    # The literal filename, outside the module that declares it. A comment may
+    # mention it; a path expression may not.
+    code = "\n".join(
+        line for line in source.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert not re.search(r'["\']model\.keras["\']', code), (
+        "train.py repeats the checkpoint filename as a literal"
+    )
+    assert not re.search(r'["\']model\.h5["\']', code), (
+        "train.py repeats the legacy checkpoint filename as a literal"
+    )

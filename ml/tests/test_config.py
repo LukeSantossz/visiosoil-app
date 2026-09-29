@@ -546,6 +546,15 @@ def test_the_shipped_config_declares_the_protocol_ADR_0020_fixed():
     assert "test_split" not in cfg["data"]
 
 
+def test_the_shipped_config_declares_no_quantization():
+    """Only the TFLite export read `export.quantization`, and SPEC 0084 removed it.
+
+    `output_dir` keeps the block's old name because every module reads it as the
+    models root.
+    """
+    assert set(load_config()["export"]) == {"output_dir"}
+
+
 # --- SPEC 0047: keys that mean what they say -------------------------------
 
 
