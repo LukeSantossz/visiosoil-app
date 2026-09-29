@@ -122,8 +122,9 @@ kinds of case:
   numpy rounds them to;
 - **geometry:** ADR 0018's table at the real configuration, 160 px at the
   canonical scale, where discs of 70, 80 and 90 mm carry 9, 21 and 25 patches.
-  Also the floor boundary: the largest diameter refused and the smallest
-  accepted. Each case has its count, stride, inset and offsets, or its refusal;
+  Also the floor: a diameter 0.01 px below it and one 0.01 px above it. The
+  floor itself is the `hypot` boundary below, so no case sits on it. Each case
+  has its count, stride, inset and offsets, or its refusal;
 - **pipeline:** whole photographs cut at a 16 px patch, so every patch byte fits
   in the file. Each case is a frame, a measured scale and a region, with either
   the patches in order or the refusal. Every refusal appears at least once.
