@@ -37,8 +37,10 @@ void main() {
     return end == -1 ? job.substring(start) : job.substring(start, end);
   }
 
+  /// Whether [command] is a whole shell line, in a `run: |` block or as a
+  /// one-line `run:`.
   bool runsLine(String text, String command) => RegExp(
-    '^\\s*${RegExp.escape(command)}\\s*\$',
+    '^\\s*(?:run:\\s*)?${RegExp.escape(command)}\\s*\$',
     multiLine: true,
   ).hasMatch(text);
 
