@@ -57,8 +57,8 @@ void main() {
   }
 
   /// Asserts [items] draw the tile and then the mark over it, each centred and
-  /// at the splash's size.
-  void expectTileThenMark(List<String> items, String file) {
+  /// at [scale] times the splash's size.
+  void expectTileThenMark(List<String> items, String file, {double scale = 1}) {
     final tile = items.indexWhere(
       (i) => attribute(i, 'drawable') == '@drawable/launch_tile',
     );
@@ -72,8 +72,27 @@ void main() {
       (mark, SplashScreen.logoMarkSize),
     ]) {
       expect(attribute(items[index], 'gravity'), 'center', reason: file);
-      expect(dp(attribute(items[index], 'width')), size, reason: file);
-      expect(dp(attribute(items[index], 'height')), size, reason: file);
+      expect(dp(attribute(items[index], 'width')), size * scale, reason: file);
+      expect(dp(attribute(items[index], 'height')), size * scale, reason: file);
+    }
+  }
+
+  /// The commands of a vector path, and every number in it, in order.
+  (String, List<double>) parsePath(String path) {
+    final data = attribute(path, 'pathData')!;
+    return (
+      data.replaceAll(RegExp(r'[^A-Za-z]'), ''),
+      RegExp(r'-?\d+(?:\.\d+)?')
+          .allMatches(data)
+          .map((m) => double.parse(m.group(0)!))
+          .toList(),
+    );
+  }
+
+  void expectNumbers(List<double> actual, List<double> expected) {
+    expect(actual, hasLength(expected.length));
+    for (var i = 0; i < expected.length; i++) {
+      expect(actual[i], closeTo(expected[i], 1e-9));
     }
   }
 
@@ -84,22 +103,54 @@ void main() {
   });
 
   test('launch_tile_matches_the_splash_tile', () {
+    const s = SplashScreen.logoTileSize;
+    const r = SplashScreen.logoTileRadius;
+
+    // A vector, so its corners scale with the size it is drawn at.
     final tile = read('drawable/launch_tile.xml');
-    final corners = RegExp(r'<corners\b[^>]*>').firstMatch(tile)?.group(0);
-    expect(corners, isNotNull, reason: 'launch_tile.xml has no <corners>');
-    expect(dp(attribute(corners!, 'radius')), SplashScreen.logoTileRadius);
+    for (final side in ['viewportWidth', 'viewportHeight']) {
+      expect(double.parse(attribute(tile, side)!), s);
+    }
+
+    final path = RegExp(r'<path\b[^>]*>').firstMatch(tile)?.group(0);
+    expect(path, isNotNull, reason: 'launch_tile.xml has no <path>');
+    final (commands, numbers) = parsePath(path!);
+    // The square, clockwise from the end of the top-left corner.
+    expect(commands, 'MHAVAHAVAZ');
+    expectNumbers(numbers, [
+      r, 0, s - r, //
+      r, r, 0, 0, 1, s, r, s - r,
+      r, r, 0, 0, 1, s - r, s, r,
+      r, r, 0, 0, 1, 0, s - r, r,
+      r, r, 0, 0, 1, r, 0,
+    ]);
 
     final gradient = RegExp(r'<gradient\b[^>]*>').firstMatch(tile)?.group(0);
     expect(gradient, isNotNull, reason: 'launch_tile.xml has no <gradient>');
-    // 315 degrees runs from the top-left corner to the bottom-right one, as
-    // the splash's LinearGradient(topLeft, bottomRight) does.
-    expect(attribute(gradient!, 'angle'), '315');
+    // From the top-left corner to the bottom-right one, as the splash's
+    // LinearGradient(topLeft, bottomRight) runs.
+    expect(attribute(gradient!, 'type'), 'linear');
+    expectNumbers(
+      [
+        for (final axis in ['startX', 'startY', 'endX', 'endY'])
+          double.parse(attribute(gradient, axis)!),
+      ],
+      [0, 0, s, s],
+    );
     expect(attribute(gradient, 'startColor'), '@color/launch_tile_start');
     expect(attribute(gradient, 'endColor'), '@color/launch_tile_end');
 
-    for (final file in ['launch_background.xml', 'launch_icon.xml']) {
-      expectTileThenMark(layers(read('drawable/$file')), file);
-    }
+    expectTileThenMark(
+      layers(read('drawable/launch_background.xml')),
+      'launch_background.xml',
+    );
+    // Android 12+ lays an icon without a background out in 108 dp and shows it
+    // at 192 dp, so the icon is drawn smaller to appear at the splash's size.
+    expectTileThenMark(
+      layers(read('drawable/launch_icon.xml')),
+      'launch_icon.xml',
+      scale: 108 / 192,
+    );
   });
 
   test('launch_mark_draws_the_painted_mark', () {
