@@ -70,8 +70,10 @@ class DescriptorContract {
   /// mean over the patches. This is `predict_proba` then `arms.probe._predict`'s
   /// mean.
   ///
-  /// Throws an [ArgumentError] for a photograph with no patch, or for a patch
-  /// that does not carry one value per feature.
+  /// Throws an [ArgumentError] for a photograph with no patch, for a patch
+  /// that does not carry one value per feature, and for a patch whose logits
+  /// are not all finite: a NaN or an infinity among its features, or a finite
+  /// feature large enough to overflow.
   Float64List distribution(List<Float64List> patches) {
     if (patches.isEmpty) {
       throw ArgumentError('a photograph with no patch has no distribution');
@@ -87,7 +89,8 @@ class DescriptorContract {
         );
       }
       for (var feature = 0; feature < width; feature++) {
-        standardised[feature] = (patch[feature] - mean[feature]) / scale[feature];
+        standardised[feature] =
+            (patch[feature] - mean[feature]) / scale[feature];
       }
       var largest = double.negativeInfinity;
       for (var index = 0; index < classes.length; index++) {
@@ -95,6 +98,11 @@ class DescriptorContract {
         var logit = intercepts[index];
         for (var feature = 0; feature < width; feature++) {
           logit += row[feature] * standardised[feature];
+        }
+        // A non-finite feature always reaches here as a non-finite logit, so
+        // this one check also refuses what `predict_proba` refuses.
+        if (!logit.isFinite) {
+          throw ArgumentError('a patch scored a non-finite logit, $logit');
         }
         logits[index] = logit;
         largest = math.max(largest, logit);
@@ -120,7 +128,7 @@ class DescriptorContract {
 /// Parses [text] as a descriptor contract: the contract, or the cause it was
 /// refused with. Never throws.
 ({DescriptorContract? contract, ClassificationFailureCause? cause})
-    parseDescriptorContract(String text) {
+parseDescriptorContract(String text) {
   try {
     return (contract: _parse(text), cause: null);
   } on _Refusal catch (refusal) {
@@ -157,8 +165,10 @@ DescriptorContract _parse(String text) {
   // is unsupported, whatever else it holds.
   final version = _int(document, 'spec_version');
   if (version != descriptorContractVersion) {
-    _unsupported('spec_version $version; this reader implements '
-        '$descriptorContractVersion');
+    _unsupported(
+      'spec_version $version; this reader implements '
+      '$descriptorContractVersion',
+    );
   }
   final classifier = _string(document, 'classifier');
   if (classifier != _classifier) _unsupported('classifier $classifier');
@@ -228,7 +238,8 @@ DescriptorContract _parse(String text) {
 
   // Well formed. Now whether it describes what this build computes.
   if (aggregation != _aggregation) _unsupported('aggregation $aggregation');
-  final offsetsAgree = glcmOffsetsRead.length == glcmOffsets.length &&
+  final offsetsAgree =
+      glcmOffsetsRead.length == glcmOffsets.length &&
       [
         for (var i = 0; i < glcmOffsets.length; i++)
           glcmOffsetsRead[i] == glcmOffsets[i],
@@ -242,7 +253,8 @@ DescriptorContract _parse(String text) {
       minCyclesRead != minCyclesPerPatch) {
     _unsupported('a descriptor fixed point differs from patch_descriptors');
   }
-  final featuresAgree = features.length == descriptorFeatureNames.length &&
+  final featuresAgree =
+      features.length == descriptorFeatureNames.length &&
       [
         for (var i = 0; i < features.length; i++)
           features[i] == descriptorFeatureNames[i],
