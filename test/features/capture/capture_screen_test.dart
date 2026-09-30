@@ -569,7 +569,8 @@ void main() {
       final gate = Completer<void>();
       final repository = _GatedSoilRecordRepository(gate.future);
       final deleted = <String>[];
-      await tester.pumpWidget(buildScreen(
+      // Routed, because the save it lets finish pops the screen.
+      await tester.pumpWidget(buildRouted(
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
         classify: (_) async => null,
@@ -577,6 +578,8 @@ void main() {
         deletePickedFile: (path) async => deleted.add(path),
       ));
 
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
       await capture(tester);
       await tester.tap(find.text('Salvar registro'));
       await tester.pump();
