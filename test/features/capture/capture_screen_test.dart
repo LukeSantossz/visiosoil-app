@@ -41,6 +41,10 @@ class _FakeInference extends InferenceService {
   }
 }
 
+// Every test captures the same sample file, so the harness never lets the
+// screen delete it: a test that is about deletion passes its own deleter.
+Future<void> _keepPickedFile(String _) async {}
+
 void main() {
   late String samplePath;
 
@@ -56,6 +60,7 @@ void main() {
     required LocationResolver locate,
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
+    PickedFileDeleter deletePickedFile = _keepPickedFile,
   }) {
     return ProviderScope(
       overrides: [
@@ -69,6 +74,7 @@ void main() {
           locate: locate,
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
+          deletePickedFile: deletePickedFile,
         ),
       ),
     );
@@ -81,6 +87,7 @@ void main() {
     required LocationResolver locate,
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
+    PickedFileDeleter deletePickedFile = _keepPickedFile,
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -103,6 +110,7 @@ void main() {
             locate: locate,
             checkCameraPermission: () async => AppPermissionStatus.granted,
             requestCameraPermission: () async => AppPermissionStatus.granted,
+            deletePickedFile: deletePickedFile,
           ),
         ),
       ],
@@ -464,5 +472,110 @@ void main() {
 
     expect(find.text('São Paulo'), findsOneWidget);
     expect(find.text('Localizando...'), findsNothing);
+  });
+
+  // The picker's file carries the original EXIF, GPS included; the record
+  // points at the durable copy, so the screen deletes the picker's file once
+  // it is no longer needed (SPEC 0094).
+  group('picked file', () {
+    Future<void> openAndSave(WidgetTester tester) async {
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a_saved_capture_deletes_the_picker_file', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      final deleted = <String>[];
+      int? createsAtDeletion;
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        deletePickedFile: (path) async {
+          deleted.add(path);
+          createsAtDeletion = repository.createCalls.length;
+        },
+      ));
+
+      await openAndSave(tester);
+
+      expect(deleted, [samplePath]);
+      expect(createsAtDeletion, 1);
+    });
+
+    testWidgets('a_failed_save_keeps_the_picker_file', (tester) async {
+      final repository = FakeSoilRecordRepository()..throwOnCreate = true;
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+
+      expect(repository.createCalls, hasLength(1));
+      expect(deleted, isEmpty);
+    });
+
+    testWidgets('a_discarded_capture_deletes_the_picker_file', (tester) async {
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await capture(tester);
+      await tester.tap(find.text('Descartar'));
+      await tester.pump();
+
+      expect(deleted, [samplePath]);
+      expect(find.text('Câmera'), findsOneWidget);
+    });
+
+    testWidgets('a_failed_deletion_does_not_fail_the_save', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        deletePickedFile: (path) async =>
+            throw FileSystemException('denied', path),
+      ));
+
+      await openAndSave(tester);
+
+      expect(repository.createCalls, hasLength(1));
+      expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
+      expect(find.text('open capture'), findsOneWidget); // popped back to '/'
+    });
+
+    test('the_default_deleter_removes_the_file_and_ignores_an_absent_one',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('picked_file');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final file = File('${dir.path}/picked.jpg')..writeAsBytesSync([1, 2, 3]);
+
+      await deletePickedFile(file.path);
+      expect(file.existsSync(), isFalse);
+
+      await expectLater(deletePickedFile(file.path), completes);
+    });
   });
 }
