@@ -53,6 +53,7 @@ class CaptureScreen extends ConsumerStatefulWidget {
     this.checkCameraPermission,
     this.requestCameraPermission,
     this.deletePickedFile,
+    this.initialImagePath,
   });
 
   /// Test seams; each defaults to the real platform implementation.
@@ -61,6 +62,10 @@ class CaptureScreen extends ConsumerStatefulWidget {
   final CameraPermissionProbe? checkCameraPermission;
   final CameraPermissionProbe? requestCameraPermission;
   final PickedFileDeleter? deletePickedFile;
+
+  /// A photograph to start with instead of opening the camera: one recovered
+  /// after Android killed the app mid-capture (SPEC 0096).
+  final String? initialImagePath;
 
   @override
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
@@ -95,6 +100,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final initialImagePath = widget.initialImagePath;
+    if (initialImagePath != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _useCapturedImage(initialImagePath);
+      });
+    }
   }
 
   @override
@@ -180,7 +191,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     if (!mounted || image == null) return;
 
-    ref.read(imageProvider.notifier).setImage(File(image.path));
+    await _useCapturedImage(image.path);
+  }
+
+  /// Shows the photograph at [path] as the capture and runs location and
+  /// classification on it, whether it was just picked or recovered after a
+  /// restart.
+  Future<void> _useCapturedImage(String path) async {
+    ref.read(imageProvider.notifier).setImage(File(path));
 
     // Tags this capture so late results from a superseded one are ignored.
     final generation = _state.generation + 1;
@@ -189,7 +207,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Runs location and classification in parallel (they are independent)
     await Future.wait([
       _fetchCurrentLocation(generation),
-      _classifySoilTexture(image.path, generation),
+      _classifySoilTexture(path, generation),
     ]);
   }
 
