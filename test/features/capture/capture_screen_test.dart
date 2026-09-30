@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -38,6 +39,21 @@ class _FakeInference extends InferenceService {
     return result == null
         ? ClassificationReport.failed(cause)
         : ClassificationReport.ok(result);
+  }
+}
+
+/// Holds every `create` until [_gate] completes, so a test can act while a
+/// save is in flight.
+class _GatedSoilRecordRepository extends FakeSoilRecordRepository {
+  _GatedSoilRecordRepository(this._gate);
+
+  final Future<void> _gate;
+
+  @override
+  Future<SoilRecord> create(SoilRecord record) async {
+    final saved = super.create(record);
+    await _gate;
+    return saved;
   }
 }
 
@@ -546,6 +562,36 @@ void main() {
 
       expect(deleted, [samplePath]);
       expect(find.text('Câmera'), findsOneWidget);
+    });
+
+    testWidgets('a_discard_during_a_save_leaves_the_file_to_the_save',
+        (tester) async {
+      final gate = Completer<void>();
+      final repository = _GatedSoilRecordRepository(gate.future);
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pump();
+      await tester.tap(find.text('Descartar'));
+      await tester.pump();
+
+      expect(repository.createCalls, hasLength(1));
+      expect(deleted, isEmpty);
+
+      gate.complete();
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+
+      expect(deleted, [samplePath]);
     });
 
     testWidgets('a_failed_deletion_does_not_fail_the_save', (tester) async {
