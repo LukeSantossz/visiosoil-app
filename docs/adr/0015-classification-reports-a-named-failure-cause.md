@@ -15,7 +15,7 @@ whose Design Decisions it records. It discharges the debt
 deliberately: that record shipped `notAnalysed` derived from a `null` meaning
 six different things, and priced the acceptance as **no result surface may offer
 retry on `notAnalysed` until A4 lands**. This is A4's half of that bargain.
-Amended on 2026-09-29.
+Amended on 2026-09-29 and 2026-09-30.
 
 ### Amended 2026-09-29: the descriptor path replaces the causes only TFLite could produce
 
@@ -48,6 +48,40 @@ a contract, not a model.
 | `measurementUnavailable` | `isolateFailure` | |
 | | `imageMissing` | |
 | | `imageUndecodable` | |
+| | `photographTooCoarse` | |
+| | `soilRegionTooSmall` | |
+| | `soilRegionOutsideFrame` | |
+
+### Amended 2026-09-30: the A4-sheet reader measures, so its refusals replace `measurementUnavailable`
+
+[SPEC 0092](../specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)
+makes the A4-sheet reader of
+[ADR 0017](0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)
+the service's measurer. This table replaces the 2026-09-29 one as **the
+current one.** Fourteen causes, from thirteen:
+
+- **Two arrive,** in the column where the user can retake the photograph, as
+  ADR 0017 placed them. `sheetNotFound` covers no sheet in the frame and a pale
+  sheet on a pale surface. `sheetCropped` covers a sheet running off the frame.
+  The message can say which, because the remedies differ: bring a sheet, or
+  step back.
+- **One leaves.** `measurementUnavailable` meant that nothing in the build
+  measured scale. Something now does, so nothing fails that way, and a cause
+  with no producer in a type the UI switches over is what SPEC 0083 refused.
+
+A sheet with no soil on it is not a fifteenth cause. It is
+`soilRegionTooSmall`, whose remedy is the same: put soil on the sheet and
+spread it.
+
+| Nothing to do — the build is wrong | Retry, or retake the photograph | Re-release the contract |
+| --- | --- | --- |
+| `contractMissing` | `timeout` | `contractUnsupported` |
+| `contractMalformed` | `computationError` | `outputInvalid` |
+| | `isolateFailure` | |
+| | `imageMissing` | |
+| | `imageUndecodable` | |
+| | `sheetNotFound` | |
+| | `sheetCropped` | |
 | | `photographTooCoarse` | |
 | | `soilRegionTooSmall` | |
 | | `soilRegionOutsideFrame` | |
