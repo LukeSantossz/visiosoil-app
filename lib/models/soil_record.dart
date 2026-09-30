@@ -1,5 +1,6 @@
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 
 /// Soil sample record (domain model).
 ///
@@ -22,6 +23,16 @@ class SoilRecord {
   final String? textureClass;
   final double? confidenceScore;
 
+  /// Every class's probability, in the contract's class order, as the
+  /// classification scored them (SPEC 0097). Null when not known: a record
+  /// saved before schema v7, or without a classification.
+  final List<ClassScore>? classDistribution;
+
+  /// The versions of the contract that scored the photograph, null when not
+  /// known.
+  final String? modelVersion;
+  final String? datasetVersion;
+
   const SoilRecord({
     this.id,
     this.uuid,
@@ -36,6 +47,9 @@ class SoilRecord {
     this.deleted = false,
     this.textureClass,
     this.confidenceScore,
+    this.classDistribution,
+    this.modelVersion,
+    this.datasetVersion,
   });
 
   /// Returns a copy of this record with the given fields replaced.
@@ -53,6 +67,9 @@ class SoilRecord {
     bool? deleted,
     String? textureClass,
     double? confidenceScore,
+    List<ClassScore>? classDistribution,
+    String? modelVersion,
+    String? datasetVersion,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -68,6 +85,9 @@ class SoilRecord {
       deleted: deleted ?? this.deleted,
       textureClass: textureClass ?? this.textureClass,
       confidenceScore: confidenceScore ?? this.confidenceScore,
+      classDistribution: classDistribution ?? this.classDistribution,
+      modelVersion: modelVersion ?? this.modelVersion,
+      datasetVersion: datasetVersion ?? this.datasetVersion,
     );
   }
 

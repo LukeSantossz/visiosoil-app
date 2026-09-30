@@ -281,6 +281,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               timestamp: DateTime.now().toIso8601String(),
               textureClass: _state.classificationResult?.textureClass,
               confidenceScore: _state.classificationResult?.confidenceScore,
+              classDistribution:
+                  _state.classificationResult?.classDistribution,
+              modelVersion: _state.classificationResult?.modelVersion,
+              datasetVersion: _state.classificationResult?.datasetVersion,
             ),
           );
       didCreate = true;

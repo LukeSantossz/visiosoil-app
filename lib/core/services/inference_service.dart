@@ -27,11 +27,29 @@ class InferenceResult {
   /// construct a result without one.
   final List<ClassScore> distribution;
 
+  /// The contract's classes, in its order, and the versions of the contract
+  /// that scored the photograph: what a record keeps (SPEC 0097). Empty and
+  /// null for results built without them.
+  final List<String> classes;
+  final String? modelVersion;
+  final String? datasetVersion;
+
   const InferenceResult({
     required this.textureClass,
     required this.confidenceScore,
     this.distribution = const [],
+    this.classes = const [],
+    this.modelVersion,
+    this.datasetVersion,
   });
+
+  /// [distribution] in the contract's class order, which is how a record
+  /// stores it, or null when this result carries no class order.
+  List<ClassScore>? get classDistribution {
+    if (classes.isEmpty) return null;
+    final byLabel = {for (final score in distribution) score.label: score};
+    return [for (final label in classes) byLabel[label]!];
+  }
 }
 
 /// Everything the inference isolate needs: the work to do, and the port to
@@ -309,7 +327,12 @@ class InferenceService {
           ClassificationFailureCause.outputInvalid,
         );
       }
-      return reportFor(probabilities, contract.classes);
+      return reportFor(
+        probabilities,
+        contract.classes,
+        modelVersion: contract.modelVersion,
+        datasetVersion: contract.datasetVersion,
+      );
     } catch (e) {
       developer.log(
         'InferenceService.runInference failed: $e',
@@ -345,11 +368,17 @@ class InferenceService {
 
   /// The report for one distribution over [labels]: invalid output when it
   /// does not carry one probability per label, and the result otherwise.
+  ///
+  /// [labels] are the contract's classes, in its order, and the result keeps
+  /// them with the contract's [modelVersion] and [datasetVersion], so a record
+  /// can say what scored it (SPEC 0097).
   @visibleForTesting
   static ClassificationReport reportFor(
     List<double> probabilities,
-    List<String> labels,
-  ) {
+    List<String> labels, {
+    String? modelVersion,
+    String? datasetVersion,
+  }) {
     final distribution = buildDistribution(probabilities, labels);
     if (distribution == null) {
       return const ClassificationReport.failed(
@@ -363,6 +392,9 @@ class InferenceService {
         textureClass: distribution.first.label,
         confidenceScore: distribution.first.probability,
         distribution: distribution,
+        classes: List.unmodifiable(labels),
+        modelVersion: modelVersion,
+        datasetVersion: datasetVersion,
       ),
     );
   }

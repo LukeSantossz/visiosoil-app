@@ -30,4 +30,13 @@ class SoilRecords extends Table {
   TextColumn get textureClass => text().named('texture_class').nullable()();
   RealColumn get confidenceScore =>
       real().named('confidence_score').nullable()();
+
+  /// v7 (SPEC 0097): every class's probability, as a JSON array of
+  /// `{"label", "probability"}` in the contract's class order, and the versions
+  /// of the contract that scored the photograph. Null when not known: a record
+  /// saved before v7, or without a classification, never had them.
+  TextColumn get classDistribution =>
+      text().named('class_distribution').nullable()();
+  TextColumn get modelVersion => text().named('model_version').nullable()();
+  TextColumn get datasetVersion => text().named('dataset_version').nullable()();
 }
