@@ -61,7 +61,7 @@ A recovered photograph opens the capture screen with it. That screen then runs l
 
 ## Reproducibility
 
-`flutter test test/core/services/lost_capture_service_test.dart test/features/main/lost_capture_recovery_test.dart test/features/capture/capture_screen_test.dart`
+`flutter test test/services/lost_capture_service_test.dart test/features/main/lost_capture_recovery_test.dart test/features/capture/capture_screen_test.dart`
 
 For the device check:
 1. `adb shell settings put global always_finish_activities 1`
