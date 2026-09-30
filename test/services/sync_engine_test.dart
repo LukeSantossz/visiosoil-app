@@ -133,6 +133,35 @@ void main() {
       expect(backend.deleted.map((r) => r.uuid), contains(local.uuid));
     });
 
+    // A deleted record's content never reaches a backend, and its delete still
+    // does (SPEC 0093).
+    test('a_scrubbed_tombstone_still_syncs_its_delete', () async {
+      final local = await repo.create(SoilRecord(
+        imagePath: '/img.jpg',
+        latitude: -22.9,
+        longitude: -47.06,
+        address: 'Fazenda Boa Vista',
+        timestamp: DateTime.utc(2026, 1, 1, 9, 30).toIso8601String(),
+        textureClass: 'Argilosa',
+        confidenceScore: 0.87,
+      ));
+      await repo.deleteById(local.id!);
+
+      await engine.sync();
+
+      final sent = backend.deleted.single;
+      expect(sent.uuid, local.uuid);
+      expect(sent.deleted, isTrue);
+      for (final record in [...backend.pushed, ...backend.deleted]) {
+        expect(record.latitude, isNull);
+        expect(record.longitude, isNull);
+        expect(record.address, isNull);
+        expect(record.textureClass, isNull);
+        expect(record.confidenceScore, isNull);
+        expect(record.imagePath, isEmpty);
+      }
+    });
+
     test('sync_engine_marks_tombstone_synced_after_delete_push', () async {
       final local = await repo.create(sample());
       // Drain the create first so only the delete op remains in the outbox;

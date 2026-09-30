@@ -2,6 +2,7 @@
 // UUID assignment, outbox enqueueing, tombstone deletes, and read filtering.
 import 'dart:io';
 
+import 'package:drift/drift.dart' show QueryRow, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
@@ -106,6 +107,144 @@ void main() {
       addTearDown(openDb.close);
       final ops = await openDb.customSelect('SELECT id FROM sync_queue').get();
       expect(ops.length, 1);
+    });
+  });
+
+  // A tombstone keeps only what sync reads; everything the user captured is
+  // erased when the record is deleted (SPEC 0093).
+  group('DriftSoilRecordRepository tombstone erasure', () {
+    late AppDatabase db;
+    late DriftSoilRecordRepository repo;
+    late DateTime now;
+
+    const createdAt = '2026-01-01T12:00:00.000Z';
+    const deletedAt = '2026-03-04T05:06:07.000Z';
+
+    setUp(() {
+      now = DateTime.parse(createdAt);
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repo = DriftSoilRecordRepository(
+        db,
+        clock: () => now,
+        imageStorage: FakeImageStorageService(),
+      );
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    SoilRecord captured({String address = 'Fazenda Boa Vista'}) => SoilRecord(
+          imagePath: '/img.jpg',
+          latitude: -22.9,
+          longitude: -47.06,
+          address: address,
+          timestamp: '2026-01-01T09:30:00.000Z',
+          textureClass: 'Argilosa',
+          confidenceScore: 0.87,
+        );
+
+    Future<QueryRow> storedRow(String uuid) => db
+        .customSelect(
+          'SELECT * FROM soil_records WHERE uuid = ?',
+          variables: [Variable.withString(uuid)],
+        )
+        .getSingle();
+
+    void expectErased(QueryRow row) {
+      expect(row.read<double?>('latitude'), isNull);
+      expect(row.read<double?>('longitude'), isNull);
+      expect(row.read<String?>('address'), isNull);
+      expect(row.read<String?>('texture_class'), isNull);
+      expect(row.read<double?>('confidence_score'), isNull);
+      expect(row.read<String>('image_path'), isEmpty);
+      expect(row.read<String>('timestamp'), row.read<String>('updated_at'));
+    }
+
+    Future<void> cacheTips(String uuid) => db.customStatement(
+          'INSERT INTO management_tips (record_uuid, payload_json, retrieved_at) '
+          "VALUES (?, '{}', ?)",
+          [uuid, createdAt],
+        );
+
+    test('delete_by_id_erases_the_record_content', () async {
+      final saved = await repo.create(captured());
+      now = DateTime.parse(deletedAt);
+
+      await repo.deleteById(saved.id!);
+
+      expectErased(await storedRow(saved.uuid!));
+    });
+
+    test('delete_keeps_what_sync_reads', () async {
+      final saved = await repo.create(captured());
+      now = DateTime.parse(deletedAt);
+
+      await repo.deleteById(saved.id!);
+
+      final row = await storedRow(saved.uuid!);
+      expect(row.read<String>('uuid'), saved.uuid);
+      expect(row.read<int>('deleted'), 1);
+      expect(row.read<String>('sync_status'), 'pending');
+      expect(row.read<String>('updated_at'), deletedAt);
+      final ops = await db
+          .customSelect(
+            'SELECT operation FROM sync_queue WHERE record_uuid = ?',
+            variables: [Variable.withString(saved.uuid!)],
+          )
+          .get();
+      expect(ops.map((o) => o.read<String>('operation')), contains('delete'));
+    });
+
+    test('delete_by_ids_erases_only_the_selected_records', () async {
+      final a = await repo.create(captured(address: 'A'));
+      final b = await repo.create(captured(address: 'B'));
+      final kept = await repo.create(captured(address: 'Kept'));
+
+      await repo.deleteByIds([a.id!, b.id!]);
+
+      expectErased(await storedRow(a.uuid!));
+      expectErased(await storedRow(b.uuid!));
+      final untouched = await storedRow(kept.uuid!);
+      expect(untouched.read<double?>('latitude'), -22.9);
+      expect(untouched.read<double?>('longitude'), -47.06);
+      expect(untouched.read<String?>('address'), 'Kept');
+      expect(untouched.read<String?>('texture_class'), 'Argilosa');
+      expect(untouched.read<double?>('confidence_score'), 0.87);
+      expect(untouched.read<String>('image_path'), isNotEmpty);
+      expect(untouched.read<String>('timestamp'), '2026-01-01T09:30:00.000Z');
+    });
+
+    test('delete_all_erases_every_record', () async {
+      await repo.create(captured(address: 'A'));
+      await repo.create(captured(address: 'B'));
+
+      await repo.deleteAll();
+
+      final holding = await db
+          .customSelect(
+            'SELECT id FROM soil_records WHERE latitude IS NOT NULL '
+            'OR longitude IS NOT NULL OR address IS NOT NULL '
+            'OR texture_class IS NOT NULL OR confidence_score IS NOT NULL',
+          )
+          .get();
+      expect(holding, isEmpty);
+      final rows = await db.customSelect('SELECT uuid FROM soil_records').get();
+      expect(rows, hasLength(2));
+    });
+
+    test('delete_removes_the_record_cached_tips', () async {
+      final deleted = await repo.create(captured(address: 'Deleted'));
+      final kept = await repo.create(captured(address: 'Kept'));
+      await cacheTips(deleted.uuid!);
+      await cacheTips(kept.uuid!);
+
+      await repo.deleteById(deleted.id!);
+
+      final tips = await db
+          .customSelect('SELECT record_uuid FROM management_tips')
+          .get();
+      expect(tips.map((t) => t.read<String>('record_uuid')), [kept.uuid]);
     });
   });
 }
