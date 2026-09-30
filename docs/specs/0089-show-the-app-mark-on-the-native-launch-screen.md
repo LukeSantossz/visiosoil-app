@@ -157,24 +157,31 @@ For the device check, run a cold launch of the release APK:
 2. `adb shell am start -W -n <package>/.MainActivity`
 3. Record it with `adb shell screenrecord`, and extract frames with `ffmpeg`.
 
-Do this on the local API 36 emulator in light and dark mode, and on an API 30
-emulator (`system-images;android-30;google_apis;x86_64`). The mark's bounding
-box is measured in the last native frame and in the first Flutter frame.
+Do this on the local API 36 emulator in light and dark mode, on an API 30
+emulator (`system-images;android-30;google_apis;x86_64`), and on an API 34
+emulator (`system-images;android-34;google_apis;x86_64`) in three-button and
+gesture navigation. The mark's bounding box is measured in the last native frame
+and in the first Flutter frame.
 Flutter 3.44.1, compile and target SDK 36.
 
 ## Risks and Assumptions
 
 - Assumes the native window and the Flutter view share a centre. The device
-  check measured it in two places:
+  check measured it in three places:
   - on API 36, 1 px apart, where the app is edge to edge;
   - on API 30 with a three-button navigation bar, 1.5 px apart, where neither
-    the launch window nor the Flutter view extends under the bar.
+    the launch window nor the Flutter view extends under the bar;
+  - on API 34, **not shared**. The system splash spans the whole display, and
+    the Flutter view stops above the navigation bar. So at the hand-over the
+    tile moves up by half the bar, 30 px (11 dp) with gesture navigation. With
+    three buttons it is about 23 dp, inferred from the bar's 48 dp, because no
+    recording caught a Flutter frame in that mode. The status bar turns to a
+    grey scrim and the navigation bar to black at the same moment.
 
-  **API 31 to 34 is unmeasured.** Flutter does not draw under the navigation
-  bar there, and if the system splash centres its icon on the whole display, the
-  tile moves by half the bar at the hand-over: about 8 dp with gesture
-  navigation, 24 dp with three buttons. It would not vanish. No emulator image
-  for those levels was on the machine.
+  The same cause holds on API 31 to 33. The tile stays whole and in view, so
+  the launch is still one mark from the first frame. Making the app edge to
+  edge on Android 14 and earlier removes the jump, and it is #304, not this
+  change, because it lays out every screen, not only the launch.
 - The Dart splash's text now sits below a tile centred in the whole view,
   rather than in a `SafeArea` column. On a screen too short for it, as in a
   landscape phone or at the largest font scale, the text is clipped at the
