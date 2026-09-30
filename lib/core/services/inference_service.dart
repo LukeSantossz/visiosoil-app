@@ -44,10 +44,13 @@ class InferenceResult {
   });
 
   /// [distribution] in the contract's class order, which is how a record
-  /// stores it, or null when this result carries no class order.
+  /// stores it. Null when this result carries no class order, or when its
+  /// distribution does not score every class in it: a record then keeps no
+  /// distribution rather than a partial one.
   List<ClassScore>? get classDistribution {
     if (classes.isEmpty) return null;
     final byLabel = {for (final score in distribution) score.label: score};
+    if (!classes.every(byLabel.containsKey)) return null;
     return [for (final label in classes) byLabel[label]!];
   }
 }
