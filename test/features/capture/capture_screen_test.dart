@@ -642,8 +642,10 @@ void main() {
         cameraOpened = true;
         return null;
       },
-      locate: () async =>
-          (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+      // Typed as the seam's nullable future: the screen's location timeout
+      // answers null, which a non-nullable future cannot hold.
+      locate: () => Future<LocationReading?>.value(
+          (latitude: -23.5, longitude: -46.6, address: 'São Paulo')),
       classify: (path) async {
         classified.add(path);
         return null;

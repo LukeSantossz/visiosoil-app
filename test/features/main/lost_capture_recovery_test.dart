@@ -72,6 +72,7 @@ void main() {
 
     GoRouter.of(tester.element(find.textContaining('CAPTURE_STUB'))).pop();
     await _settle(tester);
+    await _settle(tester);
 
     expect(find.textContaining('CAPTURE_STUB'), findsNothing);
     expect(find.byType(NavigationBar), findsOneWidget);
