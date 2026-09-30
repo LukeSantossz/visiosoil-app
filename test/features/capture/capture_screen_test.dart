@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -376,6 +377,52 @@ void main() {
     expect(repository.createCalls.length, 1);
     expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
     expect(find.text('open capture'), findsOneWidget); // popped back to '/'
+  });
+
+  testWidgets('saving_a_classified_capture_persists_the_distribution',
+      (tester) async {
+    // SPEC 0097. The result carries the distribution highest first; the record
+    // keeps it in the contract's order, with the versions that scored it.
+    const result = InferenceResult(
+      textureClass: 'Media',
+      confidenceScore: 0.61,
+      distribution: [
+        ClassScore(label: 'Media', probability: 0.61),
+        ClassScore(label: 'Argilosa', probability: 0.2),
+        ClassScore(label: 'Arenosa', probability: 0.12),
+        ClassScore(label: 'Muito Argilosa', probability: 0.07),
+      ],
+      classes: ['Arenosa', 'Media', 'Muito Argilosa', 'Argilosa'],
+      modelVersion: '1.0.0',
+      datasetVersion: 'v1',
+    );
+    final repository = FakeSoilRecordRepository();
+    await tester.pumpWidget(buildRouted(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) async => result,
+      repository: repository,
+    ));
+
+    await tester.tap(find.text('open capture'));
+    await tester.pumpAndSettle();
+    await capture(tester);
+    await tester.tap(find.text('Salvar registro'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    await tester.pumpAndSettle();
+
+    final saved = repository.createCalls.single;
+    expect(saved.textureClass, 'Media');
+    expect(saved.classDistribution, const [
+      ClassScore(label: 'Arenosa', probability: 0.12),
+      ClassScore(label: 'Media', probability: 0.61),
+      ClassScore(label: 'Muito Argilosa', probability: 0.07),
+      ClassScore(label: 'Argilosa', probability: 0.2),
+    ]);
+    expect(saved.modelVersion, '1.0.0');
+    expect(saved.datasetVersion, 'v1');
   });
 
   testWidgets('the default camera picker requests images without full metadata',

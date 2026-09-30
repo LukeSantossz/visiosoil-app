@@ -32,11 +32,31 @@ void main() {
       }
     });
 
-    test('schema_version_is_six', () {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
+    // The schema-version assertion moved to `migration_v7_test.dart`, as each
+    // step's has moved to the next.
+
+    test('a_v5_database_upgrades_through_v6_to_v7', () async {
+      // One upgrade runs the v6 erase, then the v7 columns. The v6 step's
+      // UPDATE must not name a v7 column, which does not exist yet here.
+      final db = AppDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 6);
+      final rows = await db
+          .customSelect(
+            'SELECT uuid, image_path, class_distribution, model_version, '
+            'dataset_version FROM soil_records ORDER BY uuid',
+          )
+          .get();
+      expect(rows.map((row) => row.read<String>('uuid')), [
+        'uuid-deleted',
+        'uuid-live',
+      ]);
+      expect(rows.first.read<String>('image_path'), isEmpty);
+      for (final row in rows) {
+        expect(row.read<String?>('class_distribution'), isNull);
+        expect(row.read<String?>('model_version'), isNull);
+        expect(row.read<String?>('dataset_version'), isNull);
+      }
     });
 
     test('migration_v5_to_v6_erases_existing_tombstones', () async {
@@ -103,7 +123,7 @@ void main() {
 
 /// Creates a v5-shaped database holding one live record and one tombstone that
 /// still carries its content, each with cached tips, and stamps `user_version`
-/// to 5 so Drift runs only the v5 -> v6 step.
+/// to 5 so Drift runs the v5 -> v6 step and every later one.
 void _seedV5Database(String path) {
   final raw = sqlite3.open(path);
   try {

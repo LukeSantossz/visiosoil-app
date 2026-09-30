@@ -500,6 +500,52 @@ void main() {
     });
   });
 
+  // SPEC 0097: what a record needs to keep, carried on the result.
+  group('InferenceService.reportFor provenance', () {
+    test('the_report_names_the_contract_versions', () async {
+      final report = InferenceService.reportFor(
+        [0.1, 0.6, 0.1, 0.2],
+        contract.classes,
+        modelVersion: contract.modelVersion,
+        datasetVersion: contract.datasetVersion,
+      );
+      final result = report.result!;
+      expect(result.modelVersion, contract.modelVersion);
+      expect(result.datasetVersion, contract.datasetVersion);
+      expect(result.classes, contract.classes);
+      // The same scores, in the contract's order rather than by probability.
+      expect(
+        result.classDistribution!.map((score) => score.label),
+        contract.classes,
+      );
+      expect(
+        result.classDistribution!.map((score) => score.probability),
+        [0.1, 0.6, 0.1, 0.2],
+      );
+
+      // And through the isolate, from the shipped contract.
+      final path = writePng(_noise(_side, _side, 6), _side, _side, 'visiosoil_versions');
+      final service = InferenceService(measurer: wholeFrameMeasurer);
+      await service.initialize(
+        assetLoader: shippedLoader,
+        retryDelay: Duration.zero,
+      );
+      final classified = await service.classify(
+        path,
+        timeout: const Duration(seconds: 60),
+      );
+      expect(classified.outcome, ClassificationOutcome.ok);
+      expect(classified.result!.modelVersion, contract.modelVersion);
+      expect(classified.result!.datasetVersion, contract.datasetVersion);
+      expect(classified.result!.classes, contract.classes);
+    });
+
+    test('a_result_without_a_class_order_has_no_class_distribution', () {
+      const result = InferenceResult(textureClass: 'Media', confidenceScore: 0.6);
+      expect(result.classDistribution, isNull);
+    });
+  });
+
   test('failure_causes_follow_adr_0015', () {
     final lines = File(
       'docs/adr/0015-classification-reports-a-named-failure-cause.md',
