@@ -101,8 +101,8 @@ const _squarePadMm = 1.0;
 /// (SPEC 0083).
 ///
 /// A sheet not found or cropped is refused by its name. A sheet with no soil
-/// on it is [ClassificationFailureCause.soilRegionTooSmall], whose remedy is
-/// the same: put soil on the sheet and spread it.
+/// on it is [ClassificationFailureCause.soilRegionTooSmall], because that
+/// cause's remedy is what an empty sheet needs: put soil on it and spread it.
 ({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
 a4SheetMeasurer(RgbFrame frame) {
   final found = findSheet(frame);
