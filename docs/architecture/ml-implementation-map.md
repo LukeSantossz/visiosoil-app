@@ -942,8 +942,15 @@ Recommended order, and why:
    reader, the homography and the soil region on paper.** **Since 2026-09-29 it
    is also the Google Play release's critical path**
    ([ADR 0026](../adr/0026-the-first-play-release-waits-for-classification.md)):
-   v1 ships only once a photograph taken in the app gets a class. It waits on
-   test photographs taken on an A4 sheet.
+   v1 ships only once a photograph taken in the app gets a class. **Split in
+   two and started without real photographs, at the Developer's call.** SPEC
+   0091 finds the sheet: its four corners, refused as `notFound` or `cropped`.
+   It rectifies the sheet at native resolution, so ADR 0025's resample stays
+   the one that matches training. It is graded against synthetic scenes that
+   Pillow's perspective transform places. The next spec finds the round soil
+   patch on the sheet and wires the reader into `classify`. Validation on real
+   photographs, taken to the capture protocol in ADR 0017's 2026-09-29
+   amendment, is still owed before the release.
 4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
    0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
    criterion, and refitted on all 204 photographs of `v1`, population `B`
