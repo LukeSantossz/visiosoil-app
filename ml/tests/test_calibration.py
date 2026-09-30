@@ -15,8 +15,11 @@ from src.calibration import (
     percentiles,
     severity_record,
 )
+from tests.support import configured_classes
 
-CLASSES = ["Arenosa", "Media", "Muito Argilosa", "Argilosa"]
+#: Arenosa, Media, Muito Argilosa, Argilosa: the indices below follow this order,
+#: which `test_config_declares_four_classes_without_siltosa` pins.
+CLASSES = configured_classes()
 
 # label, distribution, and what it gives: top-1, margin, predicted class, right.
 DISTRIBUTIONS = [
