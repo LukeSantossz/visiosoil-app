@@ -19,6 +19,7 @@ import 'package:visiosoil_app/core/services/descriptors/patch_descriptors.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/descriptors/photograph_measurement.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 
 const _shippedContract = 'assets/models/spec.json';
 
@@ -543,6 +544,15 @@ void main() {
     test('a_result_without_a_class_order_has_no_class_distribution', () {
       const result = InferenceResult(textureClass: 'Media', confidenceScore: 0.6);
       expect(result.classDistribution, isNull);
+
+      // A distribution that misses a class of the order is not stored in part.
+      const partial = InferenceResult(
+        textureClass: 'Media',
+        confidenceScore: 0.6,
+        distribution: [ClassScore(label: 'Media', probability: 0.6)],
+        classes: ['Arenosa', 'Media'],
+      );
+      expect(partial.classDistribution, isNull);
     });
   });
 
