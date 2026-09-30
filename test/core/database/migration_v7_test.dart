@@ -67,6 +67,11 @@ void main() {
       final deleted = await row('uuid-deleted');
       expect(deleted.read<String>('image_path'), isEmpty);
       expect(deleted.read<String?>('remote_id'), 'remote-deleted');
+
+      // The upgrade itself stamps the new version on the file.
+      final version =
+          await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.read<int>('user_version'), 7);
     });
   });
 }
