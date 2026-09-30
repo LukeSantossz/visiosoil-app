@@ -346,7 +346,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final generation = _state.generation + 1;
     ref.read(imageProvider.notifier).clearImage();
     setState(() => _state = _state.startingCapture(generation));
-    if (picked != null) {
+    // A save in flight may still be copying the file; it deletes the file
+    // itself once it succeeds.
+    if (picked != null && !_state.isSaving) {
       unawaited(_disposePickedFile(_deletePickedFile, picked.path));
     }
   }
