@@ -38,12 +38,18 @@ included, arrive with the three set to NULL, so SPEC 0093's erased tombstones
 stay erased with no v7 scrub. The v6 step's `UPDATE` does not name the new
 columns, because on an upgrade from v5 it runs before they exist.
 
-**Where the values come from.** `InferenceResult` gains `modelVersion` and
-`datasetVersion`, which `reportFor` fills from the contract, beside the
-distribution it already carries. The capture save passes all three to
-`SoilRecord`. `SoilRecord` gains `distribution` (`List<ClassScore>?`),
-`modelVersion` and `datasetVersion`. The repository encodes the distribution
-on create, and `soilRecordFromRow` decodes it.
+**Where the values come from.** `InferenceResult` gains three fields, which
+`reportFor` fills from the contract beside the distribution it already carries:
+
+- `modelVersion` and `datasetVersion`;
+- `classes`, the contract's class order.
+
+A getter, `classDistribution`, gives the distribution in that order, or null
+when the order is unknown. The capture save passes the getter and both versions
+to `SoilRecord`. `SoilRecord` gains `classDistribution` (`List<ClassScore>?`,
+in contract order and named after its column), `modelVersion` and
+`datasetVersion`. The repository encodes the distribution on create, and
+`soilRecordFromRow` decodes it.
 
 **A stored distribution that does not decode reads as none.** Only the app
 writes the column, so a malformed value means corruption. The record then reads
@@ -80,7 +86,8 @@ never stop history from rendering the top-1 it still has.
     `schemaVersion` 7 and the v7 step. The generated Drift code is regenerated.
   - `SoilRecord`, `soil_record_mapper.dart`, `DriftSoilRecordRepository.create`
     and `_tombstone`, and `SyncLocalStore.insertFromRemote` and `applyRemote`.
-  - `InferenceResult` and `InferenceService.reportFor`: the versions.
+  - `InferenceResult` and `InferenceService.reportFor`: the versions and the
+    class order.
   - `CaptureScreen._saveRecord`: the three passed to `SoilRecord`.
   - The tests below, and `migration_v6_test.dart` moving its schema-version
     assertion into `migration_v7_test.dart`, as each migration step has done.
@@ -115,8 +122,8 @@ never stop history from rendering the top-1 it still has.
 - `a_pulled_record_writes_its_distribution`: `insertFromRemote` and `applyRemote`
   store the three.
 - `the_report_names_the_contract_versions`: `reportFor` carries the contract's
-  `model_version` and `dataset_version`, and `classify` returns them through the
-  isolate.
+  `model_version`, `dataset_version` and class order, with `classDistribution`
+  in that order. `classify` returns them through the isolate.
 - `saving_a_classified_capture_persists_the_distribution`: the capture screen
   hands the repository the result's distribution and versions.
 
