@@ -10,7 +10,7 @@ Every capture leaves the camera's original in the app cache after the record is 
 - after the repository confirms the save;
 - when the user discards the capture.
 
-A failed save keeps the file, so the retry the screen offers still has its photograph.
+A failed save keeps the file, so the retry the screen offers still has its photograph. A discard while a save is in flight leaves the file to that save, which deletes it once it succeeds. "Descartar" stays enabled during a save, and deleting the file then could fail a save that is still copying it.
 
 The deletion goes through an injectable `PickedFileDeleter` seam on `CaptureScreen`, like the picker, location and permission seams beside it. Its default, `deletePickedFile`, deletes the file and treats an absent one as done. The screen logs any failure and never lets it fail the save or the discard, following ADR 0003's policy for durable images.
 
@@ -38,6 +38,9 @@ The deletion goes through an injectable `PickedFileDeleter` seam on `CaptureScre
 - `a_saved_capture_deletes_the_picker_file`: after a confirmed save, the deleter receives the picked file's path, after the repository's `create`.
 - `a_failed_save_keeps_the_picker_file`: when `create` throws, the deleter is not called.
 - `a_discarded_capture_deletes_the_picker_file`: tapping "Descartar" passes the picked file's path to the deleter.
+- `a_discard_during_a_save_leaves_the_file_to_the_save`:
+  - while `create` is still running, tapping "Descartar" does not call the deleter;
+  - once `create` succeeds, the deleter receives the path exactly once.
 - `a_failed_deletion_does_not_fail_the_save`: when the deleter throws, the save still:
   - creates one record;
   - shows "Registro salvo com sucesso!";
