@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The brand mark in white, drawn from VisioSoilMarkGeometry on its 48-unit
+     viewBox. test/android_launch_screen_test.dart pins every number here to
+     that geometry (SPEC 0089). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Lens ring. -->
+    <path
+        android:pathData="M7,20 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.2" />
+    <!-- Three decreasing soil grains, largest first. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.5,18 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M21.4,19.5 a2.1,2.1 0 1,0 4.2,0 a2.1,2.1 0 1,0 -4.2,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18.1,24.5 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" />
+    <!-- Handle. -->
+    <path
+        android:pathData="M29.5,29.5 L39,39"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.4" />
+</vector>
