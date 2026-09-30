@@ -25,6 +25,7 @@ Run from the `ml/` directory:
 from __future__ import annotations
 
 import json
+import math
 from fractions import Fraction
 from pathlib import Path
 
@@ -218,7 +219,11 @@ def perspective_coefficients(scene_corners):
 
 
 def _length(a, b):
-    return float(np.hypot(b[0] - a[0], b[1] - a[1]))
+    """The distance between two integer corners. The sum of squares is exact,
+    and IEEE 754 rounds `math.sqrt` correctly, so every host agrees on it; a
+    libm `hypot` carries no such guarantee."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    return math.sqrt(dx * dx + dy * dy)
 
 
 def render(case, rng):
