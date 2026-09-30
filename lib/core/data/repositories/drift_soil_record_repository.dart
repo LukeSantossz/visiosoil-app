@@ -223,11 +223,12 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             confidenceScore: const Value(null),
           ),
         );
+        // Per row, like the update above, so a wipe binds no list of uuids.
+        await (_db.delete(_db.managementTips)
+              ..where((t) => t.recordUuid.equals(row.uuid)))
+            .go();
         await _enqueue(row.uuid, SyncOperation.delete, now);
       }
-      await (_db.delete(_db.managementTips)
-            ..where((t) => t.recordUuid.isIn(rows.map((row) => row.uuid))))
-          .go();
       return rows.map((row) => row.imagePath).toList();
     });
 
