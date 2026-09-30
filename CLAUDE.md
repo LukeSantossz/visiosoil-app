@@ -208,7 +208,8 @@ lib/
 │   │   │                              #   image_storage_service.dart (EXIF strip boundary),
 │   │   │                              #   share_service.dart + share_content_builder.dart,
 │   │   │                              #   connectivity_service.dart, permission_service.dart,
-│   │   │                              #   sync_engine.dart
+│   │   │                              #   sync_engine.dart, lost_capture_service.dart (a photo
+│   │   │                              #   Android lost to a restart, read on arriving home)
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
 │   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
@@ -228,10 +229,10 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 15 files declaring 27 providers (database, repository,
+└── providers/                         # 16 files declaring 28 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, plus the history filter/search and
+                                       #   storage, lost capture, plus the history filter/search and
                                        #   derived-stats providers)
 ```
 
