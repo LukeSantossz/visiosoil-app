@@ -77,6 +77,7 @@ void main() {
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
     PickedFileDeleter deletePickedFile = _keepPickedFile,
+    String? initialImagePath,
   }) {
     return ProviderScope(
       overrides: [
@@ -91,6 +92,7 @@ void main() {
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
           deletePickedFile: deletePickedFile,
+          initialImagePath: initialImagePath,
         ),
       ),
     );
@@ -626,5 +628,35 @@ void main() {
 
       await expectLater(deletePickedFile(file.path), completes);
     });
+  });
+
+  // A photograph recovered after Android killed the app arrives with the
+  // screen, which treats it as a fresh capture without opening the camera
+  // (SPEC 0096).
+  testWidgets('a_capture_screen_opened_with_a_photograph_locates_and_classifies_it',
+      (tester) async {
+    var cameraOpened = false;
+    final classified = <String>[];
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async {
+        cameraOpened = true;
+        return null;
+      },
+      locate: () async =>
+          (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+      classify: (path) async {
+        classified.add(path);
+        return null;
+      },
+      initialImagePath: samplePath,
+    ));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(cameraOpened, isFalse);
+    expect(find.text('Salvar registro'), findsOneWidget);
+    expect(classified, [samplePath]);
+    expect(find.text('São Paulo'), findsOneWidget);
   });
 }
