@@ -49,7 +49,7 @@ thirteen to fourteen:
   because nothing is left that fails that way. SPEC 0083 declared it to be
   retired by this reader.
 
-The amendment is appended after the 2026-09-29 one, because
+The amendment is appended after SPEC 0083's, because
 `failure_causes_follow_adr_0015` reads the table under the last "Amended"
 heading.
 
@@ -83,7 +83,7 @@ geometry. Geometry is graded against SPEC 0091's independent fixtures.
     `measurementUnavailable`.
   - `InferenceService`'s default measurer becomes `a4SheetMeasurer`.
   - `ClassificationFailureCause` gains `sheetNotFound` and `sheetCropped`, and
-    loses `measurementUnavailable`. ADR 0015 gains its 2026-09-30 amendment.
+    loses `measurementUnavailable`. ADR 0015 gains a second 2026-09-29 amendment.
   - The tests:
     - the measurer against SPEC 0091's fixtures: the disc's centre and diameter
       against the golden's soil patch, and the two refusals;

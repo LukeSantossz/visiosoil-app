@@ -22,7 +22,7 @@ enum ClassificationOutcome {
 /// Why a classification failed, grouped by what the reader can do about it.
 ///
 /// The order is ADR 0015's current table, column by column: the one under its
-/// 2026-09-30 amendment (SPEC 0092).
+/// second 2026-09-29 amendment (SPEC 0092).
 enum ClassificationFailureCause {
   // Nothing to do: the build is wrong.
   contractMissing,
