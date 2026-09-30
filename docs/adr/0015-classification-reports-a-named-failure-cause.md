@@ -23,7 +23,8 @@ Amended twice on 2026-09-29.
 wires the descriptor path of
 [ADR 0024](0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
 into `classify` and removes the TFLite path. The table under Decided is kept as
-it was approved, and **this table is the current one.**
+it was approved, and **this table was the current one** until the second
+amendment below replaced it.
 
 - **Three causes leave.** `modelMissing`, `modelEmpty` and
   `modelContractMismatch` described a model asset and an interpreter's tensors,
