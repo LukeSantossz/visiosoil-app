@@ -1,5 +1,6 @@
-/// The A4-sheet reader's first half: find the sheet, and rectify it at native
-/// resolution (SPEC 0091, ADR 0017).
+/// The A4-sheet reader: find the sheet and rectify it at native resolution
+/// (SPEC 0091), then find the soil on it and measure the photograph
+/// (SPEC 0092, ADR 0017).
 ///
 /// A bare A4 sheet is the scale reference the app reads. Its four corners give
 /// the millimetres per pixel and the homography that corrects tilt. The sheet
@@ -14,7 +15,9 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../classification_report.dart';
 import 'patch_grid.dart';
+import 'photograph_measurement.dart';
 
 /// Why no sheet was read. Never a fallback, always a name (ADR 0017).
 enum SheetRefusal {
@@ -75,6 +78,148 @@ const _minSheetFraction = 0.05;
 /// The hull is thinned to at most this many vertices before its largest
 /// quadrilateral is searched exhaustively.
 const _hullVertexBudget = 24;
+
+/// How far inside the soil patch's edge the measured disc stays, so the grid's
+/// outermost patch corners land on soil when the edge is irregular.
+const double soilMarginMm = 2;
+
+/// The coarse rectification the soil patch is located on: enough to resolve
+/// the edge of a patch 8 to 10 cm across to half a millimetre.
+const _coarsePxPerMm = 2;
+
+/// The band along the sheet's edges that is ignored when looking for soil: the
+/// paper's rim carries shadow, and the surface's colour bleeds into it.
+const _rimMm = 5;
+
+/// How far beyond the disc the native-resolution square reaches, so rounding
+/// its bounds to whole pixels never shaves the disc.
+const _squarePadMm = 1.0;
+
+/// Measures [frame] on the A4 sheet: the sheet, the soil patch on it, and the
+/// largest disc inside the patch, in the pixels of a native-resolution square
+/// around that disc. Top-level, so it can be sent to the inference isolate
+/// (SPEC 0083).
+///
+/// A sheet not found or cropped is refused by its name. A sheet with no soil
+/// on it is [ClassificationFailureCause.soilRegionTooSmall], whose remedy is
+/// the same: put soil on the sheet and spread it.
+({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
+a4SheetMeasurer(RgbFrame frame) {
+  final found = findSheet(frame);
+  final corners = found.corners;
+  if (corners == null) {
+    return (
+      measurement: null,
+      cause: switch (found.refusal!) {
+        SheetRefusal.notFound => ClassificationFailureCause.sheetNotFound,
+        SheetRefusal.cropped => ClassificationFailureCause.sheetCropped,
+      },
+    );
+  }
+
+  final disc = locateSoilDisc(frame, corners);
+  if (disc == null) {
+    return (
+      measurement: null,
+      cause: ClassificationFailureCause.soilRegionTooSmall,
+    );
+  }
+
+  final reach = disc.diameterMm / 2 + _squarePadMm;
+  final square = rectifySheet(
+    frame,
+    corners,
+    region: SheetRegion(
+      leftMm: disc.xMm - reach,
+      topMm: disc.yMm - reach,
+      widthMm: 2 * reach,
+      heightMm: 2 * reach,
+    ),
+  );
+  // A millimetre x lies at x / mmPerPx in the rectified sheet's pixels, with
+  // pixel i spanning [i, i + 1]. The width is rounded to whole pixels, so a
+  // rectified pixel is square to within half a pixel across the sheet, which
+  // the measurement's single scale already assumes.
+  final mmPerPx = square.mmPerPx;
+  return (
+    measurement: PhotographMeasurement(
+      frame: square.frame,
+      mmPerPx: mmPerPx,
+      centreYPx: disc.yMm / mmPerPx - square.top,
+      centreXPx: disc.xMm / mmPerPx - square.left,
+      diameterPx: disc.diameterMm / mmPerPx,
+    ),
+    cause: null,
+  );
+}
+
+/// The largest disc of soil on the sheet, in millimetres from the sheet's
+/// origin, or null when the sheet carries no soil.
+///
+/// The sheet is rectified coarsely, its rim is set aside, and soil is what
+/// Otsu's threshold puts on the dark side of the rest. The patch is the largest
+/// dark 4-connected component, with its holes filled. The disc's centre is the
+/// patch's point farthest from paper, and its radius is that distance less
+/// [soilMarginMm], so it holds only soil however irregular the patch is.
+({double xMm, double yMm, double diameterMm})? locateSoilDisc(
+  RgbFrame frame,
+  SheetCorners corners,
+) {
+  final sheetWidth = (sheetWidthMm * _coarsePxPerMm).round();
+  final sheetHeight = (sheetHeightMm * _coarsePxPerMm).round();
+  final coarse = _sampled(
+    frame,
+    corners.points,
+    sheetWidth,
+    sheetHeight,
+    left: 0,
+    top: 0,
+    right: sheetWidth,
+    bottom: sheetHeight,
+  );
+
+  final rim = _rimMm * _coarsePxPerMm;
+  final width = sheetWidth - 2 * rim;
+  final height = sheetHeight - 2 * rim;
+  // The negative, so that soil is the bright side and the component search
+  // that finds the sheet finds the patch.
+  final negative = Uint8List(width * height);
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final i = ((y + rim) * sheetWidth + x + rim) * 3;
+      negative[y * width + x] =
+          255 - greyOf(coarse.rgb[i], coarse.rgb[i + 1], coarse.rgb[i + 2]);
+    }
+  }
+
+  // A bare sheet splits too, into paper and slightly darker paper: the floor
+  // that tells a sheet from its surface tells soil from paper.
+  final split = _otsu(negative);
+  if (split.brightMean - split.darkMean < _minContrast) return null;
+  final patch = _filledLargestBright(negative, width, height, split.threshold);
+  if (patch.area == 0) return null;
+
+  final distance = _squaredDistanceOutside(patch.mask, width, height);
+  var best = 0.0, bestX = 0, bestY = 0;
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final d = distance[y * width + x];
+      if (d > best) {
+        best = d;
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+  // The patch's edge lies half a pixel before the nearest paper pixel's centre.
+  final radiusMm = (math.sqrt(best) - 0.5) / _coarsePxPerMm - soilMarginMm;
+  if (radiusMm <= 0) return null;
+  return (
+    xMm: (bestX + rim + 0.5) / _coarsePxPerMm,
+    yMm: (bestY + rim + 0.5) / _coarsePxPerMm,
+    diameterMm: 2 * radiusMm,
+  );
+}
 
 /// Finds the sheet's four corners in [frame], or names why there are none.
 ({SheetCorners? corners, SheetRefusal? refusal}) findSheet(RgbFrame frame) {
@@ -165,6 +310,35 @@ const _hullVertexBudget = 24;
     }
   }
 
+  return (
+    frame: _sampled(
+      frame,
+      p,
+      sheetWidth,
+      sheetHeight,
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
+    ),
+    mmPerPx: mmPerPx,
+    left: left,
+    top: top,
+  );
+}
+
+/// Columns [left] to [right] and rows [top] to [bottom] of the sheet rectified
+/// to [sheetWidth] by [sheetHeight] pixels.
+RgbFrame _sampled(
+  RgbFrame frame,
+  List<({double x, double y})> p,
+  int sheetWidth,
+  int sheetHeight, {
+  required int left,
+  required int top,
+  required int right,
+  required int bottom,
+}) {
   // The rectified sheet's pixel grid spans [-1/2, W - 1/2] with a pixel's centre
   // on the integer, so its corners map onto the photographed ones.
   final h = _homography([
@@ -187,12 +361,91 @@ const _hullVertexBudget = 24;
       _sampleBilinear(frame, x, y, rgb, (j * outWidth + i) * 3);
     }
   }
-  return (
-    frame: RgbFrame(outWidth, outHeight, rgb),
-    mmPerPx: mmPerPx,
-    left: left,
-    top: top,
-  );
+  return RgbFrame(outWidth, outHeight, rgb);
+}
+
+/// The squared Euclidean distance from each pixel of [mask] to the nearest
+/// pixel outside it, exactly: Felzenszwalb and Huttenlocher's lower envelope of
+/// parabolas, down each column and then along each row. Beyond the grid counts
+/// as outside, so a patch touching the grid's edge is measured to that edge.
+Float64List _squaredDistanceOutside(Uint8List mask, int width, int height) {
+  // A one-pixel frame of outside around the grid, so every column and every
+  // row holds an outside pixel and every distance is finite.
+  final w = width + 2, h = height + 2;
+  final far = ((w + h) * (w + h)).toDouble();
+  final grid = Float64List(w * h);
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      if (mask[y * width + x] == 1) grid[(y + 1) * w + x + 1] = far;
+    }
+  }
+
+  final n = math.max(w, h);
+  final line = Float64List(n), out = Float64List(n);
+  final sites = Int32List(n), bounds = Float64List(n + 1);
+  for (var x = 0; x < w; x++) {
+    for (var y = 0; y < h; y++) {
+      line[y] = grid[y * w + x];
+    }
+    _lowerEnvelope(line, h, out, sites, bounds);
+    for (var y = 0; y < h; y++) {
+      grid[y * w + x] = out[y];
+    }
+  }
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      line[x] = grid[y * w + x];
+    }
+    _lowerEnvelope(line, w, out, sites, bounds);
+    for (var x = 0; x < w; x++) {
+      grid[y * w + x] = out[x];
+    }
+  }
+
+  final distance = Float64List(width * height);
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      distance[y * width + x] = grid[(y + 1) * w + x + 1];
+    }
+  }
+  return distance;
+}
+
+/// The one-dimensional squared distance transform of the first [n] values of
+/// [f], into [out]: out[q] is the least (q - p)^2 + f[p] over every p.
+void _lowerEnvelope(
+  Float64List f,
+  int n,
+  Float64List out,
+  Int32List sites,
+  Float64List bounds,
+) {
+  double meet(int q, int p) =>
+      ((f[q] + q * q) - (f[p] + p * p)) / (2 * q - 2 * p);
+
+  var k = 0;
+  sites[0] = 0;
+  bounds[0] = double.negativeInfinity;
+  bounds[1] = double.infinity;
+  for (var q = 1; q < n; q++) {
+    var s = meet(q, sites[k]);
+    while (s <= bounds[k]) {
+      k--;
+      s = meet(q, sites[k]);
+    }
+    k++;
+    sites[k] = q;
+    bounds[k] = s;
+    bounds[k + 1] = double.infinity;
+  }
+  k = 0;
+  for (var q = 0; q < n; q++) {
+    while (bounds[k + 1] < q) {
+      k++;
+    }
+    final d = q - sites[k];
+    out[q] = d * d + f[sites[k]];
+  }
 }
 
 Uint8List _reducedGrey(RgbFrame frame, int factor, int width, int height) {

@@ -22,14 +22,11 @@ enum ClassificationOutcome {
 /// Why a classification failed, grouped by what the reader can do about it.
 ///
 /// The order is ADR 0015's current table, column by column: the one under its
-/// 2026-09-29 amendment (SPEC 0083).
+/// 2026-09-30 amendment (SPEC 0092).
 enum ClassificationFailureCause {
   // Nothing to do: the build is wrong.
   contractMissing,
   contractMalformed,
-
-  /// Nothing in this build measures scale. Retired by the A4-sheet reader.
-  measurementUnavailable,
 
   // Retry, or retake the photograph.
   timeout,
@@ -37,6 +34,8 @@ enum ClassificationFailureCause {
   isolateFailure,
   imageMissing,
   imageUndecodable,
+  sheetNotFound,
+  sheetCropped,
   photographTooCoarse,
   soilRegionTooSmall,
   soilRegionOutsideFrame,
