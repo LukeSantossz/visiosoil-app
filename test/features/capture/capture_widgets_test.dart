@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
@@ -101,6 +102,50 @@ void main() {
   });
 
   group('CaptureActions', () {
+    // Before a capture, while location is not granted, one line says why the
+    // app will ask for it: Android's dialog carries no word from the app
+    // (SPEC 0099).
+    Widget actions({
+      required bool hasImage,
+      required AppPermissionStatus location,
+    }) =>
+        host(CaptureActions(
+          hasImage: hasImage,
+          isBusy: false,
+          onCapture: () {},
+          onSave: () {},
+          onDiscard: () {},
+          checkLocationPermission: () async => location,
+        ));
+
+    testWidgets(
+        'the_location_line_shows_before_a_capture_while_location_is_not_granted',
+        (tester) async {
+      await tester.pumpWidget(
+          actions(hasImage: false, location: AppPermissionStatus.denied));
+      await tester.pump();
+
+      expect(find.text(LocationRationale.message), findsOneWidget);
+    });
+
+    testWidgets('the_location_line_is_hidden_once_location_is_granted',
+        (tester) async {
+      await tester.pumpWidget(
+          actions(hasImage: false, location: AppPermissionStatus.granted));
+      await tester.pump();
+
+      expect(find.text(LocationRationale.message), findsNothing);
+    });
+
+    testWidgets('the_location_line_is_hidden_once_a_photograph_exists',
+        (tester) async {
+      await tester.pumpWidget(
+          actions(hasImage: true, location: AppPermissionStatus.denied));
+      await tester.pump();
+
+      expect(find.text(LocationRationale.message), findsNothing);
+    });
+
     testWidgets('shows the camera button before an image exists',
         (tester) async {
       await tester.pumpWidget(host(CaptureActions(
