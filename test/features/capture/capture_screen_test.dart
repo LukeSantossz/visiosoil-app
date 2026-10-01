@@ -79,10 +79,12 @@ void main() {
     SoilRecordRepository? repository,
     PickedFileDeleter deletePickedFile = _keepPickedFile,
     String? initialImagePath,
+    ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
   }) {
     return ProviderScope(
       overrides: [
-        inferenceServiceProvider.overrideWithValue(_FakeInference(classify)),
+        inferenceServiceProvider.overrideWithValue(
+            _FakeInference(classify, cause: failureCause)),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
@@ -707,5 +709,20 @@ void main() {
     expect(find.text('Salvar registro'), findsOneWidget);
     expect(classified, [samplePath]);
     expect(find.text('São Paulo'), findsOneWidget);
+  });
+
+  // A failed classification says which cause it was (SPEC 0105).
+  testWidgets('the_capture_screen_names_the_cause', (tester) async {
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) async => null,
+      failureCause: ClassificationFailureCause.sheetCropped,
+    ));
+
+    await capture(tester);
+
+    expect(find.text('Folha cortada no quadro · tire outra foto'),
+        findsOneWidget);
   });
 }

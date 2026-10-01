@@ -155,6 +155,27 @@ void main() {
     expect(find.text('Gerar dicas'), findsNothing);
   });
 
+  // No screen can classify a saved record, so the message says how to get
+  // tips rather than asking for an action that does not exist (SPEC 0105).
+  testWidgets('an_unclassified_record_says_how_to_get_tips', (tester) async {
+    await tester.pumpWidget(harness(
+      record: tipsRecord(textureClass: null),
+      repo: FakeManagementTipsRepository(),
+      service: okService(),
+      connectivity: ConnectivityStatus.online,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Este registro foi salvo sem a classe de textura, e as dicas '
+          'dependem dela. Para obtê-las, capture a amostra de novo seguindo o '
+          'passo a passo.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Classifique o solo deste registro'),
+        findsNothing);
+  });
+
   testWidgets('abstained result shows the abstained message and disclaimer',
       (tester) async {
     final repo = FakeManagementTipsRepository()

@@ -9,6 +9,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_de
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
@@ -66,6 +67,42 @@ void main() {
         classificationFailed: true,
       )));
       expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    });
+
+    // The chip names the cause, and only a cause a second run can fix offers
+    // that run (SPEC 0105).
+    Widget failedWith(ClassificationFailureCause cause, VoidCallback onRetry) =>
+        host(CaptureImagePreview(
+          image: sampleImage,
+          isLoading: false,
+          isClassifying: false,
+          classificationFailed: true,
+          classificationFailureCause: cause,
+          onRetryClassification: onRetry,
+        ));
+
+    testWidgets('a_retake_cause_offers_no_retry', (tester) async {
+      var retries = 0;
+      await tester.pumpWidget(failedWith(
+          ClassificationFailureCause.sheetNotFound, () => retries++));
+
+      await tester.tap(find.text('Folha A4 não encontrada · tire outra foto'));
+      await tester.pump();
+
+      expect(retries, 0);
+      expect(find.byKey(const Key('retryClassification')), findsNothing);
+    });
+
+    testWidgets('a_transient_cause_offers_a_retry', (tester) async {
+      var retries = 0;
+      await tester.pumpWidget(
+          failedWith(ClassificationFailureCause.timeout, () => retries++));
+
+      await tester
+          .tap(find.text('Análise não terminou · tocar para tentar de novo'));
+      await tester.pump();
+
+      expect(retries, 1);
     });
   });
 
