@@ -108,6 +108,10 @@ of the sections above rather than exceptions to them.
 - **User-facing UI strings are pt-BR product copy and are exempt** from the
   all-output-in-English rule. Identifiers, comments, commit, PR and issue text,
   and documentation are not.
+- **The thesis report under `docs/tcc/` is in pt-BR and is exempt** from the
+  same rule (SPEC 0100). The exemption is the directory and nothing else: a
+  spec, ADR, commit, pull request or issue about the report stays in English.
+  Do not translate it.
 - **This project declines the Token Economy context-file compression opt-in.**
   The opt-in is a choice the adopter makes, not a framework default, and a
   repository that declines it is fully conformant — so the instruction files
