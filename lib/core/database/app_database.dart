@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,8 +55,39 @@ class AppDatabase extends _$AppDatabase {
             await migrator.addColumn(
                 managementTips, managementTips.corpusVersion);
           }
+          if (from < 6) {
+            // v5 -> v6: no table changes shape. Tombstones written before
+            // SPEC 0093 still hold what the user captured.
+            await _eraseTombstoneContent();
+          }
+          if (from < 7) {
+            // v6 -> v7: the class distribution and the contract versions that
+            // scored it (SPEC 0097). No earlier step recreates `soil_records`,
+            // so every path adds these once. Nullable, so every existing row,
+            // tombstones included, arrives with none, which is what it has; the
+            // v6 erase above cannot name them, since they do not exist yet.
+            await migrator.addColumn(soilRecords, soilRecords.classDistribution);
+            await migrator.addColumn(soilRecords, soilRecords.modelVersion);
+            await migrator.addColumn(soilRecords, soilRecords.datasetVersion);
+          }
         },
       );
+
+  /// Erases the content of every tombstoned record and drops its cached tips,
+  /// as a delete has done since SPEC 0093, so a tombstone keeps only what sync
+  /// reads: its uuid, remote id, flag and deletion instant. `timestamp` is NOT
+  /// NULL, so it takes the deletion instant, which `updated_at` holds.
+  Future<void> _eraseTombstoneContent() async {
+    await customStatement(
+      "UPDATE soil_records SET image_path = '', latitude = NULL, "
+      'longitude = NULL, address = NULL, timestamp = updated_at, '
+      'texture_class = NULL, confidence_score = NULL WHERE deleted = 1',
+    );
+    await customStatement(
+      'DELETE FROM management_tips WHERE record_uuid IN '
+      '(SELECT uuid FROM soil_records WHERE deleted = 1)',
+    );
+  }
 
   /// Adds sync metadata to `soil_records`, backfills existing rows, creates the
   /// `sync_queue` outbox, and enqueues each legacy record for its first sync.

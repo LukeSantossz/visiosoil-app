@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 
 import '../../models/class_score.dart';
 import 'classification_report.dart';
+import 'descriptors/a4_sheet.dart';
 import 'descriptors/descriptor_contract.dart';
 import 'descriptors/patch_descriptors.dart';
 import 'descriptors/patch_grid.dart';
@@ -27,11 +28,32 @@ class InferenceResult {
   /// construct a result without one.
   final List<ClassScore> distribution;
 
+  /// The contract's classes, in its order, and the versions of the contract
+  /// that scored the photograph: what a record keeps (SPEC 0097). Empty and
+  /// null for results built without them.
+  final List<String> classes;
+  final String? modelVersion;
+  final String? datasetVersion;
+
   const InferenceResult({
     required this.textureClass,
     required this.confidenceScore,
     this.distribution = const [],
+    this.classes = const [],
+    this.modelVersion,
+    this.datasetVersion,
   });
+
+  /// [distribution] in the contract's class order, which is how a record
+  /// stores it. Null when this result carries no class order, or when its
+  /// distribution does not score every class in it: a record then keeps no
+  /// distribution rather than a partial one.
+  List<ClassScore>? get classDistribution {
+    if (classes.isEmpty) return null;
+    final byLabel = {for (final score in distribution) score.label: score};
+    if (!classes.every(byLabel.containsKey)) return null;
+    return [for (final label in classes) byLabel[label]!];
+  }
 }
 
 /// Everything the inference isolate needs: the work to do, and the port to
@@ -75,13 +97,13 @@ typedef ContractAssetLoader = Future<String> Function(String key);
 /// orient, measure, cut the canonical patch grid, describe each patch, and
 /// score the patches with the contract.
 class InferenceService {
-  InferenceService({this.measurer = measurementUnavailable});
+  InferenceService({this.measurer = a4SheetMeasurer});
 
   /// The released contract (SPEC 0082, ADR 0012).
   static const String contractPath = 'assets/models/spec.json';
 
-  /// What measures a photograph's scale and soil region. This build has none
-  /// ([measurementUnavailable]); the A4-sheet reader supplies one.
+  /// What measures a photograph's scale and soil region: the A4-sheet reader
+  /// ([a4SheetMeasurer], SPEC 0092), unless a test injects another.
   final PhotographMeasurer measurer;
 
   /// Maximum attempts to load the contract before giving up for the current
@@ -309,7 +331,12 @@ class InferenceService {
           ClassificationFailureCause.outputInvalid,
         );
       }
-      return reportFor(probabilities, contract.classes);
+      return reportFor(
+        probabilities,
+        contract.classes,
+        modelVersion: contract.modelVersion,
+        datasetVersion: contract.datasetVersion,
+      );
     } catch (e) {
       developer.log(
         'InferenceService.runInference failed: $e',
@@ -345,11 +372,17 @@ class InferenceService {
 
   /// The report for one distribution over [labels]: invalid output when it
   /// does not carry one probability per label, and the result otherwise.
+  ///
+  /// [labels] are the contract's classes, in its order, and the result keeps
+  /// them with the contract's [modelVersion] and [datasetVersion], so a record
+  /// can say what scored it (SPEC 0097).
   @visibleForTesting
   static ClassificationReport reportFor(
     List<double> probabilities,
-    List<String> labels,
-  ) {
+    List<String> labels, {
+    String? modelVersion,
+    String? datasetVersion,
+  }) {
     final distribution = buildDistribution(probabilities, labels);
     if (distribution == null) {
       return const ClassificationReport.failed(
@@ -363,6 +396,9 @@ class InferenceService {
         textureClass: distribution.first.label,
         confidenceScore: distribution.first.probability,
         distribution: distribution,
+        classes: List.unmodifiable(labels),
+        modelVersion: modelVersion,
+        datasetVersion: datasetVersion,
       ),
     );
   }

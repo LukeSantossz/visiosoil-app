@@ -16,4 +16,10 @@ abstract final class AppStrings {
   static const String managementTipsDisclaimer =
       'Dicas de manejo consultivas, baseadas em fontes públicas. '
       'Não substituem avaliação técnica presencial.';
+
+  /// Shown on home when Android killed the app during a capture and the camera
+  /// left only an error, so there is no photograph to recover (SPEC 0096).
+  static const String lostCaptureUnrecoverable =
+      'Não foi possível recuperar a foto da última captura. '
+      'Capture a amostra novamente.';
 }

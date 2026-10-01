@@ -60,10 +60,8 @@ void main() {
     'lib/core/features/capture/widgets/capture_actions.dart': [
       ('Salvar Registro', 'Salvar registro'),
     ],
+    // The splash's permission messages left with its requests (SPEC 0099).
     'lib/core/features/splash/splash_screen.dart': [
-      ('Solicitando permissoes...', 'Solicitando permissões...'),
-      ('Permissao de camera...', 'Permissão de câmera...'),
-      ('Permissao de localizacao...', 'Permissão de localização...'),
       ('Analise de textura do solo', 'Análise de textura do solo'),
     ],
   };

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -33,8 +32,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  bool _isRequestingPermissions = false;
-  String _statusMessage = '';
+  bool _isStarting = false;
 
   @override
   void initState() {
@@ -50,8 +48,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _animationController.forward();
 
-    // Starts the permission requests after the initial animation
-    Future.delayed(const Duration(milliseconds: 1200), _requestPermissions);
+    // Goes on after the reveal. It asks for no permission: capture asks for
+    // the camera and location when it needs them (SPEC 0099).
+    Future.delayed(const Duration(milliseconds: 1200), _start);
   }
 
   @override
@@ -60,27 +59,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.dispose();
   }
 
-  Future<void> _requestPermissions() async {
+  Future<void> _start() async {
     if (!mounted) return;
 
-    setState(() {
-      _isRequestingPermissions = true;
-      _statusMessage = 'Solicitando permissões...';
-    });
-
-    // Requests camera permission
-    setState(() => _statusMessage = 'Permissão de câmera...');
-    await PermissionService.requestCamera();
-
-    if (!mounted) return;
-
-    // Requests location permission
-    setState(() => _statusMessage = 'Permissão de localização...');
-    await PermissionService.requestLocation();
-
-    if (!mounted) return;
-
-    setState(() => _statusMessage = 'Iniciando...');
+    setState(() => _isStarting = true);
 
     // Small delay for a smooth transition
     await Future.delayed(const Duration(milliseconds: 500));
@@ -172,7 +154,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                       const SizedBox(height: AppSpacing.xxl),
                       // Status/loading indicator
-                      if (_isRequestingPermissions) ...[
+                      if (_isStarting) ...[
                         SizedBox(
                           width: 24,
                           height: 24,
@@ -183,7 +165,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
-                          _statusMessage,
+                          'Iniciando...',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: AppColors.onSurfaceVariant,
                           ),
