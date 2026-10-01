@@ -177,7 +177,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
 - **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
-- **Persistence:** Drift + SQLite with schema versioning (currently v5). Repository pattern abstracts Drift from UI
+- **Persistence:** Drift + SQLite with schema versioning (currently v6). Repository pattern abstracts Drift from UI
 - **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer` (SPEC 0083), and the default is `a4SheetMeasurer`: it finds the A4 sheet, rectifies it, and measures the round soil patch on it (SPEC 0091, SPEC 0092)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
 - **Research agent:** answers on the device. `researchServiceProvider` binds `CorpusResearchService`, which composes a `ManagementTipsResult` out of a reviewed corpus the app holds — no network, no proxy, no model at run time (ADR 0022, narrowed by ADR 0023). `ProxyResearchService` is kept as the transport for fetching corpus *releases*, and has no caller yet
@@ -187,8 +187,8 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 - **Repository pattern:** `SoilRecordRepository` (abstract) → `DriftSoilRecordRepository`. UI only imports the interface via providers, never Drift types directly
 - **Reactive data:** `watchAll()` stream from Drift feeds `StreamProvider`, so history/home auto-update on DB changes
 - **Testing DB:** `AppDatabase.forTesting(NativeDatabase.memory())` enables in-memory SQLite for repository tests
-- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`). The v5 step is the exception — `if (from >= 4 && from < 5)` — because the v4 step's `createTable` builds `management_tips` from today's definition, so a pre-v4 database already arrives with the v5 column
-- **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows
+- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`). The v5 step is the exception — `if (from >= 4 && from < 5)` — because the v4 step's `createTable` builds `management_tips` from today's definition, so a pre-v4 database already arrives with the v5 column. The v6 step changes no table's shape: it erases the content of tombstones written before SPEC 0093
+- **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows. A tombstone keeps only what sync reads — uuid, `remote_id`, `updated_at` and the flag — and the record's content and cached tips are erased (SPEC 0093)
 
 ### Code Organization
 
@@ -235,7 +235,7 @@ lib/
                                        #   derived-stats providers)
 ```
 
-### Database Schema (v5)
+### Database Schema (v6)
 
 Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])`.
 
@@ -245,7 +245,7 @@ Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, Manag
 
 `management_tips`: read-through cache for the research agent — `record_uuid`, `payload_json`, `retrieved_at`, `corpus_version?`. The version is nullable because a row cached before v5 has no known one, and a fabricated default would claim a currency it never had; `CachedManagementTips.isStaleAgainst` compares it by exact string inequality.
 
-Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions.
+Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions; v5→v6 erases every tombstone's content and drops its cached tips, as a delete now does.
 
 ## Conventions
 

@@ -32,13 +32,6 @@ void main() {
       }
     });
 
-    test('schema_version_is_five', () {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-
-      expect(db.schemaVersion, 5);
-    });
-
     test('migration_v4_to_v5_adds_the_corpus_version_column', () async {
       final db = AppDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
