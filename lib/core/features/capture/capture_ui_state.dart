@@ -45,7 +45,7 @@ class CaptureUiState {
   final InferenceResult? classificationResult;
 
   /// Why the last classification failed. Set only when [classification] is
-  /// [ClassificationStatus.failed]; the screen does not show it yet (SPEC 0078).
+  /// [ClassificationStatus.failed]; the preview's chip names it (SPEC 0105).
   final ClassificationFailureCause? classificationFailureCause;
 
   final bool isCapturing;

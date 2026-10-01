@@ -41,9 +41,9 @@ void main() {
     var taps = 0;
     await tester.pumpWidget(host(HeroCaptureCard(onCapture: () => taps++)));
 
-    expect(find.text('ANÁLISE INSTANTÂNEA'), findsOneWidget);
+    expect(find.text('ANÁLISE NO APARELHO'), findsOneWidget);
     expect(
-      find.text('Aponte para o solo e descubra a textura em segundos'),
+      find.text('Fotografe o solo sobre uma folha A4 e descubra a textura'),
       findsOneWidget,
     );
     expect(find.text('Nova análise'), findsOneWidget);
@@ -134,5 +134,20 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Baixa'), findsOneWidget);
     expect(find.textContaining('%'), findsNothing);
+  });
+
+  // The card teaches the A4-sheet protocol the reader needs, and promises no
+  // time (SPEC 0105).
+  testWidgets('home_teaches_the_sheet_not_point_and_shoot', (tester) async {
+    await tester.pumpWidget(host(HeroCaptureCard(onCapture: () {})));
+
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? '')
+        .join(' ');
+    expect(texts, contains('folha A4'));
+    expect(texts, isNot(contains('Aponte')));
+    expect(texts, isNot(contains('INSTANTÂNEA')));
+    expect(texts, isNot(contains('segundos')));
   });
 }

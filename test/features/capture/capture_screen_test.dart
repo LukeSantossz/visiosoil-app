@@ -79,10 +79,12 @@ void main() {
     SoilRecordRepository? repository,
     PickedFileDeleter deletePickedFile = _keepPickedFile,
     String? initialImagePath,
+    ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
   }) {
     return ProviderScope(
       overrides: [
-        inferenceServiceProvider.overrideWithValue(_FakeInference(classify)),
+        inferenceServiceProvider.overrideWithValue(
+            _FakeInference(classify, cause: failureCause)),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
@@ -200,8 +202,10 @@ void main() {
 
     await capture(tester);
 
-    // The failed state the screen renders today, and no result.
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    // The cause's chip, which offers no retry (SPEC 0105), and no result.
+    expect(find.text('Folha A4 não encontrada · tire outra foto'),
+        findsOneWidget);
+    expect(find.byKey(const Key('retryClassification')), findsNothing);
     for (final label in ['Arenosa', 'Argilosa', 'Media']) {
       expect(find.textContaining(label), findsNothing);
     }
@@ -707,5 +711,20 @@ void main() {
     expect(find.text('Salvar registro'), findsOneWidget);
     expect(classified, [samplePath]);
     expect(find.text('São Paulo'), findsOneWidget);
+  });
+
+  // A failed classification says which cause it was (SPEC 0105).
+  testWidgets('the_capture_screen_names_the_cause', (tester) async {
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) async => null,
+      failureCause: ClassificationFailureCause.sheetCropped,
+    ));
+
+    await capture(tester);
+
+    expect(find.text('Folha cortada no quadro · tire outra foto'),
+        findsOneWidget);
   });
 }

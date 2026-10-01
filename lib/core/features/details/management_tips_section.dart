@@ -79,7 +79,9 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
         icon: Icons.eco_outlined,
         title: 'Solo não classificado',
         description:
-            'Classifique o solo deste registro para gerar dicas de manejo.',
+            'Este registro foi salvo sem a classe de textura, e as dicas '
+            'dependem dela. Para obtê-las, capture a amostra de novo '
+            'seguindo o passo a passo.',
       );
     } else {
       body = ref.watch(cachedManagementTipsProvider(uuid)).when(
