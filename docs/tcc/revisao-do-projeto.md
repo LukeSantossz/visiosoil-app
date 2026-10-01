@@ -1,4 +1,4 @@
-# Revisão do projeto VisioSoil — o que foi construído até aqui
+# Revisão do que foi construído no VisioSoil
 
 Levantamento do estado do projeto em `main` no commit `64a3333` (2026-10-01),
 organizado pelas seções do modelo de artigo original. É material de consulta
@@ -47,7 +47,7 @@ Fonte: [README.md](../../README.md),
 
 ## 2. Problema e motivação → 1 Introdução
 
-A textura do solo — a proporção de areia, silte e argila — orienta decisões de
+A textura do solo, que é a proporção de areia, silte e argila, orienta decisões de
 manejo, e o produto parte da premissa de que um agrônomo em campo ganha com uma
 estimativa imediata dela, registrada com localização, sem esperar um laudo de
 laboratório. O repositório define o usuário como o agrônomo ou técnico de campo
@@ -57,7 +57,7 @@ inferência e armazenamento acontecem no aparelho.
 A dificuldade técnica central está registrada no
 [ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md):
 classe textural é uma afirmação sobre **tamanho de partícula**, e tamanho em
-pixels não significa nada sem escala — grãos grossos fotografados de longe e
+pixels não significa nada sem escala: grãos grossos fotografados de longe e
 grãos finos fotografados de perto produzem os mesmos pixels. A escala é,
 portanto, pré-condição para que exista sinal, e não um detalhe.
 
@@ -65,7 +65,7 @@ Uma segunda dificuldade é física. Na escala mediana do acervo (0,100 mm/px) o
 limite de Nyquist é 0,20 mm; argila (< 0,002 mm) e silte (0,002–0,05 mm) são
 muito menores que isso, e só areia média e grossa é resolvível grão a grão.
 **O que separa as classes finas tem de vir da aparência agregada da superfície,
-não de enxergar grãos** — e essa era uma ameaça real à premissa do produto, que
+não de enxergar grãos**, e essa era uma ameaça real à premissa do produto, que
 o experimento E0 foi construído para testar.
 
 Fonte: [README.md](../../README.md) (*What It Does*, *What It Is*),
@@ -97,7 +97,7 @@ fundamentação bibliográfica é lacuna em todos.
 | Homografia (DLT de 4 pontos), limiar de Otsu, componentes conexos, transformada de distância | leitor da folha A4 | [SPEC 0091](../specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md), [SPEC 0092](../specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md) |
 | Reamostragem bilinear (Pillow) e aliasing | paridade Python–Dart | [ADR 0025](../adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md) |
 | Geração aumentada por recuperação (RAG) com revisão humana | dicas de manejo | [ADR 0022](../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md), [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md) |
-| Trabalhos relacionados: classificação de textura do solo por imagem | posicionamento do trabalho | — |
+| Trabalhos relacionados: classificação de textura do solo por imagem | posicionamento do trabalho | nenhuma |
 
 [LACUNA: referências bibliográficas para todos os tópicos acima, em especial o
 Sistema Brasileiro de Classificação de Solos (Embrapa) com as faixas de cada
@@ -151,7 +151,7 @@ manifesto registra como populações:
 
 | População | Formato | Resolução aproximada | Observação |
 | --- | --- | --- | --- |
-| A | JPEG exportado, com EXIF | 1536 × 2048 | — |
+| A | JPEG exportado, com EXIF | 1536 × 2048 | |
 | B | JPEG "transportado", sem EXIF | ~1600 × 900 | recomprimido com tabela de quantização 3 a 4× mais grossa nas altas frequências; 69 % Argilosa e 0 % Muito Argilosa |
 | C | HEIC nativo | 3024 × 4032 | convertido antes da ingestão |
 
@@ -220,7 +220,7 @@ não guarda screenshots; `docs/design/ux-2026/` descreve as telas em texto.]
 Telas → providers Riverpod → repositório (interface) → Drift/SQLite | caminho de descritores
 ```
 
-- **Estado:** Riverpod — 18 providers declarados em `lib/providers/` (14
+- **Estado:** Riverpod, com 18 providers declarados em `lib/providers/` (14
   `Provider`, 3 `StreamProvider`, 1 `NotifierProvider`), além das famílias.
 - **Navegação:** GoRouter.
 - **Persistência:** Drift + SQLite, esquema v5, três tabelas: `soil_records`,
@@ -365,8 +365,8 @@ Fonte: [corpus/README.md](../../corpus/README.md),
 
 ### 5.8 Sincronização e conta (implementado em parte)
 
-A base de sincronização existe — UUID, `updated_at`, exclusões lógicas, fila
-`sync_queue`, `SyncEngine` e o contrato `RemoteSyncBackend` — mas **não há
+A base de sincronização existe (UUID, `updated_at`, exclusões lógicas, fila
+`sync_queue`, `SyncEngine` e o contrato `RemoteSyncBackend`), mas **não há
 backend concreto e o `SyncEngine` não está ligado ao app**. Os dados são só
 locais. O login Google funciona e é opcional.
 
@@ -416,7 +416,7 @@ Experimento de viabilidade com **quatro braços** e regra de decisão
 
 | Braço | O que é |
 | --- | --- |
-| `shuffled_control` | o treinador da CNN com rótulos embaralhados — o piso |
+| `shuffled_control` | o treinador da CNN com rótulos embaralhados, que dá o piso |
 | `cnn` | MobileNetV2 ajustada (incumbente) |
 | `descriptors` | 26 descritores + regressão logística regularizada |
 | `encoder_probe` | 1280 dimensões de um codificador ImageNet congelado + classificador linear |
@@ -492,7 +492,7 @@ Fonte: [docs/ml/descriptor-path-cost.md](../ml/descriptor-path-cost.md).
 
 | Braço | Acurácia por grupo | Macro-F1 por foto (mediana de 5 repetições) | Supera o controle? |
 | --- | ---: | ---: | --- |
-| `shuffled_control` | 0,2727 | 0,2152 | — (piso) |
+| `shuffled_control` | 0,2727 | 0,2152 | é o piso |
 | `cnn` | 0,4416 | 0,2935 | **não** |
 | `descriptors` | **0,6883** | **0,6232** | **sim** |
 | `encoder_probe` | 0,7532 | 0,6996 | **sim** |
@@ -509,8 +509,8 @@ Fonte: [docs/ml/descriptor-path-cost.md](../ml/descriptor-path-cost.md).
 - A classe textural é recuperável dessas fotografias na resolução do
   experimento.
 - **A CNN incumbente não superou seu próprio controle.** O macro-F1 dela variou
-  de 0,2709 a 0,4682 entre repetições — a maior dispersão entre os braços, por
-  um fator de seis —, compatível com ajustar 2,2 M parâmetros em 77 grupos.
+  de 0,2709 a 0,4682 entre repetições (a maior dispersão entre os braços, por
+  um fator de seis), compatível com ajustar 2,2 M parâmetros em 77 grupos.
 - Os dois braços que passaram têm em comum uma **representação fixa com
   classificador linear regularizado**; o registro trata isso como hipótese, não
   como resultado.
@@ -637,18 +637,18 @@ Fonte: [ADR 0026](../adr/0026-the-first-play-release-waits-for-classification.md
 
 **Pull requests abertos em 2026-10-01** (não estão em `main`):
 
-- [LukeSantossz/visiosoil-app#305](https://github.com/LukeSantossz/visiosoil-app/pull/305) — apagar o conteúdo e as dicas em cache de um registro excluído
-- [LukeSantossz/visiosoil-app#307](https://github.com/LukeSantossz/visiosoil-app/pull/307) — apagar a cópia do seletor de imagem após gravar a foto
-- [LukeSantossz/visiosoil-app#308](https://github.com/LukeSantossz/visiosoil-app/pull/308) — recuperar a foto quando o Android encerra o app
-- [LukeSantossz/visiosoil-app#309](https://github.com/LukeSantossz/visiosoil-app/pull/309) — relatar confiança, cobertura e calibração na avaliação
-- [LukeSantossz/visiosoil-app#310](https://github.com/LukeSantossz/visiosoil-app/pull/310) — persistir a distribuição de classes e as versões do contrato
-- [LukeSantossz/visiosoil-app#311](https://github.com/LukeSantossz/visiosoil-app/pull/311) — pedir câmera e localização quando a captura precisar
-- [LukeSantossz/visiosoil-app#312](https://github.com/LukeSantossz/visiosoil-app/pull/312) — estudar temperatura e bandas conformes para o veredito
+- [LukeSantossz/visiosoil-app#305](https://github.com/LukeSantossz/visiosoil-app/pull/305): apagar o conteúdo e as dicas em cache de um registro excluído
+- [LukeSantossz/visiosoil-app#307](https://github.com/LukeSantossz/visiosoil-app/pull/307): apagar a cópia do seletor de imagem após gravar a foto
+- [LukeSantossz/visiosoil-app#308](https://github.com/LukeSantossz/visiosoil-app/pull/308): recuperar a foto quando o Android encerra o app
+- [LukeSantossz/visiosoil-app#309](https://github.com/LukeSantossz/visiosoil-app/pull/309): relatar confiança, cobertura e calibração na avaliação
+- [LukeSantossz/visiosoil-app#310](https://github.com/LukeSantossz/visiosoil-app/pull/310): persistir a distribuição de classes e as versões do contrato
+- [LukeSantossz/visiosoil-app#311](https://github.com/LukeSantossz/visiosoil-app/pull/311): pedir câmera e localização quando a captura precisar
+- [LukeSantossz/visiosoil-app#312](https://github.com/LukeSantossz/visiosoil-app/pull/312): estudar temperatura e bandas conformes para o veredito
 
 **Trabalho futuro registrado:**
 
 - validar o leitor A4 e medir a acurácia em fotos reais capturadas no
-  protocolo — condição para o primeiro lançamento na Google Play (ADR 0026);
+  protocolo, condição para o primeiro lançamento na Google Play (ADR 0026);
 - ligar o veredito (ADR 0011) e o analisador de qualidade às telas, com nova
   tentativa específica por causa de falha;
 - detector de fora-de-distribuição para a Siltosa ausente;

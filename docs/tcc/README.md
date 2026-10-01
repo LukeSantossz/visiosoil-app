@@ -1,4 +1,4 @@
-# Relatório de TCC — VisioSoil
+# Relatório de TCC do VisioSoil
 
 Este diretório guarda o material de apoio ao artigo de Trabalho de Conclusão
 de Curso sobre o VisioSoil.

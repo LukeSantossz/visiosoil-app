@@ -38,11 +38,11 @@ A Introdução está completa no essencial: contexto, problema, iniciativas
 existentes, lacuna e objetivo no último parágrafo, como o modelo pede. Os
 pontos abaixo estão em ordem de importância.
 
-1. **A ordem dos conceitos ficou invertida.** A versão final define
-   granulometria e triângulo textural antes de definir textura ("Já a textura
-   do solo é…"). A Versão 2 definia textura primeiro e granulometria depois,
-   que é a ordem lógica: o conceito e depois como ele é medido. Sugestão:
-   voltar a essa ordem.
+1. **A ordem granulometria → textura está certa e fica.** Esta revisão
+   sugeriu inverter a ordem, mas o comentário de Gustavo Faulin no documento
+   pede granulometria antes de textura, em ordem cronológica, porque a textura
+   é determinada a partir da granulometria. A aba "Revisão - Métodos e
+   Resultados" segue o orientador.
 2. **Falta ligar o triângulo textural às quatro classes do trabalho.** A
    Figura 1 mostra o triângulo, mas Material e Métodos fala de quatro classes
    (Arenosa, Média, Argilosa e Muito Argilosa) que não aparecem na Introdução.
@@ -208,7 +208,51 @@ Resultados.
 
 ---
 
-## 6. Resultados e Discussão — o que falta
+## 5a. Verificação das referências (2026-10-01)
+
+Cada referência citada foi conferida na fonte (Crossref, DataCite, páginas
+das revistas e dos repositórios), e cada afirmação atribuída a ela foi
+procurada no texto da fonte. A aba "Revisão - Métodos e Resultados" do
+documento já traz as correções.
+
+**Corrigido**
+
+| Referência | O que estava | O que a fonte mostra |
+| --- | --- | --- |
+| Faulin; Aleixo; Favan (2025) | iniciais "D. C.", "C." e "R." | Gustavo Di Chiacchio Faulin, Gabriel Carneiro Aleixo, João Ricardo Favan |
+| Embrapa Solos (2026) | "cerca de 150 laboratórios credenciados" | cerca de 150 laboratórios de fertilidade *participam* do PAQLF; a lista de 2026 tem 139 aprovados, 86 em granulometria (52 no Centro-Oeste, 35 no Sudeste, 22 no Sul, 17 no Nordeste, 13 no Norte) |
+| Rocha (2024) | "cerca de 80%", citado como 2026 | 81,7% não sabiam onde fazer a análise; dois laboratórios no Piauí, nos campi da UFPI em Bom Jesus e Teresina; o TCC é de 2024 |
+| Embrapa (2026), região Norte | autoria "EMBRAPA", ano 2026 | projeto da Embrapa Amazônia Ocidental, 2015 a 2019; a frase sobre infraestrutura e acesso confere |
+| Bolfe et al. (2020) | "análise espacial e temporal" | a definição fala em análise espacial, sem "temporal" |
+| Centeno et al. (2017) | URL antiga e acesso "2025" | o DOI resolve; a revista mudou de endereço |
+
+**Confere**: Kaplan et al. (2024), Sattar et al. (2024), McFadden; Njuki;
+Griffin (2023), Moraes; Salame (2017), Castro; Gonçalves; Castro (2024),
+Bertoni; Lombardi Neto (2017), Indie Mobile Apps (2026, com versão iOS),
+Santos et al. (2018) e as referências de software. As nove referências
+metodológicas acrescentadas (Duda e Hart, Haralick et al., Hartley e
+Zisserman, Holm, McNemar, Ojala et al., Otsu, Pedregosa et al. e Santos et
+al.) conferem e passaram a ter DOI quando existe.
+
+**Acrescentado**: Romanelli (2025), da Revista Cultivar, que estava solta na
+aba "Guia 6" e sustenta o déficit de cerca de 8 milhões de análises de solo
+por ano.
+
+**Não foi possível confirmar no texto da fonte**, porque o site bloqueia
+acesso automático ou só o resumo está disponível:
+
+- Sattar et al. (2024): a frase sobre características físicas, químicas e
+  biológicas como principais fatores da qualidade do solo, e "espaço" e
+  "logística" entre as exigências do laboratório. O resumo confirma custo,
+  tempo, equipamentos e profissionais.
+- Centeno et al. (2017): a frase sobre defensivos agrícolas e prejuízos
+  econômicos e ambientais. O resumo confirma a relação entre textura e
+  manejo.
+- Ataíde (2022): a página do triângulo textural. A Figura 1 do SiBCS
+  (Santos et al., 2018, p. 47, "Guia para grupamento de classes de
+  textura") é uma alternativa técnica.
+
+## 6. O que falta em Resultados e Discussão
 
 É o capítulo que o orientador marcou como o mais importante, e ainda não
 existe. As anotações dele pedem:
@@ -278,8 +322,8 @@ medir o desempenho num celular.
 
 - [ ] Consolidar a Introdução na versão final e apagar Versão 1, Versão 2 e
       Continuação.
-- [ ] Reordenar textura → granulometria e ligar o triângulo aos quatro
-      grupamentos (seção 2).
+- [ ] Manter granulometria antes de textura (comentário do orientador) e
+      ligar o triângulo aos grupamentos texturais (seção 2).
 - [ ] Decidir como tratar MobileNetV2, TFLite, CI e dicas de manejo
       (seção 4).
 - [ ] Completar Material e Métodos com dados, treino, avaliação e captura
