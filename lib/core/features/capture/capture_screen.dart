@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
@@ -32,6 +33,18 @@ typedef CameraImagePicker = Future<XFile?> Function();
 /// Reports a camera permission status.
 typedef CameraPermissionProbe = Future<AppPermissionStatus> Function();
 
+/// Deletes a file the camera picker handed the screen.
+typedef PickedFileDeleter = Future<void> Function(String path);
+
+/// Deletes the picker's file at [path]. An absent file counts as deleted.
+Future<void> deletePickedFile(String path) async {
+  try {
+    await File(path).delete();
+  } on PathNotFoundException {
+    // Already gone; nothing is left to remove.
+  }
+}
+
 class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({
     super.key,
@@ -39,6 +52,7 @@ class CaptureScreen extends ConsumerStatefulWidget {
     this.locate,
     this.checkCameraPermission,
     this.requestCameraPermission,
+    this.deletePickedFile,
   });
 
   /// Test seams; each defaults to the real platform implementation.
@@ -46,6 +60,7 @@ class CaptureScreen extends ConsumerStatefulWidget {
   final LocationResolver? locate;
   final CameraPermissionProbe? checkCameraPermission;
   final CameraPermissionProbe? requestCameraPermission;
+  final PickedFileDeleter? deletePickedFile;
 
   @override
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
@@ -73,6 +88,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       widget.checkCameraPermission ?? PermissionService.checkCamera;
   late final CameraPermissionProbe _requestCameraPermission =
       widget.requestCameraPermission ?? PermissionService.requestCamera;
+  late final PickedFileDeleter _deletePickedFile =
+      widget.deletePickedFile ?? deletePickedFile;
 
   @override
   void initState() {
@@ -260,9 +277,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     if (image == null) return;
 
-    // Capture the notifier before the await so the post-save cleanup never
-    // touches `ref` after the widget is disposed.
+    // Capture the notifier and the deleter before the await so the post-save
+    // cleanup never touches `ref` or `widget` after the widget is disposed.
     final imageNotifier = ref.read(imageProvider.notifier);
+    final deletePicked = _deletePickedFile;
 
     setState(() => _state = _state.copyWith(isSaving: true));
 
@@ -310,6 +328,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Only the snackbar/pop need the widget still mounted.
     if (didCreate) {
       imageNotifier.clearIfPath(image.path);
+      // The record points at its durable copy now. A failed save never gets
+      // here, so its retry still has the photograph.
+      unawaited(_disposePickedFile(deletePicked, image.path));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro salvo com sucesso!')),
@@ -320,10 +341,32 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   void _discardImage() {
+    final picked = ref.read(imageProvider).file;
     // Invalidates any in-flight location/classification work for this capture.
     final generation = _state.generation + 1;
     ref.read(imageProvider.notifier).clearImage();
     setState(() => _state = _state.startingCapture(generation));
+    // A save in flight may still be copying the file; it deletes the file
+    // itself once it succeeds.
+    if (picked != null && !_state.isSaving) {
+      unawaited(_disposePickedFile(_deletePickedFile, picked.path));
+    }
+  }
+
+  /// Deletes the picker's file once the screen no longer needs it, best
+  /// effort (SPEC 0094). The file still carries the original EXIF, GPS
+  /// included, which only the durable copy is stripped of (ADR 0005). A
+  /// failure is logged and never fails the save or the discard.
+  static Future<void> _disposePickedFile(
+    PickedFileDeleter delete,
+    String path,
+  ) async {
+    try {
+      await delete(path);
+    } catch (e) {
+      developer.log('Could not delete the picked file: $e',
+          name: 'CaptureScreen');
+    }
   }
 
   void _retryCameraPermission() {
