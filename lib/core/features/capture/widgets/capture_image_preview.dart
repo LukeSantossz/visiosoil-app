@@ -157,7 +157,7 @@ class CaptureImagePreview extends StatelessWidget {
       if (chip.retryable) return _retryChip(chip.label);
       // Running the same file again would return the same cause, so the chip
       // says what to change and offers no tap (SPEC 0105).
-      return _InfoChip(icon: Icons.photo_camera_outlined, label: chip.label);
+      return _InfoChip(icon: Icons.info_outline, label: chip.label);
     }
     return const _InfoChip(
       icon: Icons.eco_outlined,
