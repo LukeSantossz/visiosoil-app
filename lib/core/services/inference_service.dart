@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 
 import '../../models/class_score.dart';
 import 'classification_report.dart';
+import 'descriptors/a4_sheet.dart';
 import 'descriptors/descriptor_contract.dart';
 import 'descriptors/patch_descriptors.dart';
 import 'descriptors/patch_grid.dart';
@@ -96,13 +97,13 @@ typedef ContractAssetLoader = Future<String> Function(String key);
 /// orient, measure, cut the canonical patch grid, describe each patch, and
 /// score the patches with the contract.
 class InferenceService {
-  InferenceService({this.measurer = measurementUnavailable});
+  InferenceService({this.measurer = a4SheetMeasurer});
 
   /// The released contract (SPEC 0082, ADR 0012).
   static const String contractPath = 'assets/models/spec.json';
 
-  /// What measures a photograph's scale and soil region. This build has none
-  /// ([measurementUnavailable]); the A4-sheet reader supplies one.
+  /// What measures a photograph's scale and soil region: the A4-sheet reader
+  /// ([a4SheetMeasurer], SPEC 0092), unless a test injects another.
   final PhotographMeasurer measurer;
 
   /// Maximum attempts to load the contract before giving up for the current

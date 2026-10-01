@@ -33,7 +33,7 @@ Widget harness({
   );
 }
 
-ResearchService okService() =>
+FakeResearchService okService() =>
     FakeResearchService((_) async => ResearchSuccess(groundedTips()));
 
 void main() {
@@ -70,18 +70,76 @@ void main() {
     expect(find.text('Gerar dicas'), findsOneWidget);
   });
 
-  testWidgets('empty cache offline shows offline state and no button',
-      (tester) async {
-    await tester.pumpWidget(harness(
-      record: tipsRecord(),
-      repo: FakeManagementTipsRepository(),
-      service: okService(),
-      connectivity: ConnectivityStatus.offline,
-    ));
-    await tester.pumpAndSettle();
+  // Tips compose on the device from the corpus the app holds (ADR 0022), so
+  // being offline changes nothing about them (SPEC 0090).
+  group('offline', () {
+    testWidgets('offline_empty_cache_offers_generate_tips', (tester) async {
+      await tester.pumpWidget(harness(
+        record: tipsRecord(),
+        repo: FakeManagementTipsRepository(),
+        service: okService(),
+        connectivity: ConnectivityStatus.offline,
+      ));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Sem conexão'), findsOneWidget);
-    expect(find.text('Gerar dicas'), findsNothing);
+      expect(find.text('Gerar dicas'), findsOneWidget);
+      expect(find.text('Sem conexão'), findsNothing);
+      expect(find.textContaining('Conecte-se'), findsNothing);
+    });
+
+    testWidgets('offline_generate_composes_tips', (tester) async {
+      final service = okService();
+      await tester.pumpWidget(harness(
+        record: tipsRecord(),
+        repo: FakeManagementTipsRepository(),
+        service: service,
+        connectivity: ConnectivityStatus.offline,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gerar dicas'));
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 1);
+      expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+    });
+
+    testWidgets('offline_failed_generation_offers_retry', (tester) async {
+      final service = FakeResearchService((_) async =>
+          const ResearchFailure(ResearchFailureKind.upstreamUnavailable));
+      await tester.pumpWidget(harness(
+        record: tipsRecord(),
+        repo: FakeManagementTipsRepository(),
+        service: service,
+        connectivity: ConnectivityStatus.offline,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gerar dicas'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Não foi possível gerar as dicas agora'),
+          findsOneWidget);
+
+      await tester.tap(find.text('Tentar novamente'));
+      await tester.pumpAndSettle();
+      expect(service.calls, 2);
+    });
+
+    testWidgets('offline_cached_tips_offer_refresh', (tester) async {
+      final service = okService();
+      await tester.pumpWidget(harness(
+        record: tipsRecord(),
+        repo: FakeManagementTipsRepository()..seed('rec-1', groundedTips()),
+        service: service,
+        connectivity: ConnectivityStatus.offline,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Atualizar dicas'));
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 1);
+    });
   });
 
   testWidgets('unclassified record shows guidance and no button', (tester) async {
