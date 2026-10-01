@@ -1,4 +1,5 @@
-"""Confidence, coverage and calibration read from stored distributions (SPEC 0095).
+"""Confidence, coverage and calibration read from stored distributions (SPEC 0095),
+and the temperature, conformal sets and ADR 0011 rule the study uses (SPEC 0098).
 
 Every expected value below is worked by hand from the six photographs in
 `DISTRIBUTIONS`, not by calling numpy on them, so a wrong formula cannot agree
@@ -7,13 +8,21 @@ with itself. The arithmetic is written beside each figure.
 
 import pytest
 
+import math
+
 from src.calibration import (
     CALIBRATION_BINS,
+    adr0011_verdict,
+    apply_temperature,
     calibration_error,
     confidence_record,
+    conformal_set,
+    conformal_threshold,
     coverage_sweep,
+    fit_temperature,
     percentiles,
     severity_record,
+    verdict_of_set,
 )
 from tests.support import configured_classes
 
@@ -197,3 +206,87 @@ def test_severity_is_absent_for_another_class_list():
     assert record["photograph"] is None
     assert record["group"] is None
     assert "Siltosa" in record["why"]
+
+
+# --- SPEC 0098: the temperature, conformal sets and ADR 0011 as sets ---------
+
+
+def test_the_temperature_minimises_the_negative_log_likelihood():
+    # Three photographs share [0.8, 0.2]; two are class 0 and one is class 1.
+    # Scaled, class 0 holds sigma(b ln 4) with b = 1/T, and the likelihood
+    # 2 ln sigma + ln(1 - sigma) peaks where sigma = 2/3, so b ln 4 = ln 2,
+    # b = 1/2 and T = 2.
+    labels = [0, 0, 1]
+    distributions = [[0.8, 0.2]] * 3
+    assert fit_temperature(labels, distributions) == pytest.approx(2.0, abs=1e-6)
+
+    assert apply_temperature([0.7, 0.2, 0.1], 1.0) == pytest.approx([0.7, 0.2, 0.1])
+    # T = 2 takes square roots, then renormalises: 0.8**0.5 / (0.8**0.5 + 0.2**0.5).
+    assert apply_temperature([0.8, 0.2], 2.0) == pytest.approx([2 / 3, 1 / 3])
+
+
+def test_a_temperature_keeps_the_argmax():
+    for temperature in (0.25, 0.5, 2.0, 5.0):
+        for distribution in PROBABILITIES:
+            scaled = apply_temperature(distribution, temperature)
+            assert scaled.index(max(scaled)) == distribution.index(max(distribution))
+            assert sum(scaled) == pytest.approx(1.0)
+
+
+def test_the_conformal_threshold_is_the_finite_sample_quantile():
+    scores = [0.9, 0.1, 0.5, 0.3, 0.7, 0.2, 0.8, 0.4, 0.6]  # n = 9, unsorted
+    # alpha 0.2: rank ceil(10 * 0.8) = 8, so the 8th smallest, 0.8.
+    assert conformal_threshold(scores, 0.2) == pytest.approx(0.8)
+    # alpha 0.5: rank ceil(10 * 0.5) = 5, the 5th smallest, 0.5.
+    assert conformal_threshold(scores, 0.5) == pytest.approx(0.5)
+    # alpha 0.05: rank ceil(9.5) = 10 exceeds n, so every class is admitted.
+    assert conformal_threshold(scores, 0.05) == math.inf
+    assert conformal_set([0.5, 0.3, 0.2], math.inf) == [0, 1, 2]
+
+
+def test_conformal_sets_map_onto_the_verdicts():
+    distribution = [0.55, 0.30, 0.10, 0.05]
+    # A class is in the set when 1 - p reaches no further than the threshold.
+    assert conformal_set(distribution, 0.5) == [0]  # p >= 0.5
+    assert conformal_set(distribution, 0.7) == [0, 1]  # p >= 0.3
+    assert conformal_set(distribution, 0.9) == [0, 1, 2]  # p >= 0.1
+    assert conformal_set(distribution, 0.4) == []  # p >= 0.6
+    assert verdict_of_set(1) == "conclusive"
+    assert verdict_of_set(2) == "ambiguous"
+    assert verdict_of_set(3) == "insufficient"
+    assert verdict_of_set(4) == "insufficient"
+    assert verdict_of_set(0) == "insufficient"
+
+
+def test_the_adr_0011_rule_matches_the_dart_constants():
+    # The grid `classification_verdict_test.dart` asserts, as two-entry
+    # distributions (top-1, top-2).
+    cases = [
+        (0.94, 0.03, "conclusive"),
+        (0.60, 0.20, "conclusive"),
+        (0.51, 0.30, "conclusive"),
+        (0.50, 0.45, "ambiguous"),
+        (0.49, 0.45, "ambiguous"),
+        (0.48, 0.44, "ambiguous"),
+        (0.44, 0.39, "ambiguous"),
+        (0.34, 0.32, "ambiguous"),
+        (0.49, 0.19, "insufficient"),
+        (0.48, 0.20, "insufficient"),
+        (0.33, 0.31, "insufficient"),
+        (0.25, 0.24, "insufficient"),
+    ]
+    for top, runner_up, expected in cases:
+        verdict, _ = adr0011_verdict([top, runner_up])
+        assert verdict == expected, (top, runner_up)
+
+    # The inclusive bounds, with the Dart test's own vectors.
+    assert 0.33 + 0.32 == 0.65
+    assert adr0011_verdict([0.33, 0.32, 0.13, 0.12])[0] == "ambiguous"
+    assert adr0011_verdict([0.20, 0.50, 0.20, 0.10])[0] == "conclusive"
+    # Unsorted input is judged by scanning, as the factory does.
+    assert adr0011_verdict([0.12, 0.39, 0.05, 0.44])[0] == "ambiguous"
+
+    # Read as sets: the top-1, the top two, or every class.
+    assert adr0011_verdict([0.10, 0.60, 0.20, 0.10]) == ("conclusive", [1])
+    assert adr0011_verdict([0.12, 0.39, 0.05, 0.44]) == ("ambiguous", [3, 1])
+    assert adr0011_verdict([0.25, 0.24, 0.22, 0.29]) == ("insufficient", [0, 1, 2, 3])
