@@ -225,6 +225,14 @@ def test_the_temperature_minimises_the_negative_log_likelihood():
     assert apply_temperature([0.8, 0.2], 2.0) == pytest.approx([2 / 3, 1 / 3])
 
 
+def test_a_temperature_must_be_positive_and_finite():
+    # Zero would divide by zero, and a negative one would reverse the classes'
+    # order, which the argmax promise forbids (R3 on PR #312).
+    for temperature in (0.0, -1.0, math.inf, math.nan):
+        with pytest.raises(ValueError, match="temperature"):
+            apply_temperature([0.6, 0.4], temperature)
+
+
 def test_a_temperature_keeps_the_argmax():
     for temperature in (0.25, 0.5, 2.0, 5.0):
         for distribution in PROBABILITIES:
