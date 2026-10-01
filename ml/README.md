@@ -398,8 +398,21 @@ python -m src.evaluate --version v1 --contrasts      # the registered family
 `metrics.json` carries the primary number per repeat, the Wilson interval on
 each repeat's pooled group accuracy, the median and range across repeats,
 per-class figures flagged `"headline": false`, and what the run cost in
-trainings and wall-clock seconds. `--contrasts` writes `models/v1/contrasts.json`
-with an entry per registered contrast. A **computed** one carries its discordant
+trainings and wall-clock seconds. It also carries how far the photograph-level
+distribution can be trusted (SPEC 0095). Each repeat carries these under
+`confidence`:
+
+- the top-1 probability's percentiles and the margin's;
+- the expected calibration error over 10 bins, with its reliability curve;
+- the coverage and accuracy left at each threshold on the top-1 probability and
+  on the margin.
+
+The error's median and range across repeats sit at the top. `severity` counts
+the confusions by ADR 0016's ordering; it gives no weights, because none were
+supplied. None of these figures carries an interval.
+
+`--contrasts` writes `models/v1/contrasts.json` with an entry per registered
+contrast. A **computed** one carries its discordant
 counts, exact McNemar p-value, Holm-corrected value and minimum detectable
 effect. One naming an arm that did not run carries `outcome: "not_executed"`,
 the arms that are missing, their execution state — `never_started` and
