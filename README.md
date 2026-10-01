@@ -12,7 +12,7 @@
 
 VisioSoil lets agronomists and field technicians capture, classify, and catalog soil samples directly from a mobile device.
 
-- **Guided field workflow** — a splash screen requests runtime permissions and a 3-step onboarding tutorial explains capture
+- **Guided field workflow** — a 3-step onboarding tutorial explains capture, and capture asks for the camera and location when it needs them
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
 - **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The contract ships, but **nothing measures a photograph's scale yet**: the A4-sheet reader does not exist. So classification refuses every photograph with a named cause, and records save without a texture class (see Known Issues)
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
@@ -224,7 +224,7 @@ visiosoil-app/
 ### Done
 
 - [x] Material 3 theme, Riverpod state management, GoRouter navigation (7 routes)
-- [x] Splash screen with runtime permission requests via `PermissionService`
+- [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs
 - [x] Camera capture with real GPS (`geolocator` + `geocoding` via `LocationService`)
