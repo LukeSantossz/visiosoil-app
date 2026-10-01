@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +59,16 @@ class AppDatabase extends _$AppDatabase {
             // v5 -> v6: no table changes shape. Tombstones written before
             // SPEC 0093 still hold what the user captured.
             await _eraseTombstoneContent();
+          }
+          if (from < 7) {
+            // v6 -> v7: the class distribution and the contract versions that
+            // scored it (SPEC 0097). No earlier step recreates `soil_records`,
+            // so every path adds these once. Nullable, so every existing row,
+            // tombstones included, arrives with none, which is what it has; the
+            // v6 erase above cannot name them, since they do not exist yet.
+            await migrator.addColumn(soilRecords, soilRecords.classDistribution);
+            await migrator.addColumn(soilRecords, soilRecords.modelVersion);
+            await migrator.addColumn(soilRecords, soilRecords.datasetVersion);
           }
         },
       );

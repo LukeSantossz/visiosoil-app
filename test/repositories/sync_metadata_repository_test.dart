@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 import '../support/fake_image_storage_service.dart';
@@ -142,6 +143,14 @@ void main() {
           timestamp: '2026-01-01T09:30:00.000Z',
           textureClass: 'Argilosa',
           confidenceScore: 0.87,
+          classDistribution: const [
+            ClassScore(label: 'Arenosa', probability: 0.03),
+            ClassScore(label: 'Media', probability: 0.06),
+            ClassScore(label: 'Muito Argilosa', probability: 0.04),
+            ClassScore(label: 'Argilosa', probability: 0.87),
+          ],
+          modelVersion: '1.0.0',
+          datasetVersion: 'v1',
         );
 
     Future<QueryRow> storedRow(String uuid) => db
@@ -157,6 +166,10 @@ void main() {
       expect(row.read<String?>('address'), isNull);
       expect(row.read<String?>('texture_class'), isNull);
       expect(row.read<double?>('confidence_score'), isNull);
+      // SPEC 0097: what scored the photograph describes it, too.
+      expect(row.read<String?>('class_distribution'), isNull);
+      expect(row.read<String?>('model_version'), isNull);
+      expect(row.read<String?>('dataset_version'), isNull);
       expect(row.read<String>('image_path'), isEmpty);
       expect(row.read<String>('timestamp'), row.read<String>('updated_at'));
     }
@@ -174,6 +187,22 @@ void main() {
       await repo.deleteById(saved.id!);
 
       expectErased(await storedRow(saved.uuid!));
+    });
+
+    test('a_deleted_record_erases_its_distribution_and_versions', () async {
+      final saved = await repo.create(captured());
+      // Guards the test: the columns held something to erase.
+      final before = await storedRow(saved.uuid!);
+      expect(before.read<String?>('class_distribution'), isNotNull);
+      expect(before.read<String?>('model_version'), '1.0.0');
+      now = DateTime.parse(deletedAt);
+
+      await repo.deleteById(saved.id!);
+
+      final row = await storedRow(saved.uuid!);
+      expect(row.read<String?>('class_distribution'), isNull);
+      expect(row.read<String?>('model_version'), isNull);
+      expect(row.read<String?>('dataset_version'), isNull);
     });
 
     test('delete_keeps_what_sync_reads', () async {
