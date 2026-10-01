@@ -35,10 +35,13 @@ void main() {
   // Play filters the listing by the hardware a manifest requires, declared or
   // implied by a permission. VisioSoil needs a camera; location and autofocus
   // are optional, since a record saves without coordinates and the camera app
-  // handles focus (SPEC 0100).
+  // handles focus (SPEC 0100). Comments are stripped first, so a declaration
+  // commented out does not count as one.
+  final activeManifest =
+      manifest.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
   String? usesFeature(String name) => RegExp(
         '<uses-feature\\b[^>]*android:name="${RegExp.escape(name)}"[^>]*/>',
-      ).firstMatch(manifest)?.group(0);
+      ).firstMatch(activeManifest)?.group(0);
 
   test('manifest_requires_the_camera', () {
     final feature = usesFeature('android.hardware.camera');
