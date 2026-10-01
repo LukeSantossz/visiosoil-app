@@ -1,0 +1,307 @@
+{
+  "spec": "SPEC 0091",
+  "sheet_mm": [
+    210,
+    297
+  ],
+  "jpeg_quality": 90,
+  "cases": [
+    {
+      "name": "frontal",
+      "file": "sheet_frontal.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          103.5,
+          109.5
+        ],
+        [
+          796.5,
+          109.5
+        ],
+        [
+          796.5,
+          1089.5
+        ],
+        [
+          103.5,
+          1089.5
+        ]
+      ],
+      "mm_per_px": 0.30306122448979594,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "tilted_15",
+      "file": "sheet_tilted_15.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          149.5,
+          169.5
+        ],
+        [
+          749.5,
+          169.5
+        ],
+        [
+          814.5,
+          1099.5
+        ],
+        [
+          84.5,
+          1099.5
+        ]
+      ],
+      "mm_per_px": 0.31857766743512933,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "tilted_30",
+      "file": "sheet_tilted_30.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          184.5,
+          209.5
+        ],
+        [
+          714.5,
+          209.5
+        ],
+        [
+          844.5,
+          1124.5
+        ],
+        [
+          54.5,
+          1124.5
+        ]
+      ],
+      "mm_per_px": 0.3213628960104769,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "rotated_20",
+      "file": "sheet_rotated_20.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          325.5,
+          143.5
+        ],
+        [
+          837.5,
+          330.5
+        ],
+        [
+          573.5,
+          1055.5
+        ],
+        [
+          61.5,
+          868.5
+        ]
+      ],
+      "mm_per_px": 0.38492919194983577,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "landscape",
+      "file": "sheet_landscape.jpg",
+      "width": 1200,
+      "height": 900,
+      "expected": "sheet",
+      "corners": [
+        [
+          1089.5,
+          103.5
+        ],
+        [
+          1089.5,
+          796.5
+        ],
+        [
+          109.5,
+          796.5
+        ],
+        [
+          109.5,
+          103.5
+        ]
+      ],
+      "mm_per_px": 0.30306122448979594,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "marks",
+      "file": "sheet_marks.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          119.5,
+          129.5
+        ],
+        [
+          779.5,
+          119.5
+        ],
+        [
+          799.5,
+          1079.5
+        ],
+        [
+          99.5,
+          1094.5
+        ]
+      ],
+      "mm_per_px": 0.3085048328163262,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      },
+      "marks_mm": [
+        [
+          30,
+          30
+        ],
+        [
+          180,
+          30
+        ],
+        [
+          30,
+          267
+        ],
+        [
+          180,
+          267
+        ],
+        [
+          105,
+          40
+        ],
+        [
+          105,
+          257
+        ]
+      ]
+    },
+    {
+      "name": "cropped",
+      "file": "sheet_cropped.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "cropped",
+      "corners": [
+        [
+          -60.5,
+          109.5
+        ],
+        [
+          632.5,
+          109.5
+        ],
+        [
+          632.5,
+          1089.5
+        ],
+        [
+          -60.5,
+          1089.5
+        ]
+      ],
+      "mm_per_px": 0.30306122448979594,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    },
+    {
+      "name": "no_sheet",
+      "file": "sheet_no_sheet.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "notFound"
+    },
+    {
+      "name": "pale_on_pale",
+      "file": "sheet_pale_on_pale.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "notFound",
+      "corners": [
+        [
+          103.5,
+          109.5
+        ],
+        [
+          796.5,
+          109.5
+        ],
+        [
+          796.5,
+          1089.5
+        ],
+        [
+          103.5,
+          1089.5
+        ]
+      ],
+      "mm_per_px": 0.30306122448979594,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
+    }
+  ]
+}
