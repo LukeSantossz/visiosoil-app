@@ -315,6 +315,46 @@ def test_per_class_metrics_are_recorded_and_flagged(folds):
                 assert 0.0 <= record[level][key] <= 1.0
 
 
+# --- arm_metrics_reports_confidence_per_repeat (SPEC 0095) ------------------
+
+
+def test_arm_metrics_reports_confidence_per_repeat(folds):
+    metrics = metrics_for(folds, correct_rate=0.6, seed=7)
+
+    errors = []
+    for record in metrics["repeats"]:
+        confidence = record["confidence"]
+        assert confidence["level"] == "photograph"
+        # The figures rest on the repeat's pooled test sides, as the primary
+        # number does.
+        assert confidence["photographs"] == record["photographs"]
+        assert confidence["groups"] == record["groups"]
+        for key in ("p10", "p50", "p90"):
+            assert 0.0 <= confidence["top1"][key] <= 1.0
+            assert 0.0 <= confidence["margin"][key] <= 1.0
+        calibration = confidence["calibration"]
+        assert calibration["bins"] == 10
+        assert sum(b["count"] for b in calibration["reliability"]) == (
+            record["photographs"]
+        )
+        assert set(confidence["sweep"]) == {"top1", "margin"}
+        errors.append(calibration["expected_calibration_error"])
+
+    summary = metrics["confidence"]["expected_calibration_error"]
+    assert summary["per_repeat"] == errors
+    assert summary["median"] == pytest.approx(float(np.median(errors)))
+    assert summary["range"] == [min(errors), max(errors)]
+    assert summary["level"] == "photograph"
+    assert summary["bins"] == 10
+
+    # The fixture carries five classes, Siltosa among them, which ADR 0016's
+    # ordering does not cover, so the block says so rather than guessing.
+    severity = metrics["severity"]
+    assert severity["photograph"] is None
+    assert severity["group"] is None
+    assert "Siltosa" in severity["why"]
+
+
 # --- cost_is_recorded -------------------------------------------------------
 
 

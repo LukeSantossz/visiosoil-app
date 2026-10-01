@@ -9,12 +9,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('splash intro is wired to AppMotion (duration + both curves)', () {
+  // One curve since SPEC 0089: the tile no longer scales in, so the
+  // emphasized curve that drove the scale left with it.
+  test('splash intro is wired to AppMotion (duration + curve)', () {
     final src =
         File('lib/core/features/splash/splash_screen.dart').readAsStringSync();
     expect(src, contains('duration: AppMotion.reveal'));
     expect(src, contains('curve: AppMotion.standard'));
-    expect(src, contains('curve: AppMotion.emphasized'));
     expect(src, isNot(contains('Curves.easeIn')));
     expect(src, isNot(contains('Curves.easeOutBack')));
   });
