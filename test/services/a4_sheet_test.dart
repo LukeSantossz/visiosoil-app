@@ -5,14 +5,15 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 
 /// The A4-sheet reader against scenes an independent geometry placed
-/// (SPEC 0091). `ml/scripts/generate_sheet_fixtures.py` lays the sheet with
-/// Pillow's perspective transform and records where its corners went. Nothing
-/// here shares that mathematics.
+/// (SPEC 0091, SPEC 0092). `ml/scripts/generate_sheet_fixtures.py` lays the
+/// sheet with Pillow's perspective transform and records where its corners and
+/// its soil patch went. Nothing here shares that mathematics.
 const _fixtures = 'test/fixtures/sheet';
 
 final Map<String, dynamic> _golden =
@@ -207,5 +208,84 @@ void main() {
         );
       }
     }
+  });
+
+  // SPEC 0092: the soil patch on the sheet, and the measurer built on it.
+
+  test('the_soil_disc_is_found_on_the_sheet', () {
+    for (final name in _wholeSheets) {
+      final soil = _case(name)['soil_mm'] as Map<String, dynamic>;
+      final centre = soil['centre'] as List;
+      final expected = (soil['diameter'] as num) - 2 * soilMarginMm;
+
+      final disc = locateSoilDisc(_frame(name), _found(name));
+      expect(disc, isNotNull, reason: '$name: no soil found');
+      // The patch is centred, so which corner the reader calls the origin
+      // does not move it.
+      final offMm = math.sqrt(
+        math.pow(disc!.xMm - (centre[0] as num), 2) +
+            math.pow(disc.yMm - (centre[1] as num), 2),
+      );
+      expect(
+        offMm,
+        lessThanOrEqualTo(2.0),
+        reason: '$name: the centre is ${offMm.toStringAsFixed(2)} mm off',
+      );
+      expect(
+        (disc.diameterMm - expected).abs(),
+        lessThanOrEqualTo(3.0),
+        reason: '$name: ${disc.diameterMm} mm against $expected',
+      );
+
+      // The measurer reports that disc in the pixels of the square it
+      // rectified, and the disc it reports holds only soil.
+      final measured = a4SheetMeasurer(_frame(name));
+      expect(measured.cause, isNull, reason: name);
+      final m = measured.measurement!;
+      expect(
+        (m.diameterPx * m.mmPerPx - disc.diameterMm).abs(),
+        lessThanOrEqualTo(0.5),
+        reason: '$name: the measurer and the disc disagree',
+      );
+      for (var k = 0; k < 36; k++) {
+        final angle = k * math.pi / 18;
+        final x = (m.centreXPx + m.diameterPx / 2 * math.cos(angle)).floor();
+        final y = (m.centreYPx + m.diameterPx / 2 * math.sin(angle)).floor();
+        expect(x, inInclusiveRange(0, m.frame.width - 1), reason: name);
+        expect(y, inInclusiveRange(0, m.frame.height - 1), reason: name);
+        final i = (y * m.frame.width + x) * 3;
+        final rgb = m.frame.rgb;
+        expect(
+          greyOf(rgb[i], rgb[i + 1], rgb[i + 2]),
+          lessThan(190),
+          reason: '$name: the disc reaches paper at ${k * 10} degrees',
+        );
+      }
+    }
+  });
+
+  test('a_missing_sheet_is_refused_as_sheet_not_found', () {
+    for (final name in ['no_sheet', 'pale_on_pale']) {
+      final measured = a4SheetMeasurer(_frame(name));
+      expect(measured.measurement, isNull, reason: name);
+      expect(
+        measured.cause,
+        ClassificationFailureCause.sheetNotFound,
+        reason: name,
+      );
+    }
+  });
+
+  test('a_cropped_sheet_is_refused_as_sheet_cropped', () {
+    final measured = a4SheetMeasurer(_frame('cropped'));
+    expect(measured.measurement, isNull);
+    expect(measured.cause, ClassificationFailureCause.sheetCropped);
+  });
+
+  test('an_empty_sheet_is_refused_as_soil_region_too_small', () {
+    expect(locateSoilDisc(_frame('empty'), _found('empty')), isNull);
+    final measured = a4SheetMeasurer(_frame('empty'));
+    expect(measured.measurement, isNull);
+    expect(measured.cause, ClassificationFailureCause.soilRegionTooSmall);
   });
 }

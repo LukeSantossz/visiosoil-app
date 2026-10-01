@@ -130,6 +130,16 @@ CASES = (
         "corners": ((104, 110), (797, 110), (797, 1090), (104, 1090)),
         "expected": "notFound",
     },
+    {
+        # A whole sheet with nothing on it (SPEC 0092). Last, so that adding it
+        # left every earlier scene's noise, and so its bytes, unchanged.
+        "name": "empty",
+        "size": (900, 1200),
+        "background": "grey",
+        "corners": ((104, 110), (797, 110), (797, 1090), (104, 1090)),
+        "expected": "sheet",
+        "soil": False,
+    },
 )
 
 
@@ -171,13 +181,14 @@ def _disc_mask(size, centre_mm, diameter_mm):
     return (dy[:, None] + dx[None, :]) <= radius * radius
 
 
-def _sheet(rng, marks):
+def _sheet(rng, marks, soil=True):
     """The bare sheet with the soil patch, and the marks when asked for."""
     sheet = np.asarray(_textured(SHEET_PX, PAPER, rng, coarse=3, fine=3)).copy()
     centre = (Fraction(SHEET_MM[0], 2), Fraction(SHEET_MM[1], 2))
-    soil = np.asarray(_textured(SHEET_PX, SOIL, rng, coarse=20, fine=26))
-    patch = _disc_mask(SHEET_PX, centre, SOIL_DIAMETER_MM)
-    sheet[patch] = soil[patch]
+    if soil:
+        grains = np.asarray(_textured(SHEET_PX, SOIL, rng, coarse=20, fine=26))
+        patch = _disc_mask(SHEET_PX, centre, SOIL_DIAMETER_MM)
+        sheet[patch] = grains[patch]
     if marks:
         for position in MARKS_MM:
             sheet[_disc_mask(SHEET_PX, position, MARK_DIAMETER_MM)] = MARK
@@ -239,7 +250,8 @@ def render(case, rng):
     corners = case["corners"]
     if corners is not None:
         coefficients = perspective_coefficients(corners)
-        sheet = _sheet(rng, case.get("marks", False))
+        soil = case.get("soil", True)
+        sheet = _sheet(rng, case.get("marks", False), soil)
         placed = sheet.transform(
             case["size"], Image.Transform.PERSPECTIVE, coefficients, Image.Resampling.BICUBIC
         )
@@ -251,10 +263,11 @@ def render(case, rng):
         entry["corners"] = [[x - 0.5, y - 0.5] for x, y in corners]
         long_edges = (_length(corners[1], corners[2]) + _length(corners[3], corners[0])) / 2
         entry["mm_per_px"] = SHEET_MM[1] / long_edges
-        entry["soil_mm"] = {
-            "centre": [SHEET_MM[0] / 2, SHEET_MM[1] / 2],
-            "diameter": SOIL_DIAMETER_MM,
-        }
+        if soil:
+            entry["soil_mm"] = {
+                "centre": [SHEET_MM[0] / 2, SHEET_MM[1] / 2],
+                "diameter": SOIL_DIAMETER_MM,
+            }
         if case.get("marks"):
             entry["marks_mm"] = [list(position) for position in MARKS_MM]
     return scene, entry

@@ -36,12 +36,3 @@ class PhotographMeasurement {
 typedef PhotographMeasurer =
     ({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
     Function(RgbFrame frame);
-
-/// The measurer this build ships with: none. Nothing here reads the A4 sheet
-/// yet, so every photograph is refused with the reason, and never measured at
-/// an assumed scale. The A4-sheet reader replaces it.
-({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
-measurementUnavailable(RgbFrame frame) => (
-  measurement: null,
-  cause: ClassificationFailureCause.measurementUnavailable,
-);
