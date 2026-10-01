@@ -32,6 +32,39 @@ void main() {
     );
   });
 
+  // Play filters the listing by the hardware a manifest requires, declared or
+  // implied by a permission. VisioSoil needs a camera; location and autofocus
+  // are optional, since a record saves without coordinates and the camera app
+  // handles focus (SPEC 0100). Comments are stripped first, so a declaration
+  // commented out does not count as one.
+  final activeManifest =
+      manifest.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+  String? usesFeature(String name) => RegExp(
+        '<uses-feature\\b[^>]*android:name="${RegExp.escape(name)}"[^>]*/>',
+      ).firstMatch(activeManifest)?.group(0);
+
+  test('manifest_requires_the_camera', () {
+    final feature = usesFeature('android.hardware.camera');
+    expect(feature, isNotNull,
+        reason: 'android.hardware.camera is not declared');
+    expect(feature, isNot(contains('android:required="false"')),
+        reason: 'capture is camera-only, so the camera is required');
+  });
+
+  test('manifest_does_not_require_location_hardware', () {
+    expect(usesFeature('android.hardware.location'),
+        contains('android:required="false"'),
+        reason: 'the location permissions imply android.hardware.location; '
+            'a record saves without coordinates, so it is not required');
+  });
+
+  test('manifest_does_not_require_camera_autofocus', () {
+    expect(usesFeature('android.hardware.camera.autofocus'),
+        contains('android:required="false"'),
+        reason: 'the camera app handles focus; fixed-focus phones must not '
+            'be filtered out');
+  });
+
   test('manifest_declares_allow_backup_false', () {
     expect(
       manifest.contains('android:allowBackup="false"'),

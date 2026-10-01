@@ -15,7 +15,7 @@ void main() {
         const ProviderScope(child: MaterialApp(home: SplashScreen())),
       );
 
-  // The splash schedules its permission requests 1.2 s after it mounts.
+  // The splash schedules its hand-off 1.2 s after it mounts.
   // Unmounting first makes that callback stop at its `mounted` check, and
   // advancing the clock lets it run, so no timer outlives the test.
   Future<void> unmount(WidgetTester tester) async {
