@@ -55,4 +55,16 @@ void main() {
       reason: 'README must document keystore generation with keytool',
     );
   });
+
+  test('readme_documents_building_and_verifying_the_bundle', () {
+    // SPEC 0102 (#270): the store takes the bundle, so the README shows how to
+    // build it and how to read its signer, as it does for the APK.
+    expect(readme, contains('flutter build appbundle --release'));
+    expect(
+      readme,
+      contains(
+        'keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab',
+      ),
+    );
+  });
 }
