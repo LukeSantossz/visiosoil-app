@@ -148,8 +148,9 @@ flutter test
 ### Release Signing (Android)
 
 No keystore is configured in this repository today, so `flutter build apk --release`
-falls back to the debug key (with a warning) and contributors and CI still build —
-but the resulting APK is not distributable. To produce a genuinely release-signed APK:
+and `flutter build appbundle --release` fall back to the debug key (with a warning)
+and contributors and CI still build — but neither output is distributable. To
+produce a genuinely release-signed build:
 
 1. Generate a keystore (store it and its passwords safely and back them up —
    losing the key means you can no longer update a published app):
@@ -173,12 +174,19 @@ but the resulting APK is not distributable. To produce a genuinely release-signe
    (`C:/Users/...`) or doubled backslashes (`C:\\Users\\...`); a plain
    `C:\Users\...` will not resolve.
 
-3. Build and verify the signing certificate:
+3. Build and verify the signing certificate. Play takes the app bundle; the APK
+   is what installs directly on a device:
 
    ```bash
+   flutter build appbundle --release
+   keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab
+
    flutter build apk --release
    apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk
    ```
+
+   A bundle carries a JAR signature, which `keytool` reads; `apksigner` reads
+   only APKs.
 
 Never commit the keystore or `key.properties`.
 
@@ -241,7 +249,7 @@ visiosoil-app/
 - [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
 - [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 436 Dart tests plus 234 Python tests under `ml/tests/`. Three Dart tests are skipped on a feature branch: an icon-generation test gated on `GENERATE_ICONS`, and the two spec-numbering contiguity guards, which run on `main` only
-- [x] CI pipeline of eight jobs — `analyze`, `test`, `ml-tests`, `corpus-tests` and `gates` (the standards gates at the `mf` version `.framework.lock` pins, [SPEC 0085](docs/specs/0085-run-the-standards-gates-in-ci.md)) in parallel, then `build` (release APK) and `build-ios` (unsigned), then `smoke` booting the minified APK on an emulator — with the Flutter toolchain pinned in each of the four jobs that use it
+- [x] CI pipeline of eight jobs — `analyze`, `test`, `ml-tests`, `corpus-tests` and `gates` (the standards gates at the `mf` version `.framework.lock` pins, [SPEC 0085](docs/specs/0085-run-the-standards-gates-in-ci.md)) in parallel, then `build` (release APK and app bundle) and `build-ios` (unsigned), then `smoke` booting the minified APK on an emulator — with the Flutter toolchain pinned in each of the four jobs that use it
 - [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
 
 ### Pending
@@ -258,7 +266,7 @@ visiosoil-app/
 ## Known Issues & Limitations
 
 - **The A4-sheet reader has not met a real photograph** — it finds the sheet, rectifies it and measures the soil patch, and is graded against synthetic scenes a separate geometry draws (SPEC 0091, SPEC 0092). Shadows, curled paper and real lighting are not in those scenes, so real photographs taken to the protocol must validate it before the Play release. A photograph without a readable sheet is refused, never measured at a guessed scale (ADR 0017).
-- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
+- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` and `flutter build appbundle --release` fall back to the debug key with a warning, and CI has no keystore step. The APK and the bundle it uploads are therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
 - **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.

@@ -237,10 +237,24 @@ jobs:
             exit 1
           fi
           echo "Auth classes defined in the release DEX."
+      - name: Build the release app bundle
+        # Play takes a bundle, not an APK, so it is built on every change rather
+        # than first on release day (SPEC 0102). With no key.properties here it
+        # is debug-signed, as the APK is, and #271's refusal of the debug key
+        # has to stay behind a store opt-in this command does not set.
+        run: flutter build appbundle --release
+      - name: Print the bundle signer
+        # Printed, not asserted: CI gets the upload key with #272, and this line
+        # is what shows which key signed the run's bundle.
+        run: keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
 
   smoke:
     # Boot the minified release APK on an emulator so R8 regressions that only
