@@ -89,6 +89,10 @@ class SyncLocalStore {
             syncStatus: const Value('synced'),
             textureClass: Value(remote.textureClass),
             confidenceScore: Value(remote.confidenceScore),
+            classDistribution:
+                Value(encodeClassDistribution(remote.classDistribution)),
+            modelVersion: Value(remote.modelVersion),
+            datasetVersion: Value(remote.datasetVersion),
           ),
         );
   }
@@ -111,6 +115,10 @@ class SyncLocalStore {
         syncStatus: const Value('synced'),
         textureClass: Value(remote.textureClass),
         confidenceScore: Value(remote.confidenceScore),
+        classDistribution:
+            Value(encodeClassDistribution(remote.classDistribution)),
+        modelVersion: Value(remote.modelVersion),
+        datasetVersion: Value(remote.datasetVersion),
       ),
     );
   }

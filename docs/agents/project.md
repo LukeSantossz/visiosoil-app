@@ -100,8 +100,8 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
 - **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
-- **Persistence:** Drift + SQLite with schema versioning (currently v5). Repository pattern abstracts Drift from UI
-- **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer`, and this build ships only `measurementUnavailable` (SPEC 0083)
+- **Persistence:** Drift + SQLite with schema versioning (currently v7). Repository pattern abstracts Drift from UI
+- **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer` (SPEC 0083), and the default is `a4SheetMeasurer`: it finds the A4 sheet, rectifies it, and measures the round soil patch on it (SPEC 0091, SPEC 0092)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
 - **Research agent:** answers on the device. `researchServiceProvider` binds `CorpusResearchService`, which composes a `ManagementTipsResult` out of a reviewed corpus the app holds — no network, no proxy, no model at run time (ADR 0022, narrowed by ADR 0023). `ProxyResearchService` is kept as the transport for fetching corpus *releases*, and has no caller yet
 
@@ -110,8 +110,8 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 - **Repository pattern:** `SoilRecordRepository` (abstract) → `DriftSoilRecordRepository`. UI only imports the interface via providers, never Drift types directly
 - **Reactive data:** `watchAll()` stream from Drift feeds `StreamProvider`, so history/home auto-update on DB changes
 - **Testing DB:** `AppDatabase.forTesting(NativeDatabase.memory())` enables in-memory SQLite for repository tests
-- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`). The v5 step is the exception — `if (from >= 4 && from < 5)` — because the v4 step's `createTable` builds `management_tips` from today's definition, so a pre-v4 database already arrives with the v5 column
-- **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows
+- **Schema migrations:** Handled in `AppDatabase.migration` with cumulative version checks (`if (from < 2)`, `if (from < 3)`, `if (from < 4)`). The v5 step is the exception — `if (from >= 4 && from < 5)` — because the v4 step's `createTable` builds `management_tips` from today's definition, so a pre-v4 database already arrives with the v5 column. The v6 step changes no table's shape: it erases the content of tombstones written before SPEC 0093
+- **Soft deletes:** Deletes write a tombstone (`deleted` flag) and enqueue a sync operation instead of removing the row; all reads exclude tombstoned rows. A tombstone keeps only what sync reads — uuid, `remote_id`, `updated_at` and the flag — and the record's content and cached tips are erased (SPEC 0093)
 
 ### Code Organization
 
@@ -131,7 +131,8 @@ lib/
 │   │   │                              #   image_storage_service.dart (EXIF strip boundary),
 │   │   │                              #   share_service.dart + share_content_builder.dart,
 │   │   │                              #   connectivity_service.dart, permission_service.dart,
-│   │   │                              #   sync_engine.dart
+│   │   │                              #   sync_engine.dart, lost_capture_service.dart (a photo
+│   │   │                              #   Android lost to a restart, read on arriving home)
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
 │   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
@@ -151,24 +152,24 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 15 files declaring 27 providers (database, repository,
+└── providers/                         # 16 files declaring 28 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, plus the history filter/search and
+                                       #   storage, lost capture, plus the history filter/search and
                                        #   derived-stats providers)
 ```
 
-### Database Schema (v5)
+### Database Schema (v7)
 
 Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])`.
 
-`soil_records`: `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`
+`soil_records`: `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`, `class_distribution?`, `model_version?`, `dataset_version?`. The last three are what scored the photograph (SPEC 0097): every class's probability as a JSON array in the contract's class order, and the contract's versions. They are null when not known, which is the case for a record saved before v7 or without a classification
 
 `sync_queue`: outbox of pending sync operations, drained by `SyncEngine`.
 
 `management_tips`: read-through cache for the research agent — `record_uuid`, `payload_json`, `retrieved_at`, `corpus_version?`. The version is nullable because a row cached before v5 has no known one, and a fabricated default would claim a currency it never had; `CachedManagementTips.isStaleAgainst` compares it by exact string inequality.
 
-Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions.
+Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions; v5→v6 erases every tombstone's content and drops its cached tips, as a delete now does; v6→v7 adds the three classification-provenance columns, NULL on every existing row, tombstones included.
 
 ## Conventions
 
@@ -193,7 +194,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 
 ## Current Limitations
 
-- The released classifier is `assets/models/spec.json`, which is tracked: the descriptor contract `1.0.0`, fitted on `v1` by `ml/src/release.py` and promoted by `ml/scripts/deploy_to_app.sh` (SPEC 0082, ADR 0012). `InferenceService` reads it and runs the descriptor path (SPEC 0083). **Nothing measures a photograph's scale yet**, because the only measurer is `measurementUnavailable`. So every classification is refused with that cause until the A4-sheet reader lands, and a scale is never guessed (ADR 0017)
+- The released classifier is `assets/models/spec.json`, which is tracked: the descriptor contract `1.0.0`, fitted on `v1` by `ml/src/release.py` and promoted by `ml/scripts/deploy_to_app.sh` (SPEC 0082, ADR 0012). `InferenceService` reads it and runs the descriptor path (SPEC 0083), with the scale read from the A4 sheet (SPEC 0092). **The sheet reader is graded on synthetic scenes only**, drawn by `ml/scripts/generate_sheet_fixtures.py`; real photographs taken to ADR 0017's protocol must validate it before the Play release (ADR 0026). A photograph without a readable sheet is refused by name, and a scale is never guessed (ADR 0017)
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
 - Management tips compose on the device and answer offline, but **no reviewed corpus artifact exists yet**. `assets/corpus/` holds only `.gitkeep` and a README, and `corpus.json` plus both `.bin` grids are git-ignored the way the `.tflite` is. Until the corpus build releases one, every key composes to `insufficient_evidence` and the surface reads that as absent coverage — which is a normal state, not an error
@@ -203,7 +204,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 ## Known Technical Debt
 
 - The CNN training path under `ml/` (`model.py`, `train.py`, `preprocess.py`) stays as E0's incumbent and control arms: the shuffled control *is* the CNN trained on permuted labels, so removing it would leave the recorded verdict unreproducible, and that takes its own ADR. SPEC 0084 removed only the TFLite export. `preprocess.py` still resizes without antialiasing, and changing it would change numbers E0 recorded
-- `InferenceService.classify` reports a `ClassificationReport` — an outcome and, on failure, one of ADR 0015's thirteen named causes, as amended by SPEC 0083 — since SPEC 0078. `initialize` produces the three contract causes, every photograph reports `measurementUnavailable` until the A4-sheet reader lands, and `rejectedOod` has no producer at all. The capture state carries the cause, but no screen shows it and none offers a cause-specific retry: which causes earn a retry is the UI/UX terminal's roadmap item 2
+- `InferenceService.classify` reports a `ClassificationReport` — an outcome and, on failure, one of ADR 0015's fourteen named causes, as amended by SPEC 0083 and SPEC 0092 — since SPEC 0078. `initialize` produces the three contract causes, the sheet reader produces `sheetNotFound` and `sheetCropped`, and `rejectedOod` has no producer at all. The capture state carries the cause, but no screen shows it and none offers a cause-specific retry: which causes earn a retry is the UI/UX terminal's roadmap item 2
 - The model's class list is four (ADR 0016, SPEC 0046) and the archive's vocabulary is five; `src.manifest.ARCHIVE_CLASSES` is what a manifest row may say and `cfg["classes"]` is what the model emits. The shipped contract's classes are asserted against `ml/config.yaml` by `test/standards/class_list_test.dart` (SPEC 0048, SPEC 0083), so the two languages can no longer drift. What remains is that several Python test modules still carry their own five-entry literal of the *archive* vocabulary, tied to `ARCHIVE_CLASSES` only in `test_manifest.py`
 - `ClassificationVerdict` (ADR 0011) and `ImageQualityAnalyzer` (SPEC 0030) are implemented and tested with zero production callers, each waiting on a wiring spec — the UI/UX terminal's roadmap items 2 and 6 respectively. Both are deliberate, and both are recorded in their specs' Scope
 - The corpus build carries **six modules that shipped ahead of their own Spec Gate** — `corpus/src/keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py` and `search.py`. SPEC 0071's Scope excludes them explicitly, and no other spec covers them. `mf check spec` passes anyway, so **the gate detects a missing specification but not code that outruns one**. Three of them — `keys.py`, `embrapa_units.py` and `search.py` — also have no production caller until the full corpus build lands

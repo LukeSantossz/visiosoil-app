@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -12,14 +11,14 @@ import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
-import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_controller_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 
 /// Advisory "Dicas de manejo" section on the Soil Record details screen.
 /// Cache-first display via [cachedManagementTipsProvider]; explicit generation
 /// via [managementTipsControllerProvider]. Generation is manual; a failed
-/// refresh preserves already-cached tips.
+/// refresh preserves already-cached tips. Tips compose on the device from the
+/// corpus the app holds (ADR 0022), so no action here waits on connectivity.
 class ManagementTipsSection extends ConsumerStatefulWidget {
   const ManagementTipsSection({super.key, required this.record});
 
@@ -83,20 +82,17 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
             'Classifique o solo deste registro para gerar dicas de manejo.',
       );
     } else {
-      final online = ref.watch(connectivityStatusProvider).value !=
-          ConnectivityStatus.offline;
       body = ref.watch(cachedManagementTipsProvider(uuid)).when(
             loading: () => const _TipsLoading(),
             // A corrupt or unreadable cache entry surfaces here; fall back to
-            // the empty/offline state so the user can regenerate (overwriting
-            // the bad entry) instead of being stuck.
-            error: (_, _) => _emptyOrOffline(online),
+            // the empty state so the user can regenerate (overwriting the bad
+            // entry) instead of being stuck.
+            error: (_, _) => _empty(),
             data: (result) {
               if (_generating && result == null) return const _TipsLoading();
               if (result != null) {
                 return _TipsData(
                   result: result,
-                  online: online,
                   generating: _generating,
                   onRefresh: _generate,
                 );
@@ -104,10 +100,10 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
               if (_lastError != null) {
                 return ErrorState(
                   message: _messageFor(_lastError!),
-                  onRetry: online ? _generate : null,
+                  onRetry: _generate,
                 );
               }
-              return _emptyOrOffline(online);
+              return _empty();
             },
           );
     }
@@ -122,14 +118,7 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
     );
   }
 
-  Widget _emptyOrOffline(bool online) {
-    if (!online) {
-      return const EmptyState(
-        icon: Icons.cloud_off_outlined,
-        title: 'Sem conexão',
-        description: 'Conecte-se à internet para gerar dicas de manejo.',
-      );
-    }
+  Widget _empty() {
     return EmptyState(
       icon: Icons.tips_and_updates_outlined,
       title: 'Sem dicas de manejo ainda',
@@ -188,13 +177,11 @@ class _TipsLoading extends StatelessWidget {
 class _TipsData extends StatelessWidget {
   const _TipsData({
     required this.result,
-    required this.online,
     required this.generating,
     required this.onRefresh,
   });
 
   final ManagementTipsResult result;
-  final bool online;
   final bool generating;
   final Future<void> Function() onRefresh;
 
@@ -238,7 +225,7 @@ class _TipsData extends StatelessWidget {
           variant: VisioButtonVariant.secondary,
           expanded: true,
           isLoading: generating,
-          onPressed: online ? () => onRefresh() : null,
+          onPressed: () => onRefresh(),
         ),
       ],
     );

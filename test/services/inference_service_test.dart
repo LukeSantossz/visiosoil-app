@@ -3,6 +3,7 @@
 // reports an outcome and a named cause, never null. Each test named after a
 // criterion carries its name exactly;
 // `docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md`.
+// SPEC 0092 adds the A4-sheet reader as the default measurer.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -14,11 +15,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_descriptors.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/descriptors/photograph_measurement.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 
 const _shippedContract = 'assets/models/spec.json';
 
@@ -295,6 +298,45 @@ void main() {
       expect(report.result!.confidenceScore, distribution.first.probability);
     });
 
+    test('the_default_measurer_is_the_a4_sheet_reader', () {
+      expect(InferenceService().measurer, a4SheetMeasurer);
+    });
+
+    test(
+      'a_sheet_photograph_is_classified',
+      () async {
+        // SPEC 0091's frontal scene enlarged to 12 MP, the size a phone
+        // camera writes, so the sheet is read finer than the canonical scale.
+        final scene = img.decodeJpg(
+          File('test/fixtures/sheet/sheet_frontal.jpg').readAsBytesSync(),
+        )!;
+        final photograph = img.copyResize(
+          scene,
+          width: 3000,
+          height: 4000,
+          interpolation: img.Interpolation.linear,
+        );
+        final path = (File(
+          p.join(tempDir('visiosoil_sheet').path, 'sheet.jpg'),
+        )..writeAsBytesSync(img.encodeJpg(photograph, quality: 90))).path;
+
+        // The default measurer, through the isolate. The timeout is widened
+        // because a test VM is not the device; the harness measures cost.
+        final service = await readyService();
+        final report = await service.classify(
+          path,
+          timeout: const Duration(seconds: 120),
+        );
+        expect(
+          report.outcome,
+          ClassificationOutcome.ok,
+          reason: '${report.cause}',
+        );
+        expect(contract.classes, contains(report.result!.textureClass));
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
     test('inference_timeout_yields_timeout', () async {
       final service = await readyService();
 
@@ -392,17 +434,6 @@ void main() {
       expect(report.cause, ClassificationFailureCause.imageUndecodable);
     });
 
-    test('no_measurer_yields_measurement_unavailable', () async {
-      final path = writePng(_noise(64, 48, 2), 64, 48, 'visiosoil_unmeasured');
-
-      final report = await run(path, measurementUnavailable);
-
-      expect(report.outcome, ClassificationOutcome.failed);
-      expect(report.cause, ClassificationFailureCause.measurementUnavailable);
-      // And it is what a service built with no measurer uses.
-      expect(InferenceService().measurer, measurementUnavailable);
-    });
-
     test('patch_refusals_yield_their_causes', () async {
       final path = writePng(
         _noise(_side, _side, 3),
@@ -455,7 +486,7 @@ void main() {
         seen.add((frame.width, frame.height));
         return (
           measurement: null,
-          cause: ClassificationFailureCause.measurementUnavailable,
+          cause: ClassificationFailureCause.sheetNotFound,
         );
       });
 
@@ -500,6 +531,61 @@ void main() {
     });
   });
 
+  // SPEC 0097: what a record needs to keep, carried on the result.
+  group('InferenceService.reportFor provenance', () {
+    test('the_report_names_the_contract_versions', () async {
+      final report = InferenceService.reportFor(
+        [0.1, 0.6, 0.1, 0.2],
+        contract.classes,
+        modelVersion: contract.modelVersion,
+        datasetVersion: contract.datasetVersion,
+      );
+      final result = report.result!;
+      expect(result.modelVersion, contract.modelVersion);
+      expect(result.datasetVersion, contract.datasetVersion);
+      expect(result.classes, contract.classes);
+      // The same scores, in the contract's order rather than by probability.
+      expect(
+        result.classDistribution!.map((score) => score.label),
+        contract.classes,
+      );
+      expect(
+        result.classDistribution!.map((score) => score.probability),
+        [0.1, 0.6, 0.1, 0.2],
+      );
+
+      // And through the isolate, from the shipped contract.
+      final path = writePng(_noise(_side, _side, 6), _side, _side, 'visiosoil_versions');
+      final service = InferenceService(measurer: wholeFrameMeasurer);
+      await service.initialize(
+        assetLoader: shippedLoader,
+        retryDelay: Duration.zero,
+      );
+      final classified = await service.classify(
+        path,
+        timeout: const Duration(seconds: 60),
+      );
+      expect(classified.outcome, ClassificationOutcome.ok);
+      expect(classified.result!.modelVersion, contract.modelVersion);
+      expect(classified.result!.datasetVersion, contract.datasetVersion);
+      expect(classified.result!.classes, contract.classes);
+    });
+
+    test('a_result_without_a_class_order_has_no_class_distribution', () {
+      const result = InferenceResult(textureClass: 'Media', confidenceScore: 0.6);
+      expect(result.classDistribution, isNull);
+
+      // A distribution that misses a class of the order is not stored in part.
+      const partial = InferenceResult(
+        textureClass: 'Media',
+        confidenceScore: 0.6,
+        distribution: [ClassScore(label: 'Media', probability: 0.6)],
+        classes: ['Arenosa', 'Media'],
+      );
+      expect(partial.classDistribution, isNull);
+    });
+  });
+
   test('failure_causes_follow_adr_0015', () {
     final lines = File(
       'docs/adr/0015-classification-reports-a-named-failure-cause.md',
@@ -520,7 +606,7 @@ void main() {
       r'`(\w+)`',
     ).allMatches(table).map((match) => match.group(1)!).toSet();
 
-    expect(ClassificationFailureCause.values, hasLength(13));
+    expect(ClassificationFailureCause.values, hasLength(14));
     expect(
       ClassificationFailureCause.values.map((cause) => cause.name).toSet(),
       named,

@@ -30,13 +30,38 @@ class VisioSoilLogo extends StatelessWidget {
   }
 }
 
+/// The mark's geometry in the design system's 48-unit viewBox: the lens ring,
+/// three decreasing soil grains inside it, and the handle.
+///
+/// [paintVisioSoilMark] draws from it, and the Android launch drawable
+/// `launch_mark.xml` is pinned against it (SPEC 0089), so the mark Flutter
+/// paints and the one the native launch window draws cannot drift.
+abstract final class VisioSoilMarkGeometry {
+  static const double viewBox = 48;
+
+  static const Offset ringCentre = Offset(20, 20);
+  static const double ringRadius = 13;
+  static const double ringStrokeWidth = 3.2;
+
+  /// Largest first.
+  static const List<({Offset centre, double radius})> grains = [
+    (centre: Offset(16.5, 18), radius: 3.0),
+    (centre: Offset(23.5, 19.5), radius: 2.1),
+    (centre: Offset(19.5, 24.5), radius: 1.4),
+  ];
+
+  static const Offset handleStart = Offset(29.5, 29.5);
+  static const Offset handleEnd = Offset(39, 39);
+  static const double handleStrokeWidth = 3.4;
+}
+
 /// Paints the official VisioSoil mark in [color], scaled to fill [size], onto
 /// [canvas]. Shared single source of truth for the geometry: the [VisioSoilLogo]
 /// widget and the app-launcher-icon generator both draw through this routine so
 /// the in-app mark and the icon can never drift.
 void paintVisioSoilMark(Canvas canvas, Size size, Color color) {
   // Stroke widths and coordinates scale from the 48-unit viewBox.
-  final s = size.width / 48.0;
+  final s = size.width / VisioSoilMarkGeometry.viewBox;
   final stroke = Paint()
     ..color = color
     ..style = PaintingStyle.stroke
@@ -45,18 +70,23 @@ void paintVisioSoilMark(Canvas canvas, Size size, Color color) {
     ..color = color
     ..style = PaintingStyle.fill;
 
-  // Lens ring.
-  stroke.strokeWidth = 3.2 * s;
-  canvas.drawCircle(Offset(20 * s, 20 * s), 13 * s, stroke);
+  stroke.strokeWidth = VisioSoilMarkGeometry.ringStrokeWidth * s;
+  canvas.drawCircle(
+    VisioSoilMarkGeometry.ringCentre * s,
+    VisioSoilMarkGeometry.ringRadius * s,
+    stroke,
+  );
 
-  // Three decreasing soil grains inside the lens.
-  canvas.drawCircle(Offset(16.5 * s, 18 * s), 3 * s, fill);
-  canvas.drawCircle(Offset(23.5 * s, 19.5 * s), 2.1 * s, fill);
-  canvas.drawCircle(Offset(19.5 * s, 24.5 * s), 1.4 * s, fill);
+  for (final grain in VisioSoilMarkGeometry.grains) {
+    canvas.drawCircle(grain.centre * s, grain.radius * s, fill);
+  }
 
-  // Handle.
-  stroke.strokeWidth = 3.4 * s;
-  canvas.drawLine(Offset(29.5 * s, 29.5 * s), Offset(39 * s, 39 * s), stroke);
+  stroke.strokeWidth = VisioSoilMarkGeometry.handleStrokeWidth * s;
+  canvas.drawLine(
+    VisioSoilMarkGeometry.handleStart * s,
+    VisioSoilMarkGeometry.handleEnd * s,
+    stroke,
+  );
 }
 
 class _VisioSoilLogoPainter extends CustomPainter {
