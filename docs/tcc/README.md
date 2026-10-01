@@ -15,8 +15,11 @@ O rascunho é um Google Doc com abas, no Drive dos autores, e segue o modelo da
 instituição (`modelo_artigo_original.docx`, artigo original segundo a ABNT NBR
 6023 e 10520). A aba "Revisão - Métodos e Resultados" reúne a Introdução
 corrigida, Material e Métodos e Resultados e Discussão reconstruídos e a lista de
-referências unificada. Este diretório não guarda cópia do artigo: o texto é dos
-autores, e a direção dele é definida lá.
+referências unificada. Material e Métodos e Resultados e Discussão dão uma visão
+geral da construção do aplicativo; o modelo de classificação ocupa uma seção
+curta, e o detalhe das técnicas fica em `revisao-do-projeto.md`. Este diretório
+não guarda cópia do artigo: o texto é dos autores, e a direção dele é definida
+lá.
 
 ## Conteúdo
 

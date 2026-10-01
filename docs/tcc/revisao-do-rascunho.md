@@ -230,9 +230,13 @@ documento já traz as correções.
 Griffin (2023), Moraes; Salame (2017), Castro; Gonçalves; Castro (2024),
 Bertoni; Lombardi Neto (2017), Indie Mobile Apps (2026, com versão iOS),
 Santos et al. (2018) e as referências de software. As nove referências
-metodológicas acrescentadas (Duda e Hart, Haralick et al., Hartley e
-Zisserman, Holm, McNemar, Ojala et al., Otsu, Pedregosa et al. e Santos et
-al.) conferem e passaram a ter DOI quando existe.
+metodológicas acrescentadas na primeira versão da aba (Duda e Hart, Haralick
+et al., Hartley e Zisserman, Holm, McNemar, Ojala et al., Otsu, Pedregosa et
+al. e Santos et al.) conferem e passaram a ter DOI quando existe. Quando a aba
+passou a dar uma visão geral da construção do aplicativo, sem o detalhe das
+técnicas do modelo, ficaram só McNemar (1947), que nomeia o teste usado na
+avaliação, e Santos et al. (2018), citado na Introdução; as outras sete saíram
+junto com os trechos que as citavam, e a lista final tem 31 referências.
 
 **Acrescentado**: Romanelli (2025), da Revista Cultivar, que estava solta na
 aba "Guia 6" e sustenta o déficit de cerca de 8 milhões de análises de solo
