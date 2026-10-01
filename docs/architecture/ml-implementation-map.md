@@ -901,6 +901,25 @@ repeats:
   makes is owed to the same real-photograph validation as the reader
   (ADR 0026).
 
+**Studied 2026-09-30 (SPEC 0098):
+[`docs/ml/calibration-study.md`](../ml/calibration-study.md).** The study
+fitted a temperature on the photograph's own distribution, as p^(1/T), so it
+needed no patch logits after all. It also ran #193's E15, and every fit is
+cross-fitted by fold.
+
+- **A temperature does not help.** The likelihood's optimum is T ≈ 0.90, and the
+  calibration error moves from 0.074 to 0.075. Applied, it would raise ADR
+  0011's `conclusive` share from 0.67 to 0.71, while the accuracy of those
+  photographs falls from 0.78 to 0.76. No temperature should be published on
+  these numbers.
+- **At the constants' coverage (0.83), conformal bands assert as accurately.**
+  The `conclusive` accuracy is 0.79 against 0.78. They leave 4 % of photographs
+  `insufficient` against 15 %, naming a pair instead.
+- **Empirical coverage matches the nominal level** at α of 0.05, 0.10, 0.15 and
+  0.20.
+- **The decision is the Developer's, after the sheet photographs.** Adopting
+  the bands amends ADR 0011, and choosing α picks a row of the study's table.
+
 ### C3 — Quantization ladder (E8)
 
 Float32, float16, dynamic range, full int8. Selection criterion is accuracy

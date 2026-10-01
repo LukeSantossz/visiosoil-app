@@ -1,4 +1,5 @@
-"""How far a stored distribution can be trusted (SPEC 0095, #188).
+"""How far a stored distribution can be trusted (SPEC 0095, #188), and what
+`calibration_study` fits and compares to improve it (SPEC 0098).
 
 Pure functions over labels and probability vectors, so they run wherever
 `evaluate.py` runs: no model, no TensorFlow. `evaluate.arm_metrics` calls them
@@ -241,3 +242,133 @@ def severity_record(
         "photograph": _severity_counts(photograph_pairs, classes),
         "group": _severity_counts(group_pairs, classes),
     }
+
+
+# --- SPEC 0098: what the calibration study fits and compares -----------------
+
+#: The temperature fit searches 1/T over this range, from a twentyfold
+#: flattening to a twentyfold sharpening of the log-probabilities.
+_INVERSE_TEMPERATURE_BOUNDS = (0.05, 20.0)
+_GOLDEN_TOLERANCE = 1e-10
+#: A zero probability has no logarithm. The floor keeps it negligible rather
+#: than infinite, and changes nothing a stored distribution carries.
+_PROBABILITY_FLOOR = 1e-12
+
+#: ADR 0011's constants, as `ClassificationVerdict` declares them in Dart.
+ADR0011_CONCLUSIVE_MARGIN = 0.15
+ADR0011_CONCLUSIVE_TOP_SHARE = 0.50
+ADR0011_AMBIGUOUS_PAIR_SHARE = 0.65
+
+
+def apply_temperature(distribution: Sequence[float], temperature: float) -> list[float]:
+    """The distribution with p(y) raised to 1/T and renormalised.
+
+    That is temperature scaling with the log-probabilities as logits. It keeps
+    the order of the classes, so it moves the probabilities and never the
+    argmax. That holds only for a positive, finite temperature, so any other
+    is refused.
+    """
+    if not (math.isfinite(temperature) and temperature > 0):
+        raise ValueError(f"a temperature must be positive and finite, not {temperature}")
+    logs =[math.log(max(float(p), _PROBABILITY_FLOOR)) / temperature for p in distribution]
+    top = max(logs)
+    weights = [math.exp(value - top) for value in logs]
+    total = sum(weights)
+    return [weight / total for weight in weights]
+
+
+def _negative_log_likelihood(
+    labels: Sequence[int], distributions: Sequence[Sequence[float]], temperature: float
+) -> float:
+    return -sum(
+        math.log(max(apply_temperature(distribution, temperature)[int(label)], _PROBABILITY_FLOOR))
+        for label, distribution in zip(labels, distributions)
+    )
+
+
+def fit_temperature(
+    labels: Sequence[int], distributions: Sequence[Sequence[float]]
+) -> float:
+    """The temperature that minimises the negative log-likelihood.
+
+    The likelihood is convex in 1/T, so a golden-section search over
+    `_INVERSE_TEMPERATURE_BOUNDS` finds it, deterministically and with no
+    optimiser dependency. A temperature below 1 sharpens the distribution.
+    """
+    low, high = _INVERSE_TEMPERATURE_BOUNDS
+    ratio = (math.sqrt(5) - 1) / 2
+
+    def cost(inverse: float) -> float:
+        return _negative_log_likelihood(labels, distributions, 1.0 / inverse)
+
+    left = high - ratio * (high - low)
+    right = low + ratio * (high - low)
+    cost_left, cost_right = cost(left), cost(right)
+    while high - low > _GOLDEN_TOLERANCE:
+        if cost_left <= cost_right:
+            high, right, cost_right = right, left, cost_left
+            left = high - ratio * (high - low)
+            cost_left = cost(left)
+        else:
+            low, left, cost_left = left, right, cost_right
+            right = low + ratio * (high - low)
+            cost_right = cost(right)
+    return 1.0 / ((low + high) / 2)
+
+
+def conformal_threshold(scores: Sequence[float], alpha: float) -> float:
+    """The split-conformal threshold at level `alpha`.
+
+    It is the ceil((n + 1)(1 - alpha))-th smallest of the n calibration scores.
+    When that rank exceeds n, no finite threshold carries the guarantee, so it
+    is infinite and every class is admitted. The rank is taken a hair below its
+    product, so a level such as 0.2 is not pushed one rank up by binary
+    rounding.
+    """
+    n = len(scores)
+    rank = max(math.ceil((n + 1) * (1 - alpha) - _EDGE_TOLERANCE), 1)
+    if rank > n:
+        return math.inf
+    return float(sorted(scores)[rank - 1])
+
+
+def conformal_set(distribution: Sequence[float], threshold: float) -> list[int]:
+    """The classes whose score 1 - p reaches no further than `threshold`."""
+    floor = 1.0 - threshold - _EDGE_TOLERANCE
+    return [index for index, p in enumerate(distribution) if p >= floor]
+
+
+def verdict_of_set(size: int) -> str:
+    """ADR 0011's verdict for a prediction set of `size` classes (#193)."""
+    if size == 1:
+        return "conclusive"
+    if size == 2:
+        return "ambiguous"
+    return "insufficient"
+
+
+def adr0011_verdict(distribution: Sequence[float]) -> tuple[str, list[int]]:
+    """ADR 0011's verdict, and the classes it asserts.
+
+    The rule is `ClassificationVerdict.fromDistribution`'s, scan included, with
+    no tolerance, because the Dart factory has none and the two must agree on
+    every double. A conclusive verdict asserts the top-1, an ambiguous one the
+    top two, and an insufficient one asserts nothing, which reads as every
+    class.
+    """
+    top, runner_up = -math.inf, -math.inf
+    top_index = runner_up_index = None
+    for index, p in enumerate(distribution):
+        if p > top:
+            runner_up, runner_up_index = top, top_index
+            top, top_index = p, index
+        elif p > runner_up:
+            runner_up, runner_up_index = p, index
+    if runner_up_index is None:
+        runner_up = 0.0
+    margin = top - runner_up
+    if margin >= ADR0011_CONCLUSIVE_MARGIN and top >= ADR0011_CONCLUSIVE_TOP_SHARE:
+        return "conclusive", [top_index]
+    if margin < ADR0011_CONCLUSIVE_MARGIN and top + runner_up >= ADR0011_AMBIGUOUS_PAIR_SHARE:
+        return "ambiguous", [top_index, runner_up_index]
+    return "insufficient", list(range(len(distribution)))
