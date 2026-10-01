@@ -11,9 +11,11 @@ commits, pull requests e issues sobre o relatório continuam em inglês.
 
 ## Onde está o artigo
 
-O rascunho e o modelo da instituição (`modelo_artigo_original.docx`, artigo
-original segundo a ABNT NBR 6023 e 10520) ficam no Google Drive dos autores e
-são editados lá, em Word. Este diretório não guarda cópia deles: o texto é dos
+O rascunho é um Google Doc com abas, no Drive dos autores, e segue o modelo da
+instituição (`modelo_artigo_original.docx`, artigo original segundo a ABNT NBR
+6023 e 10520). A aba "Revisão - Métodos e Resultados" reúne a Introdução
+corrigida, Material e Métodos e Resultados e Discussão reconstruídos e a lista de
+referências unificada. Este diretório não guarda cópia do artigo: o texto é dos
 autores, e a direção dele é definida lá.
 
 ## Conteúdo

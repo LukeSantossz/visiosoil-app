@@ -2,13 +2,13 @@
 
 ## Problem
 
-The Developer and a co-author are writing an undergraduate thesis article (TCC) about VisioSoil in Brazilian Portuguese, on the institution's Word template for an original article, and the repository has no place for the material that reviews that draft against the app it describes: every document here must be in English, and the facts the article needs are scattered across 92 specs, 26 ADRs, five run verdicts and the git history.
+The Developer and a co-author are writing an undergraduate thesis article (TCC) about VisioSoil in Brazilian Portuguese, on the institution's template for an original article, and the repository has no place for the material that reviews that draft against the app it describes: every document here must be in English, and the facts the article needs are scattered across 92 specs, 26 ADRs, five run verdicts and the git history.
 
 ## Design Decision
 
 **The material lives under `docs/tcc/`, and that directory is exempt from the all-output-in-English rule.** It joins user-facing UI strings as this project's second language departure, recorded in `docs/agents/project.md` under "Where this project departs from the standards" so an agent that reads the generated instruction files does not translate it back. The exemption is bounded by path: a spec, an ADR, a commit, a pull request or an issue about the article stays in English, which is why this spec is.
 
-**The article itself stays where its authors edit it**, in their Google Drive, in Word, on the institution's template. The repository holds no copy: the text is the authors', its direction is theirs, and a copy here would be a second version that drifts from the one being written.
+**The article itself stays where its authors edit it**, a Google Doc with tabs in their Drive, on the institution's template. The repository holds no copy: the text is the authors', its direction is theirs, and a copy here would be a second version that drifts from the one being written.
 
 **Two artifacts, with the draft as the reference.**
 
@@ -21,7 +21,7 @@ The Developer and a co-author are writing an undergraduate thesis article (TCC) 
 
 - **Write the material in English to keep the rule unbroken.** Rejected. The article, its examining board and its template are in Portuguese, and a review that quotes the draft and proposes wording for it has to be in the draft's language to be usable.
 - **Keep the material outside the repository.** Rejected at the Developer's direction: the branch carries it so that the review is written beside the records it checks the draft against, and pinned to the commit it describes.
-- **Copy the draft into the repository, or rewrite it as Markdown here.** Rejected. The authors edit it in Word on the institution's template; a second copy would drift, and rewriting it would take its direction away from its authors, which the Developer ruled out.
+- **Copy the draft into the repository, or rewrite it as Markdown here.** Rejected. The authors edit it in Google Docs on the institution's template; a second copy would drift, and rewriting it would take its direction away from its authors, which the Developer ruled out.
 - **Rewrite the draft around what the code does.** Rejected at the Developer's direction on 2026-10-01: the focus is what the authors wrote. The code is used only to check the draft's claims about the app, and each divergence is theirs to resolve.
 - **Exempt `docs/` wholesale, or exempt by a per-file marker.** Rejected. A directory-wide exemption would let an architecture note drift into Portuguese, and a marker is a rule nothing checks. One named directory is the narrowest boundary that holds the material.
 
