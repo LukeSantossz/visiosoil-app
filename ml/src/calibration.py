@@ -265,9 +265,12 @@ def apply_temperature(distribution: Sequence[float], temperature: float) -> list
 
     That is temperature scaling with the log-probabilities as logits. It keeps
     the order of the classes, so it moves the probabilities and never the
-    argmax.
+    argmax. That holds only for a positive, finite temperature, so any other
+    is refused.
     """
-    logs = [math.log(max(float(p), _PROBABILITY_FLOOR)) / temperature for p in distribution]
+    if not (math.isfinite(temperature) and temperature > 0):
+        raise ValueError(f"a temperature must be positive and finite, not {temperature}")
+    logs =[math.log(max(float(p), _PROBABILITY_FLOOR)) / temperature for p in distribution]
     top = max(logs)
     weights = [math.exp(value - top) for value in logs]
     total = sum(weights)
