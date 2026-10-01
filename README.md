@@ -14,7 +14,7 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 
 - **Guided field workflow** — a 3-step onboarding tutorial explains capture, and capture asks for the camera and location when it needs them
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
-- **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The contract ships, but **nothing measures a photograph's scale yet**: the A4-sheet reader does not exist. So classification refuses every photograph with a named cause, and records save without a texture class (see Known Issues)
+- **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The scale is read from the bare A4 sheet the soil is photographed on ([SPEC 0091](docs/specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md), [SPEC 0092](docs/specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)): the sheet's corners give millimetres per pixel, and the round soil patch on it gives the region the grid reads. A photograph with no readable sheet, or no soil on it, is refused with a named cause. **The reader is graded on synthetic scenes only** (see Known Issues)
 - **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
 - **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer
@@ -233,7 +233,7 @@ visiosoil-app/
 - [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
 - [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v4, soft deletes)
-- [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract — awaiting the A4-sheet scale reader to become functional
+- [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract, with the scale read from the A4 sheet — graded on synthetic scenes, awaiting validation on real photographs
 - [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
 - [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
@@ -246,7 +246,7 @@ visiosoil-app/
 
 ### Pending
 
-- [ ] Read the scale from the A4 sheet the sample is photographed on, so the shipped contract can classify
+- [ ] Validate the A4-sheet reader on real photographs taken to the capture protocol (ADR 0017), before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md))
 - [x] Ingest the delivered archive as a dataset version — 221 photographs of 194 samples are ingested as `v1` ([SPEC 0040](docs/specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md)), and the collection premise the protocol described is withdrawn ([SPEC 0041](docs/specs/0041-close-the-collection-premise-in-the-records.md)). The images stay git-ignored; the manifest is committed
 - [ ] Track the artifacts a training run would produce — no checkpoint or metrics file is versioned, so no published run is reproducible from this repository
 - [x] Add a contract test asserting the label list agrees across the two languages — `test/standards/class_list_test.dart` reads the `classes:` block of `ml/config.yaml` and compares it to the shipped contract's classes ([SPEC 0048](docs/specs/0048-correct-the-records-that-still-say-five-classes.md), [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md)). The Python fixtures that still carry a literal carry the *archive's* five, which is a different list and is tied to `src.manifest.ARCHIVE_CLASSES` by `test_manifest.py`
@@ -257,7 +257,7 @@ visiosoil-app/
 
 ## Known Issues & Limitations
 
-- **Nothing measures a photograph's scale yet** — the descriptor path reads physical wavelengths, so a photograph without a measured scale is refused, never guessed at (ADR 0017). The A4-sheet reader does not exist, so every classification reports `measurementUnavailable` until it lands.
+- **The A4-sheet reader has not met a real photograph** — it finds the sheet, rectifies it and measures the soil patch, and is graded against synthetic scenes a separate geometry draws (SPEC 0091, SPEC 0092). Shadows, curled paper and real lighting are not in those scenes, so real photographs taken to the protocol must validate it before the Play release. A photograph without a readable sheet is refused, never measured at a guessed scale (ADR 0017).
 - **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, and CI has no keystore step. The APK it uploads is therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
 - **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.

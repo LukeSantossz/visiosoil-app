@@ -31,6 +31,7 @@ from typing import Mapping, Sequence
 import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score, precision_recall_fscore_support
 
+from .calibration import confidence_record, severity_record
 from .config import load_config, resolve_paths
 from .dataset import load_folds_for_config
 from .stats import (
@@ -65,6 +66,13 @@ REPEAT_SPREAD_SOURCE = (
     "Median and range of the primary number across repeats. Repeats test the "
     "same groups, so this measures training and fold-assignment variance, not "
     "sampling variance, and it is not a confidence interval."
+)
+
+CALIBRATION_SOURCE = (
+    "Expected calibration error of the photograph-level distribution, computed "
+    "on each repeat's pooled test sides. Median and range across repeats, which "
+    "measure training variance and are not an interval. No interval is given: "
+    "photographs of one sample are not independent (SPEC 0095)."
 )
 
 
@@ -106,6 +114,7 @@ def arm_metrics(
         fold_records = []
         photograph_pairs: list[tuple[int, int]] = []
         group_pairs: list[tuple[int, int]] = []
+        repeat_photographs: list[Mapping] = []
 
         for fold in range(fold_manifest["k"]):
             records = predictions[(repeat, fold)]
@@ -113,6 +122,7 @@ def arm_metrics(
             fold_groups = _group_pairs(records)
             photograph_pairs.extend(fold_photographs)
             group_pairs.extend(fold_groups)
+            repeat_photographs.extend(records)
             # No key here names an interval, and none may: a width computed from
             # a single fold's fifteen groups is the error ADR 0020 exists to
             # remove, and the surest way to keep it out is to have no field for
@@ -148,6 +158,12 @@ def arm_metrics(
                     "confidence": INTERVAL_CONFIDENCE,
                     "source": INTERVAL_SOURCE,
                 },
+                "confidence": confidence_record(
+                    [int(record["label"]) for record in repeat_photographs],
+                    [record["probabilities"] for record in repeat_photographs],
+                    [record["group"] for record in repeat_photographs],
+                    classes,
+                ),
                 "folds": fold_records,
             }
         )
@@ -156,6 +172,10 @@ def arm_metrics(
 
     primary_values = [record["photograph_macro_f1"] for record in repeat_records]
     secondary_values = [record["group_macro_f1"] for record in repeat_records]
+    calibration_errors = [
+        record["confidence"]["calibration"]["expected_calibration_error"]
+        for record in repeat_records
+    ]
 
     return {
         "version": version,
@@ -182,10 +202,21 @@ def arm_metrics(
         "per_class": _per_class(
             fold_manifest, classes, labels, pooled_photograph, pooled_group
         ),
+        "confidence": {
+            "expected_calibration_error": {
+                "level": "photograph",
+                "bins": repeat_records[0]["confidence"]["calibration"]["bins"],
+                "per_repeat": calibration_errors,
+                "median": float(median(calibration_errors)),
+                "range": [min(calibration_errors), max(calibration_errors)],
+                "source": CALIBRATION_SOURCE,
+            },
+        },
         "confusion_matrix": {
             "photograph": _confusion(pooled_photograph, labels),
             "group": _confusion(pooled_group, labels),
         },
+        "severity": severity_record(pooled_photograph, pooled_group, classes),
         "cost": _cost(fold_manifest, costs),
         # Read from what training recorded, never recomputed here: evaluation
         # often runs on another machine, so a value derived now would describe
@@ -757,6 +788,12 @@ def _print_metrics(metrics: Mapping, path: Path) -> None:
             f"[{interval['low']:.4f}, {interval['high']:.4f}] "
             f"over {record['groups']} group(s)"
         )
+    calibration = metrics["confidence"]["expected_calibration_error"]
+    print(
+        f"calibration  photograph ECE ({calibration['bins']} bins): median "
+        f"{calibration['median']:.4f}, range {calibration['range'][0]:.4f}-"
+        f"{calibration['range'][1]:.4f}"
+    )
     cost = metrics["cost"]
     print(f"cost: {cost['trainings']} training(s), {cost['wall_clock_seconds_total']}s")
     print("per-class figures are recorded with headline=false and are not results")

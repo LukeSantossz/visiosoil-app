@@ -14,7 +14,39 @@ Accepted 2026-08-25. Amends
 [ADR 0009](0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md) on
 one point and narrows its central thesis on another. Resolves the open input
 registered as question 6 in `docs/architecture/ml-implementation-map.md` §7,
-and the issue that tracked it (#184).
+and the issue that tracked it (#184). Amended on 2026-09-29.
+
+### Amended 2026-09-29: the sheet is rectified at native resolution, before the byte-exact resample
+
+[SPEC 0091](../specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md)
+builds the application's sheet reader, and settles two things this record
+left open.
+
+- **The order and resolution of the rectification.** The homography the four
+  corners give is applied at the sheet's own scale, so the pixels per
+  millimetre stay close to 1 : 1. The patch grid then takes the rectified sheet
+  to the canonical scale with the `BILINEAR` of
+  [ADR 0025](0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md),
+  which is identical to training. That resample, a reduction of about 4× at
+  12 MP, shapes the frequencies the descriptors read, so it is the one that has
+  to match.
+  - One warp straight to the canonical scale was rejected by the Developer.
+    A projective bilinear sample that reduces about 4× applies no anti-alias
+    filter, and it would fold aliasing into the band the spectral descriptors
+    measure.
+  - Skipping rectification and refusing a tilted photograph was also rejected.
+    It would have removed the tilt correction this record calls free.
+- **The capture protocol the reader assumes**, decided by the Developer on
+  2026-09-29:
+  1. a bare white sheet on a surface darker than the paper;
+  2. the soil spread into a round patch about 8 to 10 cm across in the
+     middle of the sheet;
+  3. the photograph taken from above, the whole sheet in the frame with a
+     margin, in diffuse light and without flash.
+
+  The round patch mirrors the dish the model was trained on, so the patch
+  grid is unchanged. The refusal this record names comes in two causes:
+  `notFound` (including a pale sheet on a pale surface) and `cropped`.
 
 ## Context
 

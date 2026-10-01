@@ -19,7 +19,9 @@ import 'package:visiosoil_app/models/soil_record.dart';
 /// Every mutation maintains sync metadata: [create] assigns a client-generated
 /// UUID v4 and enqueues an `upsert`; the delete paths write a tombstone
 /// ([SoilRecords.deleted]) and enqueue a `delete` instead of removing the row,
-/// so deletions propagate on sync. All reads exclude tombstoned rows.
+/// so deletions propagate on sync. A tombstone keeps only what sync reads: the
+/// record's content and its cached tips are erased (SPEC 0093). All reads
+/// exclude tombstoned rows.
 class DriftSoilRecordRepository implements SoilRecordRepository {
   DriftSoilRecordRepository(
     this._db, {
@@ -67,6 +69,10 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                 updatedAt: now,
                 textureClass: Value(record.textureClass),
                 confidenceScore: Value(record.confidenceScore),
+                classDistribution:
+                    Value(encodeClassDistribution(record.classDistribution)),
+                modelVersion: Value(record.modelVersion),
+                datasetVersion: Value(record.datasetVersion),
               ),
             );
         await _enqueue(uuid, SyncOperation.upsert, now);
@@ -186,10 +192,11 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
     return query.watch().map((rows) => rows.map(_toDomain).toList());
   }
 
-  /// Marks the rows matching [filter] as deleted (tombstone) and enqueues a
-  /// `delete` operation per affected record, in a single transaction; already
-  /// tombstoned rows are left untouched. After the transaction commits, each
-  /// affected record's image file is deleted best-effort.
+  /// Marks the rows matching [filter] as deleted (tombstone), erases their
+  /// content and cached tips, and enqueues a `delete` operation per affected
+  /// record, in a single transaction; already tombstoned rows are left
+  /// untouched. After the transaction commits, each affected record's image
+  /// file is deleted best-effort.
   Future<void> _tombstone(
     Expression<bool> Function($SoilRecordsTable t) filter,
   ) async {
@@ -208,8 +215,25 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             deleted: const Value(true),
             syncStatus: const Value('pending'),
             updatedAt: Value(now),
+            // What the user captured is erased; the uuid, the remote id, the
+            // flag and the deletion instant are all sync reads. `timestamp` is
+            // NOT NULL, so it takes the deletion instant.
+            imagePath: const Value(''),
+            latitude: const Value(null),
+            longitude: const Value(null),
+            address: const Value(null),
+            timestamp: Value(now),
+            textureClass: const Value(null),
+            confidenceScore: const Value(null),
+            classDistribution: const Value(null),
+            modelVersion: const Value(null),
+            datasetVersion: const Value(null),
           ),
         );
+        // Per row, like the update above, so a wipe binds no list of uuids.
+        await (_db.delete(_db.managementTips)
+              ..where((t) => t.recordUuid.equals(row.uuid)))
+            .go();
         await _enqueue(row.uuid, SyncOperation.delete, now);
       }
       return rows.map((row) => row.imagePath).toList();
