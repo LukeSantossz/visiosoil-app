@@ -1,6 +1,8 @@
 # Corpus assets
 
-What the app composes management tips from, bundled with the binary.
+What the app composes management tips from, bundled with the binary from
+`assets/corpus/`. This document lived in that folder until SPEC 0101 moved it
+here, because a declared asset folder ships everything in it.
 
 | File | What it is |
 |---|---|
@@ -8,8 +10,8 @@ What the app composes management tips from, bundled with the binary.
 | `clay-activity-grid.bin` | The packed 0.1° grid that keys the substance layer |
 | `biome-grid.bin` | The packed 0.1° grid that selects the Embrapa unit |
 
-**All three are build products and none is tracked**, the same treatment
-`assets/models/` gives the `.tflite` artifact. They are produced by the corpus
+**All three are build products and none is tracked**, the treatment
+`assets/models/` gave the `.tflite` artifact until SPEC 0084 removed it. They are produced by the corpus
 build (`docs/architecture/research-agent-implementation-map.md`, Lane B) and are
 git-ignored until a reviewed release exists and a decision equivalent to ADR 0012
 is taken for them.
@@ -20,7 +22,7 @@ substance layer answers generically. What is *not* tolerated is a file that is
 present and malformed: that throws with the asset named, because a corrupt build
 shipping as "no coverage" is a failure nobody would learn about.
 
-Total size ceiling for this directory is **500 KB**, enforced by
+Total size ceiling for `assets/corpus/` is **500 KB**, enforced by
 `test/services/asset_corpus_store_test.dart`. Exceeding it is a decision a spec
 states, not an accident.
 
