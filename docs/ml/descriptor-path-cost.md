@@ -6,6 +6,59 @@ classification costs on an Android emulator, phase by phase, against the 15 s
 timeout `InferenceService.classify` enforces. It is engineering feedback on the
 adopted path (ADR 0024), not a gate.
 
+[SPEC 0092](../specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)
+re-ran it once the A4-sheet reader became the service's measurer. That run is
+the next section. The sections after it are SPEC 0086's run, kept as it was.
+
+## With the A4-sheet reader (SPEC 0092)
+
+**A photograph of the sheet takes 2.6 s median and 2.7 s at most, end to end,
+with the real measurer. That fits the 15 s timeout with a margin of about 5.5×.
+The reader itself costs about 0.3 s.**
+
+The harness gained a second scene: a 12 MP photograph of an A4 sheet at
+12 px/mm, laid square on a grey surface, with the protocol's 90 mm soil patch in
+its middle. It is drawn in Dart to cost what a photograph taken to the protocol
+costs. The reader's geometry is graded elsewhere, against SPEC 0091's scenes.
+
+| Phase | Median (ms) | Max (ms) |
+|---|---:|---:|
+| Decode (`img.decodeImage`) | 1 347 | 1 376 |
+| Orientation bake | 22 | 25 |
+| Frame conversion | 59 | 70 |
+| Measure (`a4SheetMeasurer`) | 310 | 319 |
+| Grid: resample to the canonical scale and cut | 27 | 31 |
+| Describe: 26 descriptors for each of 21 patches | 457 | 470 |
+| Score (`DescriptorContract.distribution`) | 0 | 0 |
+| **`classify`, end to end** | **2 637** | **2 709** |
+
+Five runs of each, and every `classify` run returned an `ok` report. The same
+run re-measured the noise scene below at 5.0 s median and 5.5 s at most, close
+to SPEC 0086's 5.5 s and 6.1 s.
+
+- **The grid pays part of the reader's cost back.** The reader finds the
+  sheet, rectifies it coarsely, and rectifies only the square around the soil
+  disc at native resolution: about 1.1 MP here. The grid then resamples that
+  square instead of the whole frame, so the grid's phase falls from about
+  0.2 s to 30 ms.
+- **The decode is cheaper than the noise scene's** because this scene
+  compresses to 2.6 MB where the noise scene takes 22.8 MB. A camera JPEG lies
+  between the two. On the noise scene's decode, the worst case, the reader
+  would bring `classify` to roughly 5.5 s, which is an estimate and not a run.
+- **A first run was discarded.** It ran straight after the profile build, with
+  the Gradle daemon still holding memory on the host, and single noise-scene
+  phases on the test's thread took up to 27 s. Even so, its `classify` stayed
+  within 9.4 s on the noise scene and 3.7 s on the sheet. The run recorded here
+  followed `./gradlew --stop`, and its phases agree with SPEC 0086's.
+
+| | |
+|---|---|
+| Photograph | 3024 × 4032 px (12 MP, portrait), JPEG quality 90, 2.6 MB |
+| Scale | read by the reader: 0.0832 mm/px |
+| Patches cut | 21 |
+| Device, host, Flutter | as below |
+| Date | 2026-09-29 |
+
 ## The answer
 
 **One classification fits inside 15 s on the emulator, with a margin of about
@@ -52,8 +105,8 @@ A camera JPEG of the same 12 MP pays the same per-pixel work but reads less
 coded data, so it decodes no slower. The archive has no 12 MP JPEG to compare
 against: its 12 MP population is PNG converted from HEIC (#196).
 
-**The scale stands in for the A4-sheet reader,** which does not exist. What the
-reader costs is not in these numbers.
+**The scale stands in for the A4-sheet reader,** which did not exist yet. What
+the reader costs is not in these numbers; the first section measures it.
 
 ## How to read it
 
@@ -86,6 +139,7 @@ flutter drive --profile -d emulator-5554 \
   --target=integration_test/descriptor_path_cost_test.dart
 ```
 
-The timings are written to `build/integration_response_data.json`. The first
-profile build takes a few minutes; this run took 5 min 50 s wall time,
-including the build.
+The timings are written to `build/integration_response_data.json`, one entry
+under `scenes` for each photograph. The first profile build takes a few
+minutes; SPEC 0086's run took 5 min 50 s wall time, including the build, and
+SPEC 0092's recorded run took 2 min 41 s on a warm build.

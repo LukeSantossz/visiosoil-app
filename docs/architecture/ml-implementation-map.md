@@ -563,6 +563,12 @@ descriptors cost about 23 ms a patch, 0.6 s for 25. So if anything is ever
 optimised, it is the decode. The emulator-to-phone caveat below still holds in
 both directions.
 
+**Re-measured the same day with the A4-sheet reader (SPEC 0092).** A 12 MP
+photograph of the sheet takes 2.6 s median and 2.7 s at most, end to end, with
+the real measurer. The reader costs about 0.3 s, and the grid gets cheaper,
+because it resamples a square of about 1 MP around the soil instead of the
+whole frame.
+
 What a batch of patches costs per candidate encoder on the reference device —
 mid-range Android, at least 4 GB of RAM. Tracked as #215.
 
@@ -942,8 +948,19 @@ Recommended order, and why:
    reader, the homography and the soil region on paper.** **Since 2026-09-29 it
    is also the Google Play release's critical path**
    ([ADR 0026](../adr/0026-the-first-play-release-waits-for-classification.md)):
-   v1 ships only once a photograph taken in the app gets a class. It waits on
-   test photographs taken on an A4 sheet.
+   v1 ships only once a photograph taken in the app gets a class. **Split in
+   two and started without real photographs, at the Developer's call.** SPEC
+   0091 finds the sheet: its four corners, refused as `notFound` or `cropped`.
+   It rectifies the sheet at native resolution, so ADR 0025's resample stays
+   the one that matches training. It is graded against synthetic scenes that
+   Pillow's perspective transform places. SPEC 0092 finds the round soil patch
+   on the sheet and makes the reader `classify`'s default measurer. The disc
+   the grid reads is the largest one inside the patch, 2 mm in from its edge,
+   so it holds only soil. `sheetNotFound` and `sheetCropped` replace
+   `measurementUnavailable`, and ADR 0015 is amended to fourteen causes. **A
+   photograph taken to the protocol now gets a class.** Validation on real
+   photographs, taken to the capture protocol in ADR 0017's 2026-09-29
+   amendment, is still owed before the release.
 4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
    0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
    criterion, and refitted on all 204 photographs of `v1`, population `B`
@@ -959,7 +976,8 @@ Recommended order, and why:
    and `tflite_flutter` are gone, and ADR 0015's table is amended to thirteen
    causes. Scale and soil region enter through a `PhotographMeasurer` seam. The
    only measurer this build ships is `measurementUnavailable`, so every
-   photograph is refused by name until the A4-sheet reader replaces it.
+   photograph is refused by name until the A4-sheet reader replaces it. SPEC
+   0092 replaced it (item 3).
    **The second half is SPEC 0084, and it is narrower than planned.** It removes
    the TFLite export, `export.py` and what only it used, and nothing else. The
    CNN training stays, because the shuffled control *is* the CNN trained on

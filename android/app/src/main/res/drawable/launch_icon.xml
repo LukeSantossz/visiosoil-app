@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Android 12+ splash icon: the same tile and mark as launch_background.
+     The system lays an icon without a background out in a 108 dp box and shows
+     it at 192 dp, masked to a circle, so both are drawn at 108/192 of the
+     splash's sizes here and appear at the splash's sizes on screen: the tile at
+     120 dp, inside the mask (SPEC 0089). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="67.5dp"
+        android:height="67.5dp"
+        android:drawable="@drawable/launch_tile"
+        android:gravity="center" />
+    <item
+        android:width="36dp"
+        android:height="36dp"
+        android:drawable="@drawable/launch_mark"
+        android:gravity="center" />
+</layer-list>

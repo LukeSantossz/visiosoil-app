@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 and later replace the launch window with the system splash
+         screen. It shows the tile the Dart splash opens on, on the app
+         background, in light and dark mode alike, because the app is
+         light-only (SPEC 0089). -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/launch_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_icon</item>
+    </style>
+</resources>
