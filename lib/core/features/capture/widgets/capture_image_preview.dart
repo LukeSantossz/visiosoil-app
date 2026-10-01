@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -18,6 +20,7 @@ class CaptureImagePreview extends StatelessWidget {
     this.address,
     this.classificationResult,
     this.classificationFailed = false,
+    this.classificationFailureCause,
     this.onRetryClassification,
   });
 
@@ -27,6 +30,10 @@ class CaptureImagePreview extends StatelessWidget {
   final String? address;
   final InferenceResult? classificationResult;
   final bool classificationFailed;
+
+  /// Why the classification failed, which picks the chip's copy and whether it
+  /// offers a retry. Null keeps the generic retry chip.
+  final ClassificationFailureCause? classificationFailureCause;
   final VoidCallback? onRetryClassification;
 
   @override
@@ -142,20 +149,27 @@ class CaptureImagePreview extends StatelessWidget {
       );
     }
     if (classificationFailed) {
-      return GestureDetector(
-        key: const Key('retryClassification'),
-        onTap: onRetryClassification,
-        child: const _InfoChip(
-          icon: Icons.refresh,
-          label: 'Classificação falhou · tocar para repetir',
-        ),
-      );
+      final cause = classificationFailureCause;
+      if (cause == null) {
+        return _retryChip('Classificação falhou · tocar para repetir');
+      }
+      final chip = classificationFailureChip(cause);
+      if (chip.retryable) return _retryChip(chip.label);
+      // Running the same file again would return the same cause, so the chip
+      // says what to change and offers no tap (SPEC 0105).
+      return _InfoChip(icon: Icons.photo_camera_outlined, label: chip.label);
     }
     return const _InfoChip(
       icon: Icons.eco_outlined,
       label: 'Classificação indisponível',
     );
   }
+
+  Widget _retryChip(String label) => GestureDetector(
+        key: const Key('retryClassification'),
+        onTap: onRetryClassification,
+        child: _InfoChip(icon: Icons.refresh, label: label),
+      );
 }
 
 class _InfoChip extends StatelessWidget {

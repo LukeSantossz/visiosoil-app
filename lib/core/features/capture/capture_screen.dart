@@ -428,6 +428,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   address: _state.address,
                   classificationResult: _state.classificationResult,
                   classificationFailed: _state.classificationFailed,
+                  classificationFailureCause:
+                      _state.classificationFailureCause,
                   onRetryClassification: _retryClassification,
                 ),
               ),

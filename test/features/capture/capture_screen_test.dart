@@ -202,8 +202,10 @@ void main() {
 
     await capture(tester);
 
-    // The failed state the screen renders today, and no result.
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    // The cause's chip, which offers no retry (SPEC 0105), and no result.
+    expect(find.text('Folha A4 não encontrada · tire outra foto'),
+        findsOneWidget);
+    expect(find.byKey(const Key('retryClassification')), findsNothing);
     for (final label in ['Arenosa', 'Argilosa', 'Media']) {
       expect(find.textContaining(label), findsNothing);
     }

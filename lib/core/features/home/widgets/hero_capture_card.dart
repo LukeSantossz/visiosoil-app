@@ -48,7 +48,7 @@ class HeroCaptureCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  'ANÁLISE INSTANTÂNEA',
+                  'ANÁLISE NO APARELHO',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: AppColors.onPrimary,
                     fontWeight: FontWeight.w700,
@@ -59,7 +59,7 @@ class HeroCaptureCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Aponte para o solo e descubra a textura em segundos',
+              'Fotografe o solo sobre uma folha A4 e descubra a textura',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: AppColors.onPrimary,
                 height: 1.25,
