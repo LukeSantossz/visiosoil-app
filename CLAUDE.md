@@ -266,7 +266,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 4. **corpus-tests** — `python -m pytest tests/` in `corpus/` on Python 3.12, mirroring `ml-tests`: same least-privilege token, actions pinned to commit SHAs, and no model or network because the chain is driven by a scripted client and the fetcher by an injected transport
 5. **build** — `flutter build apk --release` (needs analyze + test + ml-tests + corpus-tests), then verifies R8 kept the auth classes in the release DEX, builds the release app bundle and prints its signer (SPEC 0102)
 6. **build-ios** — `flutter build ios --release --no-codesign` on macOS (needs analyze + test)
-7. **smoke** — boots the minified release APK on an emulator (needs build)
+7. **smoke** — boots the minified release APK on an emulator at API 34, 35 and 36, one leg each (needs build)
 8. **gates** — the standards gates the hooks run, so a clone that never wired `core.hooksPath` still meets them (SPEC 0085). It installs `mf` at the `framework_version` `.framework.lock` pins, from the release asset with its checksum verified, and fails if the binary reports another version. It runs `mf check` on a pull request, after restoring the head and base refs that `actions/checkout` leaves detached, and `mf check docs records agents design` on any other event
 
 ## Current Limitations
