@@ -4,6 +4,12 @@
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<!-- Play filters the listing by required hardware, declared or implied by a
+     permission. Capture is camera-only; a record saves without coordinates,
+     and the camera app handles focus (SPEC 0100). -->
+<uses-feature android:name="android.hardware.camera" />
+<uses-feature android:name="android.hardware.location" android:required="false" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <application
         android:label="VisioSoil"
         android:name="${applicationName}"
