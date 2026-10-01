@@ -92,5 +92,33 @@ void main() {
             'app process is alive, and scans its PID log for a startup crash',
       );
     });
+
+    test('smoke_boots_the_release_on_api_34_35_and_36', () {
+      // SPEC 0103 (#289): targeting 35 enforces edge-to-edge and targeting 36
+      // makes predictive back the default, so the boot runs on each, and on 34
+      // as the floor it has proven since #69. Read the smoke job alone, so a
+      // matrix elsewhere cannot satisfy it. A Windows checkout reads CRLF.
+      final yaml = ci.replaceAll('\r\n', '\n');
+      final start = yaml.indexOf('\n  smoke:\n');
+      expect(start, isNot(-1), reason: 'the smoke job is missing');
+      final end = yaml.indexOf(RegExp(r'\n  [a-z][a-z-]*:\n'), start + 1);
+      final smoke = yaml.substring(start, end == -1 ? yaml.length : end);
+
+      expect(
+        smoke,
+        contains('api-level: [34, 35, 36]'),
+        reason: 'the smoke matrix no longer lists API 34, 35 and 36',
+      );
+      expect(
+        smoke,
+        contains(r'api-level: ${{ matrix.api-level }}'),
+        reason: 'the emulator no longer boots the matrix version',
+      );
+      expect(
+        smoke,
+        contains('fail-fast: false'),
+        reason: 'one version failing would cancel the others before they report',
+      );
+    });
   });
 }

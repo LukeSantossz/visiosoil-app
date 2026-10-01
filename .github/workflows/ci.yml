@@ -264,6 +264,14 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      # Targeting 35 enforces edge-to-edge and targeting 36 makes predictive back
+      # the default, so the boot runs on each, and on 34 as the floor it has
+      # proven since #69 (SPEC 0103). Each version reports on its own: a crash
+      # on 36 must not cancel 35 before it says whether it boots.
+      fail-fast: false
+      matrix:
+        api-level: [34, 35, 36]
     steps:
       - name: Enable KVM
         run: |
@@ -278,7 +286,7 @@ jobs:
       - name: Boot smoke on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           target: default
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
