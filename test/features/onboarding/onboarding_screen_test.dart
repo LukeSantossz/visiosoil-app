@@ -82,4 +82,61 @@ void main() {
     expect(find.text('OPEN'), findsOneWidget); // back on the host route
     expect(find.text('Pular'), findsNothing); // onboarding is gone
   });
+
+  // The steps teach the capture protocol the A4-sheet reader assumes (ADR 0017,
+  // SPEC 0104): a photograph taken any other way is refused by name.
+  group('copy', () {
+    const steps = [
+      (
+        'Folha A4',
+        'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
+            'mais escura que o papel. Não coloque mais nada sobre ela.',
+      ),
+      ('Amostra', 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.'),
+      (
+        'Foto',
+        'Fotografe de cima, com a folha inteira no quadro e uma margem em '
+            'volta, em luz difusa e sem flash.',
+      ),
+    ];
+
+    // Pumps the onboarding and returns the text of each page, in order.
+    Future<List<List<String>>> pageTexts(WidgetTester tester) async {
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+      ));
+      await tester.pumpAndSettle();
+      final pages = <List<String>>[];
+      for (var i = 0; i < steps.length; i++) {
+        pages.add(tester
+            .widgetList<Text>(find.byType(Text))
+            .map((t) => t.data ?? '')
+            .toList());
+        if (i < steps.length - 1) {
+          await tester.tap(find.text('Próximo'));
+          await tester.pumpAndSettle();
+        }
+      }
+      return pages;
+    }
+
+    testWidgets('no_step_mentions_a_coin_or_a_viewfinder', (tester) async {
+      final texts = (await pageTexts(tester)).expand((page) => page);
+
+      for (final text in texts) {
+        expect(text.toLowerCase(), isNot(contains('moeda')));
+        expect(text.toLowerCase(), isNot(contains('visor')));
+      }
+    });
+
+    testWidgets('the_steps_teach_the_sheet_protocol_in_order', (tester) async {
+      final pages = await pageTexts(tester);
+
+      for (var i = 0; i < steps.length; i++) {
+        expect(pages[i], containsAll([steps[i].$1, steps[i].$2]),
+            reason: 'step ${i + 1}');
+      }
+    });
+  });
 }
