@@ -22,29 +22,29 @@ class _OnboardingStep {
   final Color color;
 }
 
+// The capture protocol the A4-sheet reader assumes, one point per step
+// (ADR 0017, SPEC 0104). A photograph taken any other way is refused by name.
 const _steps = [
   _OnboardingStep(
-    icon: Icons.crop_free,
-    title: 'Enquadramento',
+    icon: Icons.description_outlined,
+    title: 'Folha A4',
     description:
-        'Posicione a moeda ao lado da amostra como referência de escala. '
-        'Centralize o solo no visor ocupando pelo menos 70% da tela.',
+        'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
+        'mais escura que o papel. Não coloque mais nada sobre ela.',
     color: AppColors.primary,
   ),
   _OnboardingStep(
-    icon: Icons.wb_sunny_outlined,
-    title: 'Iluminação',
-    description:
-        'Prefira luz natural difusa. Evite sombras sobre a amostra e '
-        'não use flash — ele altera as cores reais do solo.',
+    icon: Icons.blur_circular,
+    title: 'Amostra',
+    description: 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.',
     color: AppColors.warning,
   ),
   _OnboardingStep(
-    icon: Icons.straighten,
-    title: 'Ângulo',
+    icon: Icons.photo_camera_outlined,
+    title: 'Foto',
     description:
-        'Fotografe de cima para baixo (top-down), mantendo o celular '
-        'paralelo à superfície da amostra a cerca de 20 cm.',
+        'Fotografe de cima, com a folha inteira no quadro e uma margem em '
+        'volta, em luz difusa e sem flash.',
     color: AppColors.secondary,
   ),
 ];
