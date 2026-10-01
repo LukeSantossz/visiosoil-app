@@ -15,7 +15,14 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainScreen()),
-    GoRoute(path: '/capture', builder: (context, state) => const CaptureScreen()),
+    GoRoute(
+      path: '/capture',
+      // A photograph recovered after a restart arrives as the extra (SPEC 0096).
+      builder: (context, state) {
+        final extra = state.extra;
+        return CaptureScreen(initialImagePath: extra is String ? extra : null);
+      },
+    ),
     GoRoute(
       path: '/details',
       builder: (context, state) {
