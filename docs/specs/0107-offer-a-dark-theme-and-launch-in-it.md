@@ -60,6 +60,12 @@ A `values-night/colors.xml` overrides `launch_background` alone. Every launch st
 
 SPEC 0089's pin that no style names `Theme.Black` stands. The tile stays the brand's.
 
+**The details header reads over any photo.** The device pass found one screen that leaned on a light-only effect. The details header draws its back arrow, and the status-bar icons, over the photograph in the theme's text colour. ADR 0017's protocol puts a white sheet at the top of every photograph, so in the dark theme both were pale on white. The light theme fails the same way over a dark photograph.
+
+The fix copies the photo viewer's pattern and holds in both themes:
+- the back button sits in a black 45% circle with a white icon;
+- the photograph starts below the status bar, so the status-bar icons sit on the theme's surface.
+
 **Status-bar icons follow the theme.** `MaterialApp.builder` wraps the app in an `AnnotatedRegion<SystemUiOverlayStyle>` that sets only the icon brightness. An `AppBar` still sets its own. This spec changes no bar colour; that is #304's.
 
 ## Alternatives Considered
@@ -85,6 +91,7 @@ SPEC 0089's pin that no style names `Theme.Black` stands. The tile stays the bra
     - `lib/providers/appearance_provider.dart`.
   - `main.dart`: read the choice before `runApp`, then set `theme`, `darkTheme`, `themeMode` and the status-bar `AnnotatedRegion`.
   - Settings: the "APARÊNCIA" section.
+  - The details header: the back button's scrim and the photograph's top inset, found by the device pass.
   - Android:
     - `MainActivity.kt`'s channel;
     - `values-night/colors.xml`;
@@ -106,6 +113,7 @@ SPEC 0089's pin that no style names `Theme.Black` stands. The tile stays the bra
 - `the_choice_round_trips`: `AppearanceStore` reads `system` when nothing, or an unknown value, is stored. Writing `dark` and reading back gives `dark`, and the same holds for `light` and `system`.
 - `settings_switches_the_theme`: tapping "Escuro" in Settings makes the app's theme dark, persists `dark`, and sends `dark` to `NightModeSync`. "Claro" and "Sistema" do the same for their modes.
 - `the_first_frame_is_in_the_stored_theme`: started with `dark` stored, the first frame's theme is dark.
+- `the_details_header_reads_over_any_photo`: in both themes, the details header's back button has a black 45% background and a white icon, and the photograph's top edge is at or below the status bar.
 - `status_bar_icons_follow_the_theme`: under the dark theme the region asks for light icons, and under the light theme for dark ones.
 - `the_launch_follows_night_resources`:
   - `values-night/colors.xml` declares `launch_background`, equal to `AppPalette.dark.background`, and no other colour;
