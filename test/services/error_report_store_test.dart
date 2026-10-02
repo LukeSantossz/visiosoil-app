@@ -128,6 +128,24 @@ void main() {
     expect(entries.last.message, 'Exception: error 50');
   });
 
+  test('a_repeating_error_is_kept_once', () async {
+    // A widget that fails on every rebuild reports the same error each frame;
+    // the report keeps it once rather than rewriting the file each time.
+    final stack = StackTrace.current;
+    for (var i = 0; i < 5; i++) {
+      await store.record(source: 'platform', error: StateError('loop'), stack: stack);
+    }
+    await store.record(source: 'platform', error: StateError('other'), stack: stack);
+    await store.record(source: 'platform', error: StateError('loop'), stack: stack);
+
+    final messages = [for (final e in await store.entries()) e.message];
+    expect(messages, [
+      'Bad state: loop',
+      'Bad state: other',
+      'Bad state: loop',
+    ]);
+  });
+
   test('a_failed_write_never_throws_from_the_handler', () async {
     final broken = ErrorReportStore(
       directory: () async => throw const FileSystemException('denied'),
