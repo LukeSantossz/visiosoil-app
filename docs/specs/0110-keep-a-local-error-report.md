@@ -57,11 +57,13 @@ it can print a widget's fields at any length.
 
 **The file:**
 
-- It is `error_report.txt` in `getApplicationSupportDirectory()`. The directory
-  is private to the app, and ADR 0006 excludes it from OS backup and device
-  transfer.
-- It is capped at the newest 50 entries. Recording the 51st drops the oldest,
-  so the file stays small and readable.
+- It is `error_report.jsonl` in `getApplicationSupportDirectory()`, one JSON
+  object per entry, so the cap counts entries exactly whatever a message
+  contains. The directory is private to the app, and ADR 0006 excludes it from
+  OS backup and device transfer.
+- It is capped at the newest 50 entries. Recording the 51st drops the oldest.
+  Each stack trace is cut to its first 40 lines, so the file stays small.
+- Sharing renders the entries as readable text.
 - When shared, the text starts with a header that names the app's version and
   build (from `package_info_plus`) and the OS version string. It names no
   device identifier and no account.
