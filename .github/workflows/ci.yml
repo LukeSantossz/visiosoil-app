@@ -237,11 +237,25 @@ jobs:
             exit 1
           fi
           echo "Auth classes defined in the release DEX."
+      - name: Refuse the debug key for an unflagged bundle
+        # Without key.properties a store bundle must fail and name the file
+        # (SPEC 0111). This runs Gradle's own check, which stops before any task.
+        shell: bash
+        run: |
+          if flutter build appbundle --release > bundle-refusal.log 2>&1; then
+            cat bundle-refusal.log
+            echo "::error::the release app bundle was signed with the debug key"
+            exit 1
+          fi
+          cat bundle-refusal.log
+          grep -q "android/key.properties not found; refusing to sign the release app bundle" bundle-refusal.log
       - name: Build the release app bundle
         # Play takes a bundle, not an APK, so it is built on every change rather
         # than first on release day (SPEC 0102). With no key.properties here it
-        # is debug-signed, as the APK is, and #271's refusal of the debug key
-        # has to stay behind a store opt-in this command does not set.
+        # is debug-signed, as the APK is, so this step names the opt-out that
+        # lets a bundle prove it builds (SPEC 0111).
+        env:
+          VISIOSOIL_ALLOW_DEBUG_BUNDLE: "true"
         run: flutter build appbundle --release
       - name: Print the bundle signer
         # Printed, not asserted: CI gets the upload key with #272, and this line

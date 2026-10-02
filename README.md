@@ -148,9 +148,12 @@ flutter test
 ### Release Signing (Android)
 
 No keystore is configured in this repository today, so `flutter build apk --release`
-and `flutter build appbundle --release` fall back to the debug key (with a warning)
-and contributors and CI still build — but neither output is distributable. To
-produce a genuinely release-signed build:
+falls back to the debug key (with a warning) and contributors and CI still build
+it — but that APK is not distributable. `flutter build appbundle --release` refuses
+the debug key instead and fails naming `key.properties`, because the bundle's only
+consumer is Play (SPEC 0111). `VISIOSOIL_ALLOW_DEBUG_BUNDLE=true` lifts that refusal
+for a bundle that only proves it builds; it is CI's switch, not one to export in a
+shell profile. To produce a genuinely release-signed build:
 
 1. Generate a keystore (store it and its passwords safely and back them up —
    losing the key means you can no longer update a published app):
@@ -266,7 +269,7 @@ visiosoil-app/
 ## Known Issues & Limitations
 
 - **The A4-sheet reader has not met a real photograph** — it finds the sheet, rectifies it and measures the soil patch, and is graded against synthetic scenes a separate geometry draws (SPEC 0091, SPEC 0092). Shadows, curled paper and real lighting are not in those scenes, so real photographs taken to the protocol must validate it before the Play release. A photograph without a readable sheet is refused, never measured at a guessed scale (ADR 0017).
-- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` and `flutter build appbundle --release` fall back to the debug key with a warning, and CI has no keystore step. The APK and the bundle it uploads are therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
+- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, `flutter build appbundle --release` refuses to build (SPEC 0111), and CI has no keystore step. The APK and the bundle CI builds with `VISIOSOIL_ALLOW_DEBUG_BUNDLE=true` are therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
 - **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
