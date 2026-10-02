@@ -123,7 +123,7 @@ Process start
 → i18n init ("i18n initialized successfully")                                  [HIGHLY LIKELY E-S]
 → Zustand rehydration from AsyncStorage (collection, user/scanCount, flags)    [HIGHLY LIKELY E-S]
 → Remote Config fetch with timeout → fallback defaults; sets scan limits and model names  [HIGHLY LIKELY E-S]
-→ RevenueCat init ("Initializing RevenueCat…", "Using API key for platform") → identify user → initial purchase sync  [HIGHLY LIKELY E-S]
+→ RevenueCat init ("Initializing RevenueCat…") → identify user → initial purchase sync  [HIGHLY LIKELY E-S]
 → PostHog init (flags, surveys)                                                [HIGHLY LIKELY E-S]
 → Route: Onboarding if not completed, else MainTabs                            [CONFIRMED E-O]
 ```

@@ -45,6 +45,8 @@ sequenceDiagram
     S->>ST: canScanMore?
     alt no scans left and online
         S-->>U: present Paywall
+    else no scans left and offline
+        S-->>U: back to My Soils, no message (diagram 5)
     else scans left
         S->>CAM: takePhoto()
         CAM-->>S: file

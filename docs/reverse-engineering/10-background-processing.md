@@ -22,6 +22,7 @@
 
 ## App-level background work
 
-None. Identification and chat run in the foreground on the JS thread; the image
-work (crop, base64) runs in native modules. No uploads, downloads or periodic
-sync exist, because there is no backend to sync with. **HIGHLY LIKELY**.
+No app-owned background sync or periodic work was observed. Identification and chat
+run in the foreground, and those foreground requests do carry the photo and the chat
+text to Gemini ([07](07-network-layer.md)); the image work (crop, base64) runs in
+native modules. **HIGHLY LIKELY** (E-P, E-O).

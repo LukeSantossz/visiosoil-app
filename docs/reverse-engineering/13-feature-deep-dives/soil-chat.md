@@ -30,5 +30,4 @@ onSend(text)
 ```
 
 Observed: the quick prompt "Best crops to grow" (online, free plan, 0 scans)
-answered with the apology bubble, so either both models failed or the request
-was refused. Offline, the same screen kept the history and accepted input.
+answered with the generic apology bubble, which does not say what failed. Offline, the same screen kept the history and accepted input.

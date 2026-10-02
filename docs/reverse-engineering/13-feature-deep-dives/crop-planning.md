@@ -26,6 +26,6 @@ card → navigate(CropDetails, { cropId, soilType })
 
 ## Content-quality observations
 
-- Tomato "Avg Yield 25-30 kg per plant" is several times a realistic figure for most growing conditions. **CONFIRMED** displayed (E-O).
+- Tomato "Avg Yield 25-30 kg per plant" is shown with no source and no growing system. **CONFIRMED** displayed (E-O). Its plausibility was not assessed here; the point for VisioSoil is that a numeric agronomic claim needs a cited source and scope.
 - The onboarding says "browse 50+ crops"; the catalogue showed 41. **CONFIRMED** (E-O).
 - Soil vocabulary is USDA-style English (Loam, Sandy Loam, Silt).

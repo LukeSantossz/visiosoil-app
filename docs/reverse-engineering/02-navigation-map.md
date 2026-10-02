@@ -16,8 +16,8 @@ RootNavigator (stack)
 │   │   ├── Cancel  → stays on onboarding  ("AI consent cancelled")
 │   │   └── Continue → slide 2             ("AI consent given")
 │   └── slide 2 "Grow Anything Coach" → "Get Started"
-├── SocialProofScreen                      ("Navigating to SocialProof")
-├── PersonalizationScreen                  (fake 0→100 % progress, then "Continue")
+├── SocialProofScreen                      ("Navigating to SocialProof")         [CONFIRMED E-O, E-S]
+├── PersonalizationScreen                  (0→100 % progress, no input, "Continue") [CONFIRMED E-O; "pacing device" INFERRED]
 ├── PaywallScreen (modal)                  [after personalisation; at 0 scans; "Upgrade to Premium"]
 │   ├── TRY 3-DAY FREE → Google Play billing sheet (external activity)
 │   ├── Restore Purchase

@@ -9,7 +9,6 @@
 | Jetpack DataStore (`libdatastore_shared_counter.so`) | Firebase SDKs (sessions, settings) | HIGHLY LIKELY library-owned (E-N) |
 | Files | Cropped photos written by the image-crop-picker; FileProviders `imagepickerprovider` and `provider` | HIGHLY LIKELY (E-M) |
 | SharedPreferences | Firebase, RevenueCat, PostHog internals | INFERRED |
-| Secure storage | None found (no Keystore-backed storage library) | HIGHLY LIKELY absent (E-D) |
 
 The app has **no relational schema of its own**.
 
@@ -41,13 +40,13 @@ inline base64, this stays small for a typical collection. **INFERRED**.
 
 ## Persistent vs temporary
 
-| Data | Lifetime |
-|---|---|
-| Soil records, favourites, chat history, scan counter, onboarding and consent flags | persistent (until "Delete All Data" or uninstall; `allowBackup=false` → not restored on a new device) |
-| Remote Config values | SDK cache, refreshed at start-up |
-| RevenueCat `CustomerInfo` / offerings | SDK cache |
-| Identification progress, camera state, form inputs | component state, transient |
-| Cropped image files | persistent as long as the record points to them (whether they are copied out of the cache directory is UNKNOWN) |
+| Data | Lifetime | Label |
+|---|---|---|
+| Soil records, favourites, chat history, scan counter, onboarding and consent flags | persistent until "Delete All Data" or uninstall; `allowBackup=false` excludes it from cloud backup, but on Android 12+ that attribute alone does not disable device-to-device transfer, and the manifest declares no data-extraction rules, so whether it moves to a new phone is open | persistence CONFIRMED (E-O: survived a force-stop); transfer UNKNOWN (E-M) |
+| Remote Config values | SDK cache, refreshed at start-up | INFERRED (SDK default behaviour) |
+| RevenueCat `CustomerInfo` / offerings | SDK cache | INFERRED (SDK default behaviour) |
+| Identification progress, camera state, form inputs | component state, transient | INFERRED |
+| Cropped image files | persistent as long as the record points to them (whether they are copied out of the cache directory is UNKNOWN) | HIGHLY LIKELY (E-O: thumbnail shown after a force-stop) |
 
 ## Invalidation and migration
 

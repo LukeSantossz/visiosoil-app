@@ -46,5 +46,6 @@ ScannerScreen.onShutter
 4. Details: **Unknown**, Medium Texture, 0 % match, health 50/100, fertility 50, water retention 50, pH 7, organic matter Medium, compaction 50, condition Fair, materials "Digital pixel data", description from the model ("The image consists of colored squares, which prevents a meaningful physical description…"), age estimate N/A.
 5. Record saved to My Soils with tags "Vegetables", "Herbs"; badge now "0 scans remaining".
 
-The model recognised that the input was not soil. The app had no branch for
-that verdict and rendered the defaults anyway.
+The model's description shows it recognised the input was not soil. For this image
+the app rendered the defaults and saved the record anyway; whether a rejection branch
+exists for other inputs is UNKNOWN.

@@ -8,9 +8,9 @@
 | Q4 | Why did the first chat turn fail online? | model availability vs refusal | retry later; a stable failure would indicate a configuration or quota issue on their side |
 | Q5 | Is there a premium scan cap (`PREMIUM_SCANS`)? | quota rules | only observable with an active subscription; not pursued |
 | Q6 | Are photos copied out of the cache directory for long-term storage? | records could lose their images | observe after clearing the app cache (Android settings), without clearing data |
-| Q7 | Is the store review dialog actually requested on the social proof screen? | funnel | Play only shows the dialog in some conditions; inspect a test-track build of our own instead |
+| Q7 | Is the store review dialog actually requested on the social proof screen? | funnel | Play shows the dialog only under conditions it controls, so one install may never show it; unresolved within this study's scope |
 | Q8 | What do Remote Config and PostHog flags change at run time (paywall variants, survey timing)? | experimentation | not observable from one device; out of scope |
-| Q9 | Is location ever attached to a record? | parity with VisioSoil's GPS capture | look for a location prompt on the "+" path or in the gallery import |
+| Q9 | Is location ever attached to a record? | parity with VisioSoil's GPS capture | a permission prompt alone would not prove it; it needs a saved record that displays or shares coordinates. Otherwise it stays UNKNOWN |
 | Q10 | What triggers `SurveyModal`? | engagement | use the app over several days; PostHog survey targeting is server-side |
 | Q11 | What does the Delete All Data confirmation look like, and does it log RevenueCat out? | data rights | exercise it on a disposable install |
 | Q12 | Does an online relaunch after onboarding re-show the paywall? | conversion rules | relaunch online after force-stop |

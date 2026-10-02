@@ -58,7 +58,9 @@ prompt asks for one or more candidates and the app keeps the first.
 
 ## Caching, pagination, versioning
 
-None for app data: single request/response calls, no lists from the network.
+None observed in the tested flows: single request/response calls, no paginated lists.
+The SDK's streaming methods (`streamGenerateContent`) are in the bundle; whether the
+app uses them is UNKNOWN.
 Model versioning is the only "API version" lever, and it is controlled
 remotely through Remote Config (`primary_model`, `backup_model`).
 **HIGHLY LIKELY**.

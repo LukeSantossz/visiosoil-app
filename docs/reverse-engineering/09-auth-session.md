@@ -10,7 +10,7 @@ What stands in for a "session" is two anonymous identities and one entitlement:
 ```text
 first launch
 → generate/obtain anonymous user id (stored in @soil_identifier_user)        [HIGHLY LIKELY]
-→ RevenueCat configure with platform API key ("Using API key for platform")  [HIGHLY LIKELY]
+→ RevenueCat configure                                                   [HIGHLY LIKELY]
 → RevenueCat identify ("🔄 Identifying user", "✅ User identified successfully")
 → initial purchase sync ("✅ Initial purchase sync completed")
 → CustomerInfo → isPremium / expirationDate ("🔍 Premium status analysis")
@@ -19,9 +19,9 @@ PostHog: anonymous_id / distinct_id, persisted by the SDK                  [HIGH
 
 | Aspect | Behaviour | Label |
 |---|---|---|
-| Credential type | none for the user. The app authenticates to vendors with publishable keys (RevenueCat platform key, PostHog project key) | HIGHLY LIKELY |
+| Credential type | none for the user; how the app authenticates to its vendors is outside this study's scope (SPEC 0112) | CONFIRMED (no user credential, E-O) |
 | Session duration | indefinite (device-bound) | INFERRED |
-| Recovery | purchases recovered through "Restore Purchase" (store account); soil data is **not** recoverable on a new device (`allowBackup=false`, no account) | CONFIRMED controls (E-O, E-M); data loss INFERRED |
+| Recovery | purchases recovered through "Restore Purchase" (store account); soil data has no cloud backup and no account (`allowBackup=false`); a device-to-device transfer on Android 12+ is not disabled by that attribute alone | CONFIRMED controls (E-O, E-M); transfer UNKNOWN |
 | Refresh | entitlement re-checked at start-up and after purchase/restore; `expirationDate` normalised from string or Date (logs "🗓️ Converted string to Date") | HIGHLY LIKELY |
 | Expiry | premium ends at the RevenueCat `expirationDate`; lifetime has none ("No expirationDate found in premium entitlement") | HIGHLY LIKELY |
 | Logout | `Logging out…` / `✅ Logged out successfully` exists, most likely RevenueCat `logOut` during "Delete All Data" | INFERRED |

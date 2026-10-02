@@ -32,7 +32,7 @@ Each rule has an ID, a statement, a label and its evidence.
 |---|---|---|---|
 | BR-15 | Every capture goes through a crop step before identification. | CONFIRMED | E-O |
 | BR-16 | Fields the model did not supply are filled with defaults: health 50, fertility 50, water retention 50, compaction 50, pH 7 (Neutral), organic matter Medium, texture Medium, condition Fair. | CONFIRMED | E-O |
-| BR-17 | There is no out-of-distribution rejection: a non-soil image yields a saved record. | CONFIRMED | E-O |
+| BR-17 | The tested non-soil image yielded a saved record; no rejection was observed. Whether any rejection branch exists for other inputs is UNKNOWN. | CONFIRMED (for the tested image) | E-O |
 | BR-18 | Every identification is auto-saved to the collection. There is no "save" step. | CONFIRMED | E-O |
 | BR-19 | Suitable-crop tags are shown even for an unknown soil. | CONFIRMED | E-O ("Vegetables", "Herbs") |
 | BR-20 | On model overload (503/429) the service retries once with a backup model. | HIGHLY LIKELY | E-S |

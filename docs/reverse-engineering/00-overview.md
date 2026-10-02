@@ -31,19 +31,23 @@ debuggable), repackaging the APK (it carries a `pairip` license check).
 ## The app in one paragraph
 
 Soil Identifier is a **React Native (New Architecture, Hermes) client with no
-first-party backend**. Image identification sends the cropped photo **straight
-from the device to the Google Gemini API**, with the model names and scan
+first-party backend** (HIGHLY LIKELY: no first-party API host in the bundle). Image
+identification sends the cropped photo **straight from the device to the Google Gemini
+API** (HIGHLY LIKELY: Gemini host and SDK in the bundle, and the model described the
+photo in the observed run), with the model names and scan
 limits delivered by Firebase Remote Config. It renders the parsed JSON on a details
-screen, with defaults filling every field the model did not return, and stores
+screen, with defaults filling the fields the model did not return in the observed
+run (CONFIRMED), and stores
 the result in a local collection persisted to AsyncStorage through a Zustand
 store. Around that one feature sit a static crop catalogue with a soil
 compatibility score, a soil volume calculator, a per-soil AI chat, and a
 monetisation shell: onboarding, an AI-consent modal, a "social proof" screen, a
-fake "personalizing" progress screen, then a RevenueCat paywall with a 3-day
+"personalizing" progress screen that collects no input (CONFIRMED), then a RevenueCat paywall with a 3-day
 trial, a 1-scan free tier, and scan limits driven by Remote Config. Analytics and
 experimentation go to Firebase and PostHog. Identifiers and the copy left in
 the bundle ("valuation", "age estimate", "materials", placeholder keys) show the
-app is a **reskin of a generic "AI identifier" template**.
+app is a **reskin of a generic "AI identifier" template** (HIGHLY LIKELY). Each claim
+here is detailed, with its label and evidence, in the documents mapped below.
 
 ## Headline facts
 

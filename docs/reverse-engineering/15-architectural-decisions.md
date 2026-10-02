@@ -6,15 +6,16 @@ decided, with the evidence and the visible consequences.
 ## Recurring patterns
 
 ```text
-OBSERVED:  every feature reads and writes global Zustand stores; no repository types exist.
+OBSERVED:  the collection, user and premium paths act on Zustand stores; chat uses a React context;
+           forms use component state; no repository type names exist.
 INFERRED:  "stores as view models" with service modules around SDKs.
-EVIDENCE:  store action names across collection, user, premium; service names per SDK (E-S).
+EVIDENCE:  store action names for collection, user, premium; useChatContext; service names per SDK (E-S).
 
-OBSERVED:  every AI capability calls Gemini directly from the device.
-INFERRED:  "no backend" is a deliberate cost and speed choice for a template app.
+OBSERVED:  identification (and, highly likely, chat) calls Gemini from the device.
+INFERRED:  "no backend" is a cost and speed choice for a template app; the motive is not evidenced.
 EVIDENCE:  no first-party API host (E-S); model reply observed (E-O).
 
-OBSERVED:  every result field has a default.
+OBSERVED:  the identification result fields seen in the non-soil run carried defaults.
 INFERRED:  the renderer must never crash on partial model output, at the price of fabricating values.
 EVIDENCE:  50/50/50, pH 7, "Medium", "Fair" on a non-soil image (E-O).
 ```
@@ -25,7 +26,7 @@ EVIDENCE:  50/50/50, pH 7, "Medium", "Fair" on a non-soil image (E-O).
 |---|---|---|---|
 | ADR-01 | **React Native, New Architecture, Hermes, bare CLI** | E-N, E-D | One JS codebase, iOS-ready; Kotlin limited to the host |
 | ADR-02 | **No first-party backend; vendor SDKs only** | E-S | Cheap to run; no server-side control point; no cross-device data |
-| ADR-03 | **LLM vision (Gemini) as the classifier** | E-S, E-O | No model to train; non-deterministic; no OOD guard; per-call cost; network required |
+| ADR-03 | **LLM vision (Gemini) as the classifier** | E-S, E-O | No model to train; non-deterministic; no OOD rejection observed; per-call cost; network required |
 | ADR-04 | **Remote Config for model names and quota** | E-S | Model or limit changes without a release; fallback defaults needed for timeouts |
 | ADR-05 | **Model fallback chain** (Flash → Flash Exp for vision; Flash → Pro for chat) | E-S | Resilience to 429/503; inconsistent quality across fallbacks |
 | ADR-06 | **Zustand + persist on AsyncStorage as the database** | E-S | Simple; whole-blob writes; client-side `migrateSoilData`; no queries beyond in-memory filters |

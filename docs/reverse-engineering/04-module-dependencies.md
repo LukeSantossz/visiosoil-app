@@ -49,7 +49,7 @@ Every purchase log string names RevenueCat, so `react-native-iap` is
 | `services/purchases` | RevenueCat wrapper | `checkPremiumStatus`, `loadOfferings`, `purchasePackage`, restore | → `isPremium`, `expirationDate` | RevenueCat | paywall, root, profile |
 | `services/remoteConfig` | Fetch with timeout, defaults | `updateScanLimitsFromRemoteConfig`, model lookups | → models, limits | RN Firebase RC | root, identification, chat |
 | `services/analytics` | Event fan-out | Firebase Analytics, PostHog | events → SDKs | — | screens |
-| `stores/*` | Persisted app state | collection, registry, user (`scanCount`, `scansRemaining`), onboarding, premium | — | AsyncStorage | everyone |
+| `stores/*` | App state | persisted: collection, user (`scanCount`, `scansRemaining`), onboarding, premium; in memory: the registry, derived from the collection | — | AsyncStorage (persisted stores only) | everyone |
 | `data/crops`, `data/products` | Static catalogues | 41 crops; topsoil / raised-bed / potting / cactus products with retailer URLs | — | — | crops, calculator |
 
 ## Dependency graph

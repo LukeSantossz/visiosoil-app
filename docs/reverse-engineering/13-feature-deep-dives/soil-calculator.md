@@ -16,8 +16,8 @@
 
 Input 3 m × 3 m × 30 cm → 2.7 m³ = 2 700 L = 95.35 cu ft = 3.53 cu yd = 713.26 gal.
 Topsoil: 53 bags of 2 cu ft (95.35 / 2 → 48 bags, so the app adds about 10 %
-headroom, INFERRED), est. $317.47–$396.84 (53 × $5.99–$7.49, INFERRED unit
-prices). Raised bed mix: 35 bags of 3 cu ft. **CONFIRMED** outputs (E-O).
+headroom, INFERRED), est. $317.47–$396.84 (53 × $5.99, with the upper bound
+equal to the lower × 1.25; INFERRED). Raised bed mix: 35 bags of 3 cu ft. **CONFIRMED** outputs (E-O).
 
 ## Defects observed
 
