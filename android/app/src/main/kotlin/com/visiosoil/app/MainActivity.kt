@@ -39,7 +39,7 @@ class MainActivity : FlutterActivity() {
                         else -> UiModeManager.MODE_NIGHT_AUTO
                     }
                     getSystemService(UiModeManager::class.java)
-                        .setApplicationNightMode(mode)
+                        ?.setApplicationNightMode(mode)
                 }
                 result.success(null)
             }

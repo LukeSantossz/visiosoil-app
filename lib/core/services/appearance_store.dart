@@ -82,11 +82,19 @@ NightModeSync defaultNightModeSync() =>
 
 /// Reads the stored choice and hands it to the platform again, so a launch
 /// whose override was lost still follows the choice the next time.
+///
+/// `main` calls this before `runApp`, so a store that cannot be read falls back
+/// to [ThemeMode.system] rather than keeping the app from opening.
 Future<ThemeMode> restoreThemeMode(
   AppearanceStore store,
   NightModeSync sync,
 ) async {
-  final mode = await store.read();
+  ThemeMode mode;
+  try {
+    mode = await store.read();
+  } catch (_) {
+    mode = ThemeMode.system;
+  }
   await sync.apply(mode);
   return mode;
 }
