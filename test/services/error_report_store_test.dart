@@ -3,7 +3,6 @@
 // throw. The store writes to a temporary directory, so no platform channel is
 // touched.
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
