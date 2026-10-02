@@ -51,7 +51,14 @@ Two things stand in the way:
 | `dark` | `MODE_NIGHT_YES` | the app's night mode is forced on |
 | `system` | `MODE_NIGHT_AUTO` | no override; the app follows the system |
 
-The system persists that mode per app and applies it to the splash screen it draws at the next cold launch. New `values-night`, `values-night-v31` and night colour resources give the launch window and the system splash the dark background. The tile stays the brand's.
+The system persists that mode per app and applies it to the splash screen it draws at the next cold launch.
+
+A `values-night/colors.xml` overrides `launch_background` alone. Every launch style already takes its background from `@color/launch_background`, so in night mode three windows resolve the dark value without a night style:
+- the launch window before Android 12;
+- the Android 12+ splash;
+- the window behind Flutter.
+
+SPEC 0089's pin that no style names `Theme.Black` stands. The tile stays the brand's.
 
 **Status-bar icons follow the theme.** `MaterialApp.builder` wraps the app in an `AnnotatedRegion<SystemUiOverlayStyle>` that sets only the icon brightness. An `AppBar` still sets its own. This spec changes no bar colour; that is #304's.
 
@@ -80,8 +87,7 @@ The system persists that mode per app and applies it to the splash screen it dra
   - Settings: the "APARÊNCIA" section.
   - Android:
     - `MainActivity.kt`'s channel;
-    - `values-night/colors.xml` and `values-night/styles.xml`;
-    - `values-night-v31/styles.xml`;
+    - `values-night/colors.xml`;
     - the SPEC 0089 comments that call the app light-only.
   - Tests for every criterion below. `confidence_level_test` and the launch-screen pins are updated.
 - Does NOT include:
@@ -102,9 +108,9 @@ The system persists that mode per app and applies it to the splash screen it dra
 - `the_first_frame_is_in_the_stored_theme`: started with `dark` stored, the first frame's theme is dark.
 - `status_bar_icons_follow_the_theme`: under the dark theme the region asks for light icons, and under the light theme for dark ones.
 - `the_launch_follows_night_resources`:
-  - `values-night/colors.xml`'s `launch_background` equals `AppPalette.dark.background`;
-  - the night `LaunchTheme` and `NormalTheme` use a dark parent;
-  - `values-night-v31` sets the splash background from that colour, with the same tile.
+  - `values-night/colors.xml` declares `launch_background`, equal to `AppPalette.dark.background`, and no other colour;
+  - every launch style still takes its background from `@color/launch_background`;
+  - no styles file is qualified for night, so the tile and SPEC 0089's pins hold in both modes.
 - `the_channel_matches_on_both_sides`: `MainActivity.kt` handles the channel name and method that `NightModeSync` sends. It maps `light`, `dark` and `system` to `MODE_NIGHT_NO`, `MODE_NIGHT_YES` and `MODE_NIGHT_AUTO`, and only on API 31+.
 - `the_launch_matches_on_a_device`: frame sampling of a cold launch, by the screenrecord method SPEC 0089 used:
   - **API 34 and 36:** with `dark` chosen on a light system, no launch frame is light. With `light` chosen on a dark system, no launch frame is dark. With `system`, the launch follows the system.
@@ -112,7 +118,7 @@ The system persists that mode per app and applies it to the splash screen it dra
 
 ## Reproducibility
 
-`flutter test test/core/theme/ test/core/services/ test/features/settings/ test/android_launch_screen_test.dart test/models/confidence_level_test.dart`
+`flutter test test/core/theme/ test/services/appearance_store_test.dart test/features/settings/ test/features/home/ test/features/splash/ test/app_appearance_test.dart test/android_night_mode_test.dart test/standards/no_fixed_palette_test.dart test/android_launch_screen_test.dart test/models/confidence_level_test.dart`
 
 Device check: a release APK on the API 30, 34 and 36 emulators, with `adb shell screenrecord`, then frame extraction with `ffmpeg` and pixel sampling of the background at a fixed point.
 
