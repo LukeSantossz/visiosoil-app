@@ -6,6 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 
+class _FailingStore implements AppearanceStore {
+  @override
+  Future<ThemeMode> read() => Future.error(StateError('corrupt preferences'));
+
+  @override
+  Future<void> write(ThemeMode mode) async {}
+}
+
 class _RecordingSync implements NightModeSync {
   final applied = <ThemeMode>[];
 
@@ -41,5 +49,16 @@ void main() {
 
     expect(mode, ThemeMode.dark);
     expect(sync.applied, [ThemeMode.dark]);
+  });
+
+  // Read before runApp, so a failure here would keep the app from opening at
+  // all; a theme preference is never worth that.
+  test('a_store_that_fails_starts_in_the_system_theme', () async {
+    final sync = _RecordingSync();
+
+    final mode = await restoreThemeMode(_FailingStore(), sync);
+
+    expect(mode, ThemeMode.system);
+    expect(sync.applied, [ThemeMode.system]);
   });
 }
