@@ -98,25 +98,30 @@ class _DetailsContent extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           _HeroImageAppBar(record: record),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.xxl,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClassificationHeader(record: record),
-                  const SizedBox(height: AppSpacing.xl),
-                  InfoSection(record: record),
-                  const SizedBox(height: AppSpacing.xl),
-                  ManagementTipsSection(record: record),
-                  const SizedBox(height: AppSpacing.xl),
-                  _ActionButtons(record: record),
-                ],
+          // The page scrolls under the navigation bar on Android 12 and later
+          // (SPEC 0109), so the last action ends above it.
+          SliverSafeArea(
+            top: false,
+            sliver: SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.xxl,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClassificationHeader(record: record),
+                    const SizedBox(height: AppSpacing.xl),
+                    InfoSection(record: record),
+                    const SizedBox(height: AppSpacing.xl),
+                    ManagementTipsSection(record: record),
+                    const SizedBox(height: AppSpacing.xl),
+                    _ActionButtons(record: record),
+                  ],
+                ),
               ),
             ),
           ),

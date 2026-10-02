@@ -389,4 +389,35 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     }
   });
+
+  // Android 12 to 14 now draw edge to edge, as 15+ already did, so the page
+  // scrolls under a 48 dp three-button bar. Its last action must still end
+  // above that bar (SPEC 0109).
+  testWidgets('the_last_action_clears_the_navigation_bar', (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 2.625;
+    tester.view.padding = const FakeViewPadding(top: 63, bottom: 126);
+    tester.view.viewPadding = const FakeViewPadding(top: 63, bottom: 126);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _detailsUnderTest(share: _RecordingShareService(), record: _locatedRecord()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -5000));
+    await tester.pumpAndSettle();
+
+    final delete = find.ancestor(
+      of: find.text('Excluir registro'),
+      matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+    );
+    expect(delete, findsOneWidget);
+    const screenHeight = 1920 / 2.625;
+    const navigationBar = 126 / 2.625;
+    expect(
+      tester.getRect(delete).bottom,
+      lessThanOrEqualTo(screenHeight - navigationBar),
+    );
+  });
 }
