@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 
 /// The capture screen's image area: a placeholder before a photo is taken, and
@@ -18,6 +20,8 @@ class CaptureImagePreview extends StatelessWidget {
     required this.isLoading,
     required this.isClassifying,
     this.address,
+    this.latitude,
+    this.longitude,
     this.classificationResult,
     this.classificationFailed = false,
     this.classificationFailureCause,
@@ -28,6 +32,11 @@ class CaptureImagePreview extends StatelessWidget {
   final bool isLoading;
   final bool isClassifying;
   final String? address;
+
+  /// The reading's coordinates, shown when the address lookup failed but GPS
+  /// answered, as details and home already do (SPEC 0114).
+  final double? latitude;
+  final double? longitude;
   final InferenceResult? classificationResult;
   final bool classificationFailed;
 
@@ -126,10 +135,22 @@ class CaptureImagePreview extends StatelessWidget {
         isLoading: true,
       );
     }
-    return _InfoChip(
-      icon: Icons.location_on,
-      label: address ?? 'Sem localização',
-    );
+    return _InfoChip(icon: Icons.location_on, label: _locationLabel());
+  }
+
+  String _locationLabel() {
+    final address = this.address;
+    if (address != null &&
+        address.isNotEmpty &&
+        address != AppStrings.addressUnavailable) {
+      return address;
+    }
+    final latitude = this.latitude;
+    final longitude = this.longitude;
+    if (latitude != null && longitude != null) {
+      return Formatters.coordinates(latitude, longitude);
+    }
+    return 'Sem localização';
   }
 
   Widget _buildClassificationChip() {

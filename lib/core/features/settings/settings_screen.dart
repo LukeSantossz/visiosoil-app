@@ -1,14 +1,18 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Provider for app information (version, build).
@@ -134,6 +138,11 @@ class SettingsScreen extends ConsumerWidget {
 const String _authFailureMessage =
     'Não foi possível concluir a operação. Tente novamente.';
 
+/// Shown instead of starting a sign-in the device cannot complete offline
+/// (SPEC 0114). Kept in step with the literal in the widget test.
+const String _signInNeedsConnectionMessage =
+    'Sem conexão. Entrar com Google precisa de internet.';
+
 /// Sign-in / sign-out entry reflecting [authNotifierProvider]. Signing in or
 /// out is the only place the app touches authentication; everything else works
 /// unauthenticated.
@@ -195,13 +204,33 @@ class _AccountTile extends ConsumerWidget {
   Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
         icon: Icons.login,
         title: 'Entrar com Google',
-        onTap: () => ref.read(authNotifierProvider.notifier).signIn(),
+        onTap: () => _signIn(context, ref),
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
           color: context.palette.onSurfaceVariant,
         ),
       );
+
+  /// Starts a sign-in unless the device is known to be offline, where it could
+  /// only fail. An unreadable status is not evidence of being offline, so it
+  /// still tries.
+  Future<void> _signIn(BuildContext context, WidgetRef ref) async {
+    ConnectivityStatus? status;
+    try {
+      status = await ref.read(connectivityServiceProvider).current();
+    } on Exception catch (e) {
+      developer.log('connectivity read failed: $e', name: 'SettingsScreen');
+    }
+    if (!context.mounted) return;
+    if (status == ConnectivityStatus.offline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(_signInNeedsConnectionMessage)),
+      );
+      return;
+    }
+    await ref.read(authNotifierProvider.notifier).signIn();
+  }
 }
 
 // --- Theme Mode ---
