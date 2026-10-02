@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
+import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/auth/auth_session.dart';
 import 'package:visiosoil_app/core/services/auth/google_auth_service.dart';
 import 'package:visiosoil_app/core/services/auth/google_sign_in_gateway.dart';
@@ -47,6 +48,25 @@ class _FakeGateway implements GoogleSignInGateway {
   Future<void> signOut() async {
     signOutCalls++;
     final error = signOutError;
+    if (error != null) throw error;
+  }
+
+  int disconnectCalls = 0;
+
+  /// When set, [disconnect] throws it, standing in for a revoke Play services
+  /// refused or could not reach.
+  Object? disconnectError;
+
+  /// The storage the service clears, read when [disconnect] runs, so a test can
+  /// tell whether the local session was already gone by then.
+  KeyValueSecureStorage? storage;
+  String? sessionAtDisconnect;
+
+  @override
+  Future<void> disconnect() async {
+    disconnectCalls++;
+    sessionAtDisconnect = await storage?.read('auth_session');
+    final error = disconnectError;
     if (error != null) throw error;
   }
 }
@@ -134,6 +154,53 @@ void main() {
       // the UI must not then report signed-out.
       expect(gateway.signOutCalls, 0);
       expect(service.currentAccount, isNotNull);
+    });
+
+    group('deleteAccount (SPEC 0113)', () {
+      setUp(() async {
+        gateway
+          ..signInResult = _account()
+          ..storage = storage;
+        await service.signIn();
+      });
+
+      test('delete_account_clears_the_session_then_revokes_the_grant',
+          () async {
+        await service.deleteAccount();
+
+        expect(await store.read(), isNull);
+        expect(service.currentAccount, isNull);
+        expect(gateway.disconnectCalls, 1);
+        expect(
+          gateway.sessionAtDisconnect,
+          isNull,
+          reason: 'the grant is revoked only after the session is cleared',
+        );
+      });
+
+      test('delete_account_names_a_failed_revoke_after_clearing_locally',
+          () async {
+        gateway.disconnectError = Exception('revokeAccess failed');
+
+        await expectLater(
+          service.deleteAccount(),
+          throwsA(isA<AccountNotRevokedException>()),
+        );
+
+        expect(await store.read(), isNull);
+        expect(service.currentAccount, isNull);
+      });
+
+      test('delete_account_keeps_the_account_when_the_local_clear_fails',
+          () async {
+        final failure = Exception('secure storage delete failed');
+        storage.deleteError = failure;
+
+        await expectLater(service.deleteAccount(), throwsA(same(failure)));
+
+        expect(gateway.disconnectCalls, 0);
+        expect(service.currentAccount, isNotNull);
+      });
     });
 
     test('restore_session_returns_account_when_stored', () async {
