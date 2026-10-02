@@ -119,7 +119,9 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
-│   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing,
+│   ├── theme/                         # AppTheme.light + .dark, AppPalette (the colour roles
+│   │                                  #   widgets read, light and dark), AppColors (light
+│   │                                  #   values; read only here), AppTypography, AppSpacing,
 │   │                                  #   AppRadius, SoilTextureColors
 │   ├── routes/app_router.dart         # GoRouter config (7 routes + errorBuilder)
 │   ├── constants/app_strings.dart     # Centralized pt-BR UI strings
@@ -132,7 +134,9 @@ lib/
 │   │   │                              #   share_service.dart + share_content_builder.dart,
 │   │   │                              #   connectivity_service.dart, permission_service.dart,
 │   │   │                              #   sync_engine.dart, lost_capture_service.dart (a photo
-│   │   │                              #   Android lost to a restart, read on arriving home)
+│   │   │                              #   Android lost to a restart, read on arriving home),
+│   │   │                              #   appearance_store.dart (theme choice + the channel
+│   │   │                              #   Android's launch night mode reads)
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
 │   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
@@ -152,11 +156,11 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 16 files declaring 28 providers (database, repository,
+└── providers/                         # 17 files declaring 32 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, lost capture, plus the history filter/search and
-                                       #   derived-stats providers)
+                                       #   storage, lost capture, appearance, plus the history
+                                       #   filter/search and derived-stats providers)
 ```
 
 ### Database Schema (v7)
