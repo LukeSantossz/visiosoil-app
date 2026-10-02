@@ -19,6 +19,25 @@ enum ClassificationOutcome {
   failed,
 }
 
+/// The step a classification is in, posted by the inference isolate as each
+/// one starts, so the capture screen can name it (SPEC 0116). In run order.
+enum ClassificationPhase {
+  /// Reading and decoding the photograph.
+  readingPhotograph,
+
+  /// Orienting the frame and finding the A4 sheet and the soil on it.
+  findingSheet,
+
+  /// Cutting the patch grid and describing each patch.
+  describingTexture,
+
+  /// Scoring the patches with the contract.
+  scoring,
+}
+
+/// Receives each [ClassificationPhase] as the run reaches it.
+typedef ClassificationPhaseCallback = void Function(ClassificationPhase phase);
+
 /// Why a classification failed, grouped by what the reader can do about it.
 ///
 /// The order is ADR 0015's current table, column by column: the one under its

@@ -59,9 +59,10 @@ class InferenceResult {
 /// Everything the inference isolate needs: the work to do, and the port to
 /// answer on.
 class InferenceRequest {
-  /// Port the entry point sends its [ClassificationReport] back on. The
-  /// isolate's exit is wired to it too, so a worker that dies before answering
-  /// arrives as `null` rather than as silence.
+  /// Port the entry point sends its [ClassificationReport] back on, after any
+  /// [ClassificationPhase] it posts on the way (SPEC 0116). The isolate's exit
+  /// is wired to it too, so a worker that dies before answering arrives as
+  /// `null` rather than as silence.
   final SendPort responsePort;
   final String imagePath;
 
@@ -191,11 +192,15 @@ class InferenceService {
   /// rather than layering one of their own, because only this method holds the
   /// isolate handle and can therefore stop the work instead of abandoning it.
   ///
+  /// [onPhase] receives each [ClassificationPhase] the isolate posts, in order,
+  /// before the report (SPEC 0116).
+  ///
   /// [timeout] and [entryPoint] are injectable for tests.
   Future<ClassificationReport> classify(
     String imagePath, {
     Duration timeout = _inferenceTimeout,
     InferenceIsolateEntry entryPoint = _inferenceEntryPoint,
+    ClassificationPhaseCallback? onPhase,
   }) async {
     if (!isReady) {
       final cause = await initialize();
@@ -229,9 +234,19 @@ class InferenceService {
         );
       }
 
+      // Phases arrive before the report on the same port, in the order they
+      // were sent; the first message that is not a phase ends the call. The
+      // timeout covers the whole wait, phases included.
       final Object? message;
       try {
-        message = await responsePort.first.timeout(timeout);
+        message = await responsePort
+            .where((message) {
+              if (message is! ClassificationPhase) return true;
+              onPhase?.call(message);
+              return false;
+            })
+            .first
+            .timeout(timeout);
       } on TimeoutException {
         return const ClassificationReport.failed(
           ClassificationFailureCause.timeout,
@@ -257,18 +272,22 @@ class InferenceService {
       request.imagePath,
       request.contract,
       request.measurer,
+      onPhase: request.responsePort.send,
     );
     request.responsePort.send(report);
   }
 
   /// Runs the descriptor path (called inside the isolate). Each stage reports
   /// its own cause: the image, the measurement, the grid, then the score.
+  /// [onPhase] hears each stage as it starts (SPEC 0116).
   @visibleForTesting
   static Future<ClassificationReport> runInference(
     String imagePath,
     DescriptorContract contract,
-    PhotographMeasurer measurer,
-  ) async {
+    PhotographMeasurer measurer, {
+    ClassificationPhaseCallback? onPhase,
+  }) async {
+    onPhase?.call(ClassificationPhase.readingPhotograph);
     final imageFile = File(imagePath);
     if (!imageFile.existsSync()) {
       return const ClassificationReport.failed(
@@ -291,6 +310,7 @@ class InferenceService {
     try {
       // Orientation first, as `ImageOps.exif_transpose` is in Python: the
       // measurement and the grid are in the displayed frame.
+      onPhase?.call(ClassificationPhase.findingSheet);
       final frame = frameOf(img.bakeOrientation(image));
 
       final measured = measurer(frame);
@@ -301,6 +321,7 @@ class InferenceService {
         );
       }
 
+      onPhase?.call(ClassificationPhase.describingTexture);
       final cut = canonicalPatches(
         measurement.frame,
         measuredMmPerPx: measurement.mmPerPx,
@@ -321,6 +342,7 @@ class InferenceService {
         for (final patch in patches)
           describePatch(patch, contract.patchPx, contract.patchPx),
       ];
+      onPhase?.call(ClassificationPhase.scoring);
       final Float64List probabilities;
       try {
         probabilities = contract.distribution(features);
