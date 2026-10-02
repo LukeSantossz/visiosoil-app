@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -9,12 +14,16 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Provider for app information (version, build).
 final packageInfoProvider = FutureProvider<PackageInfo>((ref) {
   return PackageInfo.fromPlatform();
 });
+
+/// The name the error report carries in the share sheet (SPEC 0110).
+const errorReportFileName = 'visiosoil-relatorio-de-erros.txt';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -88,6 +97,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => context.push('/onboarding'),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          const _ErrorReportTile(),
 
           const SizedBox(height: AppSpacing.xl),
 
@@ -117,8 +128,14 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirmed && context.mounted) {
-      await ref.read(soilRecordRepositoryProvider).deleteAll();
+      // Read before the first await: ref is unusable once the screen is gone.
+      final records = ref.read(soilRecordRepositoryProvider);
+      final errorReport = ref.read(errorReportStoreProvider);
+      await records.deleteAll();
+      // The report is data the app keeps, so it goes too (SPEC 0110).
+      await errorReport.clear();
       if (context.mounted) {
+        ref.invalidate(errorReportHasEntriesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todos os dados foram apagados.')),
         );
@@ -235,6 +252,61 @@ class _ThemeModeSelector extends ConsumerWidget {
   }
 }
 
+// --- Error Report ---
+
+/// Shares the local report of uncaught errors (SPEC 0110). Enabled only when
+/// the report holds an entry; nothing leaves the phone unless the user shares.
+class _ErrorReportTile extends ConsumerWidget {
+  const _ErrorReportTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasEntries = ref.watch(errorReportHasEntriesProvider).value ?? false;
+    return _SettingsTile(
+      icon: Icons.bug_report_outlined,
+      title: AppStrings.errorReportTitle,
+      subtitle: AppStrings.errorReportPrivacy,
+      trailing: hasEntries
+          ? Icon(
+              Icons.share_outlined,
+              size: 20,
+              color: context.palette.onSurfaceVariant,
+            )
+          : Text(
+              AppStrings.errorReportNothingToSend,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.palette.onSurfaceVariant,
+                  ),
+            ),
+      onTap: hasEntries ? () => _share(ref) : null,
+    );
+  }
+
+  /// Hands the report to the share sheet as a text file. It names the build
+  /// and the OS version, and no device identifier or account.
+  Future<void> _share(WidgetRef ref) async {
+    // Read before the first await: ref is unusable once the screen is gone.
+    final errorReport = ref.read(errorReportStoreProvider);
+    final pkg = await ref.read(packageInfoProvider.future);
+    final text = await errorReport.render(
+          appVersion: '${pkg.version}+${pkg.buildNumber}',
+          osVersion:
+              '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+        );
+    await SharePlus.instance.share(ShareParams(
+      text: AppStrings.errorReportShareCaption,
+      files: [
+        XFile.fromData(
+          utf8.encode(text),
+          mimeType: 'text/plain',
+          name: errorReportFileName,
+        ),
+      ],
+      fileNameOverrides: const [errorReportFileName],
+    ));
+  }
+}
+
 // --- Section Header ---
 
 class _SectionHeader extends StatelessWidget {
@@ -261,6 +333,7 @@ class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailing,
     this.onTap,
     this.iconColor,
@@ -269,6 +342,7 @@ class _SettingsTile extends StatelessWidget {
 
   final IconData icon;
   final String title;
+  final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
   final Color? iconColor;
@@ -300,11 +374,23 @@ class _SettingsTile extends StatelessWidget {
               Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: titleColor,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: titleColor,
+                      ),
+                    ),
+                    if (subtitle case final subtitle?)
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: context.palette.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               ?trailing,
