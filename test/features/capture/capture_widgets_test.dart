@@ -8,10 +8,12 @@ import 'package:image/image.dart' as img;
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 
@@ -67,6 +69,48 @@ void main() {
         classificationFailed: true,
       )));
       expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    });
+
+    // GPS can answer while the address lookup cannot, offline above all; the
+    // chip then shows the coordinates the record will keep (SPEC 0114).
+    Widget locatedAt({String? address, double? latitude, double? longitude}) =>
+        host(CaptureImagePreview(
+          image: sampleImage,
+          isLoading: false,
+          isClassifying: false,
+          address: address,
+          latitude: latitude,
+          longitude: longitude,
+        ));
+
+    testWidgets('the_preview_shows_coordinates_when_only_the_address_failed',
+        (tester) async {
+      await tester.pumpWidget(locatedAt(
+        address: AppStrings.addressUnavailable,
+        latitude: -23.5,
+        longitude: -46.6,
+      ));
+
+      expect(find.text(Formatters.coordinates(-23.5, -46.6)), findsOneWidget);
+      expect(find.text(AppStrings.addressUnavailable), findsNothing);
+    });
+
+    testWidgets('the_preview_keeps_its_fallback_without_a_location',
+        (tester) async {
+      await tester.pumpWidget(locatedAt());
+
+      expect(find.text('Sem localização'), findsOneWidget);
+    });
+
+    testWidgets('the_preview_shows_a_resolved_address', (tester) async {
+      await tester.pumpWidget(locatedAt(
+        address: 'São Paulo',
+        latitude: -23.5,
+        longitude: -46.6,
+      ));
+
+      expect(find.text('São Paulo'), findsOneWidget);
+      expect(find.text(Formatters.coordinates(-23.5, -46.6)), findsNothing);
     });
 
     // The chip names the cause, and only a cause a second run can fix offers

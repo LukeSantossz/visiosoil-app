@@ -8,7 +8,9 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
@@ -36,6 +38,9 @@ class _FakeAuthService implements AuthService {
 
   AuthAccount? _current;
 
+  /// How many times [signIn] ran, so a test can prove it never started.
+  int signInCalls = 0;
+
   @override
   AuthAccount? get currentAccount => _current;
 
@@ -47,6 +52,7 @@ class _FakeAuthService implements AuthService {
 
   @override
   Future<AuthAccount?> signIn() async {
+    signInCalls++;
     final error = signInError;
     if (error != null) throw error;
     return restored;
@@ -63,23 +69,46 @@ class _FakeAuthService implements AuthService {
   }
 }
 
+/// A connectivity source with a fixed reading, or one whose read throws.
+class _FakeConnectivityService implements ConnectivityService {
+  const _FakeConnectivityService(this.status, {this.readError});
+
+  final ConnectivityStatus status;
+  final Object? readError;
+
+  @override
+  Stream<ConnectivityStatus> watch() => Stream.value(status);
+
+  @override
+  Future<ConnectivityStatus> current() async {
+    final error = readError;
+    if (error != null) throw error;
+    return status;
+  }
+}
+
 Widget _app(
   AuthAccount? account, {
   Object? signInError,
   Object? signOutError,
   bool signOutClearsBeforeError = false,
   SoilRecordRepository? repository,
+  _FakeAuthService? authService,
+  ConnectivityService connectivity =
+      const _FakeConnectivityService(ConnectivityStatus.online),
 }) {
   return ProviderScope(
     overrides: [
       authServiceProvider.overrideWithValue(
-        _FakeAuthService(
-          account,
-          signInError: signInError,
-          signOutError: signOutError,
-          signOutClearsBeforeError: signOutClearsBeforeError,
-        ),
+        authService ??
+            _FakeAuthService(
+              account,
+              signInError: signInError,
+              signOutError: signOutError,
+              signOutClearsBeforeError: signOutClearsBeforeError,
+            ),
       ),
+      connectivityServiceProvider.overrideWithValue(connectivity),
       packageInfoProvider.overrideWith(
         (ref) async => PackageInfo(
           appName: 'VisioSoil',
@@ -126,6 +155,63 @@ void main() {
     expect(find.text(_failureMessage), findsOneWidget);
     // The tile stays on the sign-in affordance, so the user can retry.
     expect(find.text('Entrar com Google'), findsOneWidget);
+  });
+
+  // Signing in cannot reach Google without a connection, so the tap says so
+  // instead of starting an attempt bound to fail (SPEC 0114).
+  testWidgets('signing_in_offline_names_the_missing_connection',
+      (tester) async {
+    final auth = _FakeAuthService(null);
+    await tester.pumpWidget(_app(
+      null,
+      authService: auth,
+      connectivity: const _FakeConnectivityService(ConnectivityStatus.offline),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Entrar com Google'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text(_offlineMessage), findsOneWidget);
+    expect(find.text(_failureMessage), findsNothing);
+    expect(auth.signInCalls, 0);
+  });
+
+  testWidgets('an_online_sign_in_failure_keeps_the_generic_message',
+      (tester) async {
+    await tester.pumpWidget(_app(
+      null,
+      signInError: Exception('oauth failed'),
+      connectivity: const _FakeConnectivityService(ConnectivityStatus.online),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Entrar com Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_failureMessage), findsOneWidget);
+    expect(find.text(_offlineMessage), findsNothing);
+  });
+
+  testWidgets('an_unreadable_connection_still_tries_to_sign_in',
+      (tester) async {
+    final auth = _FakeAuthService(null);
+    await tester.pumpWidget(_app(
+      null,
+      authService: auth,
+      connectivity: _FakeConnectivityService(
+        ConnectivityStatus.offline,
+        readError: Exception('plugin unavailable'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Entrar com Google'));
+    await tester.pumpAndSettle();
+
+    expect(auth.signInCalls, 1);
+    expect(find.text(_offlineMessage), findsNothing);
   });
 
   testWidgets('settings_shows_failure_snackbar_when_sign_out_throws',
@@ -227,3 +313,6 @@ void main() {
 /// The pt-BR failure message the account tile surfaces on an auth error.
 /// Kept in step with the literal in `settings_screen.dart`.
 const _failureMessage = 'Não foi possível concluir a operação. Tente novamente.';
+
+/// The pt-BR message a sign-in tap shows while offline (SPEC 0114).
+const _offlineMessage = 'Sem conexão. Entrar com Google precisa de internet.';
