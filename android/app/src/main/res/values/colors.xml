@@ -3,7 +3,7 @@
     <color name="ic_launcher_background">#4A7C59</color>
     <!-- The launch window's colours: AppColors.background, primary and
          tertiary. test/android_launch_screen_test.dart pins them to AppColors
-         (SPEC 0089). -->
+         (SPEC 0089). values-night overrides the background alone (SPEC 0107). -->
     <color name="launch_background">#F8FAF5</color>
     <color name="launch_tile_start">#4A7C59</color>
     <color name="launch_tile_end">#6B7F5A</color>

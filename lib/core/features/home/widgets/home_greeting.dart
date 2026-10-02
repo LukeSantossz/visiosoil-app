@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// The home header per the design system: a time-of-day greeting over the
@@ -30,7 +30,7 @@ class HomeGreeting extends StatelessWidget {
                 Text(
                   _greeting(),
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: context.palette.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -75,14 +75,14 @@ class _SettingsAvatar extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.palette.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.outlineVariant),
+              border: Border.all(color: context.palette.outlineVariant),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person_outline,
               size: 22,
-              color: AppColors.onSurfaceVariant,
+              color: context.palette.onSurfaceVariant,
             ),
           ),
         ),

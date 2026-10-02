@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// One line, shown before a capture while location is not granted, saying why
@@ -56,7 +56,7 @@ class _LocationRationaleState extends State<LocationRationale> {
         style: Theme.of(context)
             .textTheme
             .bodySmall
-            ?.copyWith(color: AppColors.onSurfaceVariant),
+            ?.copyWith(color: context.palette.onSurfaceVariant),
       ),
     );
   }

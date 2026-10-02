@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
@@ -75,14 +75,14 @@ class _RecordRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.palette.surface,
           borderRadius: AppRadius.borderRadiusLg,
           border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.5),
+            color: context.palette.outlineVariant.withValues(alpha: 0.5),
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: AppColors.shadowCard,
+              color: context.palette.shadowCard,
               blurRadius: 3,
               offset: Offset(0, 1),
             ),
@@ -93,9 +93,9 @@ class _RecordRow extends StatelessWidget {
             _Thumbnail(record: record),
             const SizedBox(width: AppSpacing.md),
             Expanded(child: _RecordInfo(record: record)),
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: AppColors.outline,
+              color: context.palette.outline,
             ),
           ],
         ),
@@ -113,7 +113,7 @@ class _Thumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final textureColor = record.hasClassification
         ? SoilTextureColors.forClass(record.textureClass!)
-        : AppColors.outline;
+        : context.palette.outline;
 
     return ClipRRect(
       borderRadius: AppRadius.borderRadiusMd,
@@ -160,10 +160,10 @@ class _RecordInfo extends StatelessWidget {
         const SizedBox(height: 2),
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.location_on,
               size: 14,
-              color: AppColors.onSurfaceVariant,
+              color: context.palette.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
@@ -172,7 +172,7 @@ class _RecordInfo extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                  color: context.palette.onSurfaceVariant,
                 ),
               ),
             ),
@@ -207,19 +207,19 @@ class _ConfidenceChip extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: level.backgroundColor,
+        color: level.backgroundColor(context.palette),
         borderRadius: AppRadius.borderRadiusPill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(level.icon, size: 12, color: level.foregroundColor),
+          Icon(level.icon, size: 12, color: level.foregroundColor(context.palette)),
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: level.foregroundColor,
+                  color: level.foregroundColor(context.palette),
                 ),
           ),
         ],
