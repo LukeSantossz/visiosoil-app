@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 
 /// Guards the Dart side of the launch hand-over (#288, SPEC 0089): the tile the
@@ -94,5 +96,32 @@ void main() {
     );
 
     await unmount(tester);
+  });
+
+  // The splash opens on the theme's background, and its tile is the brand mark
+  // in both themes, as the native launch draws it (SPEC 0107).
+  testWidgets('brand_surfaces_hold_in_both_themes', (tester) async {
+    for (final (theme, palette) in [
+      (AppTheme.light, AppPalette.light),
+      (AppTheme.dark, AppPalette.dark),
+    ]) {
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(theme: theme, home: const SplashScreen()),
+      ));
+      final reason = '${theme.brightness}';
+
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+        palette.background,
+        reason: reason,
+      );
+      final gradient = (tester.widget<Container>(tile()).decoration!
+              as BoxDecoration)
+          .gradient! as LinearGradient;
+      expect(gradient.colors, [AppPalette.light.brand, AppPalette.light.brandTileEnd],
+          reason: reason);
+
+      await unmount(tester);
+    }
   });
 }
