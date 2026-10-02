@@ -41,6 +41,18 @@ class GoogleAuthService implements AuthService {
   }
 
   @override
+  Future<void> deleteAccount() async {
+    // The order signOut uses: a failed revoke must never leave a session.
+    await _store.clear();
+    _currentAccount = null;
+    try {
+      await _gateway.disconnect();
+    } on Exception catch (e) {
+      throw AccountNotRevokedException(e);
+    }
+  }
+
+  @override
   Future<AuthAccount?> restoreSession() async {
     final session = await _store.read();
     if (session == null) return null;

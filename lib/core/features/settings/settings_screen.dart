@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
+import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -134,6 +135,12 @@ class SettingsScreen extends ConsumerWidget {
 const String _authFailureMessage =
     'Não foi possível concluir a operação. Tente novamente.';
 
+/// Shown when the account left the device but Google did not confirm revoking
+/// the grant (SPEC 0113): retrying is no longer possible from the app.
+const String _revokeFailureMessage =
+    'A conta saiu deste aparelho, mas o Google não confirmou a revogação. '
+    'Revogue o acesso em myaccount.google.com/connections.';
+
 /// Sign-in / sign-out entry reflecting [authNotifierProvider]. Signing in or
 /// out is the only place the app touches authentication; everything else works
 /// unauthenticated.
@@ -149,7 +156,13 @@ class _AccountTile extends ConsumerWidget {
     ref.listen(authNotifierProvider, (previous, next) {
       if (next.hasError && (previous?.isLoading ?? false)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(_authFailureMessage)),
+          SnackBar(
+            content: Text(
+              next.error is AccountNotRevokedException
+                  ? _revokeFailureMessage
+                  : _authFailureMessage,
+            ),
+          ),
         );
       }
     });
@@ -182,14 +195,50 @@ class _AccountTile extends ConsumerWidget {
     AuthAccount? account,
   ) {
     if (account == null) return _signInTile(context, ref);
-    return _SettingsTile(
-      icon: Icons.account_circle_outlined,
-      title: account.displayName ?? account.email,
-      trailing: TextButton(
-        onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
-        child: const Text('Sair'),
-      ),
+    return Column(
+      children: [
+        _SettingsTile(
+          icon: Icons.account_circle_outlined,
+          title: account.displayName ?? account.email,
+          trailing: TextButton(
+            onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+            child: const Text('Sair'),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _SettingsTile(
+          icon: Icons.person_remove_outlined,
+          title: 'Excluir conta',
+          iconColor: context.palette.error,
+          titleColor: context.palette.error,
+          onTap: () => _confirmDeleteAccount(context, ref),
+        ),
+      ],
     );
+  }
+
+  /// Deletes the account behind the shared confirmation (SPEC 0113). The
+  /// records stay, and the confirmation says where they are erased.
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Excluir conta',
+      message: 'Sua conta Google será desconectada do VisioSoil e o acesso '
+          'concedido ao app será revogado. Seus registros de solo continuam '
+          'neste aparelho; para apagá-los, use "Apagar todos os dados".',
+      confirmLabel: 'Excluir conta',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    // Read before the await: ref is unusable once the screen is gone.
+    final auth = ref.read(authNotifierProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    // A failure is reported by the listener in build.
+    if (await auth.deleteAccount()) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Conta excluída do VisioSoil.')),
+      );
+    }
   }
 
   Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
