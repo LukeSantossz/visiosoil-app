@@ -8,12 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
@@ -541,6 +543,29 @@ void main() {
 
     expect(find.text('São Paulo'), findsOneWidget);
     expect(find.text('Localizando...'), findsNothing);
+  });
+
+  testWidgets('the_capture_screen_shows_coordinates_when_geocoding_failed',
+      (tester) async {
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      // Typed as the resolver's nullable reading, as `_defaultLocate` is, so
+      // the screen's null-returning timeout fallback type-checks.
+      locate: () => Future<LocationReading?>.value((
+        latitude: -23.5,
+        longitude: -46.6,
+        address: AppStrings.addressUnavailable,
+      )),
+      classify: (_) async => null,
+    ));
+
+    await capture(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(find.text(Formatters.coordinates(-23.5, -46.6)), findsOneWidget);
+    expect(find.text(AppStrings.addressUnavailable), findsNothing);
   });
 
   // The picker's file carries the original EXIF, GPS included; the record

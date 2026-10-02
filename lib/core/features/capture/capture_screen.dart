@@ -426,6 +426,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   isLoading: _state.isLocating,
                   isClassifying: _state.isClassifying,
                   address: _state.address,
+                  latitude: _state.latitude,
+                  longitude: _state.longitude,
                   classificationResult: _state.classificationResult,
                   classificationFailed: _state.classificationFailed,
                   classificationFailureCause:
