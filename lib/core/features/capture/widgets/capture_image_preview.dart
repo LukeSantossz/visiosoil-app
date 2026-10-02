@@ -19,6 +19,7 @@ class CaptureImagePreview extends StatelessWidget {
     required this.image,
     required this.isLoading,
     required this.isClassifying,
+    this.classificationPhase,
     this.address,
     this.latitude,
     this.longitude,
@@ -31,6 +32,10 @@ class CaptureImagePreview extends StatelessWidget {
   final File? image;
   final bool isLoading;
   final bool isClassifying;
+
+  /// The step the running classification is in; null before the first one
+  /// arrives, which keeps "Classificando..." (SPEC 0116).
+  final ClassificationPhase? classificationPhase;
   final String? address;
 
   /// The reading's coordinates, shown when the address lookup failed but GPS
@@ -118,7 +123,12 @@ class CaptureImagePreview extends StatelessWidget {
               runSpacing: AppSpacing.xs,
               children: [
                 _buildLocationChip(),
-                _buildClassificationChip(),
+                // A live region, so a screen reader announces each new phase
+                // and the verdict that follows (SPEC 0116).
+                Semantics(
+                  liveRegion: true,
+                  child: _buildClassificationChip(),
+                ),
               ],
             ),
           ),
@@ -157,7 +167,7 @@ class CaptureImagePreview extends StatelessWidget {
     if (isClassifying) {
       return _InfoChip(
         icon: Icons.eco,
-        label: 'Classificando...',
+        label: _phaseLabel(classificationPhase),
         isLoading: true,
       );
     }
@@ -185,6 +195,14 @@ class CaptureImagePreview extends StatelessWidget {
       label: 'Classificação indisponível',
     );
   }
+
+  static String _phaseLabel(ClassificationPhase? phase) => switch (phase) {
+        null => 'Classificando...',
+        ClassificationPhase.readingPhotograph => 'Lendo a foto...',
+        ClassificationPhase.findingSheet => 'Procurando a folha A4...',
+        ClassificationPhase.describingTexture => 'Descrevendo a textura...',
+        ClassificationPhase.scoring => 'Calculando a classe...',
+      };
 
   Widget _retryChip(String label) => GestureDetector(
         key: const Key('retryClassification'),

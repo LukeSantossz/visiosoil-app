@@ -30,6 +30,7 @@ class CaptureUiState {
     this.classification = ClassificationStatus.idle,
     this.classificationResult,
     this.classificationFailureCause,
+    this.classificationPhase,
     this.isCapturing = false,
     this.isSaving = false,
     this.generation = 0,
@@ -47,6 +48,10 @@ class CaptureUiState {
   /// Why the last classification failed. Set only when [classification] is
   /// [ClassificationStatus.failed]; the preview's chip names it (SPEC 0105).
   final ClassificationFailureCause? classificationFailureCause;
+
+  /// The step the running classification last reported, or null before the
+  /// first one; the preview's chip names it (SPEC 0116).
+  final ClassificationPhase? classificationPhase;
 
   final bool isCapturing;
   final bool isSaving;
@@ -67,6 +72,7 @@ class CaptureUiState {
     ClassificationStatus? classification,
     Object? classificationResult = _unset,
     Object? classificationFailureCause = _unset,
+    Object? classificationPhase = _unset,
     bool? isCapturing,
     bool? isSaving,
     int? generation,
@@ -86,6 +92,9 @@ class CaptureUiState {
       classificationFailureCause: identical(classificationFailureCause, _unset)
           ? this.classificationFailureCause
           : classificationFailureCause as ClassificationFailureCause?,
+      classificationPhase: identical(classificationPhase, _unset)
+          ? this.classificationPhase
+          : classificationPhase as ClassificationPhase?,
       isCapturing: isCapturing ?? this.isCapturing,
       isSaving: isSaving ?? this.isSaving,
       generation: generation ?? this.generation,
@@ -108,6 +117,7 @@ class CaptureUiState {
       classification: ClassificationStatus.idle,
       classificationResult: null,
       classificationFailureCause: null,
+      classificationPhase: null,
     );
   }
 }

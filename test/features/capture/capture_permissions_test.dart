@@ -26,6 +26,7 @@ class _FailingInference extends InferenceService {
     String imagePath, {
     Duration? timeout,
     InferenceIsolateEntry? entryPoint,
+    ClassificationPhaseCallback? onPhase,
   }) async =>
       const ClassificationReport.failed(ClassificationFailureCause.timeout);
 }

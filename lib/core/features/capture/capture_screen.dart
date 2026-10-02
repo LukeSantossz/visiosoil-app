@@ -213,8 +213,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   Future<void> _classifySoilTexture(String imagePath, int generation) async {
     if (mounted) {
-      setState(() => _state =
-          _state.copyWith(classification: ClassificationStatus.running));
+      setState(() => _state = _state.copyWith(
+            classification: ClassificationStatus.running,
+            classificationPhase: null,
+          ));
     }
 
     ClassificationReport report;
@@ -223,7 +225,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       // No deadline here: `classify` owns the only one, because it holds the
       // isolate handle and can stop the work. A second timeout at this layer
       // would abandon the future while the isolate kept running.
-      report = await inferenceService.classify(imagePath);
+      report = await inferenceService.classify(
+        imagePath,
+        onPhase: (phase) {
+          // A superseded capture's isolate may still be reporting.
+          if (!mounted || generation != _state.generation) return;
+          setState(
+              () => _state = _state.copyWith(classificationPhase: phase));
+        },
+      );
     } catch (e) {
       // `classify` reports its failures rather than throwing, so this is a
       // defect in it; the screen still lands in the failed state.
@@ -425,6 +435,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   image: image,
                   isLoading: _state.isLocating,
                   isClassifying: _state.isClassifying,
+                  classificationPhase: _state.classificationPhase,
                   address: _state.address,
                   latitude: _state.latitude,
                   longitude: _state.longitude,

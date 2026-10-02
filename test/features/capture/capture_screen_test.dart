@@ -32,12 +32,18 @@ class _FakeInference extends InferenceService {
   final Future<InferenceResult?> Function(String imagePath) _handler;
   final ClassificationFailureCause cause;
 
+  /// The `onPhase` each call received, in call order, so a test can post a
+  /// phase as the isolate would (SPEC 0116).
+  final List<ClassificationPhaseCallback?> phaseCallbacks = [];
+
   @override
   Future<ClassificationReport> classify(
     String imagePath, {
     Duration? timeout,
     InferenceIsolateEntry? entryPoint,
+    ClassificationPhaseCallback? onPhase,
   }) async {
+    phaseCallbacks.add(onPhase);
     final result = await _handler(imagePath);
     return result == null
         ? ClassificationReport.failed(cause)
@@ -82,11 +88,12 @@ void main() {
     PickedFileDeleter deletePickedFile = _keepPickedFile,
     String? initialImagePath,
     ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
+    _FakeInference? inference,
   }) {
     return ProviderScope(
       overrides: [
         inferenceServiceProvider.overrideWithValue(
-            _FakeInference(classify, cause: failureCause)),
+            inference ?? _FakeInference(classify, cause: failureCause)),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
@@ -355,6 +362,102 @@ void main() {
 
     expect(find.textContaining('Media'), findsOneWidget);
     expect(find.textContaining('Argilosa'), findsNothing);
+  });
+
+  // The chip names the step the isolate reports, not a timer (SPEC 0116).
+  group('classification phases', () {
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+    }
+
+    testWidgets('phases_are_named', (tester) async {
+      final gate = Completer<InferenceResult?>();
+      final inference = _FakeInference((_) => gate.future);
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) => gate.future,
+        inference: inference,
+      ));
+
+      await capture(tester);
+      expect(find.text('Classificando...'), findsOneWidget);
+
+      inference.phaseCallbacks.single!(ClassificationPhase.findingSheet);
+      await settle(tester);
+      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+      expect(find.text('Classificando...'), findsNothing);
+
+      inference.phaseCallbacks.single!(ClassificationPhase.describingTexture);
+      await settle(tester);
+      expect(find.text('Descrevendo a textura...'), findsOneWidget);
+      expect(find.text('Procurando a folha A4...'), findsNothing);
+
+      gate.complete(null);
+      await settle(tester);
+    });
+
+    testWidgets('phase_changes_announced', (tester) async {
+      final gate = Completer<InferenceResult?>();
+      final inference = _FakeInference((_) => gate.future);
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) => gate.future,
+        inference: inference,
+      ));
+
+      await capture(tester);
+      inference.phaseCallbacks.single!(ClassificationPhase.scoring);
+      await settle(tester);
+
+      expect(
+        find.ancestor(
+          of: find.text('Calculando a classe...'),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Semantics && widget.properties.liveRegion == true,
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      gate.complete(null);
+      await settle(tester);
+    });
+
+    testWidgets('a_superseded_capture_cannot_move_the_phase', (tester) async {
+      final first = Completer<InferenceResult?>();
+      final second = Completer<InferenceResult?>();
+      var calls = 0;
+      Future<InferenceResult?> classify(String _) =>
+          ++calls == 1 ? first.future : second.future;
+      final inference = _FakeInference(classify);
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: classify,
+        inference: inference,
+      ));
+
+      await capture(tester);
+      await tester.tap(find.text('Descartar'));
+      await tester.pump();
+      await capture(tester);
+
+      inference.phaseCallbacks.first!(ClassificationPhase.scoring);
+      await settle(tester);
+      expect(find.text('Calculando a classe...'), findsNothing);
+
+      inference.phaseCallbacks.last!(ClassificationPhase.findingSheet);
+      await settle(tester);
+      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+
+      first.complete(null);
+      second.complete(null);
+      await settle(tester);
+    });
   });
 
   testWidgets('a save failure shows an error snackbar and keeps the screen for retry',
