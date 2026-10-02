@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -15,15 +13,13 @@ import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Provider for app information (version, build).
 final packageInfoProvider = FutureProvider<PackageInfo>((ref) {
   return PackageInfo.fromPlatform();
 });
-
-/// The name the error report carries in the share sheet (SPEC 0110).
-const errorReportFileName = 'visiosoil-relatorio-de-erros.txt';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -278,32 +274,31 @@ class _ErrorReportTile extends ConsumerWidget {
                     color: context.palette.onSurfaceVariant,
                   ),
             ),
-      onTap: hasEntries ? () => _share(ref) : null,
+      onTap: hasEntries ? () => _share(context, ref) : null,
     );
   }
 
   /// Hands the report to the share sheet as a text file. It names the build
-  /// and the OS version, and no device identifier or account.
-  Future<void> _share(WidgetRef ref) async {
+  /// and the OS version, and no device identifier or account. A failure is
+  /// said on screen without its cause.
+  Future<void> _share(BuildContext context, WidgetRef ref) async {
     // Read before the first await: ref is unusable once the screen is gone.
     final errorReport = ref.read(errorReportStoreProvider);
-    final pkg = await ref.read(packageInfoProvider.future);
-    final text = await errorReport.render(
-          appVersion: '${pkg.version}+${pkg.buildNumber}',
-          osVersion:
-              '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-        );
-    await SharePlus.instance.share(ShareParams(
-      text: AppStrings.errorReportShareCaption,
-      files: [
-        XFile.fromData(
-          utf8.encode(text),
-          mimeType: 'text/plain',
-          name: errorReportFileName,
-        ),
-      ],
-      fileNameOverrides: const [errorReportFileName],
-    ));
+    final share = ref.read(shareServiceProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final pkg = await ref.read(packageInfoProvider.future);
+      final text = await errorReport.render(
+        appVersion: '${pkg.version}+${pkg.buildNumber}',
+        osVersion:
+            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      );
+      await share.shareErrorReport(text);
+    } on Exception {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.errorReportShareFailed)),
+      );
+    }
   }
 }
 

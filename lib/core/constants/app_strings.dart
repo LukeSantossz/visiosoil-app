@@ -37,4 +37,9 @@ abstract final class AppStrings {
   /// The caption the share sheet carries with the report file.
   static const String errorReportShareCaption =
       'Relatório de erros do VisioSoil.';
+
+  /// Shown when the report could not be shared. It names no cause, since the
+  /// exception's text is not for the screen.
+  static const String errorReportShareFailed =
+      'Não foi possível compartilhar o relatório. Tente novamente.';
 }

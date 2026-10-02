@@ -3,10 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:share_plus/share_plus.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/share_content_builder.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// Shares a [SoilRecord] through the native share sheet.
+/// Shares a [SoilRecord], or the error report, through the native share sheet.
 ///
 /// Composes a PNG card from the record's photo and metadata, writes it to a
 /// temporary file, and hands it to `share_plus` with a text caption. Falls back
@@ -14,6 +15,33 @@ import 'package:visiosoil_app/models/soil_record.dart';
 /// cannot be decoded.
 class ShareService {
   const ShareService();
+
+  /// The name the error report carries in the share sheet (SPEC 0110).
+  static const errorReportFileName = 'visiosoil-relatorio-de-erros.txt';
+
+  /// Shares the rendered error report as a text file (SPEC 0110). The file is
+  /// written to a directory of its own and deleted after the share sheet has
+  /// read it, so no copy of the report outlives the share in the cache.
+  Future<void> shareErrorReport(String text) async {
+    final tempDir = await Directory.systemTemp.createTemp('visiosoil_report');
+    try {
+      final file = File('${tempDir.path}/$errorReportFileName');
+      await file.writeAsString(text, flush: true);
+      await SharePlus.instance.share(ShareParams(
+        text: AppStrings.errorReportShareCaption,
+        files: [XFile(file.path, mimeType: 'text/plain')],
+      ));
+    } finally {
+      try {
+        await tempDir.delete(recursive: true);
+      } on FileSystemException catch (e) {
+        developer.log(
+          'Failed to delete temporary report directory: ${e.runtimeType}',
+          name: 'ShareService',
+        );
+      }
+    }
+  }
 
   Future<void> shareRecord(
     SoilRecord record, {

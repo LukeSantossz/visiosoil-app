@@ -157,11 +157,18 @@ class ErrorReportStore {
   /// Deletes the report. Unlike recording, a failure here reaches the caller,
   /// because the user asked for it and must not be told it is gone when it is
   /// not.
-  Future<void> clear() async {
-    await _tail;
-    final file = await _file();
-    if (await file.exists()) await file.delete();
-    _lastSignature = null;
+  ///
+  /// The deletion joins the write queue, so an error recorded while it runs is
+  /// written after it rather than racing it. The queue itself swallows the
+  /// failure, so later writes still run.
+  Future<void> clear() {
+    final cleared = _tail.then((_) async {
+      final file = await _file();
+      if (await file.exists()) await file.delete();
+      _lastSignature = null;
+    });
+    _tail = cleared.then((_) {}, onError: (Object _) {});
+    return cleared;
   }
 
   /// The report as text to share: a header naming the build and the OS, then
