@@ -591,8 +591,9 @@ for that reason.
   "alerts": [],                         // NEW — conflicts, staleness, regional gaps
   "followUpQuestions": [],              // NEW — what the agent would need to narrow it
   "coverage": {                         // NEW — which layers answered
-    "clayActivity": "tb_oxidic",        // null when the grid could not resolve it
-    "substanceIsGeneric": false,        // true when clayActivity was null
+    "clayActivity": "tb_oxidic",        // the family the lookup used: grid, else biome default, else null
+    "clayActivityAssumed": false,       // true when the biome default supplied it (SPEC 0108)
+    "substanceIsGeneric": false,        // true only when no family was used at all
     "unit": "BR-SP",
     "unitLayerPresent": true,
     "biome": "cerrado",
@@ -1383,6 +1384,7 @@ parser.
 | `alerts` | result | empty list |
 | `followUpQuestions` | result | empty list |
 | `coverage` | result | `null` — say nothing about regional coverage |
+| `clayActivityAssumed` | coverage | `false` — the family, if any, was not assumed (SPEC 0108) |
 
 `toJson` always writes every field, so anything this version caches is complete.
 

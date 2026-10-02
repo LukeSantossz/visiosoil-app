@@ -80,6 +80,8 @@ class CorpusResearchService implements ResearchService {
       followUpQuestions: const [],
       coverage: TipsCoverage(
         clayActivity: site.clayActivity?.wireName,
+        // Without a corpus there is no biome default to assume a family from.
+        clayActivityAssumed: false,
         substanceIsGeneric: site.substanceIsGeneric,
         unit: site.unit,
         unitLayerPresent: false,

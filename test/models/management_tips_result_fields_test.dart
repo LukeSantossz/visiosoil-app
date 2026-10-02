@@ -145,6 +145,7 @@ void main() {
           followUpQuestions: const ['Qual o histórico de calagem?'],
           coverage: const TipsCoverage(
             clayActivity: 'tb_oxidic',
+            clayActivityAssumed: true,
             substanceIsGeneric: false,
             unit: 'BR-SP',
             unitLayerPresent: true,
@@ -186,7 +187,33 @@ void main() {
 
       expect(restored.toJson(), original.toJson());
       expect(restored.coverage!.unit, 'BR-SP');
+      expect(restored.coverage!.clayActivityAssumed, isTrue);
       expect(restored.tips.single.category, TipCategory.preparation);
+    });
+  });
+
+  group('which clay-activity family answered', () {
+    test('a_coverage_without_the_assumed_flag_reads_as_resolved', () {
+      // Exactly what `TipsCoverage.toJson` wrote before SPEC 0108, frozen as a
+      // literal: a row cached then has no flag, and must still parse.
+      final coverage = TipsCoverage.fromJson(const {
+        'clayActivity': 'tb_oxidic',
+        'substanceIsGeneric': false,
+        'unit': 'BR-SP',
+        'unitLayerPresent': true,
+        'biome': 'cerrado',
+        'landUse': 'pasture',
+        'landUseLayerPresent': true,
+      });
+
+      expect(coverage.clayActivityAssumed, isFalse);
+      expect(coverage.clayActivity, 'tb_oxidic');
+      expect(coverage.substanceIsGeneric, isFalse);
+      expect(coverage.unit, 'BR-SP');
+      expect(coverage.unitLayerPresent, isTrue);
+      expect(coverage.biome, 'cerrado');
+      expect(coverage.landUse, 'pasture');
+      expect(coverage.landUseLayerPresent, isTrue);
     });
   });
 }

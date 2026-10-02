@@ -228,9 +228,13 @@ class CorpusComposer {
       limitations: limitations,
       alerts: alerts,
       followUpQuestions: followUpQuestions,
+      // The coverage describes this composition, not the site: the family the
+      // lookup used, whether the biome default supplied it, and "generic" only
+      // when no family was used at all (SPEC 0108).
       coverage: TipsCoverage(
-        clayActivity: site.clayActivity?.wireName,
-        substanceIsGeneric: site.substanceIsGeneric,
+        clayActivity: activity?.wireName,
+        clayActivityAssumed: site.clayActivity == null && activity != null,
+        substanceIsGeneric: activity == null,
         unit: site.unit,
         unitLayerPresent: unitCell != null,
         biome: site.biome?.wireName,

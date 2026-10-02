@@ -38,7 +38,10 @@ void main() {
           'all_layers_present',
           'substance_only_every_overlay_absent',
           'substance_abstains_alone',
-          'generic_substance_from_the_biome_default',
+          // A family-specific cell reached through the biome default, and a
+          // genuinely generic substance layer: two cases, not one (SPEC 0108).
+          'family_specific_substance_from_the_biome_default',
+          'generic_substance_while_the_overlays_answer',
           'nothing_resolved_is_the_empty_composition',
         ]),
       );
