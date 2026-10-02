@@ -59,6 +59,14 @@ void markerEntry(InferenceRequest request) {
   marker.writeAsStringSync('started+finished');
 }
 
+/// Posts two phases, then a report, as the real entry point does (SPEC 0116).
+void phasingEntry(InferenceRequest request) {
+  request.responsePort
+    ..send(ClassificationPhase.readingPhotograph)
+    ..send(ClassificationPhase.findingSheet)
+    ..send(const ClassificationReport.ok(_result));
+}
+
 /// The shipped contract's canonical scale, read the way the service reads it.
 double _canonical() =>
     (jsonDecode(
@@ -79,6 +87,11 @@ wholeFrameMeasurer(RgbFrame frame) => (
   ),
   cause: null,
 );
+
+/// A measurer that finds no sheet, as the A4 reader does on a bare photograph.
+({PhotographMeasurement? measurement, ClassificationFailureCause? cause})
+sheetlessMeasurer(RgbFrame frame) =>
+    (measurement: null, cause: ClassificationFailureCause.sheetNotFound);
 
 /// Seeded noise, the same bytes on every run and every host.
 Uint8List _noise(int width, int height, int seed) {
@@ -616,5 +629,76 @@ void main() {
       'rejectedOod',
       'failed',
     ]);
+  });
+  // The isolate names each step as it starts, so the capture chip can say
+  // where the analysis is (SPEC 0116).
+  group('ClassificationPhase', () {
+    test('run_inference_posts_the_phases_in_order', () async {
+      final path = writePng(_noise(_side, _side, 1), _side, _side, 'phases');
+      final phases = <ClassificationPhase>[];
+
+      final report = await InferenceService.runInference(
+        path,
+        contract,
+        wholeFrameMeasurer,
+        onPhase: phases.add,
+      );
+
+      expect(report.outcome, ClassificationOutcome.ok, reason: '${report.cause}');
+      expect(phases, [
+        ClassificationPhase.readingPhotograph,
+        ClassificationPhase.findingSheet,
+        ClassificationPhase.describingTexture,
+        ClassificationPhase.scoring,
+      ]);
+    });
+
+    test('a_refusal_stops_the_phases_where_it_happened', () async {
+      final path = writePng(_noise(_side, _side, 2), _side, _side, 'refused');
+      final phases = <ClassificationPhase>[];
+
+      final report = await InferenceService.runInference(
+        path,
+        contract,
+        sheetlessMeasurer,
+        onPhase: phases.add,
+      );
+
+      expect(report.cause, ClassificationFailureCause.sheetNotFound);
+      expect(phases, [
+        ClassificationPhase.readingPhotograph,
+        ClassificationPhase.findingSheet,
+      ]);
+    });
+
+    test('classify_relays_the_isolate_phases', () async {
+      final service = await readyService();
+      final phases = <ClassificationPhase>[];
+
+      final report = await service.classify(
+        '/unused.jpg',
+        entryPoint: phasingEntry,
+        onPhase: phases.add,
+      );
+
+      expect(report.outcome, ClassificationOutcome.ok);
+      expect(report.result!.textureClass, _result.textureClass);
+      expect(phases, [
+        ClassificationPhase.readingPhotograph,
+        ClassificationPhase.findingSheet,
+      ]);
+    });
+
+    test('classify_without_on_phase_is_unchanged', () async {
+      final service = await readyService();
+
+      final report = await service.classify(
+        '/unused.jpg',
+        entryPoint: phasingEntry,
+      );
+
+      expect(report.outcome, ClassificationOutcome.ok);
+      expect(report.result!.textureClass, _result.textureClass);
+    });
   });
 }
