@@ -199,6 +199,39 @@ void main() {
     expect(await store.entries(), isEmpty);
   });
 
+  test('an_error_recorded_while_clearing_is_kept', () async {
+    // R3 on #324: the deletion joins the write queue, so an error that arrives
+    // while the report is being cleared lands after it and survives.
+    await store.record(
+      source: 'platform',
+      error: StateError('before'),
+      stack: StackTrace.current,
+    );
+
+    final clearing = store.clear();
+    final recording = store.record(
+      source: 'platform',
+      error: StateError('after'),
+      stack: StackTrace.current,
+    );
+    await Future.wait([clearing, recording]);
+
+    expect(
+      (await store.entries()).map((e) => e.message),
+      ['Bad state: after'],
+    );
+  });
+
+  test('a_failed_clear_reaches_the_caller_and_the_queue_survives', () async {
+    final failing = ErrorReportStore(
+      directory: () async => throw const FileSystemException('unreadable'),
+    );
+    await expectLater(failing.clear(), throwsA(isA<FileSystemException>()));
+    // A later write still runs; it fails quietly, as recording must.
+    await failing.record(source: 'platform', error: StateError('x'));
+    await failing.settled();
+  });
+
   test('the_rendered_report_names_the_build_and_no_identifier', () async {
     await store.record(
       source: 'platform',

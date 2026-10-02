@@ -1,20 +1,19 @@
 // Widget tests for the Settings account tile: shows a sign-in affordance when
 // signed out and the account identity + sign-out when signed in.
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
+import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
@@ -97,15 +96,20 @@ class _FakeErrorReportStore implements ErrorReportStore {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Records what the share sheet was handed.
-class _RecordingSharePlatform extends SharePlatform {
-  ShareParams? received;
+/// Records the report text handed to the share sheet, or fails as told.
+class _RecordingShareService implements ShareService {
+  String? sharedReport;
+  Exception? failure;
 
   @override
-  Future<ShareResult> share(ShareParams params) async {
-    received = params;
-    return const ShareResult('ok', ShareResultStatus.success);
+  Future<void> shareErrorReport(String text) async {
+    final error = failure;
+    if (error != null) throw error;
+    sharedReport = text;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Widget _app(
@@ -115,6 +119,7 @@ Widget _app(
   bool signOutClearsBeforeError = false,
   SoilRecordRepository? repository,
   ErrorReportStore? errorReport,
+  ShareService? shareService,
 }) {
   return ProviderScope(
     overrides: [
@@ -138,23 +143,14 @@ Widget _app(
         soilRecordRepositoryProvider.overrideWithValue(repository),
       errorReportStoreProvider
           .overrideWithValue(errorReport ?? _FakeErrorReportStore()),
+      if (shareService != null)
+        shareServiceProvider.overrideWithValue(shareService),
     ],
     child: const MaterialApp(home: SettingsScreen()),
   );
 }
 
 void main() {
-  late _RecordingSharePlatform sharePlatform;
-
-  setUpAll(() {
-    // `SharePlus.instance` memoizes `SharePlatform.instance` on first use, so
-    // one fake is installed and cleared per test.
-    sharePlatform = _RecordingSharePlatform();
-    SharePlatform.instance = sharePlatform;
-  });
-
-  setUp(() => sharePlatform.received = null);
-
   testWidgets('settings_shows_sign_in_when_signed_out', (tester) async {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
@@ -291,11 +287,14 @@ void main() {
   group('settings_shares_the_error_report', () {
     // SPEC 0110: the row shares the report as a text file when it holds an
     // entry, and is disabled, saying so, when it holds none.
-    testWidgets('with entries, the row shares the report as a file',
+    testWidgets('with entries, the row shares the rendered report',
         (tester) async {
-      await tester.pumpWidget(
-        _app(null, errorReport: _FakeErrorReportStore(empty: false)),
-      );
+      final share = _RecordingShareService();
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(empty: false),
+        shareService: share,
+      ));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.errorReportPrivacy), findsOneWidget);
@@ -303,20 +302,17 @@ void main() {
       await tester.tap(find.text(AppStrings.errorReportTitle));
       await tester.pumpAndSettle();
 
-      final params = sharePlatform.received;
-      expect(params, isNotNull, reason: 'nothing reached the share sheet');
-      expect(params!.text, AppStrings.errorReportShareCaption);
-      expect(params.fileNameOverrides, [errorReportFileName]);
-      final file = params.files!.single;
-      expect(file.mimeType, 'text/plain');
-      expect(utf8.decode(await file.readAsBytes()), 'relatorio 2.0.0+2');
+      expect(share.sharedReport, 'relatorio 2.0.0+2');
     });
 
     testWidgets('without entries, the row is disabled and says so',
         (tester) async {
-      await tester.pumpWidget(
-        _app(null, errorReport: _FakeErrorReportStore()),
-      );
+      final share = _RecordingShareService();
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(),
+        shareService: share,
+      ));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.errorReportNothingToSend), findsOneWidget);
@@ -324,7 +320,27 @@ void main() {
       await tester.tap(find.text(AppStrings.errorReportTitle));
       await tester.pumpAndSettle();
 
-      expect(sharePlatform.received, isNull);
+      expect(share.sharedReport, isNull);
+    });
+
+    testWidgets('a failed share says so, without the error', (tester) async {
+      // R3 on #324: a failure must not pass in silence, and the raw
+      // exception never reaches the screen.
+      final share = _RecordingShareService()
+        ..failure = Exception('platform share failed');
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(empty: false),
+        shareService: share,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.errorReportShareFailed), findsOneWidget);
+      expect(find.textContaining('platform share failed'), findsNothing);
     });
   });
 
