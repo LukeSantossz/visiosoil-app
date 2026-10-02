@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -19,12 +20,14 @@ class RecordingSharePlatform extends SharePlatform {
   ShareParams? receivedParams;
   String? sharedCardPath;
   bool cardExistedAtShareTime = false;
+  String? sharedFileText;
   bool shouldThrow = false;
 
   void reset() {
     receivedParams = null;
     sharedCardPath = null;
     cardExistedAtShareTime = false;
+    sharedFileText = null;
     shouldThrow = false;
   }
 
@@ -35,6 +38,9 @@ class RecordingSharePlatform extends SharePlatform {
     if (files != null && files.isNotEmpty) {
       sharedCardPath = files.first.path;
       cardExistedAtShareTime = File(files.first.path).existsSync();
+      if (cardExistedAtShareTime && files.first.path.endsWith('.txt')) {
+        sharedFileText = File(files.first.path).readAsStringSync();
+      }
     }
     if (shouldThrow) {
       throw Exception('platform share failed');
@@ -154,6 +160,34 @@ void main() {
     expect(platform.receivedParams!.files, anyOf(isNull, isEmpty));
     expect(platform.receivedParams!.text, isNotNull);
     expect(platform.sharedCardPath, isNull);
+  });
+
+  group('shareErrorReport', () {
+    // SPEC 0110, R3 on #324: the report is shared from a copy in a directory
+    // of its own, deleted after the share, so no copy outlives it in the cache.
+    test('shares_the_report_as_a_named_text_file_then_deletes_it', () async {
+      await service.shareErrorReport('relatorio de erros');
+
+      final params = platform.receivedParams!;
+      expect(params.text, AppStrings.errorReportShareCaption);
+      final file = params.files!.single;
+      expect(p.basename(file.path), ShareService.errorReportFileName);
+      expect(file.mimeType, 'text/plain');
+      expect(platform.sharedFileText, 'relatorio de erros');
+      expect(File(platform.sharedCardPath!).parent.existsSync(), isFalse);
+    });
+
+    test('deletes_the_copy_and_rethrows_when_platform_share_throws', () async {
+      platform.shouldThrow = true;
+
+      await expectLater(
+        () => service.shareErrorReport('relatorio de erros'),
+        throwsA(isA<Exception>()),
+      );
+
+      expect(platform.cardExistedAtShareTime, isTrue);
+      expect(File(platform.sharedCardPath!).parent.existsSync(), isFalse);
+    });
   });
 
   test('shares_caption_only_when_photo_is_empty', () async {

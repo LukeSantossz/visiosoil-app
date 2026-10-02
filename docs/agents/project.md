@@ -136,7 +136,9 @@ lib/
 │   │   │                              #   sync_engine.dart, lost_capture_service.dart (a photo
 │   │   │                              #   Android lost to a restart, read on arriving home),
 │   │   │                              #   appearance_store.dart (theme choice + the channel
-│   │   │                              #   Android's launch night mode reads)
+│   │   │                              #   Android's launch night mode reads),
+│   │   │                              #   error_report_store.dart (local report of uncaught
+│   │   │                              #   errors, shared from Settings; SPEC 0110)
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
 │   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
@@ -156,10 +158,10 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 17 files declaring 32 providers (database, repository,
+└── providers/                         # 18 files declaring 34 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, lost capture, appearance, plus the history
+                                       #   storage, lost capture, appearance, error report, plus the history
                                        #   filter/search and derived-stats providers)
 ```
 
