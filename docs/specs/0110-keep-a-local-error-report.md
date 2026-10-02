@@ -63,6 +63,10 @@ it can print a widget's fields at any length.
   OS backup and device transfer.
 - It is capped at the newest 50 entries. Recording the 51st drops the oldest.
   Each stack trace is cut to its first 40 lines, so the file stays small.
+- An entry identical to the one just written, apart from its time, is dropped
+  without touching the file. A widget that fails on every rebuild reports the
+  same error each frame, and would otherwise rewrite the file dozens of times a
+  second. Found by the R1 review during implementation.
 - Sharing renders the entries as readable text.
 - When shared, the text starts with a header that names the app's version and
   build (from `package_info_plus`) and the OS version string. It names no
@@ -157,6 +161,8 @@ and the Settings screen. The store and its tests come first; the wiring into
   written as its first 300 characters after redaction.
 - `the_report_keeps_the_newest_fifty_entries`: after 51 records the file holds
   50, and the oldest is the one dropped.
+- `a_repeating_error_is_kept_once`: the same error recorded five times in a row
+  is kept once, and recorded again after a different one, it is kept again.
 - `a_failed_write_never_throws_from_the_handler`: with storage that throws, the
   handlers return normally.
 - `the_previous_framework_handler_still_runs`: the handler `FlutterError.onError`
