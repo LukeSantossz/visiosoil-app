@@ -227,6 +227,62 @@ void main() {
       expect(find.text(LocationRationale.message), findsNothing);
     });
 
+    // The first camera request carries the app's own reason too, shown
+    // before "Câmera" is tapped, which is what starts the request (SPEC 0115).
+    Widget cameraActions({
+      bool hasImage = false,
+      Future<AppPermissionStatus> Function()? camera,
+    }) =>
+        host(CaptureActions(
+          hasImage: hasImage,
+          isBusy: false,
+          onCapture: () {},
+          onSave: () {},
+          onDiscard: () {},
+          checkCameraPermission: camera,
+          checkLocationPermission: () async => AppPermissionStatus.denied,
+        ));
+
+    testWidgets('permission_priming_precedes_system_dialog', (tester) async {
+      await tester.pumpWidget(
+          cameraActions(camera: () async => AppPermissionStatus.denied));
+      await tester.pump();
+
+      expect(find.text(_cameraLine), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text(_cameraLine)).dy,
+        lessThan(tester.getTopLeft(find.text(LocationRationale.message)).dy),
+        reason: 'the camera is asked for first, so its line comes first',
+      );
+    });
+
+    testWidgets('the_camera_line_is_hidden_once_the_camera_is_granted',
+        (tester) async {
+      await tester.pumpWidget(
+          cameraActions(camera: () async => AppPermissionStatus.granted));
+      await tester.pump();
+
+      expect(find.text(_cameraLine), findsNothing);
+    });
+
+    testWidgets('the_camera_line_is_hidden_when_the_status_is_unreadable',
+        (tester) async {
+      await tester.pumpWidget(cameraActions(
+          camera: () async => throw Exception('plugin unavailable')));
+      await tester.pump();
+
+      expect(find.text(_cameraLine), findsNothing);
+    });
+
+    testWidgets('the_camera_line_is_hidden_once_a_photograph_exists',
+        (tester) async {
+      await tester.pumpWidget(cameraActions(
+          hasImage: true, camera: () async => AppPermissionStatus.denied));
+      await tester.pump();
+
+      expect(find.text(_cameraLine), findsNothing);
+    });
+
     testWidgets('shows the camera button before an image exists',
         (tester) async {
       await tester.pumpWidget(host(CaptureActions(
@@ -275,3 +331,9 @@ void main() {
     });
   });
 }
+
+/// The camera rationale's pt-BR copy (SPEC 0115). Kept in step with
+/// `CameraRationale.message`.
+const _cameraLine =
+    'A câmera fotografa a amostra sobre a folha A4 para classificar a textura '
+    'do solo.';
