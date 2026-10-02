@@ -86,4 +86,36 @@ void main() {
       );
     }
   });
+
+  // MaterialApp pushes SystemUiOverlayStyle.dark or .light on every theme
+  // build, and both paint the navigation bar opaque black with light icons.
+  // Before each frame, the activity puts the see-through bar back, so the black
+  // is never drawn (SPEC 0109).
+  test('navigation_bar_stays_see_through_after_flutter_styles_it', () {
+    final source = _mainActivity();
+
+    final guarded = _android12To14Blocks(_function(source, 'onCreate'));
+    expect(
+      guarded.where((b) => b.contains('addOnPreDrawListener(')),
+      hasLength(1),
+      reason: 'onCreate must register the keeper under the API 31-34 guard',
+    );
+    expect(
+      RegExp(r'addOnPreDrawListener').allMatches(source),
+      hasLength(1),
+      reason: 'nowhere else, so Android 11 and earlier keep their black bar',
+    );
+
+    final keeper = RegExp(
+      r'OnPreDrawListener\s*\{(.*?)\n    \}',
+      dotAll: true,
+    ).firstMatch(source);
+    expect(keeper, isNotNull, reason: 'the pre-draw keeper is not declared');
+    final body = keeper!.group(1)!;
+    expect(
+      body,
+      matches(RegExp(r'navigationBarColor\s*=\s*Color\.TRANSPARENT')),
+    );
+    expect(body, contains('matchNavigationIconsToNightMode('));
+  });
 }
