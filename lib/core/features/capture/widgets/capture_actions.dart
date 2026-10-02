@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/camera_rationale.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -7,8 +8,8 @@ import 'package:visiosoil_app/core/widgets/visio_button.dart';
 /// The capture screen's primary action row: a single "Câmera" button before a
 /// photo exists, and Save/Discard once one does. [isBusy] disables Save while
 /// location or classification is still running or a save is in flight. Before
-/// a photo exists, a [LocationRationale] line explains the location request
-/// the capture will make.
+/// a photo exists, a [CameraRationale] and a [LocationRationale] line explain
+/// the requests the capture will make, in the order it makes them.
 class CaptureActions extends StatelessWidget {
   const CaptureActions({
     super.key,
@@ -17,6 +18,7 @@ class CaptureActions extends StatelessWidget {
     required this.onCapture,
     required this.onSave,
     required this.onDiscard,
+    this.checkCameraPermission,
     this.checkLocationPermission,
   });
 
@@ -25,6 +27,9 @@ class CaptureActions extends StatelessWidget {
   final VoidCallback onCapture;
   final VoidCallback onSave;
   final VoidCallback onDiscard;
+
+  /// Passed to the [CameraRationale]; defaults to the platform's status.
+  final Future<AppPermissionStatus> Function()? checkCameraPermission;
 
   /// Passed to the [LocationRationale]; defaults to the platform's status.
   final Future<AppPermissionStatus> Function()? checkLocationPermission;
@@ -42,6 +47,7 @@ class CaptureActions extends StatelessWidget {
             onPressed: onCapture,
             expanded: true,
           ),
+          CameraRationale(checkPermission: checkCameraPermission),
           LocationRationale(checkPermission: checkLocationPermission),
         ],
       );
