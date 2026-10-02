@@ -1047,9 +1047,10 @@ Spec Gate.
 | 11 | Auth: `idToken` capture and `serverClientId` (issue #95) | app | Proxy verifies by audience |
 
 Slice 11 is unchanged from ADR 0001's slice 8 and still depends on the OAuth Web
-client from #55. Slices 1–9 do not depend on it: until it lands, the proxy
-introspects the access token the app already holds, exactly as ADR 0001's
-two-phase bearer specified.
+client from #55. Slices 1–9 do not depend on it. ADR 0001's two-phase bearer had
+the proxy introspect the app's access token until then, but since SPEC 0106 the
+app signs in for identity only and holds no access token. A proxy call that has
+to know the user therefore waits for slice 11's ID token.
 
 **Slice 10 shipped enabled in v1** by the Developer's decision on 2026-09-11, and
 **that decision was reversed on 2026-09-17 by ADR 0023**: with no budget there is

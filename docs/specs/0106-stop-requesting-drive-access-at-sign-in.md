@@ -85,6 +85,10 @@ client if #119 has migrated by then. Nothing is added for it now.
     - the `accessToken()` overrides deleted from the fakes in
       `test/features/settings/settings_screen_test.dart` and
       `test/providers/auth_provider_test.dart`.
+  - `docs/architecture/research-agent.md`: the sentence saying the proxy
+    introspects the access token the app holds. Found during implementation:
+    after this change the app holds none, so per-user proxy calls wait for the
+    ID token of #95.
 - Does NOT include:
   - The Drive backend, or any incremental scope request (#55).
   - `google_sign_in` 7.x or `flutter_secure_storage` 10.x (#119).
