@@ -56,7 +56,7 @@ void main() {
     test('build_job_builds_and_uploads_the_release_app_bundle', () {
       // SPEC 0102 (#270): Play takes a bundle, so CI builds one on every
       // change. It stays debug-signed in CI; the signer is printed, not
-      // asserted, and the command carries no store opt-in for #271 to gate on.
+      // asserted, and the step names the opt-out SPEC 0111 requires for it.
       expect(
         ci.contains('run: flutter build appbundle --release'),
         isTrue,

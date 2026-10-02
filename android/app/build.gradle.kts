@@ -9,12 +9,29 @@ plugins {
 
 // Release signing is sourced from an untracked android/key.properties, so no
 // keystore or password is committed. When the file is absent (contributors, CI),
-// the release build falls back to the debug key with a warning so it still runs.
+// the release APK falls back to the debug key with a warning so it still runs.
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 if (hasReleaseKeystore) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+// The bundle's only consumer is Play, which rejects the debug key, so the
+// fallback above stops at the APK: bundleRelease refuses it before any task
+// runs, unless CI names the opt-out to prove the bundle builds (SPEC 0111).
+val allowDebugBundle = System.getenv("VISIOSOIL_ALLOW_DEBUG_BUNDLE") == "true"
+if (!hasReleaseKeystore && !allowDebugBundle) {
+    gradle.taskGraph.whenReady {
+        if (allTasks.any { it.name == "bundleRelease" }) {
+            throw GradleException(
+                "android/key.properties not found; refusing to sign the release app bundle " +
+                    "with the debug key, which Play rejects. Create it as the README's " +
+                    "Release Signing section shows, or set VISIOSOIL_ALLOW_DEBUG_BUNDLE=true " +
+                    "to build a bundle that only proves it builds."
+            )
+        }
+    }
 }
 
 android {
