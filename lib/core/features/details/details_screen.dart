@@ -144,18 +144,39 @@ class _HeroImageAppBar extends StatelessWidget {
       pinned: true,
       backgroundColor: context.palette.surface,
       foregroundColor: context.palette.onSurface,
+      // The back button sits over the photograph, whose top is the white A4
+      // sheet (ADR 0017), so it cannot take the theme's text colour. It takes
+      // the photo viewer's scrim instead, which reads in both themes
+      // (SPEC 0107).
+      leading: Navigator.canPop(context)
+          ? Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back),
+                color: Colors.white,
+                style: IconButton.styleFrom(backgroundColor: Colors.black45),
+              ),
+            )
+          : null,
       flexibleSpace: FlexibleSpaceBar(
-        background: Image.file(
-          imageFile,
-          fit: BoxFit.cover,
-          cacheHeight: cacheH,
-          errorBuilder: (_, _, _) => Container(
-            color: context.palette.surfaceVariant,
-            child: Center(
-              child: Icon(
-                Icons.broken_image,
-                size: 48,
-                color: context.palette.onSurfaceVariant,
+        // Below the status bar, so its icons sit on the theme's surface rather
+        // than on the photograph.
+        background: Padding(
+          padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+          child: Image.file(
+            imageFile,
+            fit: BoxFit.cover,
+            cacheHeight: cacheH,
+            errorBuilder: (_, _, _) => Container(
+              color: context.palette.surfaceVariant,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image,
+                  size: 48,
+                  color: context.palette.onSurfaceVariant,
+                ),
               ),
             ),
           ),
