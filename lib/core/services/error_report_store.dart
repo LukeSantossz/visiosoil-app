@@ -89,6 +89,11 @@ class ErrorReportStore {
   /// interleave. It never completes with an error: [_enqueue] catches all.
   Future<void> _tail = Future.value();
 
+  /// The last entry written, minus its time. A widget that fails on every
+  /// rebuild reports the same error each frame, and an entry equal to this one
+  /// is dropped without touching the file.
+  String? _lastSignature;
+
   /// Records an error that reached `PlatformDispatcher.onError`, or any other
   /// error with its [source]. Never throws.
   Future<void> record({
@@ -156,6 +161,7 @@ class ErrorReportStore {
     await _tail;
     final file = await _file();
     if (await file.exists()) await file.delete();
+    _lastSignature = null;
   }
 
   /// The report as text to share: a header naming the build and the OS, then
@@ -217,6 +223,9 @@ class ErrorReportStore {
       _tail = _tail.then((_) async {
         try {
           final entry = build();
+          final signature = '${entry.source}\u0000${entry.type}\u0000'
+              '${entry.library}\u0000${entry.message}\u0000${entry.stack}';
+          if (signature == _lastSignature) return;
           final file = await _file();
           final lines = await file.exists()
               ? (await file.readAsLines()).where((l) => l.trim().isNotEmpty)
@@ -227,6 +236,7 @@ class ErrorReportStore {
               ? lines.sublist(lines.length - capacity)
               : lines;
           await file.writeAsString('${kept.join('\n')}\n', flush: true);
+          _lastSignature = signature;
         } catch (e) {
           // This runs for an error handler, the outermost boundary there is,
           // so it catches everything: a throw here would recurse into the
