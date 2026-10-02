@@ -90,8 +90,9 @@ every field.
   - `test/fixtures/corpus/golden.json`: the renamed case, the new case, and
     the new key in every case. `test/services/corpus_composer_test.dart`: the
     case list the golden must cover.
-  - `test/models/management_tips_result_fields_test.dart`: the frozen
-    `toJson` literal and the pre-change payload.
+  - `test/models/management_tips_result_fields_test.dart`: a frozen literal of
+    the coverage written before this change, and the full sample's round trip
+    with the flag set.
   - `docs/architecture/research-agent.md`: the output contract and the
     absent-field table.
   - `docs/agents/project.md`: the Known Technical Debt entry for #246 is
