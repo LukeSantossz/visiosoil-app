@@ -4,13 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/services/error_report_store.dart';
+import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/error_report_provider.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
@@ -21,7 +26,13 @@ class _FakeAuthService implements AuthService {
     this.signInError,
     this.signOutError,
     this.signOutClearsBeforeError = false,
+    this.deleteAccountError,
   });
+
+  /// When set, [deleteAccount] throws it. An [AccountNotRevokedException] is
+  /// thrown after the local session is cleared, as the real service does.
+  final Object? deleteAccountError;
+  int deleteAccountCalls = 0;
 
   final AuthAccount? restored;
 
@@ -67,6 +78,59 @@ class _FakeAuthService implements AuthService {
     }
     _current = null;
   }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalls++;
+    final error = deleteAccountError;
+    if (error is AccountNotRevokedException) _current = null;
+    if (error != null) throw error;
+    _current = null;
+  }
+}
+
+/// The report as the screen reaches it: whether it holds an entry, its text,
+/// and how often it was cleared. Anything else falls to noSuchMethod.
+class _FakeErrorReportStore implements ErrorReportStore {
+  _FakeErrorReportStore({this.empty = true});
+
+  bool empty;
+  int clearCalls = 0;
+
+  @override
+  Future<bool> get isEmpty async => empty;
+
+  @override
+  Future<String> render({
+    required String appVersion,
+    required String osVersion,
+  }) async =>
+      'relatorio $appVersion';
+
+  @override
+  Future<void> clear() async {
+    clearCalls++;
+    empty = true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Records the report text handed to the share sheet, or fails as told.
+class _RecordingShareService implements ShareService {
+  String? sharedReport;
+  Exception? failure;
+
+  @override
+  Future<void> shareErrorReport(String text) async {
+    final error = failure;
+    if (error != null) throw error;
+    sharedReport = text;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 /// A connectivity source with a fixed reading, or one whose read throws.
@@ -92,15 +156,17 @@ Widget _app(
   Object? signInError,
   Object? signOutError,
   bool signOutClearsBeforeError = false,
+  _FakeAuthService? auth,
   SoilRecordRepository? repository,
-  _FakeAuthService? authService,
+  ErrorReportStore? errorReport,
+  ShareService? shareService,
   ConnectivityService connectivity =
       const _FakeConnectivityService(ConnectivityStatus.online),
 }) {
   return ProviderScope(
     overrides: [
       authServiceProvider.overrideWithValue(
-        authService ??
+        auth ??
             _FakeAuthService(
               account,
               signInError: signInError,
@@ -119,6 +185,10 @@ Widget _app(
       ),
       if (repository != null)
         soilRecordRepositoryProvider.overrideWithValue(repository),
+      errorReportStoreProvider
+          .overrideWithValue(errorReport ?? _FakeErrorReportStore()),
+      if (shareService != null)
+        shareServiceProvider.overrideWithValue(shareService),
     ],
     child: const MaterialApp(home: SettingsScreen()),
   );
@@ -164,7 +234,7 @@ void main() {
     final auth = _FakeAuthService(null);
     await tester.pumpWidget(_app(
       null,
-      authService: auth,
+      auth: auth,
       connectivity: const _FakeConnectivityService(ConnectivityStatus.offline),
     ));
     await tester.pumpAndSettle();
@@ -199,7 +269,7 @@ void main() {
     final auth = _FakeAuthService(null);
     await tester.pumpWidget(_app(
       null,
-      authService: auth,
+      auth: auth,
       connectivity: _FakeConnectivityService(
         ConnectivityStatus.offline,
         readError: Exception('plugin unavailable'),
@@ -276,6 +346,91 @@ void main() {
     expect(find.text('Entrar com Google'), findsOneWidget);
   });
 
+  group('account deletion (SPEC 0113)', () {
+    const agro = AuthAccount(email: 'agro@example.com', displayName: 'Agro');
+
+    testWidgets('settings_offers_account_deletion_only_when_signed_in',
+        (tester) async {
+      await tester.pumpWidget(_app(agro));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir conta'), findsOneWidget);
+
+      await tester.pumpWidget(_app(null));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir conta'), findsNothing);
+    });
+
+    testWidgets('confirming_excluir_conta_deletes_the_account',
+        (tester) async {
+      final auth = _FakeAuthService(agro);
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Apagar todos os dados'), findsWidgets,
+          reason: 'the confirmation names where the records are erased');
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(auth.deleteAccountCalls, 1);
+      expect(find.text('Conta excluída do VisioSoil.'), findsOneWidget);
+      expect(find.text('Entrar com Google'), findsOneWidget);
+    });
+
+    testWidgets('cancelling excluir conta deletes nothing', (tester) async {
+      final auth = _FakeAuthService(agro);
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(auth.deleteAccountCalls, 0);
+      expect(find.text('Agro'), findsOneWidget);
+    });
+
+    testWidgets('a_failed_revoke_says_where_to_revoke', (tester) async {
+      final auth = _FakeAuthService(
+        agro,
+        deleteAccountError: AccountNotRevokedException(Exception('offline')),
+      );
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('myaccount.google.com/connections'),
+          findsOneWidget);
+      expect(find.text(_failureMessage), findsNothing);
+      expect(find.text('Conta excluída do VisioSoil.'), findsNothing);
+      expect(find.text('Entrar com Google'), findsOneWidget);
+    });
+
+    testWidgets('any other failure keeps the account and the generic message',
+        (tester) async {
+      final auth = _FakeAuthService(
+        agro,
+        deleteAccountError: Exception('secure storage delete failed'),
+      );
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_failureMessage), findsOneWidget);
+      expect(find.text('Agro'), findsOneWidget);
+    });
+  });
+
   testWidgets('confirming apagar tudo deletes all records and shows a snackbar',
       (tester) async {
     final repository = FakeSoilRecordRepository();
@@ -294,9 +449,93 @@ void main() {
     expect(find.text('Todos os dados foram apagados.'), findsOneWidget);
   });
 
+  testWidgets('erasing_all_data_clears_the_error_report', (tester) async {
+    // SPEC 0110: the report is data the app keeps, so erasing everything
+    // erases it too, and the row then has nothing to send.
+    final report = _FakeErrorReportStore(empty: false);
+    await tester.pumpWidget(_app(
+      null,
+      repository: FakeSoilRecordRepository(),
+      errorReport: report,
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.errorReportNothingToSend), findsNothing);
+
+    await tester.tap(find.text('Apagar todos os dados'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apagar tudo'));
+    await tester.pumpAndSettle();
+
+    expect(report.clearCalls, 1);
+    expect(find.text(AppStrings.errorReportNothingToSend), findsOneWidget);
+  });
+
+  group('settings_shares_the_error_report', () {
+    // SPEC 0110: the row shares the report as a text file when it holds an
+    // entry, and is disabled, saying so, when it holds none.
+    testWidgets('with entries, the row shares the rendered report',
+        (tester) async {
+      final share = _RecordingShareService();
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(empty: false),
+        shareService: share,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.errorReportPrivacy), findsOneWidget);
+      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.pumpAndSettle();
+
+      expect(share.sharedReport, 'relatorio 2.0.0+2');
+    });
+
+    testWidgets('without entries, the row is disabled and says so',
+        (tester) async {
+      final share = _RecordingShareService();
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(),
+        shareService: share,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.errorReportNothingToSend), findsOneWidget);
+      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.pumpAndSettle();
+
+      expect(share.sharedReport, isNull);
+    });
+
+    testWidgets('a failed share says so, without the error', (tester) async {
+      // R3 on #324: a failure must not pass in silence, and the raw
+      // exception never reaches the screen.
+      final share = _RecordingShareService()
+        ..failure = Exception('platform share failed');
+      await tester.pumpWidget(_app(
+        null,
+        errorReport: _FakeErrorReportStore(empty: false),
+        shareService: share,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.errorReportShareFailed), findsOneWidget);
+      expect(find.textContaining('platform share failed'), findsNothing);
+    });
+  });
+
   testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
     final repository = FakeSoilRecordRepository();
-    await tester.pumpWidget(_app(null, repository: repository));
+    final report = _FakeErrorReportStore(empty: false);
+    await tester.pumpWidget(
+      _app(null, repository: repository, errorReport: report),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Apagar todos os dados'));
@@ -306,6 +545,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.deleteAllCalls, 0);
+    expect(report.clearCalls, 0);
     expect(find.text('Todos os dados foram apagados.'), findsNothing);
   });
 }

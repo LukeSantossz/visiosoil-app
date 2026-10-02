@@ -9,6 +9,9 @@ abstract class GoogleSignInGateway {
   Future<AuthAccount?> signIn();
 
   Future<void> signOut();
+
+  /// Revokes the app's grant and signs out (SPEC 0113).
+  Future<void> disconnect();
 }
 
 /// `google_sign_in`-backed [GoogleSignInGateway].
@@ -35,4 +38,9 @@ class GoogleSignInGatewayImpl implements GoogleSignInGateway {
 
   @override
   Future<void> signOut() => _googleSignIn.signOut();
+
+  /// Revokes the grant through Play services' `revokeAccess`, which acts on
+  /// the last signed-in account even after an app restart.
+  @override
+  Future<void> disconnect() => _googleSignIn.disconnect();
 }

@@ -1,10 +1,13 @@
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
+import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -13,6 +16,8 @@ import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/error_report_provider.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Provider for app information (version, build).
@@ -92,6 +97,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => context.push('/onboarding'),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          const _ErrorReportTile(),
 
           const SizedBox(height: AppSpacing.xl),
 
@@ -121,8 +128,14 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirmed && context.mounted) {
-      await ref.read(soilRecordRepositoryProvider).deleteAll();
+      // Read before the first await: ref is unusable once the screen is gone.
+      final records = ref.read(soilRecordRepositoryProvider);
+      final errorReport = ref.read(errorReportStoreProvider);
+      await records.deleteAll();
+      // The report is data the app keeps, so it goes too (SPEC 0110).
+      await errorReport.clear();
       if (context.mounted) {
+        ref.invalidate(errorReportHasEntriesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todos os dados foram apagados.')),
         );
@@ -137,6 +150,12 @@ class SettingsScreen extends ConsumerWidget {
 /// silently swallowed. Kept in step with the literal in the widget test.
 const String _authFailureMessage =
     'Não foi possível concluir a operação. Tente novamente.';
+
+/// Shown when the account left the device but Google did not confirm revoking
+/// the grant (SPEC 0113): retrying is no longer possible from the app.
+const String _revokeFailureMessage =
+    'A conta saiu deste aparelho, mas o Google não confirmou a revogação. '
+    'Revogue o acesso em myaccount.google.com/connections.';
 
 /// Shown instead of starting a sign-in the device cannot complete offline
 /// (SPEC 0114). Kept in step with the literal in the widget test.
@@ -158,7 +177,13 @@ class _AccountTile extends ConsumerWidget {
     ref.listen(authNotifierProvider, (previous, next) {
       if (next.hasError && (previous?.isLoading ?? false)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(_authFailureMessage)),
+          SnackBar(
+            content: Text(
+              next.error is AccountNotRevokedException
+                  ? _revokeFailureMessage
+                  : _authFailureMessage,
+            ),
+          ),
         );
       }
     });
@@ -191,14 +216,50 @@ class _AccountTile extends ConsumerWidget {
     AuthAccount? account,
   ) {
     if (account == null) return _signInTile(context, ref);
-    return _SettingsTile(
-      icon: Icons.account_circle_outlined,
-      title: account.displayName ?? account.email,
-      trailing: TextButton(
-        onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
-        child: const Text('Sair'),
-      ),
+    return Column(
+      children: [
+        _SettingsTile(
+          icon: Icons.account_circle_outlined,
+          title: account.displayName ?? account.email,
+          trailing: TextButton(
+            onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+            child: const Text('Sair'),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _SettingsTile(
+          icon: Icons.person_remove_outlined,
+          title: 'Excluir conta',
+          iconColor: context.palette.error,
+          titleColor: context.palette.error,
+          onTap: () => _confirmDeleteAccount(context, ref),
+        ),
+      ],
     );
+  }
+
+  /// Deletes the account behind the shared confirmation (SPEC 0113). The
+  /// records stay, and the confirmation says where they are erased.
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Excluir conta',
+      message: 'Sua conta Google será desconectada do VisioSoil e o acesso '
+          'concedido ao app será revogado. Seus registros de solo continuam '
+          'neste aparelho; para apagá-los, use "Apagar todos os dados".',
+      confirmLabel: 'Excluir conta',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    // Read before the await: ref is unusable once the screen is gone.
+    final auth = ref.read(authNotifierProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    // A failure is reported by the listener in build.
+    if (await auth.deleteAccount()) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Conta excluída do VisioSoil.')),
+      );
+    }
   }
 
   Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
@@ -264,6 +325,60 @@ class _ThemeModeSelector extends ConsumerWidget {
   }
 }
 
+// --- Error Report ---
+
+/// Shares the local report of uncaught errors (SPEC 0110). Enabled only when
+/// the report holds an entry; nothing leaves the phone unless the user shares.
+class _ErrorReportTile extends ConsumerWidget {
+  const _ErrorReportTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasEntries = ref.watch(errorReportHasEntriesProvider).value ?? false;
+    return _SettingsTile(
+      icon: Icons.bug_report_outlined,
+      title: AppStrings.errorReportTitle,
+      subtitle: AppStrings.errorReportPrivacy,
+      trailing: hasEntries
+          ? Icon(
+              Icons.share_outlined,
+              size: 20,
+              color: context.palette.onSurfaceVariant,
+            )
+          : Text(
+              AppStrings.errorReportNothingToSend,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.palette.onSurfaceVariant,
+                  ),
+            ),
+      onTap: hasEntries ? () => _share(context, ref) : null,
+    );
+  }
+
+  /// Hands the report to the share sheet as a text file. It names the build
+  /// and the OS version, and no device identifier or account. A failure is
+  /// said on screen without its cause.
+  Future<void> _share(BuildContext context, WidgetRef ref) async {
+    // Read before the first await: ref is unusable once the screen is gone.
+    final errorReport = ref.read(errorReportStoreProvider);
+    final share = ref.read(shareServiceProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final pkg = await ref.read(packageInfoProvider.future);
+      final text = await errorReport.render(
+        appVersion: '${pkg.version}+${pkg.buildNumber}',
+        osVersion:
+            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      );
+      await share.shareErrorReport(text);
+    } on Exception {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.errorReportShareFailed)),
+      );
+    }
+  }
+}
+
 // --- Section Header ---
 
 class _SectionHeader extends StatelessWidget {
@@ -290,6 +405,7 @@ class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailing,
     this.onTap,
     this.iconColor,
@@ -298,6 +414,7 @@ class _SettingsTile extends StatelessWidget {
 
   final IconData icon;
   final String title;
+  final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
   final Color? iconColor;
@@ -329,11 +446,23 @@ class _SettingsTile extends StatelessWidget {
               Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: titleColor,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: titleColor,
+                      ),
+                    ),
+                    if (subtitle case final subtitle?)
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: context.palette.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               ?trailing,

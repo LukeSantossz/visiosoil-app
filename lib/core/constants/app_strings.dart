@@ -22,4 +22,24 @@ abstract final class AppStrings {
   static const String lostCaptureUnrecoverable =
       'Não foi possível recuperar a foto da última captura. '
       'Capture a amostra novamente.';
+
+  /// Settings' row that shares the local report of uncaught errors (SPEC 0110).
+  static const String errorReportTitle = 'Relatório de erros';
+
+  /// Under the row, whatever the report holds: nothing leaves the phone unless
+  /// the user shares it.
+  static const String errorReportPrivacy =
+      'Fica só no aparelho. Nada é enviado sem você compartilhar.';
+
+  /// The row's trailing text when the report holds no entry.
+  static const String errorReportNothingToSend = 'Nada a enviar';
+
+  /// The caption the share sheet carries with the report file.
+  static const String errorReportShareCaption =
+      'Relatório de erros do VisioSoil.';
+
+  /// Shown when the report could not be shared. It names no cause, since the
+  /// exception's text is not for the screen.
+  static const String errorReportShareFailed =
+      'Não foi possível compartilhar o relatório. Tente novamente.';
 }

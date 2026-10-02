@@ -4,11 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
+import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
+import 'package:visiosoil_app/providers/error_report_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // First, so an error anywhere after it reaches the report Settings shares
+  // (SPEC 0110).
+  final errorReport = ErrorReportStore();
+  installErrorReporting(errorReport);
   // Read before the first frame, so it is already in the chosen theme
   // (SPEC 0107).
   final themeMode = await restoreThemeMode(
@@ -16,7 +22,10 @@ Future<void> main() async {
     defaultNightModeSync(),
   );
   runApp(ProviderScope(
-    overrides: [initialThemeModeProvider.overrideWithValue(themeMode)],
+    overrides: [
+      initialThemeModeProvider.overrideWithValue(themeMode),
+      errorReportStoreProvider.overrideWithValue(errorReport),
+    ],
     child: const VisioSoilApp(),
   ));
 }
