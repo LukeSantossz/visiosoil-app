@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
@@ -168,7 +168,7 @@ class _TipsLoading extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: AppColors.onSurfaceVariant),
+                ?.copyWith(color: context.palette.onSurfaceVariant),
           ),
         ],
       ),
@@ -218,7 +218,7 @@ class _TipsData extends StatelessWidget {
         Text(
           'Atualizado em ${Formatters.timestamp(result.retrievedAt.toLocal().toIso8601String())}',
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: AppColors.onSurfaceVariant),
+              ?.copyWith(color: context.palette.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.md),
         VisioButton(
@@ -255,9 +255,9 @@ class _TipCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(color: context.palette.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,14 +290,14 @@ class _CitationChip extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
+        color: context.palette.primaryContainer,
         borderRadius: AppRadius.borderRadiusPill,
       ),
       child: Text(
         '[$label]',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: AppColors.onPrimaryContainer,
+              color: context.palette.onPrimaryContainer,
             ),
       ),
     );
@@ -318,7 +318,7 @@ class _SourcesList extends StatelessWidget {
         Text(
           'Fontes',
           style: theme.textTheme.labelLarge
-              ?.copyWith(color: AppColors.onSurfaceVariant),
+              ?.copyWith(color: context.palette.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < sources.length; i++) ...[
@@ -350,7 +350,7 @@ class _SourceTile extends StatelessWidget {
         Text(
           source.url,
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: AppColors.onSurfaceVariant),
+              ?.copyWith(color: context.palette.onSurfaceVariant),
         ),
       ],
     );
@@ -368,20 +368,20 @@ class _DisclaimerBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.warningContainer,
+        color: context.palette.warningContainer,
         borderRadius: AppRadius.borderRadiusMd,
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+        border: Border.all(color: context.palette.warning.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 20, color: AppColors.warning),
+          Icon(Icons.info_outline, size: 20, color: context.palette.warning),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
               style:
-                  theme.textTheme.bodySmall?.copyWith(color: AppColors.onSurface),
+                  theme.textTheme.bodySmall?.copyWith(color: context.palette.onSurface),
             ),
           ),
         ],

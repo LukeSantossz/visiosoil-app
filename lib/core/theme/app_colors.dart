@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 /// VisioSoil color palette following Material Design 3
 /// with earthy and green tones evoking soil and agriculture.
+///
+/// These are the light theme's values. Only `lib/core/theme/` reads them;
+/// widgets read `context.palette`, which also carries the dark theme's
+/// (SPEC 0107).
 abstract final class AppColors {
   // Primary - Earthy green
   static const Color primary = Color(0xFF4A7C59);
@@ -66,36 +70,4 @@ abstract final class AppColors {
   static const Color soilMedium = Color(0xFF9C7B4F);
   static const Color soilClay = Color(0xFF7A4E2D);
   static const Color soilVeryClay = Color(0xFF5B3518);
-
-  /// ColorScheme for use with ThemeData
-  static ColorScheme get colorScheme => const ColorScheme(
-        brightness: Brightness.light,
-        primary: primary,
-        onPrimary: onPrimary,
-        primaryContainer: primaryContainer,
-        onPrimaryContainer: onPrimaryContainer,
-        secondary: secondary,
-        onSecondary: onSecondary,
-        secondaryContainer: secondaryContainer,
-        onSecondaryContainer: onSecondaryContainer,
-        tertiary: tertiary,
-        onTertiary: onTertiary,
-        tertiaryContainer: tertiaryContainer,
-        onTertiaryContainer: onTertiaryContainer,
-        error: error,
-        onError: onError,
-        errorContainer: errorContainer,
-        onErrorContainer: onErrorContainer,
-        surface: surface,
-        onSurface: onSurface,
-        surfaceContainerHighest: surfaceVariant,
-        onSurfaceVariant: onSurfaceVariant,
-        outline: outline,
-        outlineVariant: outlineVariant,
-        shadow: shadow,
-        scrim: scrim,
-        inverseSurface: inverseSurface,
-        onInverseSurface: onInverseSurface,
-        inversePrimary: inversePrimary,
-      );
 }

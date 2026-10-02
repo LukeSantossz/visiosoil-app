@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launch windows' background in night mode: AppPalette.dark.background.
+         Every launch style takes @color/launch_background, so the window before
+         Android 12, the Android 12+ splash and the window behind Flutter all
+         resolve this in night mode. The tile keeps the brand colours from
+         values/colors.xml. test/android_launch_screen_test.dart pins it
+         (SPEC 0107). -->
+    <color name="launch_background">#121411</color>
+</resources>

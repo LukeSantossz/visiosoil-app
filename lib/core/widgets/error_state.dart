@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// Reusable widget for displaying an error state with a retry button.
@@ -28,7 +28,7 @@ class ErrorState extends StatelessWidget {
             Icon(
               icon,
               size: 48,
-              color: AppColors.error.withValues(alpha: 0.7),
+              color: context.palette.error.withValues(alpha: 0.7),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 /// Confidence ranges for texture classification.
 ///
@@ -31,18 +31,18 @@ enum ConfidenceLevel {
         ConfidenceLevel.low => 'Baixa',
       };
 
-  /// Badge background color.
-  Color get backgroundColor => switch (this) {
-        ConfidenceLevel.high => AppColors.primaryContainer,
-        ConfidenceLevel.moderate => AppColors.warningContainer,
-        ConfidenceLevel.low => AppColors.errorContainer,
+  /// Badge background color in [palette]'s theme.
+  Color backgroundColor(AppPalette palette) => switch (this) {
+        ConfidenceLevel.high => palette.primaryContainer,
+        ConfidenceLevel.moderate => palette.warningContainer,
+        ConfidenceLevel.low => palette.errorContainer,
       };
 
-  /// Badge text/icon color.
-  Color get foregroundColor => switch (this) {
-        ConfidenceLevel.high => AppColors.onPrimaryContainer,
-        ConfidenceLevel.moderate => AppColors.onWarningContainer,
-        ConfidenceLevel.low => AppColors.onErrorContainer,
+  /// Badge text/icon color in [palette]'s theme.
+  Color foregroundColor(AppPalette palette) => switch (this) {
+        ConfidenceLevel.high => palette.onPrimaryContainer,
+        ConfidenceLevel.moderate => palette.onWarningContainer,
+        ConfidenceLevel.low => palette.onErrorContainer,
       };
 
   /// Icon representing the level.

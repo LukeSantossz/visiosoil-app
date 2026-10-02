@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// Reusable widget for displaying a permission denied state.
@@ -48,13 +48,13 @@ class PermissionDeniedView extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
+                color: context.palette.warning.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 40,
-                color: AppColors.warning,
+                color: context.palette.warning,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),

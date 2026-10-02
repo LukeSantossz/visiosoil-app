@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -19,25 +19,27 @@ class _OnboardingStep {
   final IconData icon;
   final String title;
   final String description;
-  final Color color;
+
+  /// The step's accent, taken from the theme it is drawn under (SPEC 0107).
+  final Color Function(AppPalette) color;
 }
 
 // The capture protocol the A4-sheet reader assumes, one point per step
 // (ADR 0017, SPEC 0104). A photograph taken any other way is refused by name.
-const _steps = [
+final _steps = [
   _OnboardingStep(
     icon: Icons.description_outlined,
     title: 'Folha A4',
     description:
         'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
         'mais escura que o papel. Não coloque mais nada sobre ela.',
-    color: AppColors.primary,
+    color: (p) => p.primary,
   ),
   _OnboardingStep(
     icon: Icons.blur_circular,
     title: 'Amostra',
     description: 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.',
-    color: AppColors.warning,
+    color: (p) => p.warning,
   ),
   _OnboardingStep(
     icon: Icons.photo_camera_outlined,
@@ -45,7 +47,7 @@ const _steps = [
     description:
         'Fotografe de cima, com a folha inteira no quadro e uma margem em '
         'volta, em luz difusa e sem flash.',
-    color: AppColors.secondary,
+    color: (p) => p.secondary,
   ),
 ];
 
@@ -99,7 +101,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.palette.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -142,8 +144,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: active
-                            ? AppColors.primary
-                            : AppColors.outlineVariant,
+                            ? context.palette.primary
+                            : context.palette.outlineVariant,
                         borderRadius: AppRadius.borderRadiusPill,
                       ),
                     ),
@@ -206,13 +208,13 @@ class _StepPage extends StatelessWidget {
             width: 160,
             height: 160,
             decoration: BoxDecoration(
-              color: step.color.withValues(alpha: 0.12),
+              color: step.color(context.palette).withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
               step.icon,
               size: 72,
-              color: step.color,
+              color: step.color(context.palette),
             ),
           ),
           const SizedBox(height: AppSpacing.xxl),
@@ -225,7 +227,7 @@ class _StepPage extends StatelessWidget {
           Text(
             step.description,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: context.palette.onSurfaceVariant,
               height: 1.6,
             ),
             textAlign: TextAlign.center,

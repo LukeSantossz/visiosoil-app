@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'app_palette.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
 
-/// Main VisioSoil theme.
+/// Main VisioSoil theme, in a light and a dark variant built from one
+/// definition over [AppPalette] (SPEC 0107).
 abstract final class AppTheme {
-  /// ThemeData light mode
-  static ThemeData get light => ThemeData(
+  static ThemeData get light => _build(AppPalette.light);
+
+  static ThemeData get dark => _build(AppPalette.dark);
+
+  static ThemeData _build(AppPalette p) => ThemeData(
         useMaterial3: true,
-        colorScheme: AppColors.colorScheme,
-        textTheme: AppTypography.textTheme,
+        brightness: p.brightness,
+        colorScheme: p.colorScheme,
+        textTheme: AppTypography.textThemeFor(p),
+        extensions: [p],
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.onSurface,
+          backgroundColor: p.surface,
+          foregroundColor: p.onSurface,
           elevation: 0,
           centerTitle: true,
           titleTextStyle: AppTypography.titleLarge.copyWith(
-            color: AppColors.onSurface,
+            color: p.onSurface,
           ),
         ),
-        scaffoldBackgroundColor: AppColors.background,
+        scaffoldBackgroundColor: p.background,
         cardTheme: CardThemeData(
-          color: AppColors.surface,
+          color: p.surface,
           elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.borderRadiusLg,
@@ -29,8 +35,8 @@ abstract final class AppTheme {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
+            backgroundColor: p.primary,
+            foregroundColor: p.onPrimary,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: AppRadius.borderRadiusPill,
@@ -40,58 +46,58 @@ abstract final class AppTheme {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
+            foregroundColor: p.primary,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: AppRadius.borderRadiusPill,
             ),
-            side: const BorderSide(color: AppColors.outlineVariant),
+            side: BorderSide(color: p.outlineVariant),
             textStyle: AppTypography.labelLarge,
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
+            foregroundColor: p.primary,
             textStyle: AppTypography.labelLarge,
           ),
         ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: p.primary,
+          foregroundColor: p.onPrimary,
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.onSurfaceVariant,
+          backgroundColor: p.surface,
+          selectedItemColor: p.primary,
+          unselectedItemColor: p.onSurfaceVariant,
           selectedLabelStyle: AppTypography.labelMedium,
           unselectedLabelStyle: AppTypography.labelMedium,
           type: BottomNavigationBarType.fixed,
         ),
         navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.primaryContainer,
+          backgroundColor: p.surface,
+          indicatorColor: p.primaryContainer,
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
               return AppTypography.labelMedium.copyWith(
-                color: AppColors.primary,
+                color: p.primary,
                 fontWeight: FontWeight.w700,
               );
             }
             return AppTypography.labelMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: p.onSurfaceVariant,
             );
           }),
           iconTheme: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(color: AppColors.primary);
+              return IconThemeData(color: p.primary);
             }
-            return const IconThemeData(color: AppColors.onSurfaceVariant);
+            return IconThemeData(color: p.onSurfaceVariant);
           }),
         ),
         snackBarTheme: SnackBarThemeData(
-          backgroundColor: AppColors.inverseSurface,
+          backgroundColor: p.inverseSurface,
           contentTextStyle: AppTypography.bodyMedium.copyWith(
-            color: AppColors.onInverseSurface,
+            color: p.onInverseSurface,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.borderRadiusSm,
@@ -99,23 +105,23 @@ abstract final class AppTheme {
           behavior: SnackBarBehavior.floating,
         ),
         dialogTheme: DialogThemeData(
-          backgroundColor: AppColors.surface,
+          backgroundColor: p.surface,
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.borderRadiusXl,
           ),
           titleTextStyle: AppTypography.headlineSmall.copyWith(
-            color: AppColors.onSurface,
+            color: p.onSurface,
           ),
           contentTextStyle: AppTypography.bodyMedium.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: p.onSurfaceVariant,
           ),
         ),
-        dividerTheme: const DividerThemeData(
-          color: AppColors.outlineVariant,
+        dividerTheme: DividerThemeData(
+          color: p.outlineVariant,
           thickness: 1,
         ),
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: AppColors.primary,
+        progressIndicatorTheme: ProgressIndicatorThemeData(
+          color: p.primary,
         ),
       );
 }

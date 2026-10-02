@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/classification_header.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
@@ -142,20 +142,20 @@ class _HeroImageAppBar extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 280,
       pinned: true,
-      backgroundColor: AppColors.surface,
-      foregroundColor: AppColors.onSurface,
+      backgroundColor: context.palette.surface,
+      foregroundColor: context.palette.onSurface,
       flexibleSpace: FlexibleSpaceBar(
         background: Image.file(
           imageFile,
           fit: BoxFit.cover,
           cacheHeight: cacheH,
           errorBuilder: (_, _, _) => Container(
-            color: AppColors.surfaceVariant,
-            child: const Center(
+            color: context.palette.surfaceVariant,
+            child: Center(
               child: Icon(
                 Icons.broken_image,
                 size: 48,
-                color: AppColors.onSurfaceVariant,
+                color: context.palette.onSurfaceVariant,
               ),
             ),
           ),
