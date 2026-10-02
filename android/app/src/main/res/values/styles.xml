@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting, in
-         light and dark mode alike: the app is light-only, so a dark launch
-         window would itself flash at the first frame (SPEC 0089). Android 12
-         and later read values-v31 instead. -->
+    <!-- Theme applied to the Android Window while the process is starting. Its
+         background is @color/launch_background, which values-night overrides,
+         so the window opens on the theme the app draws in (SPEC 0089,
+         SPEC 0107). Android 12 and later read values-v31 instead. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <!-- Show a splash screen on the activity. Automatically removed when
              the Flutter engine draws its first frame -->

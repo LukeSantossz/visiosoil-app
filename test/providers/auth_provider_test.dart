@@ -46,9 +46,6 @@ class _FakeAuthService implements AuthService {
     if (error != null) throw error;
     _current = null;
   }
-
-  @override
-  Future<String?> accessToken() async => null;
 }
 
 ProviderContainer _containerWith(_FakeAuthService fake) {

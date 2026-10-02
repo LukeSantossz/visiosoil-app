@@ -119,7 +119,9 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 lib/
 ├── main.dart                          # Entry: ProviderScope + MaterialApp.router
 ├── core/
-│   ├── theme/                         # AppTheme.light, AppColors, AppTypography, AppSpacing,
+│   ├── theme/                         # AppTheme.light + .dark, AppPalette (the colour roles
+│   │                                  #   widgets read, light and dark), AppColors (light
+│   │                                  #   values; read only here), AppTypography, AppSpacing,
 │   │                                  #   AppRadius, SoilTextureColors
 │   ├── routes/app_router.dart         # GoRouter config (7 routes + errorBuilder)
 │   ├── constants/app_strings.dart     # Centralized pt-BR UI strings
@@ -132,7 +134,9 @@ lib/
 │   │   │                              #   share_service.dart + share_content_builder.dart,
 │   │   │                              #   connectivity_service.dart, permission_service.dart,
 │   │   │                              #   sync_engine.dart, lost_capture_service.dart (a photo
-│   │   │                              #   Android lost to a restart, read on arriving home)
+│   │   │                              #   Android lost to a restart, read on arriving home),
+│   │   │                              #   appearance_store.dart (theme choice + the channel
+│   │   │                              #   Android's launch night mode reads)
 │   │   ├── auth/                      # AuthService, GoogleAuthService, GoogleSignInGateway,
 │   │   │                              #   SecureCredentialStore, KeyValueSecureStorage
 │   │   ├── region/                    # SiteResolver, GridSiteResolver + PackedGrid (VSG1),
@@ -152,11 +156,11 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 16 files declaring 28 providers (database, repository,
+└── providers/                         # 17 files declaring 32 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, lost capture, plus the history filter/search and
-                                       #   derived-stats providers)
+                                       #   storage, lost capture, appearance, plus the history
+                                       #   filter/search and derived-stats providers)
 ```
 
 ### Database Schema (v7)
@@ -208,7 +212,6 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 - The model's class list is four (ADR 0016, SPEC 0046) and the archive's vocabulary is five; `src.manifest.ARCHIVE_CLASSES` is what a manifest row may say and `cfg["classes"]` is what the model emits. The shipped contract's classes are asserted against `ml/config.yaml` by `test/standards/class_list_test.dart` (SPEC 0048, SPEC 0083), so the two languages can no longer drift. What remains is that several Python test modules still carry their own five-entry literal of the *archive* vocabulary, tied to `ARCHIVE_CLASSES` only in `test_manifest.py`
 - `ClassificationVerdict` (ADR 0011) and `ImageQualityAnalyzer` (SPEC 0030) are implemented and tested with zero production callers, each waiting on a wiring spec — the UI/UX terminal's roadmap items 2 and 6 respectively. Both are deliberate, and both are recorded in their specs' Scope
 - The corpus build carries **six modules that shipped ahead of their own Spec Gate** — `corpus/src/keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py` and `search.py`. SPEC 0071's Scope excludes them explicitly, and no other spec covers them. `mf check spec` passes anyway, so **the gate detects a missing specification but not code that outruns one**. Three of them — `keys.py`, `embrapa_units.py` and `search.py` — also have no production caller until the full corpus build lands
-- `TipsCoverage` reports `substanceIsGeneric: true` and `clayActivity: null` even when the composition reached a **family-specific** substance cell through `clayActivityDefaultByBiome`. The assumed family reaches no output field, so the reader cannot tell a generic answer from one inferred from biome — the proxy the 2026-09-11 agronomic review found lossy and ADR 0022 re-keyed away from. Pinned by `golden.json`'s `generic_substance_from_the_biome_default` case; fixing it is a contract change and is tracked as #246
 
 <!-- mf:role reviewer -->
 ## Reviewing here

@@ -26,33 +26,17 @@ class _InMemorySecureStorage implements KeyValueSecureStorage {
 void main() {
   group('AuthSession', () {
     test('auth_session_json_roundtrip', () {
-      final session = AuthSession(
+      const session = AuthSession(
         email: 'agro@example.com',
         displayName: 'Agro Nomo',
-        accessToken: 'token-abc',
-        expiresAt: DateTime.utc(2026, 6, 15, 12),
       );
 
       final restored = AuthSession.fromJson(session.toJson());
 
       expect(restored.email, session.email);
       expect(restored.displayName, session.displayName);
-      expect(restored.accessToken, session.accessToken);
-      expect(restored.expiresAt, session.expiresAt);
-    });
-
-    test('auth_session_reports_expiry_against_clock', () {
-      final session = AuthSession(
-        email: 'a@b.com',
-        displayName: null,
-        accessToken: 't',
-        expiresAt: DateTime.utc(2026, 6, 15, 12),
-      );
-
-      expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 13)), isTrue);
-      expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 11)), isFalse);
-      // Exactly at expiry counts as expired (conservative boundary).
-      expect(session.isExpiredAt(DateTime.utc(2026, 6, 15, 12)), isTrue);
+      // SPEC 0106: the session is the account, and holds no token.
+      expect(session.toJson().keys, ['email', 'displayName']);
     });
   });
 
@@ -71,18 +55,16 @@ void main() {
     });
 
     test('secure_credential_store_persists_and_clears_session', () async {
-      final session = AuthSession(
+      const session = AuthSession(
         email: 'agro@example.com',
         displayName: 'Agro Nomo',
-        accessToken: 'token-abc',
-        expiresAt: DateTime.utc(2026, 6, 15, 12),
       );
 
       await store.save(session);
       final read = await store.read();
       expect(read, isNotNull);
       expect(read!.email, 'agro@example.com');
-      expect(read.accessToken, 'token-abc');
+      expect(read.displayName, 'Agro Nomo');
 
       await store.clear();
       expect(await store.read(), isNull);
@@ -110,25 +92,32 @@ void main() {
     test(
         'secure_credential_store_returns_null_when_a_required_field_is_missing_or_mistyped',
         () async {
-      // email absent and accessToken numeric: both fail the cast inside fromJson.
-      await storage.write(
-        sessionKey,
-        '{"displayName": "A", "accessToken": 42, '
-            '"expiresAt": "2026-06-15T12:00:00.000Z"}',
-      );
+      // email absent, then numeric: both fail the cast inside fromJson.
+      await storage.write(sessionKey, '{"displayName": "A"}');
+      expect(await store.read(), isNull);
 
+      await storage.write(sessionKey, '{"email": 42, "displayName": "A"}');
       expect(await store.read(), isNull);
     });
 
-    test('secure_credential_store_returns_null_when_expires_at_is_unparseable',
-        () async {
+    test('a_session_saved_before_0106_loses_its_token_on_read', () async {
+      // The shape every session had before SPEC 0106, token and expiry included.
       await storage.write(
         sessionKey,
-        '{"email": "a@b.com", "displayName": null, "accessToken": "t", '
-            '"expiresAt": "not-a-date"}',
+        '{"email": "agro@example.com", "displayName": "Agro", '
+            '"accessToken": "ya29.legacy", '
+            '"expiresAt": "2026-06-15T12:00:00.000Z"}',
       );
 
-      expect(await store.read(), isNull);
+      final read = await store.read();
+
+      // The user stays signed in...
+      expect(read?.email, 'agro@example.com');
+      expect(read?.displayName, 'Agro');
+      // ...and the token and its expiry are gone from the device.
+      final stored =
+          jsonDecode((await storage.read(sessionKey))!) as Map<String, dynamic>;
+      expect(stored, {'email': 'agro@example.com', 'displayName': 'Agro'});
     });
 
     test('secure_credential_store_decode_failure_log_excludes_the_blob_contents',

@@ -102,6 +102,7 @@ enum EvidenceStrength {
 class TipsCoverage {
   const TipsCoverage({
     this.clayActivity,
+    this.clayActivityAssumed = false,
     required this.substanceIsGeneric,
     this.unit,
     required this.unitLayerPresent,
@@ -110,11 +111,18 @@ class TipsCoverage {
     required this.landUseLayerPresent,
   });
 
-  /// The clay-activity family the substance layer was keyed by, or null when the
-  /// grid could not resolve it.
+  /// The clay-activity family the substance lookup used: the grid's when it
+  /// resolved one, otherwise the biome default's, otherwise null.
   final String? clayActivity;
 
-  /// True when [clayActivity] was null and a generic cell answered instead.
+  /// True when the biome default supplied [clayActivity] rather than the grid
+  /// (SPEC 0108). Biome is a lossy proxy for clay activity, so a reader is told
+  /// when the family was assumed. Absent from a result cached before then, and
+  /// read as false.
+  final bool clayActivityAssumed;
+
+  /// True when no family was known, so no family-specific substance cell could
+  /// answer. A cell reached through the biome default is not generic.
   final bool substanceIsGeneric;
 
   final String? unit;
@@ -125,6 +133,7 @@ class TipsCoverage {
 
   Map<String, dynamic> toJson() => {
         'clayActivity': clayActivity,
+        'clayActivityAssumed': clayActivityAssumed,
         'substanceIsGeneric': substanceIsGeneric,
         'unit': unit,
         'unitLayerPresent': unitLayerPresent,
@@ -135,6 +144,7 @@ class TipsCoverage {
 
   factory TipsCoverage.fromJson(Map<String, dynamic> json) => TipsCoverage(
         clayActivity: json['clayActivity'] as String?,
+        clayActivityAssumed: json['clayActivityAssumed'] as bool? ?? false,
         substanceIsGeneric: json['substanceIsGeneric'] as bool? ?? false,
         unit: json['unit'] as String?,
         unitLayerPresent: json['unitLayerPresent'] as bool? ?? false,

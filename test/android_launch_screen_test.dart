@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 
 /// Guards the native launch screen against the Dart splash it hands over to
@@ -266,6 +267,45 @@ void main() {
       expect(text, isNot(contains('Theme.Black')), reason: file.path);
       expect(text, isNot(contains('?android:colorBackground')), reason: file.path);
     }
+  });
+
+  test('the_launch_follows_night_resources', () {
+    // In night mode the launch windows resolve @color/launch_background from
+    // values-night, so they open on the dark theme's background (SPEC 0107).
+    final colours = RegExp(
+      r'<color name="([^"]+)">#([0-9A-Fa-f]{6,8})</color>',
+    ).allMatches(read('values-night/colors.xml')).toList();
+    expect(colours.map((m) => m.group(1)), ['launch_background'],
+        reason: 'the tile keeps the brand colours in both modes');
+    final hex = colours.single.group(2)!;
+    final value = int.parse(hex, radix: 16);
+    expect(
+      Color(hex.length == 6 ? 0xFF000000 | value : value),
+      AppPalette.dark.background,
+    );
+
+    expect(
+      style(read('values/styles.xml'), 'NormalTheme')['android:windowBackground'],
+      '@color/launch_background',
+    );
+    expect(
+      style(read('values-v31/styles.xml'), 'LaunchTheme')
+          ['android:windowSplashScreenBackground'],
+      '@color/launch_background',
+    );
+
+    // A night-qualified styles file would shadow every pin above.
+    final nightStyles = Directory(res)
+        .listSync()
+        .whereType<Directory>()
+        .where((d) => d.uri.pathSegments
+            .lastWhere((s) => s.isNotEmpty)
+            .split('-')
+            .contains('night'))
+        .expand((d) => d.listSync())
+        .whereType<File>()
+        .where((f) => f.uri.pathSegments.last == 'styles.xml');
+    expect(nightStyles, isEmpty);
   });
 
   test('android_12_splash_leaves_without_the_exit_animation', () {

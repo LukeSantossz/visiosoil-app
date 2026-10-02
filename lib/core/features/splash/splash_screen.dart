@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -86,7 +86,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // native window cannot be seen (SPEC 0089). Only what that window does not
     // show animates in: the text below the tile, and the tile's shadow.
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.palette.background,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final tileBottom =
@@ -101,18 +101,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     width: SplashScreen.logoTileSize,
                     height: SplashScreen.logoTileSize,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [AppColors.primary, AppColors.tertiary],
+                        // The brand mark, as the native window draws it, in
+                        // both themes (SPEC 0107).
+                        colors: [
+                          context.palette.brand,
+                          context.palette.brandTileEnd,
+                        ],
                       ),
                       borderRadius:
                           BorderRadius.circular(SplashScreen.logoTileRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.shadowBrand.withValues(
-                            alpha:
-                                AppColors.shadowBrand.a * _fadeAnimation.value,
+                          color: context.palette.shadowBrand.withValues(
+                            alpha: context.palette.shadowBrand.a *
+                                _fadeAnimation.value,
                           ),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
@@ -149,7 +154,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       Text(
                         'Análise de textura do solo',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: context.palette.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxl),
@@ -160,14 +165,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.primary,
+                            color: context.palette.primary,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           'Iniciando...',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.onSurfaceVariant,
+                            color: context.palette.onSurfaceVariant,
                           ),
                         ),
                       ],

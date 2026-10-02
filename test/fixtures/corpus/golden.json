@@ -106,6 +106,7 @@
         "followUpQuestions": ["[EXEMPLO] Qual o histórico de calagem?"],
         "coverage": {
           "clayActivity": "tb_oxidic",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": "BR-SP",
           "unitLayerPresent": true,
@@ -153,6 +154,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": "intermediate",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": null,
           "unitLayerPresent": false,
@@ -200,6 +202,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": "intermediate",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": null,
           "unitLayerPresent": false,
@@ -240,6 +243,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": "ta_less_weathered",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": null,
           "unitLayerPresent": false,
@@ -320,6 +324,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": "ta_less_weathered",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": "BR-SP",
           "unitLayerPresent": true,
@@ -330,7 +335,7 @@
       }
     },
     {
-      "name": "generic_substance_from_the_biome_default",
+      "name": "family_specific_substance_from_the_biome_default",
       "input": {
         "textureClass": "Argilosa",
         "clayActivity": null,
@@ -397,13 +402,86 @@
         "alerts": ["[EXEMPLO] Alerta da camada institucional."],
         "followUpQuestions": ["[EXEMPLO] Qual o histórico de calagem?"],
         "coverage": {
-          "clayActivity": null,
-          "substanceIsGeneric": true,
+          "clayActivity": "tb_oxidic",
+          "clayActivityAssumed": true,
+          "substanceIsGeneric": false,
           "unit": null,
           "unitLayerPresent": false,
           "biome": "cerrado",
           "landUse": null,
           "landUseLayerPresent": false
+        }
+      }
+    },
+    {
+      "name": "generic_substance_while_the_overlays_answer",
+      "input": {
+        "textureClass": "Argilosa",
+        "clayActivity": null,
+        "unit": "BR-SP",
+        "biome": null,
+        "landUse": "pasture"
+      },
+      "expected": {
+        "status": "grounded",
+        "tips": [
+          {
+            "text": "[EXEMPLO] Sob pastagem, a compactação domina.",
+            "citations": [0],
+            "category": "preparation",
+            "evidenceStrength": "limited"
+          },
+          {
+            "text": "[EXEMPLO] Procure a extensão rural do estado.",
+            "citations": [2, 1],
+            "category": "other",
+            "evidenceStrength": null
+          }
+        ],
+        "sources": [
+          {
+            "title": "[EXEMPLO] Uso da terra",
+            "url": "https://example.org/uso",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Compartilhada",
+            "url": "https://example.org/compartilhada",
+            "publisher": "Fixture",
+            "date": null,
+            "accessedAt": null,
+            "tier": 2
+          },
+          {
+            "title": "[EXEMPLO] Agência estadual",
+            "url": "https://example.org/agencia",
+            "publisher": null,
+            "date": null,
+            "accessedAt": null,
+            "tier": 1
+          }
+        ],
+        "disclaimer": "[EXEMPLO] Orientação consultiva de fixture. Não substitui avaliação técnica presencial.",
+        "model": "corpus:fixture-2026.09.1",
+        "retrievedAt": "2026-09-10T00:00:00.000Z",
+        "corpusVersion": "fixture-2026.09.1",
+        "limitations": [
+          "[EXEMPLO] Não substitui análise laboratorial."
+        ],
+        "alerts": [],
+        "followUpQuestions": [],
+        "coverage": {
+          "clayActivity": null,
+          "clayActivityAssumed": false,
+          "substanceIsGeneric": true,
+          "unit": "BR-SP",
+          "unitLayerPresent": true,
+          "biome": null,
+          "landUse": "pasture",
+          "landUseLayerPresent": true
         }
       }
     },
@@ -429,6 +507,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": "tb_oxidic",
+          "clayActivityAssumed": false,
           "substanceIsGeneric": false,
           "unit": null,
           "unitLayerPresent": false,
@@ -460,6 +539,7 @@
         "followUpQuestions": [],
         "coverage": {
           "clayActivity": null,
+          "clayActivityAssumed": false,
           "substanceIsGeneric": true,
           "unit": null,
           "unitLayerPresent": false,

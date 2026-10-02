@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
@@ -29,21 +29,21 @@ class StatsGrid extends StatelessWidget {
             value: stats != null ? '${stats.totalRecords}' : '-',
             label: 'Análises',
             icon: Icons.layers,
-            color: AppColors.primary,
+            color: context.palette.primary,
           ),
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
             value: stats != null ? '${stats.distinctLocations}' : '-',
             label: 'Locais',
             icon: Icons.map_outlined,
-            color: AppColors.secondary,
+            color: context.palette.secondary,
           ),
           const SizedBox(width: AppSpacing.sm),
           _StatCard(
             value: stats?.formattedConfidence ?? '-',
             label: 'Confiança',
             icon: Icons.track_changes,
-            color: AppColors.tertiary,
+            color: context.palette.tertiary,
           ),
         ],
       ),
@@ -72,17 +72,17 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.palette.surface,
           borderRadius: AppRadius.borderRadiusLg,
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: AppColors.shadowCard,
+              color: context.palette.shadowCard,
               blurRadius: 3,
               offset: Offset(0, 1),
             ),
           ],
           border:
-              Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+              Border.all(color: context.palette.outlineVariant.withValues(alpha: 0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,7 +100,7 @@ class _StatCard extends StatelessWidget {
             Text(
               label,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: AppColors.onSurfaceVariant,
+                color: context.palette.onSurfaceVariant,
               ),
             ),
           ],

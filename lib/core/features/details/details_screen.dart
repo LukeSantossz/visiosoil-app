@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/classification_header.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
@@ -142,20 +142,41 @@ class _HeroImageAppBar extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 280,
       pinned: true,
-      backgroundColor: AppColors.surface,
-      foregroundColor: AppColors.onSurface,
+      backgroundColor: context.palette.surface,
+      foregroundColor: context.palette.onSurface,
+      // The back button sits over the photograph, whose top is the white A4
+      // sheet (ADR 0017), so it cannot take the theme's text colour. It takes
+      // the photo viewer's scrim instead, which reads in both themes
+      // (SPEC 0107).
+      leading: Navigator.canPop(context)
+          ? Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back),
+                color: Colors.white,
+                style: IconButton.styleFrom(backgroundColor: Colors.black45),
+              ),
+            )
+          : null,
       flexibleSpace: FlexibleSpaceBar(
-        background: Image.file(
-          imageFile,
-          fit: BoxFit.cover,
-          cacheHeight: cacheH,
-          errorBuilder: (_, _, _) => Container(
-            color: AppColors.surfaceVariant,
-            child: const Center(
-              child: Icon(
-                Icons.broken_image,
-                size: 48,
-                color: AppColors.onSurfaceVariant,
+        // Below the status bar, so its icons sit on the theme's surface rather
+        // than on the photograph.
+        background: Padding(
+          padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+          child: Image.file(
+            imageFile,
+            fit: BoxFit.cover,
+            cacheHeight: cacheH,
+            errorBuilder: (_, _, _) => Container(
+              color: context.palette.surfaceVariant,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image,
+                  size: 48,
+                  color: context.palette.onSurfaceVariant,
+                ),
               ),
             ),
           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -81,7 +81,7 @@ class HistoryFilterBar extends ConsumerWidget {
                   Icon(
                     Icons.error_outline,
                     size: 18,
-                    color: AppColors.error.withValues(alpha: 0.8),
+                    color: context.palette.error.withValues(alpha: 0.8),
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
@@ -156,14 +156,14 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onSelected(),
-      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      checkmarkColor: AppColors.primary,
+      selectedColor: context.palette.primary.withValues(alpha: 0.2),
+      checkmarkColor: context.palette.primary,
       labelStyle: theme.textTheme.labelMedium?.copyWith(
-        color: isSelected ? AppColors.primary : theme.colorScheme.onSurface,
+        color: isSelected ? context.palette.primary : theme.colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
       side: BorderSide(
-        color: isSelected ? AppColors.primary : theme.colorScheme.outline,
+        color: isSelected ? context.palette.primary : theme.colorScheme.outline,
       ),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       visualDensity: VisualDensity.compact,

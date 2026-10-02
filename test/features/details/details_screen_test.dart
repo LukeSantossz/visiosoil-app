@@ -6,6 +6,7 @@ import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
@@ -329,5 +330,63 @@ void main() {
 
     expect(find.text('Tentar novamente'), findsNothing);
     expect(find.text('Compartilhar'), findsOneWidget);
+  });
+
+  // ADR 0017's protocol puts a white sheet at the top of every photograph, so
+  // the header's controls cannot take the theme's text colour (SPEC 0107).
+  testWidgets('the_details_header_reads_over_any_photo', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 72);
+    addTearDown(tester.view.resetPadding);
+    final statusBar = 72 / tester.view.devicePixelRatio;
+
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordByIdProvider
+              .overrideWith((ref, id) async => _unlocatedRecord()),
+          managementTipsRepositoryProvider
+              .overrideWithValue(FakeManagementTipsRepository()),
+          researchServiceProvider.overrideWithValue(
+            FakeResearchService(
+              (_) async => const ResearchFailure(
+                ResearchFailureKind.upstreamUnavailable,
+              ),
+            ),
+          ),
+          connectivityServiceProvider.overrideWithValue(
+            FakeConnectivityService(ConnectivityStatus.online),
+          ),
+        ],
+        child: MaterialApp(
+          theme: theme,
+          home: const Scaffold(body: Text('HOST')),
+        ),
+      ));
+      // Pushed, as the app reaches it, so the header has a back button.
+      Navigator.of(tester.element(find.text('HOST'))).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const DetailsScreen(recordId: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final reason = '${theme.brightness}';
+
+      final back = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.arrow_back),
+        matching: find.byType(IconButton),
+      ));
+      expect(back.style?.backgroundColor?.resolve({}), Colors.black45,
+          reason: reason);
+      expect(back.color, Colors.white, reason: reason);
+
+      final photo = find.descendant(
+        of: find.byType(FlexibleSpaceBar),
+        matching: find.byType(Image),
+      );
+      expect(tester.getRect(photo).top, greaterThanOrEqualTo(statusBar),
+          reason: reason);
+
+      await tester.pumpWidget(const SizedBox());
+    }
   });
 }

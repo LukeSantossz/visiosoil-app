@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -64,16 +64,16 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
         border: Border.all(
-          color: AppColors.outlineVariant.withValues(alpha: 0.5),
+          color: context.palette.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
+          Icon(icon, size: 20, color: context.palette.primary),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -82,7 +82,7 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   title,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: context.palette.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -92,7 +92,7 @@ class _InfoTile extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.onSurfaceVariant,
+                      color: context.palette.onSurfaceVariant,
                     ),
                   ),
                 ],

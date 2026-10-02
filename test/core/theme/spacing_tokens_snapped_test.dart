@@ -42,7 +42,7 @@ void main() {
     test('hero_capture_card uses token radius/spacing and the brand glow', () {
       final src =
           _packed('lib/core/features/home/widgets/hero_capture_card.dart');
-      expect(src, contains('AppColors.shadowBrand'));
+      expect(src, contains('palette.shadowBrand'));
       expect(src, contains('EdgeInsets.all(AppSpacing.lg)'));
       expect(src, contains('AppRadius.borderRadiusXl'));
       expect(src, contains('AppRadius.borderRadiusPill'));
@@ -124,7 +124,7 @@ void main() {
       // the name is the xl token.
       expect(src, contains('logoTileRadius=AppRadius.xl'));
       expect(src, contains('circular(SplashScreen.logoTileRadius)'));
-      expect(src, contains('AppColors.shadowBrand'));
+      expect(src, contains('palette.shadowBrand'));
     });
 
     test('history_grid tokenizes its thumbnail radius to md', () {

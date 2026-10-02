@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -38,6 +39,13 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: AppSpacing.xl),
 
+          // --- Appearance ---
+          _SectionHeader(title: 'APARÊNCIA'),
+          const SizedBox(height: AppSpacing.sm),
+          const _ThemeModeSelector(),
+
+          const SizedBox(height: AppSpacing.xl),
+
           // --- About ---
           _SectionHeader(title: 'SOBRE'),
           const SizedBox(height: AppSpacing.sm),
@@ -48,7 +56,7 @@ class SettingsScreen extends ConsumerWidget {
               data: (pkg) => Text(
                 '${pkg.version}+${pkg.buildNumber}',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                  color: context.palette.onSurfaceVariant,
                 ),
               ),
               loading: () => const SizedBox(
@@ -59,7 +67,7 @@ class SettingsScreen extends ConsumerWidget {
               error: (_, _) => Text(
                 '-',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                  color: context.palette.onSurfaceVariant,
                 ),
               ),
             ),
@@ -73,10 +81,10 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.school_outlined,
             title: 'Como capturar bem',
-            trailing: const Icon(
+            trailing: Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: AppColors.onSurfaceVariant,
+              color: context.palette.onSurfaceVariant,
             ),
             onTap: () => context.push('/onboarding'),
           ),
@@ -89,8 +97,8 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.delete_forever_outlined,
             title: 'Apagar todos os dados',
-            iconColor: AppColors.error,
-            titleColor: AppColors.error,
+            iconColor: context.palette.error,
+            titleColor: context.palette.error,
             onTap: () => _confirmDeleteAll(context, ref),
           ),
         ],
@@ -163,13 +171,17 @@ class _AccountTile extends ConsumerWidget {
       // local credentials leaves the account present, so it must keep showing
       // the account instead of the sign-in affordance.
       error: (_, _) =>
-          _accountTile(ref, ref.read(authServiceProvider).currentAccount),
-      data: (state) => _accountTile(ref, state.account),
+          _accountTile(context, ref, ref.read(authServiceProvider).currentAccount),
+      data: (state) => _accountTile(context, ref, state.account),
     );
   }
 
-  Widget _accountTile(WidgetRef ref, AuthAccount? account) {
-    if (account == null) return _signInTile(ref);
+  Widget _accountTile(
+    BuildContext context,
+    WidgetRef ref,
+    AuthAccount? account,
+  ) {
+    if (account == null) return _signInTile(context, ref);
     return _SettingsTile(
       icon: Icons.account_circle_outlined,
       title: account.displayName ?? account.email,
@@ -180,16 +192,47 @@ class _AccountTile extends ConsumerWidget {
     );
   }
 
-  Widget _signInTile(WidgetRef ref) => _SettingsTile(
+  Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
         icon: Icons.login,
         title: 'Entrar com Google',
         onTap: () => ref.read(authNotifierProvider.notifier).signIn(),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: AppColors.onSurfaceVariant,
+          color: context.palette.onSurfaceVariant,
         ),
       );
+}
+
+// --- Theme Mode ---
+
+/// The theme choice: follow the system, or keep the app light or dark. It
+/// applies at once and persists (SPEC 0107).
+class _ThemeModeSelector extends ConsumerWidget {
+  const _ThemeModeSelector();
+
+  static const _labels = {
+    ThemeMode.system: 'Sistema',
+    ThemeMode.light: 'Claro',
+    ThemeMode.dark: 'Escuro',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        segments: [
+          for (final MapEntry(key: mode, value: label) in _labels.entries)
+            ButtonSegment(value: mode, label: Text(label)),
+        ],
+        selected: {ref.watch(themeModeProvider)},
+        onSelectionChanged: (selection) =>
+            ref.read(themeModeProvider.notifier).select(selection.single),
+      ),
+    );
+  }
 }
 
 // --- Section Header ---
@@ -206,7 +249,7 @@ class _SectionHeader extends StatelessWidget {
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
-            color: AppColors.onSurfaceVariant,
+            color: context.palette.onSurfaceVariant,
           ),
     );
   }
@@ -236,7 +279,7 @@ class _SettingsTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: AppColors.surface,
+      color: context.palette.surface,
       borderRadius: AppRadius.borderRadiusMd,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -248,13 +291,13 @@ class _SettingsTile extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             border: Border.all(
-              color: AppColors.outlineVariant.withValues(alpha: 0.5),
+              color: context.palette.outlineVariant.withValues(alpha: 0.5),
             ),
             borderRadius: AppRadius.borderRadiusMd,
           ),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: iconColor ?? AppColors.onSurfaceVariant),
+              Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(

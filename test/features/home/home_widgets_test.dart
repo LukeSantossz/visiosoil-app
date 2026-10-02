@@ -8,6 +8,8 @@ import 'package:visiosoil_app/core/features/home/widgets/hero_capture_card.dart'
 import 'package:visiosoil_app/core/features/home/widgets/home_greeting.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -149,5 +151,38 @@ void main() {
     expect(texts, isNot(contains('Aponte')));
     expect(texts, isNot(contains('INSTANTÂNEA')));
     expect(texts, isNot(contains('segundos')));
+  });
+
+  // The hero card is the brand mark, not a colour role: in dark mode `primary`
+  // is the pale accent, so the card keeps the brand green (SPEC 0107).
+  testWidgets('brand_surfaces_hold_in_both_themes', (tester) async {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      await tester.pumpWidget(MaterialApp(
+        theme: theme,
+        home: Scaffold(body: HeroCaptureCard(onCapture: () {})),
+      ));
+      final reason = '${theme.brightness}';
+
+      final fills = tester
+          .widgetList<Container>(find.descendant(
+            of: find.byType(HeroCaptureCard),
+            matching: find.byType(Container),
+          ))
+          .map((c) => (c.decoration as BoxDecoration?)?.color)
+          .whereType<Color>();
+      expect(fills, contains(AppPalette.light.brand), reason: reason);
+
+      final eyebrow = tester.widget<Text>(find.text('ANÁLISE NO APARELHO'));
+      expect(eyebrow.style?.color, AppPalette.light.onBrand, reason: reason);
+
+      final cta = tester.widget<ElevatedButton>(find.descendant(
+        of: find.byType(HeroCaptureCard),
+        matching: find.byWidgetPredicate((w) => w is ElevatedButton),
+      ));
+      expect(cta.style?.backgroundColor?.resolve({}), AppPalette.light.onBrand,
+          reason: reason);
+      expect(cta.style?.foregroundColor?.resolve({}), AppPalette.light.brand,
+          reason: reason);
+    }
   });
 }

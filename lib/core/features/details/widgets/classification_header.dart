@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
@@ -50,7 +50,7 @@ class _TextureNameRow extends StatelessWidget {
     final theme = Theme.of(context);
     final textureColor = record.hasClassification
         ? SoilTextureColors.forClass(record.textureClass!)
-        : AppColors.outline;
+        : context.palette.outline;
 
     return Row(
       children: [
@@ -86,7 +86,7 @@ class _BadgeTimestampRow extends StatelessWidget {
           _ConfidenceBadge(score: record.confidenceScore),
           const SizedBox(width: AppSpacing.md),
         ],
-        Icon(Icons.access_time, size: 14, color: AppColors.onSurfaceVariant),
+        Icon(Icons.access_time, size: 14, color: context.palette.onSurfaceVariant),
         const SizedBox(width: AppSpacing.xs),
         Flexible(
           child: Text(
@@ -94,7 +94,7 @@ class _BadgeTimestampRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: context.palette.onSurfaceVariant,
             ),
           ),
         ),
@@ -118,7 +118,7 @@ class _ConfidenceBadge extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(level.icon, size: 14, color: level.foregroundColor),
+        Icon(level.icon, size: 14, color: level.foregroundColor(context.palette)),
         const SizedBox(width: AppSpacing.xs),
         Container(
           padding: const EdgeInsets.symmetric(
@@ -126,14 +126,14 @@ class _ConfidenceBadge extends StatelessWidget {
             vertical: AppSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: level.backgroundColor,
+            color: level.backgroundColor(context.palette),
             borderRadius: AppRadius.borderRadiusPill,
           ),
           child: Text(
             '$pct% · ${level.label}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: level.foregroundColor,
+                  color: level.foregroundColor(context.palette),
                 ),
           ),
         ),
@@ -155,24 +155,24 @@ class _ConfidenceBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final borderColor =
-        level == ConfidenceLevel.low ? AppColors.error : AppColors.warning;
+        level == ConfidenceLevel.low ? context.palette.error : context.palette.warning;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: level.backgroundColor,
+        color: level.backgroundColor(context.palette),
         borderRadius: AppRadius.borderRadiusMd,
         border: Border.all(color: borderColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(level.icon, size: 20, color: level.foregroundColor),
+          Icon(level.icon, size: 20, color: level.foregroundColor(context.palette)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               message,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: level.foregroundColor,
+                color: level.foregroundColor(context.palette),
               ),
             ),
           ),

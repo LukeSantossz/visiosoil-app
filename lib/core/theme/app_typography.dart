@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'app_palette.dart';
 
 /// VisioSoil typographic scale.
 /// Display/titles: Manrope (bold, tight tracking)
@@ -113,19 +113,25 @@ abstract final class AppTypography {
         height: 1.45,
       );
 
-  /// TextTheme for use with ThemeData
-  static TextTheme get textTheme => TextTheme(
-        headlineLarge: headlineLarge.copyWith(color: AppColors.onBackground),
-        headlineMedium: headlineMedium.copyWith(color: AppColors.onBackground),
-        headlineSmall: headlineSmall.copyWith(color: AppColors.onBackground),
-        titleLarge: titleLarge.copyWith(color: AppColors.onBackground),
-        titleMedium: titleMedium.copyWith(color: AppColors.onBackground),
-        titleSmall: titleSmall.copyWith(color: AppColors.onBackground),
-        bodyLarge: bodyLarge.copyWith(color: AppColors.onBackground),
-        bodyMedium: bodyMedium.copyWith(color: AppColors.onBackground),
-        bodySmall: bodySmall.copyWith(color: AppColors.onSurfaceVariant),
-        labelLarge: labelLarge.copyWith(color: AppColors.onBackground),
-        labelMedium: labelMedium.copyWith(color: AppColors.onSurfaceVariant),
-        labelSmall: labelSmall.copyWith(color: AppColors.onSurfaceVariant),
-      );
+  /// The text theme for [palette]: text on the page in `onBackground`, and
+  /// the small print in `onSurfaceVariant`, so it follows the theme
+  /// (SPEC 0107).
+  static TextTheme textThemeFor(AppPalette palette) {
+    final ink = palette.onBackground;
+    final mute = palette.onSurfaceVariant;
+    return TextTheme(
+      headlineLarge: headlineLarge.copyWith(color: ink),
+      headlineMedium: headlineMedium.copyWith(color: ink),
+      headlineSmall: headlineSmall.copyWith(color: ink),
+      titleLarge: titleLarge.copyWith(color: ink),
+      titleMedium: titleMedium.copyWith(color: ink),
+      titleSmall: titleSmall.copyWith(color: ink),
+      bodyLarge: bodyLarge.copyWith(color: ink),
+      bodyMedium: bodyMedium.copyWith(color: ink),
+      bodySmall: bodySmall.copyWith(color: mute),
+      labelLarge: labelLarge.copyWith(color: ink),
+      labelMedium: labelMedium.copyWith(color: mute),
+      labelSmall: labelSmall.copyWith(color: mute),
+    );
+  }
 }

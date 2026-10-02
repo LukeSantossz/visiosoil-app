@@ -61,9 +61,6 @@ class _FakeAuthService implements AuthService {
     }
     _current = null;
   }
-
-  @override
-  Future<String?> accessToken() async => null;
 }
 
 Widget _app(
