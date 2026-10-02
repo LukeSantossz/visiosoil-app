@@ -62,6 +62,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     });
   }
 
+  /// Deletes the account (SPEC 0113); a failure lands in the error state.
+  /// Returns whether it succeeded, so a caller need not read the state again.
+  Future<bool> deleteAccount() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(authServiceProvider).deleteAccount();
+      return const AuthState.signedOut();
+    });
+    return !state.hasError;
+  }
+
   AuthState _stateFor(AuthAccount? account) => account == null
       ? const AuthState.signedOut()
       : AuthState.signedIn(account);

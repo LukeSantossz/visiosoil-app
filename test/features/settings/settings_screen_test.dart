@@ -24,7 +24,13 @@ class _FakeAuthService implements AuthService {
     this.signInError,
     this.signOutError,
     this.signOutClearsBeforeError = false,
+    this.deleteAccountError,
   });
+
+  /// When set, [deleteAccount] throws it. An [AccountNotRevokedException] is
+  /// thrown after the local session is cleared, as the real service does.
+  final Object? deleteAccountError;
+  int deleteAccountCalls = 0;
 
   final AuthAccount? restored;
 
@@ -64,6 +70,15 @@ class _FakeAuthService implements AuthService {
       if (signOutClearsBeforeError) _current = null;
       throw error;
     }
+    _current = null;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalls++;
+    final error = deleteAccountError;
+    if (error is AccountNotRevokedException) _current = null;
+    if (error != null) throw error;
     _current = null;
   }
 }
@@ -117,6 +132,7 @@ Widget _app(
   Object? signInError,
   Object? signOutError,
   bool signOutClearsBeforeError = false,
+  _FakeAuthService? auth,
   SoilRecordRepository? repository,
   ErrorReportStore? errorReport,
   ShareService? shareService,
@@ -124,12 +140,13 @@ Widget _app(
   return ProviderScope(
     overrides: [
       authServiceProvider.overrideWithValue(
-        _FakeAuthService(
-          account,
-          signInError: signInError,
-          signOutError: signOutError,
-          signOutClearsBeforeError: signOutClearsBeforeError,
-        ),
+        auth ??
+            _FakeAuthService(
+              account,
+              signInError: signInError,
+              signOutError: signOutError,
+              signOutClearsBeforeError: signOutClearsBeforeError,
+            ),
       ),
       packageInfoProvider.overrideWith(
         (ref) async => PackageInfo(
@@ -243,6 +260,91 @@ void main() {
 
     expect(find.text(_failureMessage), findsNothing);
     expect(find.text('Entrar com Google'), findsOneWidget);
+  });
+
+  group('account deletion (SPEC 0113)', () {
+    const agro = AuthAccount(email: 'agro@example.com', displayName: 'Agro');
+
+    testWidgets('settings_offers_account_deletion_only_when_signed_in',
+        (tester) async {
+      await tester.pumpWidget(_app(agro));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir conta'), findsOneWidget);
+
+      await tester.pumpWidget(_app(null));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir conta'), findsNothing);
+    });
+
+    testWidgets('confirming_excluir_conta_deletes_the_account',
+        (tester) async {
+      final auth = _FakeAuthService(agro);
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Apagar todos os dados'), findsWidgets,
+          reason: 'the confirmation names where the records are erased');
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(auth.deleteAccountCalls, 1);
+      expect(find.text('Conta excluída do VisioSoil.'), findsOneWidget);
+      expect(find.text('Entrar com Google'), findsOneWidget);
+    });
+
+    testWidgets('cancelling excluir conta deletes nothing', (tester) async {
+      final auth = _FakeAuthService(agro);
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(auth.deleteAccountCalls, 0);
+      expect(find.text('Agro'), findsOneWidget);
+    });
+
+    testWidgets('a_failed_revoke_says_where_to_revoke', (tester) async {
+      final auth = _FakeAuthService(
+        agro,
+        deleteAccountError: AccountNotRevokedException(Exception('offline')),
+      );
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('myaccount.google.com/connections'),
+          findsOneWidget);
+      expect(find.text(_failureMessage), findsNothing);
+      expect(find.text('Conta excluída do VisioSoil.'), findsNothing);
+      expect(find.text('Entrar com Google'), findsOneWidget);
+    });
+
+    testWidgets('any other failure keeps the account and the generic message',
+        (tester) async {
+      final auth = _FakeAuthService(
+        agro,
+        deleteAccountError: Exception('secure storage delete failed'),
+      );
+      await tester.pumpWidget(_app(agro, auth: auth));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir conta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_failureMessage), findsOneWidget);
+      expect(find.text('Agro'), findsOneWidget);
+    });
   });
 
   testWidgets('confirming apagar tudo deletes all records and shows a snackbar',

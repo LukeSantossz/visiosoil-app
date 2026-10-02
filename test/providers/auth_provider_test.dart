@@ -21,6 +21,9 @@ class _FakeAuthService implements AuthService {
   /// When set, [signOut] throws it, standing in for a sign-out failure.
   Object? signOutError;
 
+  /// When set, [deleteAccount] throws it.
+  Object? deleteAccountError;
+
   @override
   AuthAccount? get currentAccount => _current;
 
@@ -43,6 +46,13 @@ class _FakeAuthService implements AuthService {
   @override
   Future<void> signOut() async {
     final error = signOutError;
+    if (error != null) throw error;
+    _current = null;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final error = deleteAccountError;
     if (error != null) throw error;
     _current = null;
   }
@@ -90,6 +100,33 @@ void main() {
 
     final state = container.read(authNotifierProvider).requireValue;
     expect(state.isSignedIn, isFalse);
+  });
+
+  group('notifier_delete_account_signs_out', () {
+    // SPEC 0113: deleting the account mirrors sign-out in the state it leaves.
+    test('on success it ends signed out', () async {
+      final fake = _FakeAuthService()
+        ..restored = const AuthAccount(email: 'a@b.com', displayName: 'A');
+      final container = _containerWith(fake);
+      await container.read(authNotifierProvider.future);
+
+      await container.read(authNotifierProvider.notifier).deleteAccount();
+
+      expect(container.read(authNotifierProvider).requireValue.isSignedIn,
+          isFalse);
+    });
+
+    test('on failure it ends in an error state, not thrown', () async {
+      final fake = _FakeAuthService()
+        ..restored = const AuthAccount(email: 'a@b.com', displayName: 'A')
+        ..deleteAccountError = Exception('failed');
+      final container = _containerWith(fake);
+      await container.read(authNotifierProvider.future);
+
+      await container.read(authNotifierProvider.notifier).deleteAccount();
+
+      expect(container.read(authNotifierProvider).hasError, isTrue);
+    });
   });
 
   test('auth_notifier_build_resolves_to_signed_out_when_restore_throws',
