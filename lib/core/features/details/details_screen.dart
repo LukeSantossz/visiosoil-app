@@ -157,7 +157,9 @@ class _HeroImageAppBar extends StatelessWidget {
           ? Padding(
               padding: const EdgeInsets.all(AppSpacing.xs),
               child: IconButton(
-                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                // A literal: the app registers no pt-BR Material localizations,
+                // so backButtonTooltip would read "Back" (SPEC 0118).
+                tooltip: 'Voltar',
                 onPressed: () => Navigator.maybePop(context),
                 icon: const Icon(Icons.arrow_back),
                 color: Colors.white,
@@ -209,7 +211,8 @@ class _ActionButtons extends ConsumerWidget {
           icon: const Icon(Icons.share_outlined),
           label: const Text('Compartilhar'),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        // Delete keeps 24 dp from Share against a mis-tap (SPEC 0118).
+        const SizedBox(height: AppSpacing.xl),
         // Delete
         VisioButton(
           label: 'Excluir registro',

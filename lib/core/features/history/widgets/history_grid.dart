@@ -132,20 +132,32 @@ class _ThumbnailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _ThumbnailImage(imagePath: record.imagePath),
-            const _GradientOverlay(),
-            _TimestampLabel(timestamp: record.formattedTimestampCompact),
-            if (isSelectionMode) _SelectionOverlay(isSelected: isSelected),
-            if (isSelectionMode) _SelectionCheckbox(isSelected: isSelected),
-          ],
+    // A labelled button with ink, which says whether it is selected while
+    // selecting (SPEC 0118). The ink sits above the photograph, which would
+    // otherwise hide it.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        label: 'Registro de ${record.formattedTimestampCompact}',
+        selected: isSelectionMode ? isSelected : null,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _ThumbnailImage(imagePath: record.imagePath),
+              const _GradientOverlay(),
+              _TimestampLabel(timestamp: record.formattedTimestampCompact),
+              if (isSelectionMode) _SelectionOverlay(isSelected: isSelected),
+              if (isSelectionMode) _SelectionCheckbox(isSelected: isSelected),
+              Positioned.fill(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(onTap: onTap, onLongPress: onLongPress),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -233,11 +245,14 @@ class _TimestampLabel extends StatelessWidget {
       left: AppSpacing.sm,
       right: AppSpacing.sm,
       bottom: AppSpacing.sm,
-      child: Text(
-        timestamp,
-        style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      // The card's label already says the date (SPEC 0118).
+      child: ExcludeSemantics(
+        child: Text(
+          timestamp,
+          style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

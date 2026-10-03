@@ -63,7 +63,8 @@ class CaptureActions extends StatelessWidget {
           isLoading: isBusy,
           expanded: true,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        // Discard keeps 24 dp from Save against a mis-tap (SPEC 0118).
+        const SizedBox(height: AppSpacing.xl),
         VisioButton(
           label: 'Descartar',
           icon: Icons.close,
