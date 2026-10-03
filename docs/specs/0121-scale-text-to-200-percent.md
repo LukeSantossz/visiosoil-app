@@ -22,15 +22,15 @@ The squeezed cases share one cause. A `Row` gives its inflexible child its full 
 
 ## Design Decision
 
-**A trailing item yields width instead of taking all of it.** Each case is fixed with one of two changes, the smallest that removes the overflow:
+**A trailing item yields width instead of taking all of it.** Each case is fixed with the smallest change that removes the overflow:
 
 | Site | Change |
 | --- | --- |
 | `VisioButton` | the label is `Flexible` with `textAlign: center`, so it wraps inside the button |
 | hero card header | the label is `Flexible` and wraps |
 | last-analysis header, onboarding header | the title is `Expanded`, and the text button keeps its own width |
-| history filter error row | the "Tentar novamente" button is `Flexible`, so its label wraps instead of squeezing the message |
-| `_SettingsTile` | the trailing widget is `Flexible`, so the title keeps at least half of the row |
+| history filter error row | the "Tentar novamente" button is capped at half the row's width (`LayoutBuilder` and `ConstrainedBox`), so its label wraps instead of squeezing the message |
+| `_SettingsTile` | the trailing widget is capped at half the row's width the same way, so the title keeps at least half of the row |
 | onboarding step page | the column scrolls, inside a `LayoutBuilder` whose minimum height keeps it centred when it fits |
 
 **Two one-line cuts become two lines; two stay one line.**
@@ -49,6 +49,7 @@ The history thumbnail is a stated exception to the audit's rule, not a silent on
 
 ## Alternatives Considered
 
+- **Make the trailing item `Flexible` beside the `Expanded` title.** Tried first and rejected: a row splits its free space between flex children by their flex, so the title would get only half the row even beside a small icon. At 100 % that wrapped titles that fit before, and pushed settings rows down. A cap applies only when the trailing item is wide.
 - **Clamp the text scale, for example to 1.5.** Rejected: it overrides the user's own setting, which is the opposite of what the audit asks.
 - **A run-wide `flutter_test_config.dart` that puts every widget test at 200 %.** Rejected: many tests tap widgets by position or check sizes at 100 %. A large-text run of all of them would test layout through tests written for other purposes. One focused test per screen is easier to read when it fails.
 - **Golden tests at 100 %, 150 % and 200 %,** as the audit's test table suggests. Rejected for this slice: pixel goldens depend on fonts and platform, and CI renders on Linux while development here is on Windows, so the images would differ between the two. An overflow check catches the defect the audit names, without pixels.
