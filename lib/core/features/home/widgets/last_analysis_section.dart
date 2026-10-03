@@ -172,8 +172,6 @@ class _RecordInfo extends StatelessWidget {
         Text(
           record.displayTextureClass,
           style: theme.textTheme.titleMedium,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 2),
         Row(
@@ -186,9 +184,9 @@ class _RecordInfo extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
+                // Not cut: the home shows the place and date nowhere else
+                // (SPEC 0121).
                 '$place · ${record.formattedTimestampCompact}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: context.palette.onSurfaceVariant,
                 ),
