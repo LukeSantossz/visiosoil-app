@@ -122,4 +122,50 @@ void main() {
     expect(repository.deleteByIdsCalls, isEmpty);
     expect(find.text('1 registro excluído.'), findsNothing);
   });
+
+  // SPEC 0118: selection-mode buttons are labelled, and a thumbnail is a
+  // labelled button that reports its selection.
+  testWidgets('icon_buttons_are_labelled', (tester) async {
+    await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(Image));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Cancelar seleção'), findsOneWidget);
+    expect(find.byTooltip('Excluir selecionados'), findsOneWidget);
+  });
+
+  testWidgets('history_thumbnails_are_accessible', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final single = record(7);
+    await tester.pumpWidget(appWith(FakeSoilRecordRepository(), single));
+    await tester.pumpAndSettle();
+
+    final label = 'Registro de ${single.formattedTimestampCompact}';
+    final thumbnail = find.bySemanticsLabel(label);
+    expect(thumbnail, findsOneWidget);
+    expect(
+      tester.getSemantics(thumbnail),
+      matchesSemantics(
+        label: label,
+        isButton: true,
+        hasTapAction: true,
+        hasLongPressAction: true,
+        hasFocusAction: true,
+        isFocusable: true,
+      ),
+    );
+    // The ink sits over the photograph, in the card's own stack.
+    final card = find.ancestor(of: find.byType(Image), matching: find.byType(Stack));
+    expect(
+      find.descendant(of: card.first, matching: find.byType(InkWell)),
+      findsOneWidget,
+    );
+
+    await tester.longPress(find.byType(Image));
+    await tester.pumpAndSettle();
+    expect(tester.getSemantics(thumbnail), isSemantics(isSelected: true));
+    semantics.dispose();
+  });
 }

@@ -68,36 +68,49 @@ class _RecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: record.id != null
-          ? () => context.push('/details', extra: record.id!)
-          : null,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: context.palette.surface,
-          borderRadius: AppRadius.borderRadiusLg,
-          border: Border.all(
-            color: context.palette.outlineVariant.withValues(alpha: 0.5),
+    // One button for a screen reader, with ink, reading the class, place and
+    // date together (SPEC 0118).
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.palette.surface,
+            borderRadius: AppRadius.borderRadiusLg,
+            border: Border.all(
+              color: context.palette.outlineVariant.withValues(alpha: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: context.palette.shadowCard,
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: context.palette.shadowCard,
-              blurRadius: 3,
-              offset: Offset(0, 1),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: AppRadius.borderRadiusLg,
+              onTap: record.id != null
+                  ? () => context.push('/details', extra: record.id!)
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    _Thumbnail(record: record),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _RecordInfo(record: record)),
+                    Icon(
+                      Icons.chevron_right,
+                      color: context.palette.outline,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _Thumbnail(record: record),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: _RecordInfo(record: record)),
-            Icon(
-              Icons.chevron_right,
-              color: context.palette.outline,
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -197,10 +197,12 @@ class _TopBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _CircleIconButton(
+                tooltip: 'Voltar',
                 icon: Icons.arrow_back,
                 onPressed: () => context.pop(),
               ),
               _CircleIconButton(
+                tooltip: 'Ver detalhes',
                 icon: Icons.info_outline,
                 onPressed: () => context.push('/details', extra: recordId),
               ),
@@ -213,14 +215,21 @@ class _TopBar extends StatelessWidget {
 }
 
 class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, required this.onPressed});
+  const _CircleIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
 
+  /// Read by screen readers as the button's label (SPEC 0118).
+  final String tooltip;
   final IconData icon;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(icon),
       color: Colors.white,

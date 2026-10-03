@@ -90,4 +90,15 @@ void main() {
     expect(find.text('Registro não encontrado'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsNothing);
   });
+
+  // SPEC 0118: icon-only buttons carry a pt-BR label.
+  testWidgets('icon_buttons_are_labelled', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpPreview(tester);
+
+    expect(find.byTooltip('Voltar'), findsOneWidget);
+    expect(find.byTooltip('Ver detalhes'), findsOneWidget);
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    semantics.dispose();
+  });
 }

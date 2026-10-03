@@ -153,11 +153,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           : 'Histórico'),
       centerTitle: true,
       leading: _isSelectionMode
-          ? IconButton(icon: const Icon(Icons.close), onPressed: _cancelSelection)
+          ? IconButton(
+              tooltip: 'Cancelar seleção',
+              icon: const Icon(Icons.close),
+              onPressed: _cancelSelection,
+            )
           : null,
       actions: _isSelectionMode
           ? [
               IconButton(
+                tooltip: 'Excluir selecionados',
                 icon: const Icon(Icons.delete_outline),
                 onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                 color: theme.colorScheme.error,

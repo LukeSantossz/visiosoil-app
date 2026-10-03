@@ -48,6 +48,7 @@ class HistoryFilterBar extends ConsumerWidget {
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: searchTerm.isNotEmpty
                     ? IconButton(
+                        tooltip: 'Limpar busca',
                         icon: const Icon(Icons.clear, size: 20),
                         onPressed: onClearSearch,
                       )

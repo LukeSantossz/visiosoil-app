@@ -204,10 +204,27 @@ class CaptureImagePreview extends StatelessWidget {
         ClassificationPhase.scoring => 'Calculando a classe...',
       };
 
-  Widget _retryChip(String label) => GestureDetector(
-        key: const Key('retryClassification'),
-        onTap: onRetryClassification,
-        child: _InfoChip(icon: Icons.refresh, label: label),
+  // A button read by its text, with ink and a 48 dp target around the chip,
+  // which keeps its own size (SPEC 0118).
+  Widget _retryChip(String label) => MergeSemantics(
+        child: Semantics(
+          button: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: const Key('retryClassification'),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: onRetryClassification,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Align(
+                  widthFactor: 1,
+                  child: _InfoChip(icon: Icons.refresh, label: label),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 }
 
