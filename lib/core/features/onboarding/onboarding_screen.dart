@@ -76,10 +76,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     if (_currentPage < _steps.length - 1) {
-      _controller.nextPage(
-        duration: AppMotion.slow,
-        curve: AppMotion.standard,
-      );
+      // A page slide is a scroll, which the framework does not shorten when
+      // the platform asks for no animations, so it jumps instead (SPEC 0120).
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _controller.jumpToPage(_currentPage + 1);
+      } else {
+        _controller.nextPage(
+          duration: AppMotion.slow,
+          curve: AppMotion.standard,
+        );
+      }
     } else {
       _complete();
     }
