@@ -34,6 +34,7 @@ The UI/UX roadmap's item 7, "Named processing phases, Save ungated from location
 
 - `save_not_gated_by_location`: with the classification settled and the location still pending, "Salvar registro" is enabled, and tapping it creates one record with null latitude and longitude and the unavailable-address text.
 - `save_still_waits_for_the_classification`: with the classification running and the location resolved, "Salvar registro" is disabled.
+- `a_save_tapped_right_after_a_retry_waits_for_it`: when a retry and a save are tapped in the same frame, before the screen rebuilds, no record is created. `_saveRecord` checks the running classification itself, because the button's callback comes from the last build. Found by R3 on #333.
 - `a_late_reading_after_a_failed_save_is_kept`: when a save made while locating fails, a reading that arrives afterwards appears in the location chip.
 - The existing capture-screen tests pass unchanged.
 
