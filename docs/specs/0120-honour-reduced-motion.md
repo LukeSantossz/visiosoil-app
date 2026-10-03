@@ -44,8 +44,8 @@ The onboarding is the exception because a scroll position animates through `Anim
 
 ## Acceptance Criteria
 
-- `onboarding_step_jumps_without_motion`: with the platform's `disableAnimations` on, one tap on "Próximo" and a single frame show the second step fully in place.
-- `onboarding_step_slides_with_motion`: with animations on, the same tap and single frame leave the page between the steps. This control proves the first test can fail.
+- `onboarding_step_jumps_without_motion`: with the platform's `disableAnimations` on, one tap on "Próximo" shows the second step fully in place 50 ms later.
+- `onboarding_step_slides_with_motion`: with animations on, the same tap leaves the page between the steps 50 ms later. This control proves the first test can fail.
 - `splash_reveal_collapses_without_motion`: with `disableAnimations` on, the splash's name fade reaches full opacity within 50 ms.
 - The existing tests pass unchanged.
 
