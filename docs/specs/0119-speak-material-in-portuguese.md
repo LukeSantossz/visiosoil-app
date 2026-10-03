@@ -22,7 +22,7 @@ SPEC 0118 worked around the back tooltip with the literal "Voltar" and left regi
 | `supportedLocales` | `[Locale('pt', 'BR')]` |
 | `locale` | `Locale('pt', 'BR')` |
 
-**`flutter_localizations` is added from the SDK** in `pubspec.yaml` (`sdk: flutter`). It ships with Flutter 3.44.1, so no pub package is downloaded, and `pubspec.lock` records it pinned to the SDK.
+**`flutter_localizations` is added from the SDK** in `pubspec.yaml` (`sdk: flutter`). It ships with Flutter 3.44.1, and `pubspec.lock` records it as an SDK package. It brings one transitive hosted package, `intl` 0.20.2, the version the SDK pins.
 
 **The locale is fixed, not read from the device.** Every string the app writes itself is pt-BR, and `AppStrings` has no other language. If the locale followed the device, a phone set to English would get English Material strings beside pt-BR app copy, which is the mixed screen this spec exists to end.
 
