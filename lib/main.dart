@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
@@ -45,12 +46,19 @@ class VisioSoilApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
       routerConfig: routerConfig ?? appRouter,
+      // Fixed, not the device's: the app's own copy is pt-BR only, so Flutter's
+      // widgets speak it too (SPEC 0119).
+      locale: _locale,
+      supportedLocales: const [_locale],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: _statusBarFor(Theme.of(context).brightness),
         child: child ?? const SizedBox.shrink(),
       ),
     );
   }
+
+  static const _locale = Locale('pt', 'BR');
 
   /// Status-bar icons that read on the theme's background, for screens without
   /// an app bar; an `AppBar` sets its own. Only the icons: the bar colours are
