@@ -555,6 +555,35 @@ void main() {
       await settle(tester);
     });
 
+    // A retry and a save in the same frame: the save's callback is from the
+    // last build, so it must check the state it runs against.
+    testWidgets('a_save_tapped_right_after_a_retry_waits_for_it',
+        (tester) async {
+      final repository = FakeSoilRecordRepository();
+      final locateGate = Completer<LocationReading?>();
+      final retryGate = Completer<InferenceResult?>();
+      var calls = 0;
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () => locateGate.future,
+        classify: (_) => ++calls == 1 ? Future.value(null) : retryGate.future,
+        repository: repository,
+      ));
+
+      await capture(tester);
+      expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('retryClassification')));
+      await tester.tap(find.text('Salvar registro'));
+      await settle(tester);
+
+      expect(repository.createCalls, isEmpty);
+
+      retryGate.complete(null);
+      locateGate.complete(null);
+      await settle(tester);
+    });
+
     testWidgets('a_late_reading_after_a_failed_save_is_kept', (tester) async {
       final repository = FakeSoilRecordRepository()..throwOnCreate = true;
       final locateGate = Completer<LocationReading?>();
