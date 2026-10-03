@@ -124,4 +124,28 @@ void main() {
       await unmount(tester);
     }
   });
+
+  // The name fade is the one splash content an animation hides. It runs on a
+  // normal AnimationController, which the framework collapses when the
+  // platform asks for no animations (SPEC 0120).
+  testWidgets('splash_reveal_collapses_without_motion', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    await pumpSplash(tester);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final nameFade = tester.widget<FadeTransition>(
+      find
+          .ancestor(
+            of: find.text('VisioSoil'),
+            matching: find.byType(FadeTransition),
+          )
+          .first,
+    );
+    expect(nameFade.opacity.value, 1);
+
+    await unmount(tester);
+  });
 }
