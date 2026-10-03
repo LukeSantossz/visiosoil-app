@@ -67,7 +67,7 @@ The home row is already more than 48 dp tall. A history thumbnail is a grid cell
 
 ## Acceptance Criteria
 
-- `icon_buttons_are_labelled`: history in selection mode, the history search with text, the preview and details each meet `labeledTapTargetGuideline`, and each tooltip in the table is found. No "Back" tooltip remains.
+- `icon_buttons_are_labelled`: each tooltip in the table is found, on history in selection mode, the history search with a term, the preview and details. The preview also meets `labeledTapTargetGuideline`. No "Back" tooltip remains.
 - `record_row_is_accessible`: the home's last-analysis row is a button with ink. It merges its class and date into one semantic node, and meets `androidTapTargetGuideline`.
 - `history_thumbnails_are_accessible`: a history thumbnail is a button labelled "Registro de <data>" with ink. In selection mode it reports itself selected when selected.
 - `retry_chip_is_accessible`: a retryable failure chip is a button labelled with its text, with a target at least 48 dp tall.
@@ -83,5 +83,5 @@ Flutter 3.44.1, Dart 3.12.1.
 ## Risks and Assumptions
 
 - Other Material defaults stay in English until `flutter_localizations` is registered, for example a date picker's labels and the default "Dismiss" of a modal barrier. This slice does not audit them.
-- An `InkWell` paints its splash on the nearest `Material`. A thumbnail's image covers that `Material`, so its ink is drawn in an `Ink` overlay above the image, and the test checks that the splash reaches the screen.
+- An `InkWell` paints its splash on the nearest `Material`, and a thumbnail's photograph would cover that `Material`. So the thumbnail's `InkWell` sits on a transparent `Material` laid over the photograph, inside the card's stack. The test checks where it sits; whether the ripple can be seen is left to a look on a device.
 - The retry chip's larger target may overlap the location chip's area in the `Wrap` by a few dp. The chip row has spacing, so a tap still lands on one chip.
