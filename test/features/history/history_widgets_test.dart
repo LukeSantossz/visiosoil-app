@@ -72,6 +72,35 @@ void main() {
     });
   });
 
+  // SPEC 0118: the search's clear button is labelled.
+  testWidgets('icon_buttons_are_labelled', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordsStreamProvider.overrideWithValue(
+          AsyncValue<List<SoilRecord>>.data([record()]),
+        ),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: HistoryFilterBar(
+            searchController: TextEditingController(text: 'fazenda'),
+            onSearchChanged: (_) {},
+            onClearSearch: () {},
+            onSelectTexture: (_) {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    // The clear button shows once a term is set.
+    ProviderScope.containerOf(tester.element(find.byType(HistoryFilterBar)))
+        .read(searchTermProvider.notifier)
+        .update('fazenda');
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Limpar busca'), findsOneWidget);
+  });
+
   group('HistoryGrid', () {
     Widget gridWith(List<SoilRecord> records) => ProviderScope(
           overrides: [

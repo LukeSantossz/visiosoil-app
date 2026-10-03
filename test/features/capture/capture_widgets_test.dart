@@ -330,6 +330,51 @@ void main() {
           reason: 'a busy save button must be disabled');
     });
   });
+
+  // SPEC 0118: the retry chip is a labelled button with a 48 dp target, and
+  // Discard keeps 24 dp from Save.
+  testWidgets('retry_chip_is_accessible', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var retries = 0;
+    await tester.pumpWidget(host(CaptureImagePreview(
+      image: sampleImage,
+      isLoading: false,
+      isClassifying: false,
+      classificationFailed: true,
+      classificationFailureCause: ClassificationFailureCause.timeout,
+      onRetryClassification: () => retries++,
+    )));
+
+    const label = 'Análise não terminou · tocar para tentar de novo';
+    final chip = find.bySemanticsLabel(label);
+    expect(chip, findsOneWidget);
+    expect(tester.getSemantics(chip), isSemantics(isButton: true));
+    expect(
+      tester.getSize(find.byKey(const Key('retryClassification'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    await tester.tap(find.byKey(const Key('retryClassification')));
+    expect(retries, 1);
+    semantics.dispose();
+  });
+
+  testWidgets('destructive_separated', (tester) async {
+    await tester.pumpWidget(host(CaptureActions(
+      hasImage: true,
+      isBusy: false,
+      onCapture: () {},
+      onSave: () {},
+      onDiscard: () {},
+    )));
+
+    Rect button(String label) => tester.getRect(find.byWidgetPredicate(
+          (w) => w is VisioButton && w.label == label,
+        ));
+    expect(
+      button('Descartar').top - button('Salvar registro').bottom,
+      greaterThanOrEqualTo(24),
+    );
+  });
 }
 
 /// The camera rationale's pt-BR copy (SPEC 0115). Kept in step with

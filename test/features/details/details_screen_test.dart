@@ -51,6 +51,7 @@ SoilRecord _unlocatedRecord() => SoilRecord(
 Widget _detailsUnderTest({
   required ShareService share,
   required SoilRecord record,
+  bool pushed = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -67,7 +68,20 @@ Widget _detailsUnderTest({
       connectivityServiceProvider
           .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
     ],
-    child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    child: pushed
+        ? MaterialApp(
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DetailsScreen(recordId: 1),
+                  ),
+                ),
+                child: const Text('open details'),
+              ),
+            ),
+          )
+        : const MaterialApp(home: DetailsScreen(recordId: 1)),
   );
 }
 
@@ -418,6 +432,43 @@ void main() {
     expect(
       tester.getRect(delete).bottom,
       lessThanOrEqualTo(screenHeight - navigationBar),
+    );
+  });
+
+  // SPEC 0118: the back button reads "Voltar", and Delete keeps 24 dp from
+  // Share.
+  testWidgets('icon_buttons_are_labelled', (tester) async {
+    await tester.pumpWidget(_detailsUnderTest(
+      share: _RecordingShareService(),
+      record: _locatedRecord(),
+      pushed: true,
+    ));
+    await tester.tap(find.text('open details'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Voltar'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
+  });
+
+  testWidgets('destructive_separated', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _detailsUnderTest(share: _RecordingShareService(), record: _locatedRecord()),
+    );
+    await tester.pumpAndSettle();
+
+    final share = find.ancestor(
+      of: find.text('Compartilhar'),
+      matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+    );
+    final delete = find.ancestor(
+      of: find.text('Excluir registro'),
+      matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+    );
+    expect(
+      tester.getRect(delete).top - tester.getRect(share).bottom,
+      greaterThanOrEqualTo(24),
     );
   });
 }

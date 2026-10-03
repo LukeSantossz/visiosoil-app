@@ -185,4 +185,27 @@ void main() {
           reason: reason);
     }
   });
+
+  // SPEC 0118: the last-analysis row is one labelled button with ink.
+  testWidgets('record_row_is_accessible', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      host(LastAnalysisSection(
+        latestAsync: AsyncValue.data(classifiedRecord()),
+        onSeeAll: () {},
+      )),
+    );
+
+    final row = find.bySemanticsLabel(RegExp('Argilosa'));
+    expect(row, findsOneWidget);
+    final node = tester.getSemantics(row);
+    expect(node.label, contains('Fazenda Boa Vista'));
+    expect(node, isSemantics(isButton: true));
+    expect(
+      find.ancestor(of: find.text('Argilosa'), matching: find.byType(InkWell)),
+      findsOneWidget,
+    );
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    semantics.dispose();
+  });
 }
