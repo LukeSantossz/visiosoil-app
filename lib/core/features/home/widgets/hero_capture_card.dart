@@ -49,12 +49,14 @@ class HeroCaptureCard extends StatelessWidget {
                   color: context.palette.onBrand,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'ANÁLISE NO APARELHO',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: context.palette.onBrand,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                Flexible(
+                  child: Text(
+                    'ANÁLISE NO APARELHO',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: context.palette.onBrand,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ],

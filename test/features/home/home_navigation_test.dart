@@ -2,18 +2,22 @@
 // avatar, the capture CTA, the record row, and the "Ver tudo" link that opens
 // the History tab via mainTabIndexProvider.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-SoilRecord _record() => SoilRecord(
+import '../../support/large_text.dart';
+
+SoilRecord _record({String address = 'Fazenda Boa Vista'}) => SoilRecord(
       id: 1,
       imagePath: 'x.png',
       timestamp: '2026-06-26T12:00:00Z',
-      address: 'Fazenda Boa Vista',
+      address: address,
       textureClass: 'Argilosa',
       confidenceScore: 0.9,
     );
@@ -47,16 +51,17 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
 
-Future<void> _pump(WidgetTester tester) async {
+Future<void> _pump(WidgetTester tester, {SoilRecord? record}) async {
+  final shown = record ?? _record();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        soilRecordsStreamProvider.overrideWith((ref) => Stream.value([_record()])),
+        soilRecordsStreamProvider.overrideWith((ref) => Stream.value([shown])),
         // MainScreen's IndexedStack eagerly builds the History tab, whose grid
         // watches filteredRecordsProvider — which reads the real Drift
         // repository, not soilRecordsStreamProvider. Stub it so the harness
         // never opens a platform database.
-        filteredRecordsProvider.overrideWith((ref) => Stream.value([_record()])),
+        filteredRecordsProvider.overrideWith((ref) => Stream.value([shown])),
       ],
       child: MaterialApp.router(routerConfig: _router()),
     ),
@@ -103,5 +108,34 @@ void main() {
 
     bar = tester.widget(find.byType(NavigationBar));
     expect(bar.selectedIndex, 1);
+  });
+
+  // At 200 % text on a phone, the home, and the History tab built beside it,
+  // still lay out (SPEC 0121).
+  testWidgets('home_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+
+    await _pump(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Nova análise'), findsOneWidget);
+  });
+
+  // The place and date appear nowhere else on the home, so a long address is
+  // shown whole at 200 %, not cut (SPEC 0121).
+  testWidgets('home_row_is_not_cut', (tester) async {
+    useLargeTextOnAPhone(tester);
+    const address =
+        'Estrada Municipal PIR-020, km 12, Bairro Santa Olímpia, Piracicaba, SP';
+
+    await _pump(tester, record: _record(address: address));
+
+    final place = find.descendant(
+      of: find.byType(LastAnalysisSection),
+      matching: find.textContaining(address),
+    );
+    expect(tester.renderObject<RenderParagraph>(place).didExceedMaxLines,
+        isFalse);
+    expect(tester.takeException(), isNull);
   });
 }

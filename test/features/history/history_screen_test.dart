@@ -6,6 +6,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/large_text.dart';
 
 /// Guards the history texture-filter error state (#117): a provider failure must
 /// surface visible feedback with a retry that actually re-reads the underlying
@@ -167,5 +168,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getSemantics(thumbnail), isSemantics(isSelected: true));
     semantics.dispose();
+  });
+
+  // At 200 % text on a phone, the grid, its empty state and the filter error
+  // row still lay out (SPEC 0121).
+  testWidgets('history_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+
+    await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'grid');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(ProviderScope(
+      overrides: [emptyGrid, rootError],
+      child: const MaterialApp(home: HistoryScreen()),
+    ));
+    await tester.pump();
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'empty, filter error');
   });
 }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 import '../../support/fake_onboarding_store.dart';
+import '../../support/large_text.dart';
 
 GoRouter _router({required String initialLocation}) => GoRouter(
       initialLocation: initialLocation,
@@ -172,5 +173,23 @@ void main() {
       expect(pageAfterNext(tester), allOf(greaterThan(0), lessThan(1)));
       await tester.pumpAndSettle();
     });
+  });
+
+  // At 200 % text on a phone, each step still lays out (SPEC 0121).
+  testWidgets('onboarding_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+    await tester.pumpWidget(
+        _app(_router(initialLocation: '/onboarding'), FakeOnboardingStore()));
+    await tester.pumpAndSettle();
+
+    for (var step = 1; step <= 3; step++) {
+      expect(tester.takeException(), isNull, reason: 'step $step');
+      await scrollToTheEnd(tester);
+      expect(tester.takeException(), isNull, reason: 'step $step, scrolled');
+      if (step < 3) {
+        await tester.tap(find.text('Próximo'));
+        await tester.pumpAndSettle();
+      }
+    }
   });
 }

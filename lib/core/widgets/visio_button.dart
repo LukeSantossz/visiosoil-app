@@ -90,7 +90,8 @@ class VisioButton extends StatelessWidget {
         children: [
           Icon(icon, size: 20),
           const SizedBox(width: 8),
-          Text(label),
+          // Wraps at large text instead of running past the button (SPEC 0121).
+          Flexible(child: Text(label, textAlign: TextAlign.center)),
         ],
       );
     }
