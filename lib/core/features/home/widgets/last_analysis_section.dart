@@ -45,7 +45,12 @@ class LastAnalysisSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Última análise', style: theme.textTheme.titleMedium),
+              Expanded(
+                child: Text(
+                  'Última análise',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
               TextButton(
                 onPressed: onSeeAll,
                 child: const Text('Ver tudo'),
@@ -167,7 +172,7 @@ class _RecordInfo extends StatelessWidget {
         Text(
           record.displayTextureClass,
           style: theme.textTheme.titleMedium,
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 2),
@@ -182,7 +187,7 @@ class _RecordInfo extends StatelessWidget {
             Flexible(
               child: Text(
                 '$place · ${record.formattedTimestampCompact}',
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: context.palette.onSurfaceVariant,

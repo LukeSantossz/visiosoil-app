@@ -122,9 +122,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Como capturar',
-                    style: theme.textTheme.titleMedium,
+                  Expanded(
+                    child: Text(
+                      'Como capturar',
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ),
                   TextButton(
                     onPressed: _complete,
@@ -204,41 +206,48 @@ class _StepPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Illustration placeholder
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              color: step.color(context.palette).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              step.icon,
-              size: 72,
-              color: step.color(context.palette),
-            ),
+    // Scrolls when a step is taller than the page, as at large text, and
+    // stays centred when it fits (SPEC 0121).
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Illustration placeholder
+              Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: step.color(context.palette).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  step.icon,
+                  size: 72,
+                  color: step.color(context.palette),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              Text(
+                step.title,
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                step.description,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: context.palette.onSurfaceVariant,
+                  height: 1.6,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.xxl),
-          Text(
-            step.title,
-            style: theme.textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            step.description,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: context.palette.onSurfaceVariant,
-              height: 1.6,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
     );
   }

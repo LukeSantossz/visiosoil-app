@@ -441,32 +441,41 @@ class _SettingsTile extends StatelessWidget {
             ),
             borderRadius: AppRadius.borderRadiusMd,
           ),
-          child: Row(
-            children: [
-              Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: titleColor,
-                      ),
-                    ),
-                    if (subtitle case final subtitle?)
+          // At large text a trailing label or button wraps within half the
+          // row, so it cannot squeeze the title (SPEC 0121).
+          child: LayoutBuilder(
+            builder: (context, constraints) => Row(
+              children: [
+                Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: context.palette.onSurfaceVariant,
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: titleColor,
                         ),
                       ),
-                  ],
+                      if (subtitle case final subtitle?)
+                        Text(
+                          subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: context.palette.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              ?trailing,
-            ],
+                if (trailing case final trailing?)
+                  ConstrainedBox(
+                    constraints:
+                        BoxConstraints(maxWidth: constraints.maxWidth / 2),
+                    child: trailing,
+                  ),
+              ],
+            ),
           ),
         ),
       ),

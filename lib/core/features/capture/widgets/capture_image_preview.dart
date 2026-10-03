@@ -268,7 +268,7 @@ class _InfoChip extends StatelessWidget {
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Colors.white,
                   ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
