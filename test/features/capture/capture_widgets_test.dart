@@ -17,6 +17,8 @@ import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 
+import '../../support/large_text.dart';
+
 Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
@@ -179,6 +181,42 @@ void main() {
             .onRetry,
         isNull,
       );
+    });
+  });
+
+  // At 200 % text on a phone, the capture widgets still lay out, and a chip's
+  // address may take two lines (SPEC 0121).
+  group('large text', () {
+    testWidgets('capture_scales_to_200_percent', (tester) async {
+      useLargeTextOnAPhone(tester);
+
+      for (final hasImage in [false, true]) {
+        await tester.pumpWidget(host(CaptureActions(
+          hasImage: hasImage,
+          isBusy: false,
+          onCapture: () {},
+          onSave: () {},
+          onDiscard: () {},
+          checkLocationPermission: () async => AppPermissionStatus.denied,
+        )));
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'hasImage: $hasImage');
+      }
+    });
+
+    testWidgets('capture_chip_wraps_to_two_lines', (tester) async {
+      await tester.pumpWidget(host(CaptureImagePreview(
+        image: sampleImage,
+        isLoading: false,
+        isClassifying: false,
+        address: 'Rodovia SP-127, km 34, Piracicaba',
+        latitude: -22.7,
+        longitude: -47.6,
+      )));
+
+      final chip =
+          tester.widget<Text>(find.text('Rodovia SP-127, km 34, Piracicaba'));
+      expect(chip.maxLines, 2);
     });
   });
 

@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+
+import '../../support/large_text.dart';
 
 SoilRecord _record() => SoilRecord(
       id: 1,
@@ -103,5 +106,26 @@ void main() {
 
     bar = tester.widget(find.byType(NavigationBar));
     expect(bar.selectedIndex, 1);
+  });
+
+  // At 200 % text on a phone, the home, and the History tab built beside it,
+  // still lay out, and the record row may take two lines (SPEC 0121).
+  testWidgets('home_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+
+    await _pump(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Nova análise'), findsOneWidget);
+  });
+
+  testWidgets('home_row_wraps_to_two_lines', (tester) async {
+    await _pump(tester);
+
+    final texture = tester.widget<Text>(find.descendant(
+        of: find.byType(LastAnalysisSection), matching: find.text('Argilosa')));
+    final place = tester.widget<Text>(find.textContaining('Fazenda Boa Vista'));
+    expect(texture.maxLines, 2);
+    expect(place.maxLines, 2);
   });
 }

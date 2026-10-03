@@ -19,6 +19,7 @@ import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/large_text.dart';
 
 class _FakeAuthService implements AuthService {
   _FakeAuthService(
@@ -528,6 +529,20 @@ void main() {
       expect(find.text(AppStrings.errorReportShareFailed), findsOneWidget);
       expect(find.textContaining('platform share failed'), findsNothing);
     });
+  });
+
+  // At 200 % text on a phone, every settings row still lays out, signed in,
+  // where the rows carry the most trailing text (SPEC 0121).
+  testWidgets('settings_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+
+    await tester.pumpWidget(
+      _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo')),
+    );
+    await tester.pumpAndSettle();
+    await scrollToTheEnd(tester);
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
