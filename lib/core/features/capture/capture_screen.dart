@@ -449,7 +449,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               const SizedBox(height: AppSpacing.lg),
               CaptureActions(
                 hasImage: hasImage,
-                isBusy: _state.isLocating || _state.isClassifying || _state.isSaving,
+                // Location is optional, so Save does not wait for it; a record
+                // saved first has no coordinates (SPEC 0117).
+                isBusy: _state.isClassifying || _state.isSaving,
                 onCapture: _pickImage,
                 onSave: _saveRecord,
                 onDiscard: _discardImage,
