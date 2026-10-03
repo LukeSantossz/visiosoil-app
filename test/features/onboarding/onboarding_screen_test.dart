@@ -139,4 +139,38 @@ void main() {
       }
     });
   });
+
+  // With the platform asking for no animations, "Próximo" jumps instead of
+  // sliding (SPEC 0120). The second test is the control that shows the first
+  // one can fail.
+  group('reduced motion', () {
+    double pageAfterNext(WidgetTester tester) =>
+        tester.widget<PageView>(find.byType(PageView)).controller!.page!;
+
+    Future<void> tapNext(WidgetTester tester) async {
+      await tester.pumpWidget(
+          _app(_router(initialLocation: '/onboarding'), FakeOnboardingStore()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Próximo'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('onboarding_step_jumps_without_motion', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+      await tapNext(tester);
+
+      expect(pageAfterNext(tester), 1);
+    });
+
+    testWidgets('onboarding_step_slides_with_motion', (tester) async {
+      await tapNext(tester);
+
+      expect(pageAfterNext(tester), allOf(greaterThan(0), lessThan(1)));
+      await tester.pumpAndSettle();
+    });
+  });
 }
