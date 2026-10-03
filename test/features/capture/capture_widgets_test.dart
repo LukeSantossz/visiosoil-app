@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
@@ -185,7 +186,7 @@ void main() {
   });
 
   // At 200 % text on a phone, the capture widgets still lay out, and a chip's
-  // address may take two lines (SPEC 0121).
+  // address is not cut (SPEC 0121).
   group('large text', () {
     testWidgets('capture_scales_to_200_percent', (tester) async {
       useLargeTextOnAPhone(tester);
@@ -204,19 +205,28 @@ void main() {
       }
     });
 
-    testWidgets('capture_chip_wraps_to_two_lines', (tester) async {
+    // The address appears nowhere else on capture, so a long one is shown
+    // whole at 200 %, not cut.
+    testWidgets('capture_chip_is_not_cut', (tester) async {
+      useLargeTextOnAPhone(tester);
+      const address =
+          'Estrada Municipal PIR-020, km 12, Bairro Santa Olímpia, Piracicaba, SP';
+
       await tester.pumpWidget(host(CaptureImagePreview(
         image: sampleImage,
         isLoading: false,
         isClassifying: false,
-        address: 'Rodovia SP-127, km 34, Piracicaba',
+        address: address,
         latitude: -22.7,
         longitude: -47.6,
       )));
 
-      final chip =
-          tester.widget<Text>(find.text('Rodovia SP-127, km 34, Piracicaba'));
-      expect(chip.maxLines, 2);
+      expect(
+        tester.renderObject<RenderParagraph>(find.text(address))
+            .didExceedMaxLines,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 
