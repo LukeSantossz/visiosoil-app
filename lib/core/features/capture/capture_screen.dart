@@ -298,8 +298,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _saveRecord() async {
-    // Guard against double-tap
-    if (_state.isSaving) return;
+    // Guard against double-tap, and against a save tapped in the same frame
+    // as a retry: the button's callback is from the last build, so it checks
+    // the state it runs against (SPEC 0117).
+    if (_state.isSaving || _state.isClassifying) return;
 
     final selectedImage = ref.read(imageProvider);
     final image = selectedImage.file;
