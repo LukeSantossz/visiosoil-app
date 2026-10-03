@@ -33,17 +33,19 @@ The squeezed cases share one cause. A `Row` gives its inflexible child its full 
 | `_SettingsTile` | the trailing widget is capped at half the row's width the same way, so the title keeps at least half of the row |
 | onboarding step page | the column scrolls, inside a `LayoutBuilder` whose minimum height keeps it centred when it fits |
 
-**Two one-line cuts become two lines; two stay one line.**
+**Three cut texts are shown whole; two stay cut at one line.**
 
 | Text | Decision | Why |
 | --- | --- | --- |
-| home row, texture class | `maxLines: 2` | it is not repeated on the home screen |
-| home row, place and date | `maxLines: 2` | same |
-| capture preview chips | `maxLines: 2` | the address is not repeated on the capture screen |
+| home row, texture class | no line limit | it is not repeated on the home screen |
+| home row, place and date | no line limit | same |
+| capture preview chips | no line limit | the address is not repeated on the capture screen |
 | details header, compact date | stays `maxLines: 1` | the full date is repeated in the details info section, as the audit allows |
 | history thumbnail, date | stays `maxLines: 1` | a third-of-the-width cell over a photograph cannot take a second line without covering the photo. The thumbnail's semantic label (SPEC 0118) reads the full date, and details shows it one tap away |
 
 The history thumbnail is a stated exception to the audit's rule, not a silent one.
+
+The approved draft gave the first three `maxLines: 2`. The PR's R3 review found that two lines still cut a long address, which the audit's rule does not allow for text shown once on a screen, so the limit was removed. The criteria now check the rendered text, not the `maxLines` value.
 
 **The probe becomes a test per screen.** A test helper, `useLargeTextOnAPhone`, sets a 200 % text scale and a 411 × 891 dp view. Each screen's existing test file gains one test that pumps the screen the way the file already does. A layout overflow is a `FlutterError`, so the test fails on any overflow.
 
@@ -58,9 +60,9 @@ The history thumbnail is a stated exception to the audit's rule, not a silent on
 ## Scope
 
 - Includes:
-  - The seven sites in the table above, and the three `maxLines` changes.
+  - The seven sites in the table above, and the three line limits removed.
   - `test/support/large_text.dart`: the helper.
-  - One large-text test in each of the tests for home, onboarding, capture, details, history and settings, plus the two `maxLines` checks.
+  - One large-text test in each of the tests for home, onboarding, capture, details, history and settings, plus the two cut-text checks.
 - Does NOT include:
   - Landscape layouts, and phones narrower than 411 dp.
   - Text scales above 200 %.
@@ -78,8 +80,8 @@ Each test runs at 200 % text scale on a 411 × 891 dp view. "Lays out" means it 
 - `details_scales_to_200_percent`: details with a classified record lays out.
 - `history_scales_to_200_percent`: the history grid lays out, as do its empty state and its filter error row.
 - `settings_scales_to_200_percent`: settings, signed in, lays out.
-- `home_row_wraps_to_two_lines`: the home row's class and place texts allow two lines.
-- `capture_chip_wraps_to_two_lines`: a capture preview chip's label allows two lines.
+- `home_row_is_not_cut`: the home row shows a long address and its date whole, with no ellipsis.
+- `capture_chip_is_not_cut`: a capture preview chip shows a long address whole, with no ellipsis.
 - The existing tests pass unchanged.
 
 ## Reproducibility
@@ -93,3 +95,4 @@ Flutter 3.44.1, Dart 3.12.1.
 - 411 × 891 dp is a common Android phone (1080 × 2340 px at 2.625). A narrower phone may still overflow at 200 %, which the Scope leaves out.
 - A test environment font is not a device font. The overflow test proves the layout bends at that scale, not that every glyph fits on every device. A look on a device at the largest font size is left to the manual pass the audit asks for.
 - Letting a button label wrap makes the button taller at large scales. That is the intended trade: two lines of a readable label instead of a clipped one.
+- An uncapped capture chip can cover more of the photo when the address is long. The chips sit at the preview's edge, the photo has already been taken, and the address must be readable before it is saved.
