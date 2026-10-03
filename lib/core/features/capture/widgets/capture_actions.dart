@@ -7,7 +7,8 @@ import 'package:visiosoil_app/core/widgets/visio_button.dart';
 
 /// The capture screen's primary action row: a single "Câmera" button before a
 /// photo exists, and Save/Discard once one does. [isBusy] disables Save while
-/// location or classification is still running or a save is in flight. Before
+/// classification is still running or a save is in flight; location does not
+/// hold it (SPEC 0117). Before
 /// a photo exists, a [CameraRationale] and a [LocationRationale] line explain
 /// the requests the capture will make, in the order it makes them.
 class CaptureActions extends StatelessWidget {
