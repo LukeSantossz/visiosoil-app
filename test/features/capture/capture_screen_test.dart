@@ -16,6 +16,7 @@ import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
@@ -488,6 +489,94 @@ void main() {
     await tester.tap(find.text('Salvar registro'));
     await tester.pump();
     expect(repository.createCalls.length, 2);
+  });
+
+  // Location is optional, so Save waits for the classification and not for
+  // the GPS (SPEC 0117).
+  group('saving while locating', () {
+    VisioButton saveButton(WidgetTester tester) => tester.widget<VisioButton>(
+          find.byWidgetPredicate(
+            (w) => w is VisioButton && w.label == 'Salvar registro',
+          ),
+        );
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+    }
+
+    testWidgets('save_not_gated_by_location', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      final locateGate = Completer<LocationReading?>();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () => locateGate.future,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+        repository: repository,
+      ));
+
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      expect(find.text('Localizando...'), findsOneWidget);
+      expect(saveButton(tester).onPressed, isNotNull);
+
+      await tester.tap(find.text('Salvar registro'));
+      await settle(tester);
+      await tester.pumpAndSettle();
+
+      expect(repository.createCalls, hasLength(1));
+      final saved = repository.createCalls.single;
+      expect(saved.latitude, isNull);
+      expect(saved.longitude, isNull);
+      expect(saved.address, AppStrings.addressUnavailable);
+      expect(saved.textureClass, 'Media');
+
+      locateGate.complete(null);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('save_still_waits_for_the_classification', (tester) async {
+      final classifyGate = Completer<InferenceResult?>();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => (latitude: -23.5, longitude: -46.6, address: 'X'),
+        classify: (_) => classifyGate.future,
+      ));
+
+      await capture(tester);
+      await settle(tester);
+
+      expect(saveButton(tester).onPressed, isNull);
+
+      classifyGate.complete(null);
+      await settle(tester);
+    });
+
+    testWidgets('a_late_reading_after_a_failed_save_is_kept', (tester) async {
+      final repository = FakeSoilRecordRepository()..throwOnCreate = true;
+      final locateGate = Completer<LocationReading?>();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () => locateGate.future,
+        classify: (_) async => null,
+        repository: repository,
+      ));
+
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      await settle(tester);
+      expect(repository.createCalls, hasLength(1));
+
+      locateGate.complete(
+        (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+      );
+      await settle(tester);
+
+      expect(find.text('São Paulo'), findsOneWidget);
+    });
   });
 
   testWidgets('a successful save creates the record, shows success, and pops',
