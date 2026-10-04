@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -168,6 +170,101 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getSemantics(thumbnail), isSemantics(isSelected: true));
     semantics.dispose();
+  });
+
+  // Selection mode has an entry that is not a long press (SPEC 0122).
+  group('selection without a long press', () {
+    Future<void> enterByTheButton(WidgetTester tester) async {
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await tester.pumpAndSettle();
+    }
+
+    IconButton deleteButton(WidgetTester tester) => tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.delete_outline),
+        );
+
+    testWidgets('selection_has_non_gesture_entry', (tester) async {
+      await enterByTheButton(tester);
+
+      expect(find.text('Nenhum selecionado'), findsOneWidget);
+      expect(find.byTooltip('Cancelar seleção'), findsOneWidget);
+      expect(deleteButton(tester).onPressed, isNull);
+
+      // A tap now selects the record instead of opening the preview, which
+      // this harness has no route for.
+      await tester.tap(find.byType(Image));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('1 selecionado'), findsOneWidget);
+      expect(deleteButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('selection_entry_needs_a_record', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider.overrideWithValue(
+            const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
+          ),
+          emptyGrid,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nenhum registro'), findsOneWidget);
+      expect(find.byTooltip('Selecionar registros'), findsNothing);
+    });
+
+    // The button follows what the grid shows: a stream that fails after
+    // records keeps them in `value`, but the grid shows its error.
+    testWidgets('selection_entry_follows_the_grid', (tester) async {
+      final records = StreamController<List<SoilRecord>>();
+      addTearDown(records.close);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider.overrideWithValue(
+            AsyncValue<List<SoilRecord>>.data([record(7)]),
+          ),
+          filteredRecordsProvider.overrideWith((ref) => records.stream),
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ));
+      records.add([record(7)]);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+
+      records.addError(Exception('boom'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
+      expect(find.byTooltip('Selecionar registros'), findsNothing);
+    });
+
+    testWidgets('selection_entry_is_labelled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      semantics.dispose();
+    });
+
+    testWidgets('deselecting_the_last_record_ends_selection', (tester) async {
+      await enterByTheButton(tester);
+
+      await tester.tap(find.byType(Image));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Image));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Histórico'), findsOneWidget);
+      expect(find.byTooltip('Cancelar seleção'), findsNothing);
+      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+    });
   });
 
   // At 200 % text on a phone, the grid, its empty state and the filter error
