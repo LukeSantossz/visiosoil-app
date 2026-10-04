@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_grid.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -207,6 +208,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   void _handleTap(int id) {
     if (_isSelectionMode) {
+      // A long press gets the platform's own vibration instead (SPEC 0126).
+      AppHaptics.selection();
       _toggleSelection(id);
     } else {
       // Details first; its photograph opens the viewer (SPEC 0125).

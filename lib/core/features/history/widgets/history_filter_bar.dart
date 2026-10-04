@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -166,7 +167,10 @@ class _FilterChip extends StatelessWidget {
     return FilterChip(
       label: Text(label),
       selected: isSelected,
-      onSelected: (_) => onSelected(),
+      onSelected: (_) {
+        AppHaptics.selection();
+        onSelected();
+      },
       selectedColor: context.palette.primary.withValues(alpha: 0.2),
       checkmarkColor: context.palette.primary,
       labelStyle: theme.textTheme.labelMedium?.copyWith(
