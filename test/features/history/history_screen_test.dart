@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -170,6 +171,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getSemantics(thumbnail), isSemantics(isSelected: true));
     semantics.dispose();
+  });
+
+  // A card opens details, where the photograph is one tap further
+  // (SPEC 0125).
+  testWidgets('tap_opens_details', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordsStreamProvider.overrideWithValue(
+          AsyncValue<List<SoilRecord>>.data([record(7)]),
+        ),
+        filteredRecordsProvider
+            .overrideWith((ref) => Stream.value(<SoilRecord>[record(7)])),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(routes: [
+          GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+          GoRoute(
+            path: '/details',
+            builder: (_, state) =>
+                Scaffold(body: Text('DETAILS_STUB ${state.extra}')),
+          ),
+          GoRoute(
+            path: '/preview',
+            builder: (_, state) =>
+                Scaffold(body: Text('PREVIEW_STUB ${state.extra}')),
+          ),
+        ]),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Image));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DETAILS_STUB 7'), findsOneWidget);
+    expect(find.textContaining('PREVIEW_STUB'), findsNothing);
   });
 
   // Selection mode has an entry that is not a long press (SPEC 0122).
