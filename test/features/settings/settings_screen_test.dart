@@ -15,6 +15,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -560,6 +561,37 @@ void main() {
     await tester.pump();
 
     expect(tester.getSize(find.byType(LoadingIndicator)), const Size(16, 16));
+  });
+
+  // The two irreversible actions are the app's destructive button, not a
+  // settings tile in red (SPEC 0129).
+  testWidgets('destructive_is_visually_distinct', (tester) async {
+    await tester.pumpWidget(
+      _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo')),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_SettingsTile',
+    );
+    for (final label in ['Excluir conta', 'Apagar todos os dados']) {
+      await tester.scrollUntilVisible(find.text(label), 200);
+      final button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(VisioButton),
+      );
+      expect(button, findsOneWidget, reason: label);
+      expect(
+        tester.widget<VisioButton>(button).variant,
+        VisioButtonVariant.destructive,
+        reason: label,
+      );
+      expect(
+        find.ancestor(of: find.text(label), matching: tile),
+        findsNothing,
+        reason: label,
+      );
+    }
   });
 
   testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
