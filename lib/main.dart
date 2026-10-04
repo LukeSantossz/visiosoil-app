@@ -18,13 +18,13 @@ Future<void> main() async {
   installErrorReporting(errorReport);
   // Read before the first frame, so it is already in the chosen theme
   // (SPEC 0107).
-  final themeMode = await restoreThemeMode(
-    SharedPreferencesAppearanceStore(),
-    defaultNightModeSync(),
-  );
+  final appearance = SharedPreferencesAppearanceStore();
+  final themeMode = await restoreThemeMode(appearance, defaultNightModeSync());
+  final highContrast = await restoreHighContrast(appearance);
   runApp(ProviderScope(
     overrides: [
       initialThemeModeProvider.overrideWithValue(themeMode),
+      initialHighContrastProvider.overrideWithValue(highContrast),
       errorReportStoreProvider.overrideWithValue(errorReport),
     ],
     child: const VisioSoilApp(),
@@ -39,11 +39,16 @@ class VisioSoilApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final highContrast = ref.watch(highContrastProvider);
     return MaterialApp.router(
       title: 'VisioSoil',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      // The setting turns high contrast on; so does the platform's own signal,
+      // through the two high-contrast themes (SPEC 0130).
+      theme: highContrast ? AppTheme.lightHighContrast : AppTheme.light,
+      darkTheme: highContrast ? AppTheme.darkHighContrast : AppTheme.dark,
+      highContrastTheme: AppTheme.lightHighContrast,
+      highContrastDarkTheme: AppTheme.darkHighContrast,
       themeMode: ref.watch(themeModeProvider),
       routerConfig: routerConfig ?? appRouter,
       // Fixed, not the device's: the app's own copy is pt-BR only, so Flutter's

@@ -55,6 +55,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     this.onBrand = AppColors.onPrimary,
     this.brandTileEnd = AppColors.tertiary,
     this.shadowBrand = AppColors.shadowBrand,
+    this.highContrast = false,
   });
 
   final Brightness brightness;
@@ -97,6 +98,16 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color onBrand;
   final Color brandTileEnd;
   final Color shadowBrand;
+
+  /// Whether this palette draws for high contrast (SPEC 0130): the light or
+  /// dark one with its structural edges solid instead of hairline.
+  final bool highContrast;
+
+  /// A card's edge. A hairline by default, which keeps the design system's
+  /// flat look; in high contrast the solid [outline], at 3 : 1 or more against
+  /// [surface], so a card's boundary can be seen in sunlight (SPEC 0130).
+  Color get cardBorder =>
+      highContrast ? outline : outlineVariant.withValues(alpha: 0.5);
 
   static const light = AppPalette(
     brightness: Brightness.light,
@@ -181,6 +192,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
     shadowElevated: Color(0x33000000),
   );
 
+  /// [light] with solid structural edges (SPEC 0130).
+  static final lightHighContrast = light.copyWith(highContrast: true);
+
+  /// [dark] with solid structural edges (SPEC 0130).
+  static final darkHighContrast = dark.copyWith(highContrast: true);
+
   /// The palette of [context]'s theme, or the one matching its brightness when
   /// the theme carries none (a bare `MaterialApp` in a widget test).
   static AppPalette of(BuildContext context) {
@@ -220,9 +237,56 @@ class AppPalette extends ThemeExtension<AppPalette> {
         inversePrimary: inversePrimary,
       );
 
-  /// The palette is fixed per theme, so there is nothing to override.
+  /// The colours are fixed per theme; only [highContrast] can change, which
+  /// is how the high-contrast palettes are made (SPEC 0130).
   @override
-  AppPalette copyWith() => this;
+  AppPalette copyWith({bool? highContrast}) {
+    // Nothing to change: the palette itself, as the empty copyWith returned.
+    if (highContrast == null || highContrast == this.highContrast) return this;
+    return AppPalette(
+      brightness: brightness,
+      primary: primary,
+      onPrimary: onPrimary,
+      primaryContainer: primaryContainer,
+      onPrimaryContainer: onPrimaryContainer,
+      secondary: secondary,
+      onSecondary: onSecondary,
+      secondaryContainer: secondaryContainer,
+      onSecondaryContainer: onSecondaryContainer,
+      tertiary: tertiary,
+      onTertiary: onTertiary,
+      tertiaryContainer: tertiaryContainer,
+      onTertiaryContainer: onTertiaryContainer,
+      error: error,
+      onError: onError,
+      errorContainer: errorContainer,
+      onErrorContainer: onErrorContainer,
+      warning: warning,
+      warningContainer: warningContainer,
+      onWarningContainer: onWarningContainer,
+      background: background,
+      onBackground: onBackground,
+      surface: surface,
+      onSurface: onSurface,
+      surfaceVariant: surfaceVariant,
+      onSurfaceVariant: onSurfaceVariant,
+      outline: outline,
+      outlineVariant: outlineVariant,
+      inverseSurface: inverseSurface,
+      onInverseSurface: onInverseSurface,
+      inversePrimary: inversePrimary,
+      shadow: shadow,
+      scrim: scrim,
+      shadowCard: shadowCard,
+      shadowControl: shadowControl,
+      shadowElevated: shadowElevated,
+      brand: brand,
+      onBrand: onBrand,
+      brandTileEnd: brandTileEnd,
+      shadowBrand: shadowBrand,
+      highContrast: highContrast,
+    );
+  }
 
   @override
   AppPalette lerp(covariant AppPalette? other, double t) {
@@ -270,6 +334,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       onBrand: mix(onBrand, other.onBrand),
       brandTileEnd: mix(brandTileEnd, other.brandTileEnd),
       shadowBrand: mix(shadowBrand, other.shadowBrand),
+      highContrast: t < 0.5 ? highContrast : other.highContrast,
     );
   }
 }

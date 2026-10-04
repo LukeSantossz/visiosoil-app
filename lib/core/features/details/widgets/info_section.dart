@@ -66,9 +66,7 @@ class _InfoTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
-        border: Border.all(
-          color: context.palette.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: context.palette.cardBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

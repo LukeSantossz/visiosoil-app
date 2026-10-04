@@ -12,6 +12,13 @@ class _FailingStore implements AppearanceStore {
 
   @override
   Future<void> write(ThemeMode mode) async {}
+
+  @override
+  Future<bool> readHighContrast() =>
+      Future.error(StateError('corrupt preferences'));
+
+  @override
+  Future<void> writeHighContrast(bool on) async {}
 }
 
 class _RecordingSync implements NightModeSync {
@@ -60,5 +67,22 @@ void main() {
 
     expect(mode, ThemeMode.system);
     expect(sync.applied, [ThemeMode.system]);
+  });
+
+  // The high-contrast choice round-trips, reads as off when absent, and a
+  // store that cannot be read leaves it off (SPEC 0130).
+  test('the_high_contrast_choice_round_trips', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SharedPreferencesAppearanceStore();
+    expect(await store.readHighContrast(), isFalse);
+
+    await store.writeHighContrast(true);
+    expect(await store.readHighContrast(), isTrue);
+    await store.writeHighContrast(false);
+    expect(await store.readHighContrast(), isFalse);
+  });
+
+  test('an_unreadable_store_leaves_high_contrast_off', () async {
+    expect(await restoreHighContrast(_FailingStore()), isFalse);
   });
 }
