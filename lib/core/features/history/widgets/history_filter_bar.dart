@@ -4,6 +4,7 @@ import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// The history search field plus the texture-class filter chips. Owns no state:
@@ -48,9 +49,10 @@ class HistoryFilterBar extends ConsumerWidget {
                 hintText: 'Buscar por endereço...',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: searchTerm.isNotEmpty
-                    ? IconButton(
-                        tooltip: 'Limpar busca',
-                        icon: const Icon(Icons.clear, size: 20),
+                    ? VisioIconButton(
+                        label: 'Limpar busca',
+                        icon: Icons.clear,
+                        iconSize: 20,
                         onPressed: onClearSearch,
                       )
                     : null,

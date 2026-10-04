@@ -6,6 +6,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -131,38 +132,15 @@ class _TopBar extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
-            child: _CircleIconButton(
-              tooltip: 'Fechar',
+            child: VisioIconButton(
+              label: 'Fechar',
               icon: Icons.close,
+              overPhoto: true,
               onPressed: () => Navigator.maybePop(context),
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  /// Read by screen readers as the button's label (SPEC 0118).
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon),
-      color: Colors.white,
-      style: IconButton.styleFrom(backgroundColor: Colors.black45),
     );
   }
 }

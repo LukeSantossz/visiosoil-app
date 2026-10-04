@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -147,14 +148,11 @@ class _HeroImageAppBar extends StatelessWidget {
       leading: Navigator.canPop(context)
           ? Padding(
               padding: const EdgeInsets.all(AppSpacing.xs),
-              child: IconButton(
-                // A literal: the app registers no pt-BR Material localizations,
-                // so backButtonTooltip would read "Back" (SPEC 0118).
-                tooltip: 'Voltar',
+              child: VisioIconButton(
+                label: 'Voltar',
+                icon: Icons.arrow_back,
+                overPhoto: true,
                 onPressed: () => Navigator.maybePop(context),
-                icon: const Icon(Icons.arrow_back),
-                color: Colors.white,
-                style: IconButton.styleFrom(backgroundColor: Colors.black45),
               ),
             )
           : null,
