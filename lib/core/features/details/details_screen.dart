@@ -163,20 +163,37 @@ class _HeroImageAppBar extends StatelessWidget {
         // than on the photograph.
         background: Padding(
           padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
-          child: Image.file(
-            imageFile,
-            fit: BoxFit.cover,
-            cacheHeight: cacheH,
-            errorBuilder: (_, _, _) => Container(
-              color: context.palette.surfaceVariant,
-              child: Center(
-                child: Icon(
-                  Icons.broken_image,
-                  size: 48,
-                  color: context.palette.onSurfaceVariant,
+          // A labelled button that opens the full-screen viewer, its ink on a
+          // transparent Material over the photograph (SPEC 0125).
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(
+                imageFile,
+                fit: BoxFit.cover,
+                cacheHeight: cacheH,
+                errorBuilder: (_, _, _) => Container(
+                  color: context.palette.surfaceVariant,
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: context.palette.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              Semantics(
+                button: true,
+                label: 'Ampliar foto',
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: () => context.push('/preview', extra: record.id),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
