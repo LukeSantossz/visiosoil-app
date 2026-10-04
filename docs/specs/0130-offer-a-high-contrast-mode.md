@@ -50,7 +50,7 @@ The five sites read `context.palette.cardBorder`. Outside high contrast nothing 
   - The five border sites.
   - `lib/core/services/appearance_store.dart`, `lib/providers/appearance_provider.dart` and `lib/main.dart`: the setting, its persistence and its restore.
   - `lib/core/features/settings/settings_screen.dart`: the switch.
-  - Tests for each criterion. The two test fakes of `AppearanceStore` gain the two new methods.
+  - Tests for each criterion, and a round trip of the stored choice with its fallback when the store cannot be read. The three test fakes of `AppearanceStore` gain the two new methods.
 - Does NOT include:
   - Heavier type weights, other translucent decoration, and the page-against-surface contrast (later slices of item 11).
   - The native launch screen, which keeps SPEC 0107's light and dark.
@@ -64,7 +64,9 @@ The five sites read `context.palette.cardBorder`. Outside high contrast nothing 
 - `high_contrast_is_a_setting`: turning on "Alto contraste" in settings gives the app the high-contrast palette at once, and writes it to the store. Turning it off restores the default.
 - `high_contrast_survives_a_restart`: with the store holding `true`, the app's first frame already has the high-contrast palette.
 - `platform_signal_is_honoured`: with the platform reporting high contrast and the setting off, the app has the high-contrast palette.
-- The existing tests pass, with the two `AppearanceStore` fakes extended.
+- The existing tests pass, with two changes:
+  - the three `AppearanceStore` fakes are extended;
+  - the three settings tests that tap "Apagar todos os dados" now scroll to it first, since the new switch moves it below the test view's fold.
 
 ## Reproducibility
 
