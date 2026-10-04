@@ -60,7 +60,7 @@ On `main`:
 
 - `one_loading_presentation`: no file under `lib/` constructs a `CircularProgressIndicator` except `core/widgets/loading_indicator.dart`.
 - `app_bar_is_shared`: no file under `lib/` constructs an `AppBar(` except `core/widgets/visio_app_bar.dart` and the stated exception, `preview/image_preview_screen.dart`. A `SliverAppBar` is not an `AppBar(`.
-- `spinners_keep_their_size`: the `LoadingIndicator` in a loading `VisioButton` lays out at 20 × 20 dp, and the one in the settings account tile, while auth loads, at 16 × 16 dp.
+- `spinners_keep_their_size`: the `LoadingIndicator` in a loading `VisioButton` lays out at 20 × 20 dp, and the one in the settings version tile, while package info loads, at 16 × 16 dp.
 - The existing tests pass unchanged.
 
 ## Reproducibility
