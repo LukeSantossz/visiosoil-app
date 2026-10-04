@@ -1,6 +1,8 @@
 // The two palettes the app themes from (SPEC 0107): the light one is today's
 // tokens unchanged, the dark one meets AA on every text pair, and the brand
 // surfaces do not change with the theme.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
@@ -129,5 +131,55 @@ void main() {
 
     expect(light, same(AppPalette.light));
     expect(dark, same(AppPalette.dark));
+  });
+
+  // A card's edge is a role: a hairline by default, solid `outline` in high
+  // contrast (SPEC 0130).
+  group('card border', () {
+    test('card_border_meets_3_to_1_in_high_contrast', () {
+      for (final p in [
+        AppPalette.lightHighContrast,
+        AppPalette.darkHighContrast,
+      ]) {
+        expect(p.highContrast, isTrue, reason: '${p.brightness}');
+        expect(p.cardBorder, p.outline, reason: '${p.brightness}');
+        expect(_contrast(p.cardBorder, p.surface), greaterThanOrEqualTo(3),
+            reason: '${p.brightness}');
+      }
+    });
+
+    test('high-contrast palettes differ from their base only there', () {
+      for (final (hc, base) in [
+        (AppPalette.lightHighContrast, AppPalette.light),
+        (AppPalette.darkHighContrast, AppPalette.dark),
+      ]) {
+        expect(hc.colorScheme, base.colorScheme, reason: '${base.brightness}');
+        expect(hc.warningContainer, base.warningContainer);
+        expect(hc.brand, base.brand);
+      }
+    });
+
+    test('default_card_border_is_unchanged', () {
+      for (final p in [AppPalette.light, AppPalette.dark]) {
+        expect(p.highContrast, isFalse, reason: '${p.brightness}');
+        expect(p.cardBorder, p.outlineVariant.withValues(alpha: 0.5),
+            reason: '${p.brightness}');
+      }
+    });
+
+    test('card_borders_use_the_role', () {
+      final hairlines = Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'))
+          .where((file) => !file.path.endsWith('app_palette.dart'))
+          .where((file) => file
+              .readAsStringSync()
+              .contains('outlineVariant.withValues(alpha:'))
+          .map((file) => file.path)
+          .toList();
+
+      expect(hairlines, isEmpty);
+    });
   });
 }

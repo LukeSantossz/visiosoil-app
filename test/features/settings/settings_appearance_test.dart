@@ -9,6 +9,7 @@ import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -35,6 +36,14 @@ class _MemoryStore implements AppearanceStore {
 
   @override
   Future<void> write(ThemeMode mode) async => stored = mode;
+
+  bool highContrast = false;
+
+  @override
+  Future<bool> readHighContrast() async => highContrast;
+
+  @override
+  Future<void> writeHighContrast(bool on) async => highContrast = on;
 }
 
 class _RecordingSync implements NightModeSync {
@@ -112,5 +121,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(haptics, ['HapticFeedbackType.selectionClick']);
+  });
+
+  // The switch applies high contrast at once and persists it (SPEC 0130).
+  testWidgets('high_contrast_is_a_setting', (tester) async {
+    final store = _MemoryStore();
+    await _pumpSettings(tester, store, _RecordingSync());
+
+    bool highContrast() =>
+        tester.element(find.byType(SettingsScreen)).palette.highContrast;
+    final toggle = find.widgetWithText(SwitchListTile, 'Alto contraste');
+    expect(highContrast(), isFalse);
+
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(highContrast(), isTrue);
+    expect(store.highContrast, isTrue);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(highContrast(), isFalse);
+    expect(store.highContrast, isFalse);
   });
 }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 
@@ -19,6 +20,14 @@ class _MemoryStore implements AppearanceStore {
 
   @override
   Future<void> write(ThemeMode mode) async => stored = mode;
+
+  bool highContrast = false;
+
+  @override
+  Future<bool> readHighContrast() async => highContrast;
+
+  @override
+  Future<void> writeHighContrast(bool on) async => highContrast = on;
 }
 
 class _RecordingSync implements NightModeSync {
@@ -26,10 +35,15 @@ class _RecordingSync implements NightModeSync {
   Future<void> apply(ThemeMode mode) async {}
 }
 
-Widget _app(ThemeMode stored, void Function(BuildContext) onBuild) =>
+Widget _app(
+  ThemeMode stored,
+  void Function(BuildContext) onBuild, {
+  bool highContrast = false,
+}) =>
     ProviderScope(
       overrides: [
         initialThemeModeProvider.overrideWithValue(stored),
+        initialHighContrastProvider.overrideWithValue(highContrast),
         appearanceStoreProvider.overrideWithValue(_MemoryStore(stored)),
         nightModeSyncProvider.overrideWithValue(_RecordingSync()),
       ],
@@ -74,5 +88,31 @@ void main() {
     await tester.pumpWidget(_app(ThemeMode.light, (_) {}));
     expect(overlay().statusBarIconBrightness, Brightness.dark);
     expect(overlay().statusBarBrightness, Brightness.light);
+  });
+
+  // High contrast is restored before the first frame, and the platform's own
+  // signal turns it on too (SPEC 0130).
+  testWidgets('high_contrast_survives_a_restart', (tester) async {
+    final seen = <bool>[];
+    await tester.pumpWidget(_app(
+      ThemeMode.light,
+      (context) => seen.add(context.palette.highContrast),
+      highContrast: true,
+    ));
+
+    expect(seen.first, isTrue);
+  });
+
+  testWidgets('platform_signal_is_honoured', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(highContrast: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final seen = <bool>[];
+
+    await tester.pumpWidget(
+      _app(ThemeMode.light, (context) => seen.add(context.palette.highContrast)),
+    );
+
+    expect(seen.last, isTrue);
   });
 }
