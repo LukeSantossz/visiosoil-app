@@ -453,6 +453,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open the shared destructive dialog from the delete-all tile.
+    // Below the fold in the test view since SPEC 0130's switch.
+    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
     await tester.tap(find.text('Apagar todos os dados'));
     await tester.pumpAndSettle();
 
@@ -476,6 +478,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.errorReportNothingToSend), findsNothing);
 
+    // Below the fold in the test view since SPEC 0130's switch.
+    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
     await tester.tap(find.text('Apagar todos os dados'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Apagar tudo'));
@@ -609,6 +613,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Below the fold in the test view since SPEC 0130's switch.
+    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
     await tester.tap(find.text('Apagar todos os dados'));
     await tester.pumpAndSettle();
 
