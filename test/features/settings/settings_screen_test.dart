@@ -355,6 +355,13 @@ void main() {
   });
 
   group('account deletion (SPEC 0113)', () {
+    // The dialog's own button: the action that opens it is a TextButton too
+    // since SPEC 0129.
+    Finder confirmDeletion() => find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(TextButton, 'Excluir conta'),
+        );
+
     const agro = AuthAccount(email: 'agro@example.com', displayName: 'Agro');
 
     testWidgets('settings_offers_account_deletion_only_when_signed_in',
@@ -378,7 +385,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Apagar todos os dados'), findsWidgets,
           reason: 'the confirmation names where the records are erased');
-      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.tap(confirmDeletion());
       await tester.pumpAndSettle();
 
       expect(auth.deleteAccountCalls, 1);
@@ -410,7 +417,7 @@ void main() {
 
       await tester.tap(find.text('Excluir conta'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.tap(confirmDeletion());
       await tester.pumpAndSettle();
 
       expect(find.textContaining('myaccount.google.com/connections'),
@@ -431,7 +438,7 @@ void main() {
 
       await tester.tap(find.text('Excluir conta'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Excluir conta'));
+      await tester.tap(confirmDeletion());
       await tester.pumpAndSettle();
 
       expect(find.text(_failureMessage), findsOneWidget);
