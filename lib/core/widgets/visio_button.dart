@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 
 /// VisioButton variants.
 enum VisioButtonVariant { primary, secondary, destructive }
@@ -65,21 +66,22 @@ class VisioButton extends StatelessWidget {
 
   Widget _buildChild(BuildContext context) {
     if (isLoading) {
+      // The box keeps the button at the spinner's size: the indicator's own
+      // Center would otherwise fill the button's width (SPEC 0123).
       return SizedBox(
         height: 20,
         width: 20,
-        child: CircularProgressIndicator(
+        child: LoadingIndicator(
+          size: 20,
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            switch (variant) {
-              VisioButtonVariant.primary =>
-                Theme.of(context).colorScheme.onPrimary,
-              VisioButtonVariant.secondary =>
-                Theme.of(context).colorScheme.primary,
-              VisioButtonVariant.destructive =>
-                Theme.of(context).colorScheme.error,
-            },
-          ),
+          color: switch (variant) {
+            VisioButtonVariant.primary =>
+              Theme.of(context).colorScheme.onPrimary,
+            VisioButtonVariant.secondary =>
+              Theme.of(context).colorScheme.primary,
+            VisioButtonVariant.destructive =>
+              Theme.of(context).colorScheme.error,
+          },
         ),
       );
     }

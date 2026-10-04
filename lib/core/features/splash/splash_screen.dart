@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
@@ -163,7 +164,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
+                          child: LoadingIndicator(
+                            size: 24,
                             strokeWidth: 2,
                             color: context.palette.primary,
                           ),
