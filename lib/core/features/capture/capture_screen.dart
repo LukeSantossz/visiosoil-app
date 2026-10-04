@@ -321,13 +321,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     setState(() => _state = _state.copyWith(isSaving: true));
 
-    var didCreate = false;
+    SoilRecord? created;
     try {
       final String finalAddress = _state.address ?? AppStrings.addressUnavailable;
       final double? finalLatitude = _state.latitude;
       final double? finalLongitude = _state.longitude;
 
-      await ref.read(soilRecordRepositoryProvider).create(
+      created = await ref.read(soilRecordRepositoryProvider).create(
             SoilRecord(
               imagePath: image.path,
               latitude: finalLatitude,
@@ -342,10 +342,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               datasetVersion: _state.classificationResult?.datasetVersion,
             ),
           );
-      didCreate = true;
     } catch (e) {
       // A repository write failure must not leave the user without feedback:
-      // surface it and keep the image (no clearImage/pop) so they can retry.
+      // surface it and keep the image (no clearImage, no navigation) so they
+      // can retry.
       developer.log('Save failed: $e', name: 'CaptureScreen');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -366,8 +366,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // write a duplicate). Clear via the captured notifier — even if the screen
     // was disposed mid-save — but only if the provider still holds the photo we
     // saved, so a slow write finishing after a newer capture does not wipe it.
-    // Only the snackbar/pop need the widget still mounted.
-    if (didCreate) {
+    // Only the snackbar and the navigation need the widget still mounted.
+    if (created != null) {
       unawaited(AppHaptics.confirm());
       imageNotifier.clearIfPath(image.path);
       // The record points at its durable copy now. A failed save never gets
@@ -377,7 +377,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro salvo com sucesso!')),
         );
-        context.pop();
+        // Capture is replaced, so back from details returns to whatever
+        // opened it (SPEC 0132).
+        context.pushReplacement('/details', extra: created.id);
       }
     }
   }
