@@ -77,28 +77,38 @@ class HistoryFilterBar extends ConsumerWidget {
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.xs,
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 18,
-                    color: context.palette.error.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      'Não foi possível carregar os filtros',
-                      style: theme.textTheme.bodySmall,
+              // At large text the retry's label wraps within half the row
+              // instead of squeezing the message (SPEC 0121).
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 18,
+                      color: context.palette.error.withValues(alpha: 0.8),
                     ),
-                  ),
-                  TextButton(
-                    // Invalidate the root records stream the chips derive from,
-                    // so a transient failure actually re-runs; refreshing only
-                    // the derived wrapper re-reads the same cached failed stream.
-                    onPressed: () => ref.invalidate(soilRecordsStreamProvider),
-                    child: const Text('Tentar novamente'),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Não foi possível carregar os filtros',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    ConstrainedBox(
+                      constraints:
+                          BoxConstraints(maxWidth: constraints.maxWidth / 2),
+                      child: TextButton(
+                        // Invalidate the root records stream the chips derive
+                        // from, so a transient failure actually re-runs;
+                        // refreshing only the derived wrapper re-reads the same
+                        // cached failed stream.
+                        onPressed: () =>
+                            ref.invalidate(soilRecordsStreamProvider),
+                        child: const Text('Tentar novamente'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             data: (classes) {

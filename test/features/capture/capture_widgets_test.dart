@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
@@ -16,6 +17,8 @@ import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
+
+import '../../support/large_text.dart';
 
 Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
@@ -179,6 +182,51 @@ void main() {
             .onRetry,
         isNull,
       );
+    });
+  });
+
+  // At 200 % text on a phone, the capture widgets still lay out, and a chip's
+  // address is not cut (SPEC 0121).
+  group('large text', () {
+    testWidgets('capture_scales_to_200_percent', (tester) async {
+      useLargeTextOnAPhone(tester);
+
+      for (final hasImage in [false, true]) {
+        await tester.pumpWidget(host(CaptureActions(
+          hasImage: hasImage,
+          isBusy: false,
+          onCapture: () {},
+          onSave: () {},
+          onDiscard: () {},
+          checkLocationPermission: () async => AppPermissionStatus.denied,
+        )));
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'hasImage: $hasImage');
+      }
+    });
+
+    // The address appears nowhere else on capture, so a long one is shown
+    // whole at 200 %, not cut.
+    testWidgets('capture_chip_is_not_cut', (tester) async {
+      useLargeTextOnAPhone(tester);
+      const address =
+          'Estrada Municipal PIR-020, km 12, Bairro Santa Olímpia, Piracicaba, SP';
+
+      await tester.pumpWidget(host(CaptureImagePreview(
+        image: sampleImage,
+        isLoading: false,
+        isClassifying: false,
+        address: address,
+        latitude: -22.7,
+        longitude: -47.6,
+      )));
+
+      expect(
+        tester.renderObject<RenderParagraph>(find.text(address))
+            .didExceedMaxLines,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 

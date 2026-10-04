@@ -15,6 +15,7 @@ import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/management_tips_fakes.dart';
+import '../../support/large_text.dart';
 
 /// Records the include-location choice the share flow forwards to the service.
 class _RecordingShareService extends ShareService {
@@ -470,5 +471,20 @@ void main() {
       tester.getRect(delete).top - tester.getRect(share).bottom,
       greaterThanOrEqualTo(24),
     );
+  });
+
+  // At 200 % text on a phone, every part of details still lays out
+  // (SPEC 0121).
+  testWidgets('details_scales_to_200_percent', (tester) async {
+    useLargeTextOnAPhone(tester);
+
+    await tester.pumpWidget(_detailsUnderTest(
+      share: _RecordingShareService(),
+      record: _locatedRecord(),
+    ));
+    await tester.pumpAndSettle();
+    await scrollToTheEnd(tester);
+
+    expect(tester.takeException(), isNull);
   });
 }
