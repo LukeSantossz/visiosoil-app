@@ -49,17 +49,16 @@ class HistoryGrid extends ConsumerWidget {
               ? const _EmptySearchState()
               : const _EmptyHistoryState();
         }
-        return _buildGrid(records);
+        return _buildGrid(context, records);
       },
     );
   }
 
-  Widget _buildGrid(List<SoilRecord> records) {
-    final visible = records.length > maxRecords
-        ? records.sublist(0, maxRecords)
-        : records;
+  Widget _buildGrid(BuildContext context, List<SoilRecord> records) {
+    final isCut = records.length > maxRecords;
+    final visible = isCut ? records.sublist(0, maxRecords) : records;
 
-    return GridView.builder(
+    final grid = GridView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -80,6 +79,31 @@ class HistoryGrid extends ConsumerWidget {
           onLongPress: () => onLongPress(id),
         );
       },
+    );
+    if (!isCut) return grid;
+
+    // The cap is said, not silent: the stream is newest first, so what is
+    // left out is the oldest (SPEC 0128).
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            0,
+          ),
+          child: Text(
+            'Mostrando os $maxRecords registros mais recentes. Use a busca ou '
+            'os filtros para encontrar os mais antigos.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(child: grid),
+      ],
     );
   }
 }
