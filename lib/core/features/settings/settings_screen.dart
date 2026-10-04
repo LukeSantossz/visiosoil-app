@@ -13,6 +13,8 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -34,10 +36,7 @@ class SettingsScreen extends ConsumerWidget {
     final pkgAsync = ref.watch(packageInfoProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configurações'),
-        centerTitle: true,
-      ),
+      appBar: const VisioAppBar(title: 'Configurações'),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -71,7 +70,7 @@ class SettingsScreen extends ConsumerWidget {
               loading: () => const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: LoadingIndicator(size: 16, strokeWidth: 2),
               ),
               error: (_, _) => Text(
                 '-',
@@ -197,7 +196,7 @@ class _AccountTile extends ConsumerWidget {
         trailing: SizedBox(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: LoadingIndicator(size: 16, strokeWidth: 2),
         ),
       ),
       // On error, derive the tile from the service's authoritative sign-in

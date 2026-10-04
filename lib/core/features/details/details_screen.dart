@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
@@ -50,7 +51,7 @@ class _DetailsErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes')),
+      appBar: const VisioAppBar(title: 'Detalhes'),
       body: ErrorState(
         message: 'Não foi possível carregar o registro.',
         onRetry: onRetry,
@@ -69,7 +70,7 @@ class _RecordNotFoundView extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes')),
+      appBar: const VisioAppBar(title: 'Detalhes'),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

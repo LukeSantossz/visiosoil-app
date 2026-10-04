@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -20,7 +21,7 @@ class ImagePreviewScreen extends ConsumerWidget {
     return asyncRecord.when(
       loading: () => const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+        body: LoadingIndicator(),
       ),
       error: (_, _) => _PreviewErrorView(
         onRetry: () => ref.invalidate(soilRecordByIdProvider(recordId)),

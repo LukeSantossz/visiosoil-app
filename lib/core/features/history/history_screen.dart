@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_grid.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -160,7 +161,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  AppBar _buildAppBar() {
+  VisioAppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
     // The same branches as the grid: a reload or an error keeps the previous
@@ -171,13 +172,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       loading: () => false,
     );
 
-    return AppBar(
-      title: Text(switch ((_isSelectionMode, count)) {
+    return VisioAppBar(
+      title: switch ((_isSelectionMode, count)) {
         (false, _) => 'Histórico',
         (true, 0) => 'Nenhum selecionado',
         (true, _) => '$count selecionado${count > 1 ? 's' : ''}',
-      }),
-      centerTitle: true,
+      },
       leading: _isSelectionMode
           ? IconButton(
               tooltip: 'Cancelar seleção',
