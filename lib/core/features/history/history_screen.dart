@@ -8,6 +8,7 @@ import 'package:visiosoil_app/core/features/history/widgets/history_grid.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -180,26 +181,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         (true, _) => '$count selecionado${count > 1 ? 's' : ''}',
       },
       leading: _isSelectionMode
-          ? IconButton(
-              tooltip: 'Cancelar seleção',
-              icon: const Icon(Icons.close),
+          ? VisioIconButton(
+              label: 'Cancelar seleção',
+              icon: Icons.close,
               onPressed: _cancelSelection,
             )
           : null,
       actions: _isSelectionMode
           ? [
-              IconButton(
-                tooltip: 'Excluir selecionados',
-                icon: const Icon(Icons.delete_outline),
+              VisioIconButton(
+                label: 'Excluir selecionados',
+                icon: Icons.delete_outline,
                 onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                 color: theme.colorScheme.error,
               ),
             ]
           : [
               if (hasRecords)
-                IconButton(
-                  tooltip: 'Selecionar registros',
-                  icon: const Icon(Icons.checklist),
+                VisioIconButton(
+                  label: 'Selecionar registros',
+                  icon: Icons.checklist,
                   onPressed: _startEmptySelection,
                 ),
             ],

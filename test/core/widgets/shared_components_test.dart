@@ -30,4 +30,13 @@ void main() {
       ['lib/core/widgets/visio_app_bar.dart'],
     );
   });
+
+  // Every icon-only button is the shared one, whose label is required
+  // (SPEC 0131). IconButton.styleFrom( does not match.
+  test('icon_buttons_are_shared', () {
+    expect(
+      _constructing(RegExp(r'(?<![A-Za-z])IconButton\(')),
+      ['lib/core/widgets/visio_icon_button.dart'],
+    );
+  });
 }
