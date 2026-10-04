@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -30,7 +28,7 @@ class ImagePreviewScreen extends ConsumerWidget {
       ),
       data: (record) {
         if (record == null) return const _RecordNotFoundView();
-        return _PreviewContent(record: record, recordId: recordId);
+        return _PreviewContent(record: record);
       },
     );
   }
@@ -70,32 +68,25 @@ class _RecordNotFoundView extends StatelessWidget {
 }
 
 class _PreviewContent extends StatelessWidget {
-  const _PreviewContent({required this.record, required this.recordId});
+  const _PreviewContent({required this.record});
 
   final SoilRecord record;
-  final int recordId;
 
   @override
   Widget build(BuildContext context) {
+    // The photograph and one way out: details, underneath, holds the rest
+    // (SPEC 0125).
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          Expanded(
-            child: _ImageViewer(record: record, recordId: recordId),
-          ),
-          _InfoPanel(record: record),
-        ],
-      ),
+      body: _ImageViewer(record: record),
     );
   }
 }
 
 class _ImageViewer extends StatelessWidget {
-  const _ImageViewer({required this.record, required this.recordId});
+  const _ImageViewer({required this.record});
 
   final SoilRecord record;
-  final int recordId;
 
   @override
   Widget build(BuildContext context) {
@@ -119,16 +110,14 @@ class _ImageViewer extends StatelessWidget {
             ),
           ),
         ),
-        _TopBar(recordId: recordId),
+        const _TopBar(),
       ],
     );
   }
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.recordId});
-
-  final int recordId;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
@@ -140,20 +129,13 @@ class _TopBar extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _CircleIconButton(
-                tooltip: 'Voltar',
-                icon: Icons.arrow_back,
-                onPressed: () => context.pop(),
-              ),
-              _CircleIconButton(
-                tooltip: 'Ver detalhes',
-                icon: Icons.info_outline,
-                onPressed: () => context.push('/details', extra: recordId),
-              ),
-            ],
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: _CircleIconButton(
+              tooltip: 'Fechar',
+              icon: Icons.close,
+              onPressed: () => Navigator.maybePop(context),
+            ),
           ),
         ),
       ),
@@ -181,140 +163,6 @@ class _CircleIconButton extends StatelessWidget {
       icon: Icon(icon),
       color: Colors.white,
       style: IconButton.styleFrom(backgroundColor: Colors.black45),
-    );
-  }
-}
-
-class _InfoPanel extends StatelessWidget {
-  const _InfoPanel({required this.record});
-
-  final SoilRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _DragHandle(),
-              _InfoRow(
-                icon: Icons.access_time,
-                label: 'Capturado em',
-                value: record.formattedTimestamp,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _InfoRow(
-                icon: Icons.location_on,
-                label: 'Localização',
-                value: record.hasValidAddress
-                    ? record.address!
-                    : (record.hasCoordinates
-                          ? record.formattedCoordinates
-                          : 'Localização indisponível'),
-              ),
-              if (record.hasCoordinates && record.hasValidAddress) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _CoordinatesSubtext(coordinates: record.formattedCoordinates),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DragHandle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Container(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.outlineVariant,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: theme.colorScheme.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(value, style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CoordinatesSubtext extends StatelessWidget {
-  const _CoordinatesSubtext({required this.coordinates});
-
-  final String coordinates;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 28),
-      child: Text(
-        coordinates,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontFamily: 'monospace',
-        ),
-      ),
     );
   }
 }

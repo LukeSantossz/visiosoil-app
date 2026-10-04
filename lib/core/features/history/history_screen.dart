@@ -209,7 +209,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (_isSelectionMode) {
       _toggleSelection(id);
     } else {
-      context.push('/preview', extra: id);
+      // Details first; its photograph opens the viewer (SPEC 0125).
+      context.push('/details', extra: id);
     }
   }
 }

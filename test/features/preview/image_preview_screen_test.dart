@@ -150,9 +150,63 @@ void main() {
     final semantics = tester.ensureSemantics();
     await pumpPreview(tester);
 
-    expect(find.byTooltip('Voltar'), findsOneWidget);
-    expect(find.byTooltip('Ver detalhes'), findsOneWidget);
+    expect(find.byTooltip('Fechar'), findsOneWidget);
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     semantics.dispose();
+  });
+
+  // The viewer is the photograph and one way out; details, underneath it,
+  // holds everything else (SPEC 0125).
+  testWidgets('viewer_is_photo_only', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => record()),
+      ],
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ImagePreviewScreen(recordId: 1),
+              ),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.byType(IconButton), findsOneWidget);
+    expect(find.byTooltip('Fechar'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Fechar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImagePreviewScreen), findsNothing);
+  });
+
+  testWidgets('viewer_has_no_duplicate_info', (tester) async {
+    final located = SoilRecord(
+      id: 1,
+      imagePath: imagePath,
+      timestamp: DateTime.utc(2026, 1, 2, 14, 30).toIso8601String(),
+      address: 'Fazenda Boa Vista, Piracicaba',
+      latitude: -22.7,
+      longitude: -47.6,
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => located),
+      ],
+      child: const MaterialApp(home: ImagePreviewScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Capturado em'), findsNothing);
+    expect(find.text('Localização'), findsNothing);
+    expect(find.text(located.formattedTimestamp), findsNothing);
+    expect(find.textContaining('Fazenda Boa Vista'), findsNothing);
   });
 }

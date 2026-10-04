@@ -99,10 +99,11 @@ void main() {
       expect(src, contains('horizontal:AppSpacing.sm'));
     });
 
-    test('image_preview snaps its bottom-sheet radius to xl', () {
+    // The viewer's bottom sheet went with SPEC 0125; no off-scale radius may
+    // come back.
+    test('image_preview has no off-scale radius', () {
       final src = _packed('lib/core/features/preview/image_preview_screen.dart');
       expect(src, isNot(contains('Radius.circular(20)')));
-      expect(src, contains('Radius.circular(AppRadius.xl)'));
     });
 
     test('capture_image_preview snaps its chip and container radius to lg', () {

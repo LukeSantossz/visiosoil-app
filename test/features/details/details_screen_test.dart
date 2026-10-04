@@ -507,4 +507,54 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  // The photograph at the top is a labelled way into the full-screen viewer
+  // (SPEC 0125).
+  testWidgets('hero_opens_viewer', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final router = GoRouter(
+      initialLocation: '/details',
+      routes: [
+        GoRoute(
+          path: '/details',
+          builder: (_, _) => const DetailsScreen(recordId: 1),
+        ),
+        GoRoute(
+          path: '/preview',
+          builder: (_, state) =>
+              Scaffold(body: Text('PREVIEW_STUB ${state.extra}')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => _locatedRecord()),
+        managementTipsRepositoryProvider
+            .overrideWithValue(FakeManagementTipsRepository()),
+        researchServiceProvider.overrideWithValue(
+          FakeResearchService(
+            (_) async =>
+                const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+          ),
+        ),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+
+    final hero = find.bySemanticsLabel('Ampliar foto');
+    expect(hero, findsOneWidget);
+    expect(
+      tester.getSemantics(hero),
+      isSemantics(isButton: true, hasTapAction: true),
+    );
+
+    await tester.tap(hero);
+    await tester.pumpAndSettle();
+
+    expect(find.text('PREVIEW_STUB 1'), findsOneWidget);
+    semantics.dispose();
+  });
 }
