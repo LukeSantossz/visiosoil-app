@@ -133,5 +133,31 @@ void main() {
 
       expect(find.text('Nenhum registro'), findsOneWidget);
     });
+
+    // The grid stops at maxRecords; past it, it says so (SPEC 0128).
+    const notice = 'Mostrando os 150 registros mais recentes. Use a busca ou '
+        'os filtros para encontrar os mais antigos.';
+    List<SoilRecord> records(int count) =>
+        [for (var id = count; id >= 1; id--) record(id: id)];
+    int gridCount(WidgetTester tester) {
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      return (grid.childrenDelegate as SliverChildBuilderDelegate).childCount!;
+    }
+
+    testWidgets('cap_is_disclosed', (tester) async {
+      await tester.pumpWidget(gridWith(records(151)));
+      await tester.pumpAndSettle();
+
+      expect(gridCount(tester), 150);
+      expect(find.text(notice), findsOneWidget);
+    });
+
+    testWidgets('no_notice_under_the_cap', (tester) async {
+      await tester.pumpWidget(gridWith(records(150)));
+      await tester.pumpAndSettle();
+
+      expect(gridCount(tester), 150);
+      expect(find.text(notice), findsNothing);
+    });
   });
 }
