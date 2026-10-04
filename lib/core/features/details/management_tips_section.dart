@@ -375,7 +375,13 @@ class _DisclaimerBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 20, color: context.palette.warning),
+          // onWarningContainer, as the confidence banner's icon: warning on
+          // this container is 2.51 : 1, below 3 : 1 (SPEC 0127).
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: context.palette.onWarningContainer,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
