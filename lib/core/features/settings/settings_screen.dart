@@ -16,6 +16,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -105,12 +106,14 @@ class SettingsScreen extends ConsumerWidget {
           // --- Danger zone ---
           _SectionHeader(title: 'DADOS'),
           const SizedBox(height: AppSpacing.sm),
-          _SettingsTile(
+          // The app's destructive button, not a tile in red, so it does not
+          // read as one more setting (SPEC 0129).
+          VisioButton(
+            label: 'Apagar todos os dados',
             icon: Icons.delete_forever_outlined,
-            title: 'Apagar todos os dados',
-            iconColor: context.palette.error,
-            titleColor: context.palette.error,
-            onTap: () => _confirmDeleteAll(context, ref),
+            variant: VisioButtonVariant.destructive,
+            expanded: true,
+            onPressed: () => _confirmDeleteAll(context, ref),
           ),
         ],
       ),
@@ -227,12 +230,13 @@ class _AccountTile extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        _SettingsTile(
+        // Destructive, like "Apagar todos os dados" (SPEC 0129).
+        VisioButton(
+          label: 'Excluir conta',
           icon: Icons.person_remove_outlined,
-          title: 'Excluir conta',
-          iconColor: context.palette.error,
-          titleColor: context.palette.error,
-          onTap: () => _confirmDeleteAccount(context, ref),
+          variant: VisioButtonVariant.destructive,
+          expanded: true,
+          onPressed: () => _confirmDeleteAccount(context, ref),
         ),
       ],
     );
@@ -410,8 +414,6 @@ class _SettingsTile extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
-    this.iconColor,
-    this.titleColor,
   });
 
   final IconData icon;
@@ -419,8 +421,6 @@ class _SettingsTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
-  final Color? iconColor;
-  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -448,18 +448,13 @@ class _SettingsTile extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) => Row(
               children: [
-                Icon(icon, size: 22, color: iconColor ?? context.palette.onSurfaceVariant),
+                Icon(icon, size: 22, color: context.palette.onSurfaceVariant),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: titleColor,
-                        ),
-                      ),
+                      Text(title, style: theme.textTheme.bodyMedium),
                       if (subtitle case final subtitle?)
                         Text(
                           subtitle,
