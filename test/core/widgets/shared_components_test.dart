@@ -24,14 +24,10 @@ void main() {
 
   test('app_bar_is_shared', () {
     // A SliverAppBar or a VisioAppBar does not match: the name must start at
-    // a word boundary. Preview's black-canvas views are replaced by item 9's
-    // error slice, bar and all.
+    // a word boundary. Preview's black-canvas bars went with SPEC 0124.
     expect(
       _constructing(RegExp(r'(?<![A-Za-z])AppBar\(')),
-      [
-        'lib/core/features/preview/image_preview_screen.dart',
-        'lib/core/widgets/visio_app_bar.dart',
-      ],
+      ['lib/core/widgets/visio_app_bar.dart'],
     );
   });
 }

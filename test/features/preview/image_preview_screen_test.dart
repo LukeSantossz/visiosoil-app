@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:visiosoil_app/core/features/preview/image_preview_screen.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -89,6 +91,58 @@ void main() {
 
     expect(find.text('Registro não encontrado'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsNothing);
+  });
+
+  // A failed or missing record is the shared error state under the shared bar,
+  // on the theme's background, not the viewer's black canvas (SPEC 0124).
+  group('one_error_presentation', () {
+    Future<void> pumpWith(
+      WidgetTester tester,
+      Future<SoilRecord?> Function() load,
+    ) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordByIdProvider.overrideWith((ref, id) => load()),
+        ],
+        child: const MaterialApp(home: ImagePreviewScreen(recordId: 1)),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    void expectSharedErrorState(WidgetTester tester, String message) {
+      expect(find.widgetWithText(ErrorState, message), findsOneWidget);
+      expect(find.byType(VisioAppBar), findsOneWidget);
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+      expect(scaffold.backgroundColor, isNot(Colors.black));
+    }
+
+    testWidgets('preview load error', (tester) async {
+      await pumpWith(tester, () async => throw Exception('boom'));
+
+      expectSharedErrorState(tester, 'Não foi possível carregar o registro.');
+    });
+
+    testWidgets('preview not found', (tester) async {
+      await pumpWith(tester, () async => null);
+
+      expectSharedErrorState(tester, 'Registro não encontrado');
+    });
+
+    // Riverpod retries a failing provider on its own until it gives up, which
+    // settling waits out; the tap must then ask for the record again.
+    testWidgets('retry_still_reloads', (tester) async {
+      var loads = 0;
+      await pumpWith(tester, () async {
+        loads++;
+        throw Exception('boom');
+      });
+      final before = loads;
+
+      await tester.tap(find.text('Tentar novamente'));
+      await tester.pump();
+
+      expect(loads, greaterThan(before));
+    });
   });
 
   // SPEC 0118: icon-only buttons carry a pt-BR label.

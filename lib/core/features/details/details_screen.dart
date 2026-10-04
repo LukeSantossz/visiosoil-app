@@ -67,20 +67,10 @@ class _RecordNotFoundView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: const VisioAppBar(title: 'Detalhes'),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: AppSpacing.md),
-            Text('Registro não encontrado', style: theme.textTheme.bodyLarge),
-          ],
-        ),
-      ),
+    // The shared error state, with nothing to retry (SPEC 0124).
+    return const Scaffold(
+      appBar: VisioAppBar(title: 'Detalhes'),
+      body: ErrorState(message: 'Registro não encontrado'),
     );
   }
 }
