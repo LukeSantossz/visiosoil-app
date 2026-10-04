@@ -50,6 +50,7 @@ Ending the mode when the last record is deselected keeps today's behaviour. Ente
 - `selection_entry_needs_a_record`: with no record shown, "Selecionar registros" is absent.
 - `selection_entry_is_labelled`: history outside selection mode meets `labeledTapTargetGuideline` and `androidTapTargetGuideline`.
 - `deselecting_the_last_record_ends_selection`: after entering by the button, selecting a record and deselecting it ends selection mode.
+- `selection_entry_follows_the_grid`: when the records stream fails after showing records, the grid shows its error and the button is absent.
 - The existing tests pass unchanged.
 
 ## Reproducibility
@@ -60,5 +61,5 @@ Flutter 3.44.1, Dart 3.12.1.
 
 ## Risks and Assumptions
 
-- The button reads the same stream the grid shows, `filteredRecordsProvider`. With a filter that matches nothing, there is no record to select, and the button hides.
+- The button reads the same stream the grid shows, `filteredRecordsProvider`, through the same `when` branches. A reload or an error keeps the previous records in `value` while the grid shows its spinner or its error, so reading `value` would show the button over an empty grid. The PR's R3 review found this, and `selection_entry_follows_the_grid` pins it. With a filter that matches nothing, there is no record to select, and the button hides.
 - `Icons.checklist` is a Material icon that ships with Flutter 3.44.1, so no asset is added.
