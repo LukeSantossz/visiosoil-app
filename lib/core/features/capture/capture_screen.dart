@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -191,6 +192,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     if (!mounted || image == null) return;
 
+    // The shutter's return; a recovered photograph gets none (SPEC 0126).
+    unawaited(AppHaptics.confirm());
     await _useCapturedImage(image.path);
   }
 
@@ -255,6 +258,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               ? ClassificationStatus.done
               : ClassificationStatus.failed,
         ));
+    // A result arriving; a failure's chip names its cause instead.
+    if (report.outcome == ClassificationOutcome.ok) {
+      unawaited(AppHaptics.result());
+    }
   }
 
   Future<void> _fetchCurrentLocation(int generation) async {
@@ -361,6 +368,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // saved, so a slow write finishing after a newer capture does not wipe it.
     // Only the snackbar/pop need the widget still mounted.
     if (didCreate) {
+      unawaited(AppHaptics.confirm());
       imageNotifier.clearIfPath(image.path);
       // The record points at its durable copy now. A failed save never gets
       // here, so its retry still has the photograph.
