@@ -53,6 +53,7 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(title: 'APARÊNCIA'),
           const SizedBox(height: AppSpacing.sm),
           const _ThemeModeSelector(),
+          const _HighContrastSwitch(),
 
           const SizedBox(height: AppSpacing.xl),
 
@@ -331,6 +332,26 @@ class _ThemeModeSelector extends ConsumerWidget {
   }
 }
 
+/// Turns on high contrast: solid card edges for reading in sunlight
+/// (SPEC 0130).
+class _HighContrastSwitch extends ConsumerWidget {
+  const _HighContrastSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Alto contraste'),
+      subtitle: const Text('Bordas mais fortes, para ler sob o sol'),
+      value: ref.watch(highContrastProvider),
+      onChanged: (on) {
+        AppHaptics.selection();
+        ref.read(highContrastProvider.notifier).select(on);
+      },
+    );
+  }
+}
+
 // --- Error Report ---
 
 /// Shares the local report of uncaught errors (SPEC 0110). Enabled only when
@@ -438,9 +459,7 @@ class _SettingsTile extends StatelessWidget {
             vertical: AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            border: Border.all(
-              color: context.palette.outlineVariant.withValues(alpha: 0.5),
-            ),
+            border: Border.all(color: context.palette.cardBorder),
             borderRadius: AppRadius.borderRadiusMd,
           ),
           // At large text a trailing label or button wraps within half the

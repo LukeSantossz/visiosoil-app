@@ -31,3 +31,22 @@ class ThemeModeController extends Notifier<ThemeMode> {
     await ref.read(nightModeSyncProvider).apply(mode);
   }
 }
+
+/// The high-contrast choice read before `runApp`, so the first frame is already
+/// in it. `main` overrides it with the stored value (SPEC 0130).
+final initialHighContrastProvider = Provider<bool>((ref) => false);
+
+/// Whether the user turned on high contrast in Settings (SPEC 0130).
+final highContrastProvider =
+    NotifierProvider<HighContrastController, bool>(HighContrastController.new);
+
+class HighContrastController extends Notifier<bool> {
+  @override
+  bool build() => ref.read(initialHighContrastProvider);
+
+  /// Applies [on] at once, then persists it.
+  Future<void> select(bool on) async {
+    state = on;
+    await ref.read(appearanceStoreProvider).writeHighContrast(on);
+  }
+}

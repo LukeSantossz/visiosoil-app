@@ -10,6 +10,13 @@ abstract final class AppTheme {
 
   static ThemeData get dark => _build(AppPalette.dark);
 
+  /// [light] with solid structural edges (SPEC 0130).
+  static ThemeData get lightHighContrast =>
+      _build(AppPalette.lightHighContrast);
+
+  /// [dark] with solid structural edges (SPEC 0130).
+  static ThemeData get darkHighContrast => _build(AppPalette.darkHighContrast);
+
   static ThemeData _build(AppPalette p) => ThemeData(
         useMaterial3: true,
         brightness: p.brightness,

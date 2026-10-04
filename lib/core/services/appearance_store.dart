@@ -11,11 +11,17 @@ abstract interface class AppearanceStore {
   Future<ThemeMode> read();
 
   Future<void> write(ThemeMode mode);
+
+  /// Whether high contrast is on (SPEC 0130); `false` when nothing is stored.
+  Future<bool> readHighContrast();
+
+  Future<void> writeHighContrast(bool on);
 }
 
 /// [AppearanceStore] backed by `shared_preferences`, storing the mode's name.
 class SharedPreferencesAppearanceStore implements AppearanceStore {
   static const key = 'appearance.themeMode';
+  static const highContrastKey = 'appearance.highContrast';
 
   @override
   Future<ThemeMode> read() async {
@@ -31,6 +37,18 @@ class SharedPreferencesAppearanceStore implements AppearanceStore {
   Future<void> write(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, mode.name);
+  }
+
+  @override
+  Future<bool> readHighContrast() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(highContrastKey) ?? false;
+  }
+
+  @override
+  Future<void> writeHighContrast(bool on) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(highContrastKey, on);
   }
 }
 
@@ -97,4 +115,14 @@ Future<ThemeMode> restoreThemeMode(
   }
   await sync.apply(mode);
   return mode;
+}
+
+/// Reads the stored high-contrast choice before `runApp` (SPEC 0130). A store
+/// that cannot be read leaves it off rather than keeping the app from opening.
+Future<bool> restoreHighContrast(AppearanceStore store) async {
+  try {
+    return await store.readHighContrast();
+  } catch (_) {
+    return false;
+  }
 }
