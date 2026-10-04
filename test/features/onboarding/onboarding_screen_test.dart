@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 import '../../support/fake_onboarding_store.dart';
+import '../../support/guidelines.dart';
 import '../../support/large_text.dart';
 
 GoRouter _router({required String initialLocation}) => GoRouter(
@@ -32,9 +33,14 @@ GoRouter _router({required String initialLocation}) => GoRouter(
       ],
     );
 
-Widget _app(GoRouter router, FakeOnboardingStore store) => ProviderScope(
+Widget _app(
+  GoRouter router,
+  FakeOnboardingStore store, {
+  ThemeData? theme,
+}) =>
+    ProviderScope(
       overrides: [onboardingStoreProvider.overrideWithValue(store)],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: theme, routerConfig: router),
     );
 
 void main() {
@@ -192,4 +198,20 @@ void main() {
       }
     }
   });
+
+  // The first step passes Flutter's four accessibility guidelines
+  // (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+        theme: theme,
+      ));
+      await tester.pumpAndSettle();
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }

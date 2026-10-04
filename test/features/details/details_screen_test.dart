@@ -16,6 +16,7 @@ import 'package:visiosoil_app/providers/research_service_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
 import '../../support/large_text.dart';
 
@@ -55,6 +56,7 @@ Widget _detailsUnderTest({
   required ShareService share,
   required SoilRecord record,
   bool pushed = false,
+  ThemeData? theme,
 }) {
   return ProviderScope(
     overrides: [
@@ -73,6 +75,7 @@ Widget _detailsUnderTest({
     ],
     child: pushed
         ? MaterialApp(
+            theme: theme,
             home: Builder(
               builder: (context) => TextButton(
                 onPressed: () => Navigator.of(context).push(
@@ -84,7 +87,7 @@ Widget _detailsUnderTest({
               ),
             ),
           )
-        : const MaterialApp(home: DetailsScreen(recordId: 1)),
+        : MaterialApp(theme: theme, home: const DetailsScreen(recordId: 1)),
   );
 }
 
@@ -557,4 +560,27 @@ void main() {
     expect(find.text('PREVIEW_STUB 1'), findsOneWidget);
     semantics.dispose();
   });
+
+  // The top of details, and its actions, each pass Flutter's four
+  // accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_detailsUnderTest(
+        share: _RecordingShareService(),
+        record: _locatedRecord(),
+        pushed: true,
+        theme: theme,
+      ));
+      await tester.tap(find.text('open details'));
+      await tester.pumpAndSettle();
+      await expectMeetsGuidelines(tester);
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir registro').hitTestable(), findsOneWidget);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }

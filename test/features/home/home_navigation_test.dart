@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
@@ -52,7 +53,11 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
 
-Future<void> _pump(WidgetTester tester, {SoilRecord? record}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  SoilRecord? record,
+  ThemeData? theme,
+}) async {
   final shown = record ?? _record();
   await tester.pumpWidget(
     ProviderScope(
@@ -64,7 +69,7 @@ Future<void> _pump(WidgetTester tester, {SoilRecord? record}) async {
         // never opens a platform database.
         filteredRecordsProvider.overrideWith((ref) => Stream.value([shown])),
       ],
-      child: MaterialApp.router(routerConfig: _router()),
+      child: MaterialApp.router(theme: theme, routerConfig: _router()),
     ),
   );
   await _settle(tester);
@@ -153,4 +158,19 @@ void main() {
 
     expect(haptics, ['HapticFeedbackType.selectionClick']);
   });
+
+  // The home tab and the history tab each pass Flutter's four
+  // accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pump(tester, theme: theme);
+      await expectMeetsGuidelines(tester);
+
+      await tester.tap(find.text('Histórico').last);
+      await _settle(tester);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }

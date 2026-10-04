@@ -23,6 +23,7 @@ import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 
 /// Answers with a report built from the handler's result: a result is `ok`,
@@ -91,6 +92,7 @@ void main() {
     String? initialImagePath,
     ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
     _FakeInference? inference,
+    ThemeData? theme,
   }) {
     return ProviderScope(
       overrides: [
@@ -100,6 +102,7 @@ void main() {
           soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
       child: MaterialApp(
+        theme: theme,
         home: CaptureScreen(
           pickFromCamera: pickFromCamera,
           locate: locate,
@@ -1033,4 +1036,27 @@ void main() {
     expect(find.text('Folha cortada no quadro · tire outra foto'),
         findsOneWidget);
   });
+
+  // Before a photograph, and with a result, capture passes Flutter's four
+  // accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+        theme: theme,
+      ));
+      await tester.pumpAndSettle();
+      await expectMeetsGuidelines(tester);
+
+      await capture(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Salvar registro'), findsOneWidget);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }

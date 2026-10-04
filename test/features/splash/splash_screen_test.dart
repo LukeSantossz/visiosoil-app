@@ -8,13 +8,18 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 
+import '../../support/guidelines.dart';
+
 /// Guards the Dart side of the launch hand-over (#288, SPEC 0089): the tile the
 /// native launch window draws is already in place, whole and still, on the
 /// splash's first frame, and only what the native window cannot show animates
 /// in.
 void main() {
-  Future<void> pumpSplash(WidgetTester tester) => tester.pumpWidget(
-        const ProviderScope(child: MaterialApp(home: SplashScreen())),
+  Future<void> pumpSplash(WidgetTester tester, {ThemeData? theme}) =>
+      tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(theme: theme, home: const SplashScreen()),
+        ),
       );
 
   // The splash schedules its hand-off 1.2 s after it mounts.
@@ -148,4 +153,16 @@ void main() {
 
     await unmount(tester);
   });
+
+  // The splash passes Flutter's four accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpSplash(tester, theme: theme);
+      await tester.pump(const Duration(milliseconds: 900));
+      await expectMeetsGuidelines(tester);
+      await unmount(tester);
+      semantics.dispose();
+    });
+  }
 }

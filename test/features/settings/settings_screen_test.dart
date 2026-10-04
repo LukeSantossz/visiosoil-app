@@ -23,6 +23,7 @@ import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/guidelines.dart';
 import '../../support/large_text.dart';
 
 class _FakeAuthService implements AuthService {
@@ -168,6 +169,7 @@ Widget _app(
   ConnectivityService connectivity =
       const _FakeConnectivityService(ConnectivityStatus.online),
   Future<PackageInfo>? packageInfo,
+  ThemeData? theme,
 }) {
   return ProviderScope(
     overrides: [
@@ -198,7 +200,7 @@ Widget _app(
       if (shareService != null)
         shareServiceProvider.overrideWithValue(shareService),
     ],
-    child: const MaterialApp(home: SettingsScreen()),
+    child: MaterialApp(theme: theme, home: const SettingsScreen()),
   );
 }
 
@@ -625,6 +627,32 @@ void main() {
     expect(report.clearCalls, 0);
     expect(find.text('Todos os dados foram apagados.'), findsNothing);
   });
+
+  // Signed in, at the top and at the bottom, and signed out, settings
+  // passes Flutter's four accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_app(
+        const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo'),
+        theme: theme,
+      ));
+      await tester.pumpAndSettle();
+      await expectMeetsGuidelines(tester);
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      expect(find.text('Apagar todos os dados').hitTestable(), findsOneWidget);
+      await expectMeetsGuidelines(tester);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_app(null, theme: theme));
+      await tester.pumpAndSettle();
+      expect(find.text('Entrar com Google'), findsOneWidget);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }
 
 /// The pt-BR failure message the account tile surfaces on an auth error.

@@ -15,6 +15,8 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/guidelines.dart';
+
 void main() {
   late Directory tempDir;
   late String imagePath;
@@ -36,13 +38,16 @@ void main() {
         timestamp: DateTime.utc(2026, 1, 2, 14, 30).toIso8601String(),
       );
 
-  Future<void> pumpPreview(WidgetTester tester) async {
+  Future<void> pumpPreview(WidgetTester tester, {ThemeData? theme}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           soilRecordByIdProvider.overrideWith((ref, id) async => record()),
         ],
-        child: MaterialApp(home: const ImagePreviewScreen(recordId: 1)),
+        child: MaterialApp(
+          theme: theme,
+          home: const ImagePreviewScreen(recordId: 1),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -209,4 +214,18 @@ void main() {
     expect(find.text(located.formattedTimestamp), findsNothing);
     expect(find.textContaining('Fazenda Boa Vista'), findsNothing);
   });
+
+  // The viewer passes Flutter's four accessibility guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      // No file, as in the other screens' harnesses: the contrast check lets
+      // real time pass, and a photograph read then would still be open when
+      // tearDown deletes it.
+      File(imagePath).deleteSync();
+      await pumpPreview(tester, theme: theme);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }
