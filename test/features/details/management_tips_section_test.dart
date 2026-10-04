@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
@@ -268,5 +270,57 @@ void main() {
 
     expect(find.textContaining('Não substituem avaliação técnica presencial'),
         findsOneWidget);
+  });
+
+  // The disclaimer's icon is meaningful, so it needs 3 : 1 on its banner, as
+  // the confidence banner's already has (SPEC 0127).
+  testWidgets('disclaimer_icon_reads_on_its_banner', (tester) async {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      final (hi, lo) = la > lb ? (la, lb) : (lb, la);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+
+    for (final (theme, palette) in [
+      (AppTheme.light, AppPalette.light),
+      (AppTheme.dark, AppPalette.dark),
+    ]) {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          managementTipsRepositoryProvider.overrideWithValue(repo),
+          researchServiceProvider.overrideWithValue(okService()),
+          connectivityServiceProvider.overrideWithValue(
+              FakeConnectivityService(ConnectivityStatus.online)),
+        ],
+        child: MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ManagementTipsSection(record: tipsRecord()),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      final banner = find.ancestor(
+        of: find.textContaining('consultivo'),
+        matching: find.byType(Row),
+      );
+      final icon = tester.widget<Icon>(find.descendant(
+        of: banner.first,
+        matching: find.byIcon(Icons.info_outline),
+      ));
+      expect(icon.color, palette.onWarningContainer);
+      expect(
+        contrast(icon.color!, palette.warningContainer),
+        greaterThanOrEqualTo(3),
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    }
   });
 }
