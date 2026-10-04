@@ -14,11 +14,13 @@ This is item 12's first slice. The rest of item 12 waits on other items: the sta
 
 | Method | Calls | Events |
 | --- | --- | --- |
-| `selection()` | `selectionClick()` | a history filter chip, a bottom tab, the theme choice in settings, and toggling a record in history's selection mode, including entering it by long press |
+| `selection()` | `selectionClick()` | a history filter chip, a bottom tab, the theme choice in settings, and a tap that toggles a record in history's selection mode |
 | `confirm()` | `lightImpact()` | the photograph returning from the camera, and a record saved |
 | `result()` | `mediumImpact()` | a classification arriving with a result |
 
 **`heavyImpact` has no method.** The strategy says it is never used, so it is left out rather than discouraged.
+
+**A long press adds no haptic of its own.** Flutter's `Feedback.forLongPress` already calls `HapticFeedback.vibrate()` on Android for every long press an `InkWell` handles, so entering history's selection mode by a long press already vibrates. A `selection()` on top would vibrate twice. Entering by the "Selecionar registros" button is a button press, like any other, and does not vibrate either.
 
 **A failed classification does not vibrate.** The strategy gives `mediumImpact` to a result arriving and to a blocking quality verdict, and the second does not exist until item 6 lands. A failure's chip already names its cause.
 
@@ -47,7 +49,8 @@ This is item 12's first slice. The rest of item 12 waits on other items: the sta
 
 Each test records the calls to `HapticFeedback.vibrate` on `SystemChannels.platform`.
 
-- `selection_clicks`: tapping a history filter chip, switching the bottom tab, choosing a theme in settings, and toggling a record in history's selection mode each make one `selectionClick`.
+- `selection_clicks`: tapping a history filter chip, switching the bottom tab, choosing a theme in settings, and a tap that toggles a record in history's selection mode each make one `selectionClick`.
+- `long_press_vibrates_once`: entering history's selection mode by a long press makes the platform's one long-press vibration and no `selectionClick`.
 - `photograph_and_save_confirm`: a photograph returning from the camera makes one `lightImpact`, and a confirmed save makes one more.
 - `result_arrival`: a classification that reports a result makes one `mediumImpact`. A failed one makes none.
 - `never_heavy`: no file under `lib/` mentions `heavyImpact`.
@@ -63,3 +66,4 @@ Flutter 3.44.1, Dart 3.12.1.
 
 - A test can show that the app asks for a haptic, not that the phone produces one. Feeling the three tiers on a device is left to a manual pass.
 - Some Android phones have no vibration motor, or have touch feedback turned off. The call then does nothing, which is the intended fallback.
+- On iOS, Flutter's own long-press feedback uses `heavyImpact`. That is the framework's choice, not a call in `lib/`, so `never_heavy` does not see it, and this spec leaves it alone.
