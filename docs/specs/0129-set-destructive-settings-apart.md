@@ -20,7 +20,7 @@ The audit records it for "Apagar todos os dados" (`docs/design/ux-2026/01-curren
 ## Scope
 
 - Includes:
-  - `lib/core/features/settings/settings_screen.dart`: the two actions as destructive `VisioButton`s.
+  - `lib/core/features/settings/settings_screen.dart`: the two actions as destructive `VisioButton`s. `_SettingsTile`'s `iconColor` and `titleColor` parameters, which only these two tiles set, go with them.
   - `test/features/settings/settings_screen_test.dart`: the test below.
 - Does NOT include:
   - The confirmations' copy or behaviour (SPEC 0018, SPEC 0113).
@@ -29,4 +29,4 @@ The audit records it for "Apagar todos os dados" (`docs/design/ux-2026/01-curren
 ## Acceptance Criteria
 
 - `destructive_is_visually_distinct`: "Apagar todos os dados" and, signed in, "Excluir conta" are each a destructive `VisioButton`, and neither sits inside a `_SettingsTile`.
-- The existing tests pass unchanged. They find both actions by their labels.
+- The existing tests pass. Three account-deletion tests tapped the confirm with `find.widgetWithText(TextButton, 'Excluir conta')`. Once the action is a `TextButton` too, that finder matches two widgets, so it is scoped to the `AlertDialog`. What the tests check is unchanged.
