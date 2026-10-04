@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -212,6 +214,31 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nenhum registro'), findsOneWidget);
+      expect(find.byTooltip('Selecionar registros'), findsNothing);
+    });
+
+    // The button follows what the grid shows: a stream that fails after
+    // records keeps them in `value`, but the grid shows its error.
+    testWidgets('selection_entry_follows_the_grid', (tester) async {
+      final records = StreamController<List<SoilRecord>>();
+      addTearDown(records.close);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider.overrideWithValue(
+            AsyncValue<List<SoilRecord>>.data([record(7)]),
+          ),
+          filteredRecordsProvider.overrideWith((ref) => records.stream),
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ));
+      records.add([record(7)]);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+
+      records.addError(Exception('boom'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
       expect(find.byTooltip('Selecionar registros'), findsNothing);
     });
 
