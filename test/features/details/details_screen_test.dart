@@ -7,6 +7,8 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
@@ -306,6 +308,24 @@ void main() {
 
     expect(find.text('Registro não encontrado'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsNothing);
+  });
+
+  // A missing record is the shared error state under the shared bar
+  // (SPEC 0124).
+  testWidgets('one_error_presentation: details not found', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => null),
+      ],
+      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(ErrorState, 'Registro não encontrado'),
+      findsOneWidget,
+    );
+    expect(find.byType(VisioAppBar), findsOneWidget);
   });
 
   testWidgets('retry re-fetches and renders the record', (tester) async {
