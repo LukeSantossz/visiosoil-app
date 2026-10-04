@@ -29,7 +29,7 @@ On `main`:
 **`VisioIconButton` in `lib/core/widgets/visio_icon_button.dart`.**
 - **Required:** `label`, `icon` and `onPressed`. `onPressed` may be null, which disables the button.
 - **Optional:** `color`, `iconSize` and `overPhoto`.
-- It renders an `IconButton` whose `tooltip` is `label`. Flutter uses the tooltip as the button's semantic label, which is how SPEC 0118 labelled these buttons, so the reading does not change.
+- It renders an `IconButton` whose `tooltip` is `label`. Flutter puts the tooltip on the button's semantics node, where TalkBack and VoiceOver announce it as the name. That is how SPEC 0118 labelled these buttons, so the reading does not change. A separate semantic `label` on top would announce the name twice.
 - **`overPhoto: true`** draws the scrim the two photo buttons share: a white icon on `Colors.black45`. The two copies of that style become one.
 - **The constructor asserts `label.trim().isNotEmpty`.** An assert that calls `trim()` cannot run in a `const` constructor, so the constructor is not `const`. These are six buttons; losing `const` costs nothing measurable.
 
@@ -57,7 +57,7 @@ On `main`:
 
 ## Acceptance Criteria
 
-- `label_reaches_semantics`: a `VisioIconButton` labelled "Fechar" renders a button node labelled "Fechar", with a tap action.
+- `label_reaches_semantics`: a `VisioIconButton` labelled "Fechar" renders a button node whose tooltip is "Fechar", with a tap action.
 - `empty_label_is_refused`: constructing one with the label `"  "` fails its assert.
 - `over_photo_draws_the_scrim`: with `overPhoto`, the button's background is `Colors.black45` and its icon is white.
 - `icon_buttons_are_shared`: no file under `lib/` constructs an `IconButton(` except `core/widgets/visio_icon_button.dart`.

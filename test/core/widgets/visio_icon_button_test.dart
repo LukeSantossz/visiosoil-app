@@ -18,8 +18,10 @@ void main() {
 
     expect(
       tester.getSemantics(find.byType(VisioIconButton)),
+      // Flutter exposes a tooltip as the node's tooltip, which TalkBack and
+      // VoiceOver announce as the button's name.
       matchesSemantics(
-        label: 'Fechar',
+        tooltip: 'Fechar',
         isButton: true,
         hasTapAction: true,
         isEnabled: true,
