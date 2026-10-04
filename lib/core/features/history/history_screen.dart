@@ -22,7 +22,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
-  bool get _isSelectionMode => _selectedIds.isNotEmpty;
+  /// Explicit, so the app bar's button can start a selection with nothing
+  /// selected yet; a long press is not the only way in (SPEC 0122).
+  bool _isSelectionMode = false;
 
   @override
   void initState() {
@@ -64,6 +66,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     setState(() {
       if (_selectedIds.contains(id)) {
         _selectedIds.remove(id);
+        // Deselecting the last record ends the mode, as it always has.
+        if (_selectedIds.isEmpty) _isSelectionMode = false;
       } else {
         _selectedIds.add(id);
       }
@@ -71,11 +75,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _enterSelectionMode(int id) {
-    setState(() => _selectedIds.add(id));
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _startEmptySelection() {
+    setState(() => _isSelectionMode = true);
   }
 
   void _cancelSelection() {
-    setState(() => _selectedIds.clear());
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
   }
 
   Future<void> _deleteSelected() async {
@@ -104,7 +118,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final ids = _selectedIds.toList();
     await ref.read(soilRecordRepositoryProvider).deleteByIds(ids);
     if (!mounted) return;
-    setState(() => _selectedIds.clear());
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
   }
 
   void _showDeletionSnackbar(int count) {
@@ -146,11 +163,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   AppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
+    final hasRecords =
+        ref.watch(filteredRecordsProvider).value?.isNotEmpty ?? false;
 
     return AppBar(
-      title: Text(_isSelectionMode
-          ? '$count selecionado${count > 1 ? 's' : ''}'
-          : 'Histórico'),
+      title: Text(switch ((_isSelectionMode, count)) {
+        (false, _) => 'Histórico',
+        (true, 0) => 'Nenhum selecionado',
+        (true, _) => '$count selecionado${count > 1 ? 's' : ''}',
+      }),
       centerTitle: true,
       leading: _isSelectionMode
           ? IconButton(
@@ -168,7 +189,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 color: theme.colorScheme.error,
               ),
             ]
-          : null,
+          : [
+              if (hasRecords)
+                IconButton(
+                  tooltip: 'Selecionar registros',
+                  icon: const Icon(Icons.checklist),
+                  onPressed: _startEmptySelection,
+                ),
+            ],
     );
   }
 
