@@ -1,5 +1,7 @@
 // Widget tests for the Settings account tile: shows a sign-in affordance when
 // signed out and the account identity + sign-out when signed in.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +14,7 @@ import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -163,6 +166,7 @@ Widget _app(
   ShareService? shareService,
   ConnectivityService connectivity =
       const _FakeConnectivityService(ConnectivityStatus.online),
+  Future<PackageInfo>? packageInfo,
 }) {
   return ProviderScope(
     overrides: [
@@ -177,12 +181,14 @@ Widget _app(
       ),
       connectivityServiceProvider.overrideWithValue(connectivity),
       packageInfoProvider.overrideWith(
-        (ref) async => PackageInfo(
-          appName: 'VisioSoil',
-          packageName: 'app.visiosoil',
-          version: '2.0.0',
-          buildNumber: '2',
-        ),
+        (ref) =>
+            packageInfo ??
+            Future.value(PackageInfo(
+              appName: 'VisioSoil',
+              packageName: 'app.visiosoil',
+              version: '2.0.0',
+              buildNumber: '2',
+            )),
       ),
       if (repository != null)
         soilRecordRepositoryProvider.overrideWithValue(repository),
@@ -543,6 +549,17 @@ void main() {
     await scrollToTheEnd(tester);
 
     expect(tester.takeException(), isNull);
+  });
+
+  // The version tile's spinner is the shared indicator at its own size, so it
+  // does not widen the tile's trailing slot (SPEC 0123).
+  testWidgets('spinners_keep_their_size: the version tile', (tester) async {
+    await tester.pumpWidget(
+      _app(null, packageInfo: Completer<PackageInfo>().future),
+    );
+    await tester.pump();
+
+    expect(tester.getSize(find.byType(LoadingIndicator)), const Size(16, 16));
   });
 
   testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
