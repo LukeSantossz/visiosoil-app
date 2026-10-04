@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 
 class MainScreen extends ConsumerWidget {
@@ -32,8 +33,10 @@ class MainScreen extends ConsumerWidget {
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: currentIndex,
-            onDestinationSelected: (index) =>
-                ref.read(mainTabIndexProvider.notifier).select(index),
+            onDestinationSelected: (index) {
+              AppHaptics.selection();
+              ref.read(mainTabIndexProvider.notifier).select(index);
+            },
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined),

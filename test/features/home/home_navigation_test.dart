@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
 SoilRecord _record({String address = 'Fazenda Boa Vista'}) => SoilRecord(
@@ -137,5 +138,19 @@ void main() {
     expect(tester.renderObject<RenderParagraph>(place).didExceedMaxLines,
         isFalse);
     expect(tester.takeException(), isNull);
+  });
+
+  // Switching tabs is a selection, confirmed by one click (SPEC 0126).
+  testWidgets('selection_clicks: a bottom tab', (tester) async {
+    final haptics = recordHaptics(tester);
+    await _pump(tester);
+
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('Histórico'),
+    ));
+    await _settle(tester);
+
+    expect(haptics, ['HapticFeedbackType.selectionClick']);
   });
 }

@@ -23,6 +23,7 @@ import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/haptics_recorder.dart';
 
 /// Answers with a report built from the handler's result: a result is `ok`,
 /// and `null` stands for a run that failed. The cause is fixed because none of
@@ -630,6 +631,65 @@ void main() {
     expect(repository.createCalls.length, 1);
     expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
     expect(find.text('open capture'), findsOneWidget); // popped back to '/'
+  });
+
+  // The photograph's return and a confirmed save each make one light haptic,
+  // and a result arriving one medium (SPEC 0126).
+  group('haptics', () {
+    int count(List<String> haptics, String type) =>
+        haptics.where((h) => h == 'HapticFeedbackType.$type').length;
+
+    testWidgets('photograph_and_save_confirm', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: FakeSoilRecordRepository(),
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+
+      await capture(tester);
+      expect(count(haptics, 'lightImpact'), 1);
+
+      await tester.tap(find.text('Salvar registro'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
+      expect(count(haptics, 'lightImpact'), 2);
+    });
+
+    testWidgets('result_arrival', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => const InferenceResult(
+          textureClass: 'Argilosa',
+          confidenceScore: 0.9,
+        ),
+      ));
+
+      await capture(tester);
+
+      expect(count(haptics, 'mediumImpact'), 1);
+    });
+
+    testWidgets('result_arrival: a failure makes none', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+
+      await capture(tester);
+
+      expect(count(haptics, 'mediumImpact'), 0);
+    });
   });
 
   testWidgets('saving_a_classified_capture_persists_the_distribution',

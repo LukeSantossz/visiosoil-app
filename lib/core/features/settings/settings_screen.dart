@@ -9,6 +9,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -317,8 +318,10 @@ class _ThemeModeSelector extends ConsumerWidget {
             ButtonSegment(value: mode, label: Text(label)),
         ],
         selected: {ref.watch(themeModeProvider)},
-        onSelectionChanged: (selection) =>
-            ref.read(themeModeProvider.notifier).select(selection.single),
+        onSelectionChanged: (selection) {
+          AppHaptics.selection();
+          ref.read(themeModeProvider.notifier).select(selection.single);
+        },
       ),
     );
   }
