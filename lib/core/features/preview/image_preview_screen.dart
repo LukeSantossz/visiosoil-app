@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -25,100 +27,44 @@ class ImagePreviewScreen extends ConsumerWidget {
       ),
       error: (_, _) => _PreviewErrorView(
         onRetry: () => ref.invalidate(soilRecordByIdProvider(recordId)),
-        onBack: () => context.pop(),
       ),
       data: (record) {
-        if (record == null) {
-          return _RecordNotFoundView(onBack: () => context.pop());
-        }
+        if (record == null) return const _RecordNotFoundView();
         return _PreviewContent(record: record, recordId: recordId);
       },
     );
   }
 }
 
-/// Retryable load-error view for the preview, on the same black canvas as the
-/// content. Distinct from [_RecordNotFoundView]: a transient failure can be
-/// retried, whereas a genuinely absent record cannot.
+/// Retryable load-error view: the shared error state under the shared bar, on
+/// the theme's background rather than the viewer's black canvas (SPEC 0124).
+/// Distinct from [_RecordNotFoundView]: a transient failure can be retried,
+/// whereas a genuinely absent record cannot.
 class _PreviewErrorView extends StatelessWidget {
-  const _PreviewErrorView({required this.onRetry, required this.onBack});
+  const _PreviewErrorView({required this.onRetry});
 
   final VoidCallback onRetry;
-  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 48),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Não foi possível carregar o registro.',
-              style: TextStyle(color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text(
-                'Tentar novamente',
-                style: TextStyle(color: Colors.white),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white54),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: onBack,
-              child: const Text('Voltar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+      appBar: const VisioAppBar(),
+      body: ErrorState(
+        message: 'Não foi possível carregar o registro.',
+        onRetry: onRetry,
       ),
     );
   }
 }
 
 class _RecordNotFoundView extends StatelessWidget {
-  const _RecordNotFoundView({required this.onBack});
-
-  final VoidCallback onBack;
+  const _RecordNotFoundView();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 48),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Registro não encontrado',
-              style: TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextButton(onPressed: onBack, child: const Text('Voltar')),
-          ],
-        ),
-      ),
+    return const Scaffold(
+      appBar: VisioAppBar(),
+      body: ErrorState(message: 'Registro não encontrado'),
     );
   }
 }
