@@ -70,6 +70,13 @@ void main() {
             requestCameraPermission: requestCamera,
           ),
         ),
+        GoRoute(
+          path: '/details',
+          builder: (_, state) => Scaffold(
+            appBar: AppBar(),
+            body: Text('DETAILS_STUB ${state.extra}'),
+          ),
+        ),
       ],
     );
     return ProviderScope(
@@ -133,6 +140,6 @@ void main() {
     expect(saved.latitude, isNull);
     expect(saved.longitude, isNull);
     expect(saved.address, AppStrings.addressUnavailable);
-    expect(find.text('open capture'), findsOneWidget);
+    expect(find.text('DETAILS_STUB 1'), findsOneWidget);
   });
 }

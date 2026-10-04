@@ -112,8 +112,8 @@ void main() {
     );
   }
 
-  // Same as buildScreen but inside a GoRouter, so context.pop() on a successful
-  // save has a route to pop back to.
+  // Same as buildScreen but inside a GoRouter, so a successful save has a
+  // details route to open (SPEC 0132) and a route underneath to go back to.
   Widget buildRouted({
     required CameraImagePicker pickFromCamera,
     required LocationResolver locate,
@@ -143,6 +143,13 @@ void main() {
             checkCameraPermission: () async => AppPermissionStatus.granted,
             requestCameraPermission: () async => AppPermissionStatus.granted,
             deletePickedFile: deletePickedFile,
+          ),
+        ),
+        GoRoute(
+          path: '/details',
+          builder: (_, state) => Scaffold(
+            appBar: AppBar(),
+            body: Text('DETAILS_STUB ${state.extra}'),
           ),
         ),
       ],
@@ -609,8 +616,9 @@ void main() {
     });
   });
 
-  testWidgets('a successful save creates the record, shows success, and pops',
-      (tester) async {
+  // A confirmed save replaces capture with the new record's details, given the
+  // id `create` returned (SPEC 0132). The fake numbers records from 1.
+  testWidgets('save_opens_details', (tester) async {
     final repository = FakeSoilRecordRepository();
     await tester.pumpWidget(buildRouted(
       pickFromCamera: () async => XFile(samplePath),
@@ -630,7 +638,40 @@ void main() {
 
     expect(repository.createCalls.length, 1);
     expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
-    expect(find.text('open capture'), findsOneWidget); // popped back to '/'
+    expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    expect(find.byType(CaptureScreen), findsNothing);
+
+    // Capture was replaced, not covered: back returns to what opened it.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('open capture'), findsOneWidget);
+    expect(find.byType(CaptureScreen), findsNothing);
+  });
+
+  testWidgets('failed_save_stays', (tester) async {
+    final repository = FakeSoilRecordRepository()..throwOnCreate = true;
+    await tester.pumpWidget(buildRouted(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) async => null,
+      repository: repository,
+    ));
+
+    await tester.tap(find.text('open capture'));
+    await tester.pumpAndSettle();
+    await capture(tester);
+    await tester.tap(find.text('Salvar registro'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Não foi possível salvar o registro. Tente novamente.'),
+      findsOneWidget,
+    );
+    expect(find.text('Salvar registro'), findsOneWidget);
+    expect(find.textContaining('DETAILS_STUB'), findsNothing);
   });
 
   // The photograph's return and a confirmed save each make one light haptic,
@@ -928,7 +969,7 @@ void main() {
       final gate = Completer<void>();
       final repository = _GatedSoilRecordRepository(gate.future);
       final deleted = <String>[];
-      // Routed, because the save it lets finish pops the screen.
+      // Routed, because the save it lets finish opens details.
       await tester.pumpWidget(buildRouted(
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
@@ -971,7 +1012,7 @@ void main() {
 
       expect(repository.createCalls, hasLength(1));
       expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
-      expect(find.text('open capture'), findsOneWidget); // popped back to '/'
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
     });
 
     test('the_default_deleter_removes_the_file_and_ignores_an_absent_one',
