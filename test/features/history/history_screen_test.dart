@@ -9,6 +9,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
 /// Guards the history texture-filter error state (#117): a provider failure must
@@ -207,6 +208,51 @@ void main() {
 
     expect(find.text('DETAILS_STUB 7'), findsOneWidget);
     expect(find.textContaining('PREVIEW_STUB'), findsNothing);
+  });
+
+  // A selection is confirmed by one selection click; a long press already
+  // vibrates through the platform, so it gets nothing more (SPEC 0126).
+  group('selection_clicks', () {
+    const click = 'HapticFeedbackType.selectionClick';
+
+    testWidgets('a filter chip', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
+      await tester.pumpAndSettle();
+
+      expect(haptics, [click]);
+    });
+
+    testWidgets('a tap that toggles a record', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await tester.pumpAndSettle();
+      expect(haptics, isEmpty);
+
+      await tester.tap(find.byType(Image));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Image));
+      await tester.pumpAndSettle();
+
+      expect(haptics, [click, click]);
+    });
+
+    testWidgets('long_press_vibrates_once', (tester) async {
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.byType(Image));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 selecionado'), findsOneWidget);
+      expect(haptics, ['vibrate']);
+    });
   });
 
   // Selection mode has an entry that is not a long press (SPEC 0122).
