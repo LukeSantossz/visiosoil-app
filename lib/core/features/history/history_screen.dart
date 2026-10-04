@@ -163,8 +163,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   AppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
-    final hasRecords =
-        ref.watch(filteredRecordsProvider).value?.isNotEmpty ?? false;
+    // The same branches as the grid: a reload or an error keeps the previous
+    // records in `value`, while the grid shows its spinner or its error.
+    final hasRecords = ref.watch(filteredRecordsProvider).when(
+      data: (records) => records.isNotEmpty,
+      error: (error, stackTrace) => false,
+      loading: () => false,
+    );
 
     return AppBar(
       title: Text(switch ((_isSelectionMode, count)) {
