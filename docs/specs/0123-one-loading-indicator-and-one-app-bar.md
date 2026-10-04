@@ -72,4 +72,5 @@ Flutter 3.44.1, Dart 3.12.1.
 ## Risks and Assumptions
 
 - The source scan checks construction by name. A future site that builds a spinner through another widget, such as `RefreshProgressIndicator`, is not caught. The app has none today.
+- Details' error and not-found bars used a raw `AppBar`, whose title Android aligns to the start. `VisioAppBar` centres it, as every other bar in the app already does. That is the one visible change.
 - Preview keeps a raw `AppBar` until the error slice lands. The scan names it as the only exception, so a new raw bar anywhere else fails.
