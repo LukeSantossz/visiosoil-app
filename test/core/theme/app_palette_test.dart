@@ -159,6 +159,16 @@ void main() {
       }
     });
 
+    // A copy that changes nothing is the palette itself, as the empty
+    // copyWith used to return: AppPalette has no ==, so identity is what a
+    // ThemeData comparison sees.
+    test('a copy that changes nothing is the same palette', () {
+      for (final p in [AppPalette.light, AppPalette.lightHighContrast]) {
+        expect(p.copyWith(), same(p));
+        expect(p.copyWith(highContrast: p.highContrast), same(p));
+      }
+    });
+
     test('default_card_border_is_unchanged', () {
       for (final p in [AppPalette.light, AppPalette.dark]) {
         expect(p.highContrast, isFalse, reason: '${p.brightness}');
