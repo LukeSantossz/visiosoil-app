@@ -55,7 +55,9 @@ history ──tap──▶ /preview ──"Ver detalhes"──▶ /details
 - `hero_opens_viewer`: details' hero photograph is a button labelled "Ampliar foto". Tapping it pushes `/preview` with the record's id.
 - `viewer_is_photo_only`: the viewer shows the photograph in an `InteractiveViewer`, and its only button is labelled "Fechar". Tapping it pops the viewer.
 - `viewer_has_no_duplicate_info`: the viewer shows no "Capturado em", no "Localização", and neither the record's date nor its address.
-- The existing tests pass, except the preview's `icon_buttons_are_labelled`, which pins the two buttons this change replaces. It is updated to the new single button.
+- The existing tests pass, except two that pin what this change removes:
+  - the preview's `icon_buttons_are_labelled`, which pins the two buttons this change replaces, is updated to the new single button;
+  - SPEC 0027's `image_preview snaps its bottom-sheet radius to xl`, which requires the deleted sheet's radius, keeps only its check that no off-scale radius returns.
 
 ## Reproducibility
 
