@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -165,25 +167,135 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final unselectedLabel = theme.colorScheme.onSurface;
+    final selectedLabel = context.palette.primary;
+    final unselectedBorder = theme.colorScheme.outline;
 
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        AppHaptics.selection();
-        onSelected();
+    // The chip's own side animates over 75 ms inside Material. The catalogue
+    // wants 140 ms, so the line is drawn in front and the chip draws none.
+    // shrinkWrap keeps that line on the material; the slot keeps the padded
+    // tap target the default chip had (SPEC 0137).
+    final adjustment = VisualDensity.compact.baseSizeAdjustment;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: isSelected ? 1 : 0),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.fast,
+      curve: AppMotion.standard,
+      builder: (context, t, _) {
+        return _ChipSlot(
+          minTarget: Size(
+            kMinInteractiveDimension + adjustment.dx,
+            kMinInteractiveDimension + adjustment.dy,
+          ),
+          child: Container(
+            foregroundDecoration: BoxDecoration(
+              borderRadius: AppRadius.borderRadiusSm,
+              border: Border.all(
+                color: Color.lerp(unselectedBorder, selectedLabel, t)!,
+              ),
+            ),
+            child: FilterChip(
+              label: Text(label),
+              selected: isSelected,
+              onSelected: (_) {
+                AppHaptics.selection();
+                onSelected();
+              },
+              selectedColor: selectedLabel.withValues(alpha: 0.2),
+              checkmarkColor: selectedLabel,
+              labelStyle: theme.textTheme.labelMedium?.copyWith(
+                color: Color.lerp(unselectedLabel, selectedLabel, t),
+                fontWeight: FontWeight.lerp(
+                  FontWeight.normal,
+                  FontWeight.w600,
+                  t,
+                ),
+              ),
+              side: BorderSide.none,
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadius.borderRadiusSm,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        );
       },
-      selectedColor: context.palette.primary.withValues(alpha: 0.2),
-      checkmarkColor: context.palette.primary,
-      labelStyle: theme.textTheme.labelMedium?.copyWith(
-        color: isSelected ? context.palette.primary : theme.colorScheme.onSurface,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    );
+  }
+}
+
+/// Centres a shrink-wrapped chip in the padded target [FilterChip] would have
+/// used, and sends a tap in that padding to the chip.
+class _ChipSlot extends SingleChildRenderObjectWidget {
+  const _ChipSlot({required this.minTarget, required super.child});
+
+  final Size minTarget;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderChipSlot(minTarget);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderChipSlot renderObject,
+  ) {
+    renderObject.minTarget = minTarget;
+  }
+}
+
+class _RenderChipSlot extends RenderShiftedBox {
+  _RenderChipSlot(this._minTarget) : super(null);
+
+  Size _minTarget;
+
+  set minTarget(Size value) {
+    if (value == _minTarget) return;
+    _minTarget = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final box = child!;
+    box.layout(constraints.loosen(), parentUsesSize: true);
+    size = constraints.constrain(
+      Size(
+        box.size.width > _minTarget.width ? box.size.width : _minTarget.width,
+        box.size.height > _minTarget.height
+            ? box.size.height
+            : _minTarget.height,
       ),
-      side: BorderSide(
-        color: isSelected ? context.palette.primary : theme.colorScheme.outline,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      visualDensity: VisualDensity.compact,
+    );
+    (box.parentData! as BoxParentData).offset = Offset(
+      (size.width - box.size.width) / 2,
+      (size.height - box.size.height) / 2,
+    );
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final box = child;
+    if (box == null) return false;
+    final data = box.parentData! as BoxParentData;
+    final local = position - data.offset;
+    final inside = box.size.contains(local);
+    final hit = inside
+        ? local
+        : Offset(
+            local.dx.clamp(0.0, box.size.width).toDouble(),
+            box.size.height / 2,
+          );
+    return result.addWithPaintOffset(
+      offset: data.offset,
+      position: position,
+      hitTest: (BoxHitTestResult result, Offset _) {
+        return box.hitTest(result, position: hit);
+      },
     );
   }
 }
