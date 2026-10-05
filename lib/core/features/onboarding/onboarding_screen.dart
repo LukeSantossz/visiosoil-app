@@ -221,13 +221,16 @@ class _StepPage extends StatelessWidget {
                 width: 160,
                 height: 160,
                 decoration: BoxDecoration(
-                  color: step.color(context.palette).withValues(alpha: 0.12),
+                  color: context.palette.discFill(
+                    step.color(context.palette),
+                    alpha: 0.12,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   step.icon,
                   size: 72,
-                  color: step.color(context.palette),
+                  color: context.palette.discInk(step.color(context.palette)),
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),

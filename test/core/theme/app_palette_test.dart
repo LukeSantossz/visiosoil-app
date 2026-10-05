@@ -309,5 +309,50 @@ void main() {
 
       expect(missing, isEmpty);
     });
+
+    test('hc_page_separates_from_the_card', () {
+      expect(AppPalette.lightHighContrast.background,
+          AppPalette.light.surfaceVariant);
+      expect(AppPalette.darkHighContrast.background, AppPalette.dark.scrim);
+      expect(
+        _contrast(AppPalette.lightHighContrast.background,
+            AppPalette.lightHighContrast.surface),
+        greaterThan(_contrast(
+            AppPalette.light.background, AppPalette.light.surface)),
+      );
+      expect(
+        _contrast(AppPalette.darkHighContrast.background,
+            AppPalette.darkHighContrast.surface),
+        greaterThan(
+            _contrast(AppPalette.dark.background, AppPalette.dark.surface)),
+      );
+      expect(AppPalette.light.background, AppColors.background);
+      expect(AppPalette.dark.background, const Color(0xFF121411));
+      expect(AppTheme.lightHighContrast.scaffoldBackgroundColor,
+          AppPalette.light.surfaceVariant);
+    });
+
+    test('hc_discs_are_solid', () {
+      for (final p in [
+        AppPalette.lightHighContrast,
+        AppPalette.darkHighContrast,
+      ]) {
+        for (final (accent, container, ink) in [
+          (p.primary, p.primaryContainer, p.onPrimaryContainer),
+          (p.secondary, p.secondaryContainer, p.onSecondaryContainer),
+          (p.warning, p.warningContainer, p.onWarningContainer),
+        ]) {
+          expect(p.discFill(accent, alpha: 0.12), container,
+              reason: '${p.brightness}');
+          expect(p.discInk(accent), ink, reason: '${p.brightness}');
+          expect(_contrast(ink, container), greaterThanOrEqualTo(4.5),
+              reason: '${p.brightness}');
+        }
+      }
+      expect(AppPalette.light.discFill(AppPalette.light.primary, alpha: 0.12),
+          AppPalette.light.primary.withValues(alpha: 0.12));
+      expect(AppPalette.light.discInk(AppPalette.light.warning),
+          AppPalette.light.warning);
+    });
   });
 }

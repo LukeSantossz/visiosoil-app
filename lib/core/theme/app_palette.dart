@@ -119,6 +119,41 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// (SPEC 0135).
   double get edgeWidth => highContrast ? 2 : 1;
 
+  /// A round icon's fill. The accent at [alpha] by default; in high contrast
+  /// the accent's container, when it is one this palette knows (SPEC 0139).
+  Color discFill(Color accent, {required double alpha}) {
+    final container = _discContainer(accent);
+    if (highContrast && container != null) return container;
+    return accent.withValues(alpha: alpha);
+  }
+
+  /// The icon on [discFill]. The accent by default; in high contrast the
+  /// container's own ink (SPEC 0139).
+  Color discInk(Color accent) {
+    final ink = _discInk(accent);
+    if (highContrast && ink != null) return ink;
+    return accent;
+  }
+
+  /// The wash on a selected history thumbnail. Translucent by default; none
+  /// in high contrast, where a border carries the selection (SPEC 0139).
+  Color get selectionWash =>
+      highContrast ? Colors.transparent : primary.withValues(alpha: 0.3);
+
+  Color? _discContainer(Color accent) {
+    if (accent == primary) return primaryContainer;
+    if (accent == secondary) return secondaryContainer;
+    if (accent == warning) return warningContainer;
+    return null;
+  }
+
+  Color? _discInk(Color accent) {
+    if (accent == primary) return onPrimaryContainer;
+    if (accent == secondary) return onSecondaryContainer;
+    if (accent == warning) return onWarningContainer;
+    return null;
+  }
+
   static const light = AppPalette(
     brightness: Brightness.light,
     primary: AppColors.primary,
@@ -204,13 +239,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// [light] with solid structural edges (SPEC 0130), whose lines all draw
   /// in [outline] (SPEC 0135).
-  static final lightHighContrast =
-      light.copyWith(highContrast: true, outlineVariant: light.outline);
+  static final lightHighContrast = light.copyWith(
+        highContrast: true,
+        outlineVariant: light.outline,
+        background: light.surfaceVariant,
+      );
 
   /// [dark] with solid structural edges (SPEC 0130), whose lines all draw in
   /// [outline] (SPEC 0135).
-  static final darkHighContrast =
-      dark.copyWith(highContrast: true, outlineVariant: dark.outline);
+  static final darkHighContrast = dark.copyWith(
+        highContrast: true,
+        outlineVariant: dark.outline,
+        background: dark.scrim,
+      );
 
   /// The palette of [context]'s theme, or the one matching its brightness when
   /// the theme carries none (a bare `MaterialApp` in a widget test).
@@ -251,14 +292,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
         inversePrimary: inversePrimary,
       );
 
-  /// The colours are fixed per theme; only [highContrast] and
-  /// [outlineVariant] can change, which is how the high-contrast palettes are
-  /// made (SPEC 0130, SPEC 0135).
+  /// The colours are fixed per theme; only [highContrast], [outlineVariant]
+  /// and [background] can change, which is how the high-contrast palettes are
+  /// made (SPEC 0130, SPEC 0135, SPEC 0139).
   @override
-  AppPalette copyWith({bool? highContrast, Color? outlineVariant}) {
+  AppPalette copyWith({
+    bool? highContrast,
+    Color? outlineVariant,
+    Color? background,
+  }) {
     // Nothing to change: the palette itself, as the empty copyWith returned.
     if ((highContrast == null || highContrast == this.highContrast) &&
-        (outlineVariant == null || outlineVariant == this.outlineVariant)) {
+        (outlineVariant == null || outlineVariant == this.outlineVariant) &&
+        (background == null || background == this.background)) {
       return this;
     }
     return AppPalette(
@@ -282,7 +328,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       warning: warning,
       warningContainer: warningContainer,
       onWarningContainer: onWarningContainer,
-      background: background,
+      background: background ?? this.background,
       onBackground: onBackground,
       surface: surface,
       onSurface: onSurface,
