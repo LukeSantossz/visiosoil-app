@@ -1010,7 +1010,14 @@ Recommended order, and why:
    `measurementUnavailable`, and ADR 0015 is amended to fourteen causes. **A
    photograph taken to the protocol now gets a class.** Validation on real
    photographs, taken to the capture protocol in ADR 0017's 2026-09-29
-   amendment, is still owed before the release.
+   amendment, is still owed before the release. **The first real session, on
+   2026-10-05, was refused whole, and SPEC 0140 fixed what it found.** A pale
+   table merged with the paper at one threshold, and a lit spot joined the
+   sheet to the frame's border. A second split on the bright side, a line fit
+   where the region touches the border, and a step check across each edge now
+   read 24 of the 31 photographs and refuse the other 7 by name
+   (`docs/ml/sheet-reader-real-photographs.md`). None of them classifies: the
+   soil patch on them is smaller than the grid's nine patches need.
 4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
    0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
    criterion, and refitted on all 204 photographs of `v1`, population `B`

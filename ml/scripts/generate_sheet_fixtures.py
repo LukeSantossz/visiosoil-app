@@ -57,6 +57,9 @@ BACKGROUNDS = {
     "grey": (126, 126, 124),
     # Close to the paper, so no edge separates them: the protocol's failure.
     "pale": (230, 228, 222),
+    # A pale table, darker than the paper by about the margin real ones keep
+    # (SPEC 0140): the protocol holds, but one threshold cannot split them.
+    "table": (196, 194, 188),
 }
 
 #: Where each case puts the sheet's corners, in Pillow's continuous
@@ -140,6 +143,18 @@ CASES = (
         "expected": "sheet",
         "soil": False,
     },
+    {
+        # A pale table with a lit spot that joins the sheet's corner to the
+        # frame's border (SPEC 0140), as the real photographs of 2026-10-05
+        # do. Last, so that every earlier scene's bytes are unchanged.
+        "name": "pale_table_lit",
+        "size": (900, 1200),
+        "background": "table",
+        "texture": (6, 4),
+        "spot": {"centre": (0, 1200), "radius": 300, "peak": 48},
+        "corners": ((104, 110), (797, 110), (797, 1090), (104, 1090)),
+        "expected": "sheet",
+    },
 )
 
 
@@ -179,6 +194,24 @@ def _disc_mask(size, centre_mm, diameter_mm):
     dx = (columns - cx) ** 2
     dy = (rows - cy) ** 2
     return (dy[:, None] + dx[None, :]) <= radius * radius
+
+
+def _lit(scene, spot):
+    """``scene`` brightened by a spot that fades to nothing at its radius.
+
+    The boost is (R^2 - d^2) * peak // R^2 inside the radius, from each pixel's
+    centre, with every length doubled so the arithmetic stays in integers.
+    """
+    width, height = scene.size
+    columns = 2 * np.arange(width, dtype=np.int64) + 1
+    rows = 2 * np.arange(height, dtype=np.int64) + 1
+    reach = (2 * spot["radius"]) ** 2
+    distance = (rows[:, None] - 2 * spot["centre"][1]) ** 2 + (
+        columns[None, :] - 2 * spot["centre"][0]
+    ) ** 2
+    boost = np.maximum(reach - distance, 0) * spot["peak"] // reach
+    pixels = np.asarray(scene, dtype=np.int64) + boost[:, :, None]
+    return Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8), mode="RGB")
 
 
 def _sheet(rng, marks, soil=True):
@@ -239,7 +272,10 @@ def _length(a, b):
 
 def render(case, rng):
     """One scene, and what the golden says about it."""
-    scene = _textured(case["size"], BACKGROUNDS[case["background"]], rng, coarse=18, fine=6)
+    coarse, fine = case.get("texture", (18, 6))
+    scene = _textured(case["size"], BACKGROUNDS[case["background"]], rng, coarse=coarse, fine=fine)
+    if "spot" in case:
+        scene = _lit(scene, case["spot"])
     entry = {
         "name": case["name"],
         "file": f"sheet_{case['name']}.jpg",

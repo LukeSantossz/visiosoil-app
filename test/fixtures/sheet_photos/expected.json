@@ -1,0 +1,154 @@
+{
+  "spec": "SPEC 0140",
+  "taken": "2026-10-05",
+  "reduction": "Pillow ImageOps.exif_transpose, a LANCZOS resize to a 1024 px long side, JPEG quality 90, no EXIF",
+  "corners_measured": "on the full-resolution original, the strongest grey step across each edge 8 px in from the corner, mapped to these pixels with a pixel's centre on the integer",
+  "photos": [
+    {
+      "name": "160609",
+      "file": "photo_160609.jpg",
+      "original": "IMG_20261005_160609.jpg",
+      "original_size": [
+        4080,
+        1836
+      ],
+      "width": 1024,
+      "height": 461,
+      "expected": "sheet",
+      "corners": [
+        [
+          801.1,
+          6.5
+        ],
+        [
+          798.9,
+          443.5
+        ],
+        [
+          205.8,
+          430.9
+        ],
+        [
+          204.3,
+          18.8
+        ]
+      ]
+    },
+    {
+      "name": "160645",
+      "file": "photo_160645.jpg",
+      "original": "IMG_20261005_160645.jpg",
+      "original_size": [
+        4080,
+        1836
+      ],
+      "width": 1024,
+      "height": 461,
+      "expected": "sheet",
+      "corners": [
+        [
+          211.6,
+          24.3
+        ],
+        [
+          214.3,
+          449.8
+        ],
+        [
+          815.9,
+          447.5
+        ],
+        [
+          813.9,
+          16.6
+        ]
+      ]
+    },
+    {
+      "name": "160706",
+      "file": "photo_160706.jpg",
+      "original": "IMG_20261005_160706.jpg",
+      "original_size": [
+        8192,
+        6144
+      ],
+      "width": 1024,
+      "height": 768,
+      "expected": "sheet",
+      "corners": [
+        [
+          66.6,
+          75.1
+        ],
+        [
+          64.1,
+          689.1
+        ],
+        [
+          934.2,
+          698.4
+        ],
+        [
+          940.4,
+          73.0
+        ]
+      ]
+    },
+    {
+      "name": "160808",
+      "file": "photo_160808.jpg",
+      "original": "IMG_20261005_160808.jpg",
+      "original_size": [
+        3200,
+        1440
+      ],
+      "width": 1024,
+      "height": 461,
+      "expected": "notFound",
+      "note": "one edge the reader would fit runs along a lighting gradient on the table, not along the paper"
+    },
+    {
+      "name": "160812",
+      "file": "photo_160812.jpg",
+      "original": "IMG_20261005_160812.jpg",
+      "original_size": [
+        4080,
+        1836
+      ],
+      "width": 1024,
+      "height": 461,
+      "expected": "cropped",
+      "note": "the sheet runs off the top and the bottom of the frame"
+    },
+    {
+      "name": "160903",
+      "file": "photo_160903.jpg",
+      "original": "IMG_20261005_160903.jpg",
+      "original_size": [
+        1836,
+        4080
+      ],
+      "width": 461,
+      "height": 1024,
+      "expected": "sheet",
+      "corners": [
+        [
+          437.2,
+          820.7
+        ],
+        [
+          436.5,
+          226.1
+        ],
+        [
+          14.1,
+          225.4
+        ],
+        [
+          13.3,
+          821.2
+        ]
+      ]
+    }
+  ]
+}
