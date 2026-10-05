@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/press_scale.dart';
 
 /// VisioButton variants.
 enum VisioButtonVariant { primary, secondary, destructive }
@@ -40,19 +41,30 @@ class VisioButton extends StatelessWidget {
     final child = _buildChild(context);
 
     final onPressedOrNull = isLoading ? null : onPressed;
-    final button = switch (variant) {
-      VisioButtonVariant.primary =>
-        ElevatedButton(onPressed: onPressedOrNull, child: child),
-      VisioButtonVariant.secondary =>
-        OutlinedButton(onPressed: onPressedOrNull, child: child),
-      VisioButtonVariant.destructive => TextButton(
-          onPressed: onPressedOrNull,
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
+    // Shrinks to 0.98 while pressed (SPEC 0134).
+    final button = PressScale(
+      scale: 0.98,
+      builder: (states) => switch (variant) {
+        VisioButtonVariant.primary => ElevatedButton(
+            onPressed: onPressedOrNull,
+            statesController: states,
+            child: child,
           ),
-          child: child,
-        ),
-    };
+        VisioButtonVariant.secondary => OutlinedButton(
+            onPressed: onPressedOrNull,
+            statesController: states,
+            child: child,
+          ),
+        VisioButtonVariant.destructive => TextButton(
+            onPressed: onPressedOrNull,
+            statesController: states,
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: child,
+          ),
+      },
+    );
 
     if (expanded) {
       return SizedBox(

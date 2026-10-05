@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/widgets/press_scale.dart';
 
 /// Standardized VisioSoil icon-only button (SPEC 0131).
 ///
@@ -36,14 +37,19 @@ class VisioIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: label,
-      onPressed: onPressed,
-      icon: Icon(icon, size: iconSize),
-      color: overPhoto ? Colors.white : color,
-      style: overPhoto
-          ? IconButton.styleFrom(backgroundColor: Colors.black45)
-          : null,
+    // Shrinks to 0.92 while pressed (SPEC 0134).
+    return PressScale(
+      scale: 0.92,
+      builder: (states) => IconButton(
+        tooltip: label,
+        onPressed: onPressed,
+        statesController: states,
+        icon: Icon(icon, size: iconSize),
+        color: overPhoto ? Colors.white : color,
+        style: overPhoto
+            ? IconButton.styleFrom(backgroundColor: Colors.black45)
+            : null,
+      ),
     );
   }
 }
