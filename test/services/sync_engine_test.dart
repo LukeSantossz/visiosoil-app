@@ -192,5 +192,91 @@ void main() {
       final merged = await store.findByUuid(local.uuid!);
       expect(merged!.address, 'Remote');
     });
+
+    // A push is decided against the remote version pulled first, by the same
+    // last-write-wins as the merge, so a stale local operation never reaches
+    // the backend (#88, SPEC 0136).
+    group('compare before push', () {
+      String day(int d) => DateTime.utc(2026, 1, d).toIso8601String();
+
+      test('stale_upsert_is_not_pushed', () async {
+        final local = await repo.create(sample(address: 'Local'));
+        backend.toPull = [
+          local.copyWith(address: 'Remote', updatedAt: day(2)),
+        ];
+
+        await engine.sync();
+
+        expect(backend.pushed, isEmpty);
+        expect(await store.pendingOperations(), isEmpty);
+        final merged = await store.findByUuid(local.uuid!);
+        expect(merged!.address, 'Remote');
+      });
+
+      test('stale_delete_is_not_pushed', () async {
+        final local = await repo.create(sample(address: 'Local'));
+        // Drain the create, so the delete is the only pending operation.
+        await engine.sync();
+        await repo.deleteById(local.id!);
+        backend.toPull = [
+          local.copyWith(address: 'Remote edit', updatedAt: day(2)),
+        ];
+
+        await engine.sync();
+
+        expect(backend.deleted, isEmpty);
+        expect(await store.pendingOperations(), isEmpty);
+        final merged = await store.findByUuid(local.uuid!);
+        expect(merged!.deleted, isFalse);
+        expect(merged.address, 'Remote edit');
+      });
+
+      test('newer_local_still_pushes', () async {
+        final local = await repo.create(sample(address: 'Local'));
+        backend.toPull = [
+          local.copyWith(
+            address: 'Remote',
+            updatedAt: DateTime.utc(2025, 12, 31).toIso8601String(),
+          ),
+        ];
+
+        await engine.sync();
+
+        expect(backend.pushed.map((r) => r.uuid), [local.uuid]);
+        final merged = await store.findByUuid(local.uuid!);
+        expect(merged!.address, 'Local');
+      });
+
+      test('a_tie_pushes_a_local_tombstone', () async {
+        final local = await repo.create(sample(address: 'Local'));
+        await engine.sync();
+        await repo.deleteById(local.id!);
+        final tombstone = await store.findByUuid(local.uuid!);
+        // Same instant as the local delete, remote not deleted: the tombstone
+        // wins the tie, so its delete is sent.
+        backend.toPull = [
+          local.copyWith(address: 'Remote', updatedAt: tombstone!.updatedAt),
+        ];
+
+        await engine.sync();
+
+        expect(backend.deleted.map((r) => r.uuid), [local.uuid]);
+        final merged = await store.findByUuid(local.uuid!);
+        expect(merged!.deleted, isTrue);
+      });
+
+      test('report_counts_what_was_sent', () async {
+        final stale = await repo.create(sample(address: 'Stale'));
+        await repo.create(sample(address: 'Fresh'));
+        backend.toPull = [
+          stale.copyWith(address: 'Remote', updatedAt: day(2)),
+        ];
+
+        final report = await engine.sync();
+
+        expect(report.pushed, 1);
+        expect(report.pulled, 1);
+      });
+    });
   });
 }
