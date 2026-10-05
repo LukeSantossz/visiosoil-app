@@ -20,7 +20,8 @@ each held-out photograph three ways:
 
 The small grids are cut by the training cut, around each dish's measured centre,
 with only the disc diameter replaced. Each repeat scores 167 photographs over
-77 groups. Nothing is retrained and nothing is released.
+77 groups. The fold probes are refit only to score those photographs: the
+released contract is untouched, and nothing is released.
 
 ## The answer
 
