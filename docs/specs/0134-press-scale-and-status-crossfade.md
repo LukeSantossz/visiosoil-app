@@ -17,6 +17,8 @@ Roadmap item 12 carries both. SPEC 0126 took item 12's haptics. Its other slices
 
 The pressed state is the one Material's ink already follows, so the scale starts and ends with the ink. A disabled button never enters it, so it never scales.
 
+A button disabled while it is pressed clears its pressed state as it rebuilds. `PressScale` is its ancestor and cannot rebuild then, so it waits for the end of that frame.
+
 **The two shared buttons use it.** `VisioButton` builds its `ElevatedButton`, `OutlinedButton` or `TextButton` inside a `PressScale` of 0.98. `VisioIconButton` builds its `IconButton` inside one of 0.92. Since SPEC 0131, `VisioIconButton` builds every icon button in the app.
 
 Nine Material buttons are still built directly, and keep their ink only:
@@ -30,7 +32,11 @@ Moving them onto `VisioButton` is roadmap item 9's consolidation, not motion.
 
 The chips sit in a `Wrap` aligned to the start, so the two chips of a crossfade are stacked aligned to the start too, and the incoming one does not move.
 
-During the crossfade the outgoing chip is drawn but excluded from semantics. The classification chip is a live region (SPEC 0116), so the screen reader still announces only the new phase.
+During the crossfade the outgoing chip is drawn but neither announced nor tappable:
+- the classification chip is a live region (SPEC 0116), so the screen reader still announces only the new phase;
+- a retry chip that is fading out takes no second tap.
+
+Each transition is keyed by its own animation, not by the label. A label that comes back while its last chip is still fading out is then a second chip, not a duplicate key. That happens when a retry fails again at once.
 
 ## Alternatives Considered
 
@@ -59,8 +65,13 @@ During the crossfade the outgoing chip is drawn but excluded from semantics. The
 - `press_scale_respects_reduced_motion`: with animations disabled, the scale's duration is zero.
 - `phase_label_crossfades`: when the classification chip moves from one phase to the next, both labels are drawn halfway through 220 ms, and only the new one after it. The location chip does the same when the address arrives.
 - `crossfade_announces_only_the_new_label`: halfway through the crossfade, the old label is not in the semantics tree.
+- `fading_chip_takes_no_tap`: halfway through the crossfade from a retry chip, a tap on it does not retry.
+- `a_label_back_mid_crossfade_is_a_new_chip`: a label that returns while its last chip is fading out raises no error, and ends as the only chip.
+- `a_button_disabled_mid_press_settles`: a `VisioButton` disabled while pressed raises no error, and returns to 1.
 - `crossfade_respects_reduced_motion`: with animations disabled, the new label replaces the old one in the next frame.
-- The existing tests pass unchanged.
+- The existing tests pass. Four change, because the crossfade and the scale are what this spec adds:
+  - `phases_are_named`, `the location chip shows loading, then the resolved address`, and `a double tap on retry starts one classification, and retry works again once it settles` wait `AppMotion.base` before they expect the old chip to be gone;
+  - `label_reaches_semantics` reads the node from the `IconButton`, because the component's root is now the scale's transform, which has no node of its own.
 
 ## Reproducibility
 
