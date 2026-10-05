@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
+import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -43,6 +44,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('Não foi possível carregar os filtros'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(CollapseOnCorrection),
+        matching: find.text('Não foi possível carregar os filtros'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
