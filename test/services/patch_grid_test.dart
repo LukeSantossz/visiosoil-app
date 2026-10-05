@@ -167,41 +167,6 @@ void main() {
     expect((same.frame!.width, same.frame!.height), (2, 1));
   });
 
-  // SPEC 0141: a disc too small for the centred floor moves to the half-stride
-  // grid, at the contract's patch side and canonical scale.
-  const canonical = 0.12920342774728033;
-
-  ({PatchGeometry? geometry, PatchRefusal? refusal}) disc(double mm) =>
-      patchGeometry(
-        regionDiameterPx: mm / canonical,
-        patchPx: 160,
-        canonicalMmPerPx: canonical,
-        minPatches: 4,
-        strideFraction: 0.5,
-      );
-
-  test('the_half_stride_grid_fills_a_small_disc', () {
-    expect(disc(47.5).geometry!.offsets, [
-      (-40.0, -40.0),
-      (-40.0, 40.0),
-      (40.0, -40.0),
-      (40.0, 40.0),
-    ]);
-    expect(disc(51.0).geometry!.offsets, [
-      (-80.0, 0.0),
-      (0.0, -80.0),
-      (0.0, 0.0),
-      (0.0, 80.0),
-      (80.0, 0.0),
-    ]);
-  });
-
-  test('a_disc_below_the_half_stride_block_is_refused', () {
-    final outcome = disc(43.5);
-    expect(outcome.refusal, PatchRefusal.regionTooSmall);
-    expect(outcome.geometry, isNull);
-  });
-
   test('floor_division_is_pythons', () {
     // `1 // 0.1` is 9.0 in Python, while `1 / 0.1` rounds to exactly 10.0.
     expect(pythonFloorDivide(1.0, 0.1), 9.0);

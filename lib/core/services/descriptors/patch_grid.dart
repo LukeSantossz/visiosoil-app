@@ -203,11 +203,20 @@ class PatchGeometry {
   final inset = patchPx * math.sqrt(2.0) / 2.0;
   final limit = radius - inset;
 
-  // The centred grid when it meets the floor; otherwise the same lattice moved
-  // by half a stride, which puts the centre between four patches (SPEC 0141).
-  var offsets = _grid(limit, stride, shifted: false);
-  if (offsets.length < minPatches) {
-    offsets = _grid(limit, stride, shifted: true);
+  final offsets = <(double, double)>[];
+  if (limit >= 0.0) {
+    final steps = pythonFloorDivide(limit, stride).toInt();
+    for (var row = -steps; row <= steps; row++) {
+      for (var column = -steps; column <= steps; column++) {
+        final dy = row * stride;
+        final dx = column * stride;
+        // CPython's `hypot` and this can differ in the last place; SPEC 0081
+        // records the boundary and the golden keeps its cases away from it.
+        if (math.sqrt(dy * dy + dx * dx) <= limit + 1e-9) {
+          offsets.add((dy, dx));
+        }
+      }
+    }
   }
 
   if (offsets.length < minPatches) {
@@ -228,35 +237,6 @@ class PatchGeometry {
     ),
     refusal: null,
   );
-}
-
-/// Patch centres within [limit] of the region centre, on one lattice: `_grid`.
-///
-/// Unshifted, the centres sit at whole strides from the region centre.
-/// Shifted, at whole strides plus a half, so `row` runs one further on the
-/// negative side to stay symmetric.
-List<(double, double)> _grid(
-  double limit,
-  double stride, {
-  required bool shifted,
-}) {
-  final offsets = <(double, double)>[];
-  if (limit < 0.0) return offsets;
-  final steps = pythonFloorDivide(limit, stride).toInt();
-  final half = shifted ? 0.5 : 0.0;
-  final first = shifted ? -steps - 1 : -steps;
-  for (var row = first; row <= steps; row++) {
-    for (var column = first; column <= steps; column++) {
-      final dy = (row + half) * stride;
-      final dx = (column + half) * stride;
-      // CPython's `hypot` and this can differ in the last place; SPEC 0081
-      // records the boundary and the golden keeps its cases away from it.
-      if (math.sqrt(dy * dy + dx * dx) <= limit + 1e-9) {
-        offsets.add((dy, dx));
-      }
-    }
-  }
-  return offsets;
 }
 
 /// One pixel's grey level as `cut_patches` computes it: BT.601, rounded half
