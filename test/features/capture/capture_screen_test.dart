@@ -15,6 +15,7 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
@@ -285,11 +286,13 @@ void main() {
 
     expect(calls, 2, reason: 'the second tap must be rejected while in flight');
 
-    // Settle the retry as another failure, which brings the chip back.
+    // Settle the retry as another failure, which brings the chip back once
+    // the last one has faded out (SPEC 0134).
     gate.complete(null);
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
+    await tester.pump(AppMotion.base);
     expect(find.byKey(const Key('retryClassification')), findsOneWidget);
 
     // The guard must have cleared: a later tap is accepted.
@@ -387,13 +390,16 @@ void main() {
       await capture(tester);
       expect(find.text('Classificando...'), findsOneWidget);
 
+      // Each phase crossfades into the next over AppMotion.base (SPEC 0134).
       inference.phaseCallbacks.single!(ClassificationPhase.findingSheet);
       await settle(tester);
+      await tester.pump(AppMotion.base);
       expect(find.text('Procurando a folha A4...'), findsOneWidget);
       expect(find.text('Classificando...'), findsNothing);
 
       inference.phaseCallbacks.single!(ClassificationPhase.describingTexture);
       await settle(tester);
+      await tester.pump(AppMotion.base);
       expect(find.text('Descrevendo a textura...'), findsOneWidget);
       expect(find.text('Procurando a folha A4...'), findsNothing);
 
@@ -821,6 +827,8 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
+    // The address crossfades in over AppMotion.base (SPEC 0134).
+    await tester.pump(AppMotion.base);
 
     expect(find.text('São Paulo'), findsOneWidget);
     expect(find.text('Localizando...'), findsNothing);
