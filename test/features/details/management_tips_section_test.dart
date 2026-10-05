@@ -323,4 +323,40 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     }
   });
+
+  // In high contrast the disclaimer's edge is its own text colour, solid and
+  // 2 dp wide (SPEC 0135).
+  testWidgets('hc_banner_edges_read: the tips disclaimer', (tester) async {
+    final repo = FakeManagementTipsRepository()..seed('rec-1', groundedTips());
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        managementTipsRepositoryProvider.overrideWithValue(repo),
+        researchServiceProvider.overrideWithValue(okService()),
+        connectivityServiceProvider.overrideWithValue(
+            FakeConnectivityService(ConnectivityStatus.online)),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.lightHighContrast,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ManagementTipsSection(record: tipsRecord()),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final banner = tester.widget<Container>(find
+        .ancestor(
+          of: find.textContaining('consultivo'),
+          matching: find.byWidgetPredicate((w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).border != null),
+        )
+        .first);
+    final edge = ((banner.decoration! as BoxDecoration).border! as Border).top;
+    expect(edge.color, AppPalette.lightHighContrast.onWarningContainer);
+    expect(edge.width, 2);
+  });
 }

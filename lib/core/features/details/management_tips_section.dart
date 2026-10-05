@@ -257,7 +257,10 @@ class _TipCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
-        border: Border.all(color: context.palette.cardBorder),
+        border: Border.all(
+          color: context.palette.cardBorder,
+          width: context.palette.edgeWidth,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +373,13 @@ class _DisclaimerBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.palette.warningContainer,
         borderRadius: AppRadius.borderRadiusMd,
-        border: Border.all(color: context.palette.warning.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: context.palette.bannerBorder(
+            accent: context.palette.warning,
+            onContainer: context.palette.onWarningContainer,
+          ),
+          width: context.palette.edgeWidth,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

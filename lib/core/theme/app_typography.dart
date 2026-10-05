@@ -115,10 +115,13 @@ abstract final class AppTypography {
 
   /// The text theme for [palette]: text on the page in `onBackground`, and
   /// the small print in `onSurfaceVariant`, so it follows the theme
-  /// (SPEC 0107).
+  /// (SPEC 0107). In high contrast the body styles and [labelSmall] are one
+  /// bundled weight heavier (SPEC 0135).
   static TextTheme textThemeFor(AppPalette palette) {
     final ink = palette.onBackground;
     final mute = palette.onSurfaceVariant;
+    final hc = palette.highContrast;
+    final body = hc ? FontWeight.w500 : null;
     return TextTheme(
       headlineLarge: headlineLarge.copyWith(color: ink),
       headlineMedium: headlineMedium.copyWith(color: ink),
@@ -126,12 +129,15 @@ abstract final class AppTypography {
       titleLarge: titleLarge.copyWith(color: ink),
       titleMedium: titleMedium.copyWith(color: ink),
       titleSmall: titleSmall.copyWith(color: ink),
-      bodyLarge: bodyLarge.copyWith(color: ink),
-      bodyMedium: bodyMedium.copyWith(color: ink),
-      bodySmall: bodySmall.copyWith(color: mute),
+      bodyLarge: bodyLarge.copyWith(color: ink, fontWeight: body),
+      bodyMedium: bodyMedium.copyWith(color: ink, fontWeight: body),
+      bodySmall: bodySmall.copyWith(color: mute, fontWeight: body),
       labelLarge: labelLarge.copyWith(color: ink),
       labelMedium: labelMedium.copyWith(color: mute),
-      labelSmall: labelSmall.copyWith(color: mute),
+      labelSmall: labelSmall.copyWith(
+        color: mute,
+        fontWeight: hc ? FontWeight.w600 : null,
+      ),
     );
   }
 }

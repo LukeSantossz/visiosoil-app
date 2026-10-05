@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 
 double _contrast(Color a, Color b) {
   final la = a.computeLuminance();
@@ -148,12 +149,17 @@ void main() {
       }
     });
 
+    // Since SPEC 0135 they also raise `outlineVariant` to `outline`.
     test('high-contrast palettes differ from their base only there', () {
       for (final (hc, base) in [
         (AppPalette.lightHighContrast, AppPalette.light),
         (AppPalette.darkHighContrast, AppPalette.dark),
       ]) {
-        expect(hc.colorScheme, base.colorScheme, reason: '${base.brightness}');
+        expect(
+          hc.colorScheme.copyWith(outlineVariant: base.outlineVariant),
+          base.colorScheme,
+          reason: '${base.brightness}',
+        );
         expect(hc.warningContainer, base.warningContainer);
         expect(hc.brand, base.brand);
       }
@@ -190,6 +196,118 @@ void main() {
           .toList();
 
       expect(hairlines, isEmpty);
+    });
+  });
+
+  // High contrast's second slice: solid lines, banner edges in their own text
+  // colour, 2 dp edges and one step heavier body type (SPEC 0135).
+  group('high contrast, slice 2', () {
+    const hcPairs = [
+      ('light', AppPalette.light),
+      ('dark', AppPalette.dark),
+    ];
+
+    test('hc_lines_reach_3_to_1', () {
+      for (final (hc, theme) in [
+        (AppPalette.lightHighContrast, AppTheme.lightHighContrast),
+        (AppPalette.darkHighContrast, AppTheme.darkHighContrast),
+      ]) {
+        expect(hc.outlineVariant, hc.outline, reason: '${hc.brightness}');
+        expect(theme.colorScheme.outlineVariant, hc.outline,
+            reason: '${hc.brightness}');
+        expect(_contrast(hc.outlineVariant, hc.surface),
+            greaterThanOrEqualTo(3), reason: '${hc.brightness}');
+        expect(_contrast(hc.outlineVariant, hc.background),
+            greaterThanOrEqualTo(3), reason: '${hc.brightness}');
+      }
+      expect(AppPalette.light.outlineVariant, AppColors.outlineVariant);
+      for (final (name, base) in hcPairs) {
+        expect(base.outlineVariant, isNot(base.outline), reason: name);
+      }
+    });
+
+    test('hc_banner_edges_read', () {
+      for (final p in [
+        AppPalette.light,
+        AppPalette.dark,
+        AppPalette.lightHighContrast,
+        AppPalette.darkHighContrast,
+      ]) {
+        for (final (accent, onContainer, container) in [
+          (p.warning, p.onWarningContainer, p.warningContainer),
+          (p.error, p.onErrorContainer, p.errorContainer),
+        ]) {
+          final edge = p.bannerBorder(accent: accent, onContainer: onContainer);
+          if (p.highContrast) {
+            expect(edge, onContainer, reason: '${p.brightness}');
+            expect(_contrast(edge, container), greaterThanOrEqualTo(3),
+                reason: '${p.brightness}');
+          } else {
+            expect(edge, accent.withValues(alpha: 0.3),
+                reason: '${p.brightness}');
+          }
+        }
+      }
+    });
+
+    test('hc_edges_are_thicker', () {
+      expect(AppPalette.light.edgeWidth, 1);
+      expect(AppPalette.dark.edgeWidth, 1);
+      expect(AppPalette.lightHighContrast.edgeWidth, 2);
+      expect(AppPalette.darkHighContrast.edgeWidth, 2);
+    });
+
+    test('hc_body_type_is_heavier', () {
+      for (final (hc, base) in [
+        (AppTheme.lightHighContrast, AppTheme.light),
+        (AppTheme.darkHighContrast, AppTheme.dark),
+      ]) {
+        for (final (name, heavy, plain, weight, baseWeight) in [
+          ('bodyLarge', hc.textTheme.bodyLarge, base.textTheme.bodyLarge,
+              FontWeight.w500, FontWeight.w400),
+          ('bodyMedium', hc.textTheme.bodyMedium, base.textTheme.bodyMedium,
+              FontWeight.w500, FontWeight.w400),
+          ('bodySmall', hc.textTheme.bodySmall, base.textTheme.bodySmall,
+              FontWeight.w500, FontWeight.w400),
+          ('labelSmall', hc.textTheme.labelSmall, base.textTheme.labelSmall,
+              FontWeight.w600, FontWeight.w500),
+        ]) {
+          expect(heavy?.fontWeight, weight, reason: name);
+          expect(plain?.fontWeight, baseWeight, reason: name);
+        }
+        expect(hc.textTheme.titleLarge?.fontWeight,
+            base.textTheme.titleLarge?.fontWeight);
+      }
+    });
+
+    // Every edge drawn from the two roles takes its width from the palette.
+    test('edges_take_the_width', () {
+      final missing = <String>[];
+      for (final file in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'))) {
+        final source = file.readAsStringSync();
+        var at = source.indexOf('Border.all(');
+        while (at != -1) {
+          var depth = 0;
+          var end = at + 'Border.all'.length;
+          do {
+            final char = source[end];
+            if (char == '(') depth++;
+            if (char == ')') depth--;
+            end++;
+          } while (depth > 0);
+          final call = source.substring(at, end);
+          if ((call.contains('cardBorder') || call.contains('bannerBorder')) &&
+              !call.contains('edgeWidth')) {
+            missing.add('${file.path}: $call');
+          }
+          at = source.indexOf('Border.all(', end);
+        }
+      }
+
+      expect(missing, isEmpty);
     });
   });
 }

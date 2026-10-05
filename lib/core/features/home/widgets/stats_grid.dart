@@ -81,7 +81,10 @@ class _StatCard extends StatelessWidget {
               offset: Offset(0, 1),
             ),
           ],
-          border: Border.all(color: context.palette.cardBorder),
+          border: Border.all(
+            color: context.palette.cardBorder,
+            width: context.palette.edgeWidth,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
