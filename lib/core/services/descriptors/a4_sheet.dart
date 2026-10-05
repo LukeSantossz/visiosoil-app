@@ -79,6 +79,33 @@ const _minSheetFraction = 0.05;
 /// quadrilateral is searched exhaustively.
 const _hullVertexBudget = 24;
 
+/// The least difference between paper and a pale surface, once the dark
+/// objects are split off (SPEC 0140). Paper on a pale table is 32 to 43 apart.
+/// Shading on bare paper is under this.
+const _minPaperContrast = 20.0;
+
+/// The least grey step from paper to surface across each edge of a sheet found
+/// (SPEC 0140). A paper edge steps by 20 to 40. A false edge along a lighting
+/// gradient steps by 4 or 5, and would read a scale several per cent wrong.
+const _minEdgeStep = 10.0;
+
+/// How far inside and outside an edge, in detection pixels, its step is read:
+/// clear of the edge's own blur, and well inside the smallest sheet accepted.
+const _edgeOffsetPx = 4;
+
+/// The line search's angle bins over half a turn, 0.5 degrees each. Its rho
+/// bins are one detection pixel.
+const _houghAngleBins = 360;
+
+/// How many of the strongest lines are kept: four edges, and room for the
+/// lines a leak or a shadow adds.
+const _houghPeaks = 16;
+
+/// A line kept clears the lines within this many rho and angle bins of it, so
+/// the next one kept is another edge and not the same edge again.
+const _houghRhoSuppression = 15;
+const _houghAngleSuppression = 10;
+
 /// How far inside the soil patch's edge the measured disc stays, so the grid's
 /// outermost patch corners land on soil when the edge is irregular.
 const double soilMarginMm = 2;
@@ -236,21 +263,45 @@ a4SheetMeasurer(RgbFrame frame) {
     return (corners: null, refusal: SheetRefusal.notFound);
   }
 
-  final sheet = _filledLargestBright(grey, width, height, split.threshold);
+  var sheet = _filledLargestBright(grey, width, height, split.threshold);
+  if (sheet.touchesBorder ||
+      sheet.area / (width * height) > _maxSheetFraction) {
+    // On a pale surface the split falls between the dark objects and the rest,
+    // so paper and surface are one region. Splitting the bright side again
+    // separates them, where they differ enough to be told apart (SPEC 0140).
+    final bright = _otsu(
+      Uint8List.fromList([
+        for (final value in grey)
+          if (value > split.threshold) value,
+      ]),
+    );
+    if (bright.brightMean - bright.darkMean >= _minPaperContrast) {
+      sheet = _filledLargestBright(grey, width, height, bright.threshold);
+    }
+  }
   final fraction = sheet.area / (width * height);
   if (fraction > _maxSheetFraction || fraction < _minSheetFraction) {
     return (corners: null, refusal: SheetRefusal.notFound);
   }
-  if (sheet.touchesBorder) {
-    return (corners: null, refusal: SheetRefusal.cropped);
-  }
 
   final boundary = _outerBoundary(sheet.mask, width, height);
-  final hull = _thinned(_convexHull(boundary), _hullVertexBudget);
-  if (hull.length < 4) {
-    return (corners: null, refusal: SheetRefusal.notFound);
+  final List<({double x, double y})> quad;
+  if (sheet.touchesBorder) {
+    // A region that reaches the border is a sheet cut by the frame, or a sheet
+    // that a lit patch of surface joins to the border. The hull would follow
+    // the patch; the sheet's straight edges do not (SPEC 0140).
+    final lines = _lineQuadrilateral(boundary, width, height);
+    if (lines == null) {
+      return (corners: null, refusal: SheetRefusal.cropped);
+    }
+    quad = lines;
+  } else {
+    final hull = _thinned(_convexHull(boundary), _hullVertexBudget);
+    if (hull.length < 4) {
+      return (corners: null, refusal: SheetRefusal.notFound);
+    }
+    quad = _largestQuadrilateral(hull);
   }
-  final quad = _largestQuadrilateral(hull);
   final refined = _refinedCorners(quad, boundary);
   if (refined == null || !_plausible(refined)) {
     return (corners: null, refusal: SheetRefusal.notFound);
@@ -267,6 +318,14 @@ a4SheetMeasurer(RgbFrame frame) {
     if (c.x < 0 || c.y < 0 || c.x > frame.width - 1 || c.y > frame.height - 1) {
       return (corners: null, refusal: SheetRefusal.cropped);
     }
+  }
+
+  final steps = _edgeSteps(grey, width, height, refined);
+  if (steps == null) {
+    return (corners: null, refusal: SheetRefusal.cropped);
+  }
+  if (steps.any((step) => step < _minEdgeStep)) {
+    return (corners: null, refusal: SheetRefusal.notFound);
   }
   return (corners: SheetCorners(_ordered(corners)), refusal: null);
 }
@@ -712,6 +771,128 @@ double _area(List<({double x, double y})> polygon) {
   return twice.abs() / 2;
 }
 
+/// The sheet's quadrilateral from the strongest straight lines on [boundary],
+/// or null when four edges cannot be found (SPEC 0140).
+///
+/// The strongest line is one edge, and the strongest line at least 45 degrees
+/// from it is the next. Each is paired with the strongest line of its own
+/// family that has the boundary's centroid between the two: the opposite edge,
+/// and not the near edge of a patch that leaks beyond the sheet.
+List<({double x, double y})>? _lineQuadrilateral(
+  List<({double x, double y})> boundary,
+  int width,
+  int height,
+) {
+  if (boundary.isEmpty) return null;
+  const bins = _houghAngleBins;
+  final diagonal = math.sqrt(width * width + height * height).ceil();
+  final rows = 2 * diagonal + 1;
+  final cosines = Float64List(bins), sines = Float64List(bins);
+  for (var j = 0; j < bins; j++) {
+    cosines[j] = math.cos(j * math.pi / bins);
+    sines[j] = math.sin(j * math.pi / bins);
+  }
+  final votes = Int32List(rows * bins);
+  var sx = 0.0, sy = 0.0;
+  for (final p in boundary) {
+    sx += p.x;
+    sy += p.y;
+    for (var j = 0; j < bins; j++) {
+      final r = (p.x * cosines[j] + p.y * sines[j]).round() + diagonal;
+      votes[r * bins + j]++;
+    }
+  }
+
+  final lines = <({double rho, double theta})>[];
+  for (var k = 0; k < _houghPeaks; k++) {
+    var best = 0, at = -1;
+    for (var i = 0; i < votes.length; i++) {
+      if (votes[i] > best) {
+        best = votes[i];
+        at = i;
+      }
+    }
+    if (at < 0) break;
+    final r = at ~/ bins, j = at % bins;
+    lines.add((rho: (r - diagonal).toDouble(), theta: j * math.pi / bins));
+    // Past either end of the angle range, a line is the same line with its
+    // normal reversed: the angle wraps and rho changes sign.
+    for (var dj = -_houghAngleSuppression; dj <= _houghAngleSuppression; dj++) {
+      var jj = j + dj, rr = r;
+      if (jj < 0 || jj >= bins) {
+        jj = (jj + bins) % bins;
+        rr = 2 * diagonal - r;
+      }
+      final low = math.max(0, rr - _houghRhoSuppression);
+      final high = math.min(rows - 1, rr + _houghRhoSuppression);
+      for (var q = low; q <= high; q++) {
+        votes[q * bins + jj] = 0;
+      }
+    }
+  }
+  if (lines.isEmpty) return null;
+
+  final cx = sx / boundary.length, cy = sy / boundary.length;
+  double apart(double a, double b) {
+    final d = (a - b).abs() % math.pi;
+    return math.min(d, math.pi - d);
+  }
+
+  bool beyond(({double rho, double theta}) line) =>
+      cx * math.cos(line.theta) + cy * math.sin(line.theta) > line.rho;
+  // Two lines of one family have the centroid between them when it lies on
+  // opposite sides of them, once their normals point the same way.
+  bool between(
+    ({double rho, double theta}) line,
+    ({double rho, double theta}) reference,
+  ) {
+    var side = beyond(line);
+    if ((line.theta - reference.theta).abs() > math.pi / 2) side = !side;
+    return side != beyond(reference);
+  }
+
+  final a = lines.first;
+  final sameAsA = [
+    for (final line in lines.skip(1))
+      if (apart(line.theta, a.theta) < math.pi / 4) line,
+  ];
+  final acrossA = [
+    for (final line in lines.skip(1))
+      if (apart(line.theta, a.theta) >= math.pi / 4) line,
+  ];
+  if (acrossA.isEmpty) return null;
+  final b = acrossA.first;
+  final oppositeA = sameAsA.where((line) => between(line, a)).firstOrNull;
+  final oppositeB = acrossA
+      .skip(1)
+      .where((line) => between(line, b))
+      .firstOrNull;
+  if (oppositeA == null || oppositeB == null) return null;
+
+  ({double x, double y})? meet(
+    ({double rho, double theta}) one,
+    ({double rho, double theta}) other,
+  ) {
+    final c1 = math.cos(one.theta), s1 = math.sin(one.theta);
+    final c2 = math.cos(other.theta), s2 = math.sin(other.theta);
+    final determinant = c1 * s2 - s1 * c2;
+    if (determinant.abs() < 1e-9) return null;
+    return (
+      x: (one.rho * s2 - s1 * other.rho) / determinant,
+      y: (c1 * other.rho - one.rho * c2) / determinant,
+    );
+  }
+
+  final quad = [
+    meet(a, b),
+    meet(b, oppositeA),
+    meet(oppositeA, oppositeB),
+    meet(oppositeB, a),
+  ];
+  if (quad.contains(null)) return null;
+  return [for (final corner in quad) corner!];
+}
+
 /// Each edge refitted by total least squares through the boundary points near
 /// its middle, then moved half a pixel outward, since a boundary pixel's centre
 /// lies half a pixel inside the edge it borders. The corners are the refitted
@@ -803,6 +984,66 @@ bool _plausible(List<({double x, double y})> quad) {
     if (math.min(one, other) < 0.5 * math.max(one, other)) return false;
   }
   return true;
+}
+
+/// The grey step from paper to surface across each edge of [quad]: the median
+/// grey [_edgeOffsetPx] inside the middle 80 % of the edge, less the median
+/// the same distance outside (SPEC 0140).
+///
+/// Null when an edge runs along the frame's border, so that fewer than half of
+/// its positions can be read on both sides. That sheet leaves the frame, and
+/// every edge is checked for it before any step is returned.
+List<double>? _edgeSteps(
+  Uint8List grey,
+  int width,
+  int height,
+  List<({double x, double y})> quad,
+) {
+  final cx = quad.map((p) => p.x).reduce((a, b) => a + b) / 4;
+  final cy = quad.map((p) => p.y).reduce((a, b) => a + b) / 4;
+  int? at(double x, double y) {
+    final ix = x.round(), iy = y.round();
+    if (ix < 0 || iy < 0 || ix >= width || iy >= height) return null;
+    return grey[iy * width + ix];
+  }
+
+  final steps = <double>[];
+  for (var i = 0; i < 4; i++) {
+    final a = quad[i];
+    final b = quad[(i + 1) % 4];
+    final length = _distance(a, b);
+    final dx = (b.x - a.x) / length, dy = (b.y - a.y) / length;
+    // The normal, pointed away from the sheet.
+    var nx = -dy, ny = dx;
+    if (nx * (cx - a.x) + ny * (cy - a.y) > 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+
+    var positions = 0;
+    final inside = <int>[], outside = <int>[];
+    for (var s = 0.1 * length; s < 0.9 * length; s++) {
+      positions++;
+      final x = a.x + dx * s, y = a.y + dy * s;
+      final paper = at(x - nx * _edgeOffsetPx, y - ny * _edgeOffsetPx);
+      final surface = at(x + nx * _edgeOffsetPx, y + ny * _edgeOffsetPx);
+      if (paper != null && surface != null) {
+        inside.add(paper);
+        outside.add(surface);
+      }
+    }
+    if (inside.isEmpty || inside.length * 2 < positions) return null;
+    steps.add(_median(inside) - _median(outside));
+  }
+  return steps;
+}
+
+double _median(List<int> values) {
+  final sorted = [...values]..sort();
+  final middle = sorted.length ~/ 2;
+  return sorted.length.isOdd
+      ? sorted[middle].toDouble()
+      : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 /// Puts a short edge first and a long edge second, starting from whichever end
