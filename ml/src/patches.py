@@ -142,19 +142,22 @@ def patch_geometry(
     inset = input_size * math.sqrt(2.0) / 2.0
     limit = radius - inset
 
-    offsets: list[tuple[float, float]] = []
-    if limit >= 0.0:
-        steps = int(limit // stride)
-        for row in range(-steps, steps + 1):
-            for column in range(-steps, steps + 1):
-                dy, dx = row * stride, column * stride
-                if math.hypot(dy, dx) <= limit + 1e-9:
-                    offsets.append((dy, dx))
+    # The centred grid when it meets the floor; otherwise the same lattice moved
+    # by half a stride, which puts the centre between four patches (SPEC 0141).
+    # At a floor of nine the shifted grid never wins, so the archive's grids are
+    # the centred ones whatever this rule says.
+    offsets = _grid(limit, stride, shifted=False)
+    shifted: list[tuple[float, float]] = []
+    if len(offsets) < min_patches:
+        shifted = _grid(limit, stride, shifted=True)
+        if len(shifted) >= min_patches:
+            offsets = shifted
 
     if len(offsets) < min_patches:
         raise ValueError(
             f"{PatchRefusal.REGION_TOO_SMALL.value}: a region of "
-            f"{region_diameter_px:.1f} px carries {len(offsets)} patch(es) of "
+            f"{region_diameter_px:.1f} px carries "
+            f"{max(len(offsets), len(shifted))} patch(es) of "
             f"{input_size} px at half-patch stride, and the floor is "
             f"{min_patches}"
         )
@@ -167,6 +170,27 @@ def patch_geometry(
         region_radius_px=radius,
         offsets=tuple(sorted(offsets)),
     )
+
+
+def _grid(limit: float, stride: float, *, shifted: bool) -> list[tuple[float, float]]:
+    """Patch centres within `limit` of the region centre, on one lattice.
+
+    Unshifted, the centres sit at whole strides from the region centre.
+    Shifted, at whole strides plus a half, so ``row`` runs one further on the
+    negative side to stay symmetric.
+    """
+    offsets: list[tuple[float, float]] = []
+    if limit < 0.0:
+        return offsets
+    steps = int(limit // stride)
+    half = 0.5 if shifted else 0.0
+    first = -steps - 1 if shifted else -steps
+    for row in range(first, steps + 1):
+        for column in range(first, steps + 1):
+            dy, dx = (row + half) * stride, (column + half) * stride
+            if math.hypot(dy, dx) <= limit + 1e-9:
+                offsets.append((dy, dx))
+    return offsets
 
 
 def require_grid_inside_frame(
