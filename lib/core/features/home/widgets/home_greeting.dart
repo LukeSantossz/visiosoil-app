@@ -56,7 +56,8 @@ class HomeGreeting extends StatelessWidget {
 }
 
 /// Circular avatar that opens the settings screen (the DS greeting's entry
-/// point, replacing the former gear icon).
+/// point, replacing the former gear icon). The circle is drawn at 40 dp inside
+/// a 48 dp target, as a Material icon button is (SPEC 0133).
 class _SettingsAvatar extends StatelessWidget {
   const _SettingsAvatar({required this.onTap});
 
@@ -68,21 +69,27 @@ class _SettingsAvatar extends StatelessWidget {
       child: Semantics(
         button: true,
         label: 'Configurações',
-        child: InkWell(
+        child: InkResponse(
           onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: context.palette.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: context.palette.outlineVariant),
-            ),
-            child: Icon(
-              Icons.person_outline,
-              size: 22,
-              color: context.palette.onSurfaceVariant,
+          // The ripple fills the drawn circle, not the larger target.
+          radius: 20,
+          child: SizedBox.square(
+            dimension: 48,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: context.palette.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: context.palette.outlineVariant),
+                ),
+                child: Icon(
+                  Icons.person_outline,
+                  size: 22,
+                  color: context.palette.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
         ),

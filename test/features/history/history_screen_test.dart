@@ -9,6 +9,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
@@ -74,7 +75,11 @@ void main() {
         confidenceScore: 0.9,
       );
 
-  Widget appWith(FakeSoilRecordRepository repository, SoilRecord single) {
+  Widget appWith(
+    FakeSoilRecordRepository repository,
+    SoilRecord single, {
+    ThemeData? theme,
+  }) {
     return ProviderScope(
       overrides: [
         soilRecordsStreamProvider.overrideWithValue(
@@ -84,7 +89,7 @@ void main() {
             .overrideWith((ref) => Stream.value(<SoilRecord>[single])),
         soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
-      child: const MaterialApp(home: HistoryScreen()),
+      child: MaterialApp(theme: theme, home: const HistoryScreen()),
     );
   }
 
@@ -368,4 +373,23 @@ void main() {
     expect(find.text('Tentar novamente'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'empty, filter error');
   });
+
+  // A record, and selection mode, each pass Flutter's four accessibility
+  // guidelines (SPEC 0133).
+  for (final (name, theme) in appThemes) {
+    testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        appWith(FakeSoilRecordRepository(), record(7), theme: theme),
+      );
+      await tester.pumpAndSettle();
+      await expectMeetsGuidelines(tester);
+
+      await tester.longPress(find.byType(Image));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Excluir selecionados'), findsOneWidget);
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
+    });
+  }
 }

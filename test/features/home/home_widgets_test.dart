@@ -208,4 +208,27 @@ void main() {
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     semantics.dispose();
   });
+
+  // The avatar is a 48 dp target around a circle still drawn at 40 dp
+  // (SPEC 0133).
+  testWidgets('settings_avatar_target', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(host(const HomeGreeting()));
+
+    final node = tester.getSemantics(find.bySemanticsLabel('Configurações'));
+    expect(node, isSemantics(isButton: true));
+    expect(node.rect.size, const Size(48, 48));
+
+    final circle = find.descendant(
+      of: find.byType(HomeGreeting),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+      ),
+    );
+    expect(tester.getSize(circle), const Size(40, 40));
+    semantics.dispose();
+  });
 }
