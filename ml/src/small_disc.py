@@ -16,10 +16,12 @@ three ways:
 - **four**: the half-stride grid of a 47.5 mm disc.
 
 The small grids are cut by the training cut itself, around the dish's measured
-centre, with only the disc diameter replaced. Every criterion and the decision
-table are SPEC 0141's, fixed before the run. Nothing is retrained and no
-weight is written: the study writes `small_disc_study.json` beside the arm's
-`metrics.json`.
+centre, with only the disc diameter replaced. The half-stride grid is the
+study's own: the shipped cutter holds only the centred one, because the study
+kept the floor at nine and the grid that would have served a lower floor never
+shipped. Every criterion and the decision table are SPEC 0141's, fixed before
+the run. Nothing is retrained and no weight is written: the study writes
+`small_disc_study.json` beside the arm's `metrics.json`.
 
 Run from the `ml/` directory:
 
@@ -31,10 +33,12 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import math
 from pathlib import Path
-from typing import Mapping
+from typing import Iterable, Mapping
 
 import numpy as np
+from PIL import Image, ImageOps
 
 from .arms.descriptors import descriptor_features
 from .arms.probe import _patch_matrix, _predict, fit_probe
@@ -84,16 +88,110 @@ def simulated_measurement(measurement: Mapping[str, float], disc_mm: float) -> d
     return simulated
 
 
-def set_featuriser(disc_mm: float):
-    """The descriptor arm's featuriser, cut from a disc of ``disc_mm``."""
+def half_stride_offsets(
+    region_diameter_px: float, input_size: int, stride_fraction: float
+) -> tuple[tuple[float, float], ...]:
+    """The patch centres of the half-stride grid a region of this size holds.
+
+    The centred grid's lattice moved by half a stride on both axes, so the
+    region's centre falls between four patches rather than on one. ``row`` runs
+    one further on the negative side to keep the lattice symmetric. The inset
+    and the tolerance are `patch_geometry`'s, so the two grids differ only in
+    where the lattice sits.
+    """
+    stride = input_size * stride_fraction
+    limit = region_diameter_px / 2.0 - input_size * math.sqrt(2.0) / 2.0
+    if limit < 0.0:
+        return ()
+    steps = int(limit // stride)
+    offsets = []
+    for row in range(-steps - 1, steps + 1):
+        for column in range(-steps - 1, steps + 1):
+            dy, dx = (row + 0.5) * stride, (column + 0.5) * stride
+            if math.hypot(dy, dx) <= limit + 1e-9:
+                offsets.append((dy, dx))
+    return tuple(sorted(offsets))
+
+
+def cut_at_offsets(
+    image: Image.Image,
+    centre_y: float,
+    centre_x: float,
+    offsets: Iterable[tuple[float, float]],
+    *,
+    input_size: int,
+    canonical_mm_per_px: float,
+    stride_fraction: float,
+) -> list[np.ndarray]:
+    """Cut one patch at each offset from the centre, as `cut_patches` cuts it.
+
+    Each patch is `cut_patches` on a disc just over one patch's diagonal, which
+    holds exactly its centred patch, so the grey conversion, the rounding and
+    the frame check are the training cut's own.
+    """
+    from .patches import cut_patches
+
+    one_patch_disc = input_size * math.sqrt(2.0) + 1.0
+    patches = []
+    for dy, dx in offsets:
+        (patch,) = cut_patches(
+            image,
+            centre_y + dy,
+            centre_x + dx,
+            one_patch_disc,
+            input_size,
+            canonical_mm_per_px,
+            min_patches=1,
+            stride_fraction=stride_fraction,
+        )
+        patches.append(patch)
+    return patches
+
+
+def _half_stride_patches(entry: Mapping, measurement: Mapping, cfg: Mapping) -> list[np.ndarray]:
+    """`_photograph_patches`, cutting the half-stride grid in place of the centred one."""
+    from .dataset import _canonical_region
+    from .patches import resample_to_canonical
+
+    canonical = cfg["preprocessing"]["canonical_mm_per_px"]
+    input_size = cfg["data"]["image_size"]
+    stride_fraction = cfg["preprocessing"]["patch_stride_fraction"]
+    centre_y, centre_x, diameter = _canonical_region(entry["path"], measurement, cfg)
+    offsets = half_stride_offsets(diameter, input_size, stride_fraction)
+    if len(offsets) < STUDY_FLOOR:
+        raise ValueError(
+            f"{entry['path']}: a disc of {diameter:.1f} px holds {len(offsets)} "
+            f"half-stride patch(es), and the study's floor is {STUDY_FLOOR}"
+        )
+
+    with Image.open(entry["path"]) as handle:
+        # The orientation `_photograph_patches` bakes, for the reason it gives.
+        photograph = ImageOps.exif_transpose(handle).convert("RGB")
+    resampled, _ = resample_to_canonical(photograph, measurement["mm_per_px"], canonical)
+    return cut_at_offsets(
+        resampled,
+        centre_y,
+        centre_x,
+        offsets,
+        input_size=input_size,
+        canonical_mm_per_px=canonical,
+        stride_fraction=stride_fraction,
+    )
+
+
+def set_featuriser(name: str):
+    """The descriptor arm's featuriser, cut from patch set ``name``'s disc."""
+    disc_mm = PATCH_SETS[name]
 
     def featurise(entry: Mapping, cfg: Mapping) -> np.ndarray:
         from .dataset import _measurement_of, _photograph_patches, photograph_scale
 
         measurement = _measurement_of(entry, photograph_scale(cfg))
-        patches = _photograph_patches(
-            entry, simulated_measurement(measurement, disc_mm), study_config(cfg)
-        )
+        simulated = simulated_measurement(measurement, disc_mm)
+        if name == "four":
+            patches = _half_stride_patches(entry, simulated, cfg)
+        else:
+            patches = _photograph_patches(entry, simulated, study_config(cfg))
         return np.stack([describe_patch(patch, groups=GROUPS) for patch in patches])
 
     return featurise
@@ -128,9 +226,9 @@ def rescore_fold(
 
     scored = {"C": chosen_c}
     scored["full"] = _predict(model, split["test"], cfg, descriptor_features, full_cache)
-    for name, disc_mm in PATCH_SETS.items():
+    for name in PATCH_SETS:
         scored[name] = _predict(
-            model, split["test"], cfg, set_featuriser(disc_mm), caches.setdefault(name, {})
+            model, split["test"], cfg, set_featuriser(name), caches.setdefault(name, {})
         )
     return scored
 
@@ -248,17 +346,22 @@ def small_disc_study(cfg: Mapping, fold_manifest: Mapping, arm_dir: Path | str) 
     full_median = metrics["full"]["primary"]["median"]
     canonical = cfg["preprocessing"]["canonical_mm_per_px"]
     sets = {}
-    for name, disc_mm in PATCH_SETS.items():
-        geometry = patch_geometry(
-            region_diameter_px=disc_mm / canonical,
-            input_size=cfg["data"]["image_size"],
+    input_size = cfg["data"]["image_size"]
+    stride_fraction = cfg["preprocessing"]["patch_stride_fraction"]
+    offsets = {
+        "five": patch_geometry(
+            region_diameter_px=PATCH_SETS["five"] / canonical,
+            input_size=input_size,
             canonical_mm_per_px=canonical,
             min_patches=STUDY_FLOOR,
-            stride_fraction=cfg["preprocessing"]["patch_stride_fraction"],
-        )
+            stride_fraction=stride_fraction,
+        ).offsets,
+        "four": half_stride_offsets(PATCH_SETS["four"] / canonical, input_size, stride_fraction),
+    }
+    for name, disc_mm in PATCH_SETS.items():
         sets[name] = {
             "disc_mm": disc_mm,
-            "offsets_px": [list(offset) for offset in geometry.offsets],
+            "offsets_px": [list(offset) for offset in offsets[name]],
             **headline(name),
             **set_verdict(
                 full_median=full_median,
