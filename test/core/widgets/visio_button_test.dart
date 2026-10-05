@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -63,5 +64,68 @@ void main() {
     )));
 
     expect(tester.getSize(find.byType(LoadingIndicator)), const Size(20, 20));
+  });
+
+  // The design system's press feedback: a button shrinks to 0.98 while it is
+  // pressed (SPEC 0134).
+  AnimatedScale pressScale(WidgetTester tester) =>
+      tester.widget<AnimatedScale>(find.descendant(
+        of: find.byType(VisioButton),
+        matching: find.byType(AnimatedScale),
+      ));
+
+  testWidgets('button_press_scales', (tester) async {
+    await tester.pumpWidget(_host(VisioButton(label: 'Salvar', onPressed: () {})));
+    expect(pressScale(tester).scale, 1);
+
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Salvar')));
+    await tester.pump(AppMotion.instant);
+    expect(pressScale(tester).scale, 0.98);
+    expect(pressScale(tester).duration, AppMotion.instant);
+
+    await gesture.up();
+    await tester.pump(AppMotion.instant);
+    expect(pressScale(tester).scale, 1);
+  });
+
+  testWidgets('disabled_button_does_not_scale', (tester) async {
+    await tester.pumpWidget(_host(
+      const VisioButton(label: 'Salvar', onPressed: null),
+    ));
+
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Salvar')));
+    await tester.pump(AppMotion.instant);
+    expect(pressScale(tester).scale, 1);
+    await gesture.up();
+  });
+
+  // A button disabled while pressed clears its pressed state as it builds;
+  // the scale follows after the frame instead of failing it.
+  testWidgets('a_button_disabled_mid_press_settles', (tester) async {
+    await tester.pumpWidget(_host(VisioButton(label: 'Salvar', onPressed: () {})));
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Salvar')));
+    await tester.pump(AppMotion.instant);
+    expect(pressScale(tester).scale, 0.98);
+
+    await tester.pumpWidget(_host(
+      const VisioButton(label: 'Salvar', onPressed: null),
+    ));
+    await tester.pump(AppMotion.instant);
+    expect(tester.takeException(), isNull);
+    expect(pressScale(tester).scale, 1);
+    await gesture.up();
+  });
+
+  testWidgets('press_scale_respects_reduced_motion', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pumpWidget(_host(VisioButton(label: 'Salvar', onPressed: () {})));
+
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Salvar')));
+    await tester.pump();
+    expect(pressScale(tester).scale, 0.98);
+    expect(pressScale(tester).duration, Duration.zero);
+    await gesture.up();
   });
 }

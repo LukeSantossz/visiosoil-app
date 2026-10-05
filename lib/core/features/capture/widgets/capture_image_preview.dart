@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
@@ -122,12 +123,12 @@ class CaptureImagePreview extends StatelessWidget {
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
-                _buildLocationChip(),
+                _crossfade(context, _buildLocationChip()),
                 // A live region, so a screen reader announces each new phase
                 // and the verdict that follows (SPEC 0116).
                 Semantics(
                   liveRegion: true,
-                  child: _buildClassificationChip(),
+                  child: _crossfade(context, _buildClassificationChip()),
                 ),
               ],
             ),
@@ -136,6 +137,40 @@ class CaptureImagePreview extends StatelessWidget {
       ),
     );
   }
+
+  // A chip crossfades into the next over AppMotion.base, since each chip is
+  // keyed by its label. The outgoing one is drawn but neither announced nor
+  // tappable, so the live region reads only the new label and a fading retry
+  // chip takes no tap (SPEC 0134).
+  Widget _crossfade(BuildContext context, Widget chip) {
+    if (MediaQuery.disableAnimationsOf(context)) return chip;
+    return AnimatedSwitcher(
+      duration: AppMotion.base,
+      transitionBuilder: _fade,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: AlignmentDirectional.centerStart,
+        children: [
+          for (final child in previous) _inSwitcher(child, outgoing: true),
+          if (current != null) _inSwitcher(current, outgoing: false),
+        ],
+      ),
+      child: chip,
+    );
+  }
+
+  // Keyed by its own animation, not by the chip's label: a label that returns
+  // while its last chip is still fading out is a second, distinct transition.
+  static Widget _fade(Widget child, Animation<double> animation) =>
+      FadeTransition(key: ObjectKey(animation), opacity: animation, child: child);
+
+  // One wrapper for both roles, keyed by the transition, so a chip that turns
+  // outgoing keeps its element.
+  static Widget _inSwitcher(Widget child, {required bool outgoing}) =>
+      IgnorePointer(
+        key: child.key,
+        ignoring: outgoing,
+        child: ExcludeSemantics(excluding: outgoing, child: child),
+      );
 
   Widget _buildLocationChip() {
     if (isLoading) {
@@ -190,7 +225,7 @@ class CaptureImagePreview extends StatelessWidget {
       // says what to change and offers no tap (SPEC 0105).
       return _InfoChip(icon: Icons.info_outline, label: chip.label);
     }
-    return const _InfoChip(
+    return _InfoChip(
       icon: Icons.eco_outlined,
       label: 'Classificação indisponível',
     );
@@ -207,6 +242,7 @@ class CaptureImagePreview extends StatelessWidget {
   // A button read by its text, with ink and a 48 dp target around the chip,
   // which keeps its own size (SPEC 0118).
   Widget _retryChip(String label) => MergeSemantics(
+        key: ValueKey<String>(label),
         child: Semantics(
           button: true,
           child: Material(
@@ -229,11 +265,12 @@ class CaptureImagePreview extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({
+  // Keyed by its label, so a new label is a new chip to crossfade to.
+  _InfoChip({
     required this.icon,
     required this.label,
     this.isLoading = false,
-  });
+  }) : super(key: ValueKey<String>(label));
 
   final IconData icon;
   final String label;

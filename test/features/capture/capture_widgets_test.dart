@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.d
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
@@ -422,6 +423,111 @@ void main() {
       button('Descartar').top - button('Salvar registro').bottom,
       greaterThanOrEqualTo(24),
     );
+  });
+
+  // Capture's status chips crossfade over AppMotion.base, and the screen
+  // reader hears only the new label (SPEC 0134).
+  group('status chip crossfade', () {
+    Widget inPhase(ClassificationPhase phase) => host(CaptureImagePreview(
+          image: sampleImage,
+          isLoading: false,
+          isClassifying: true,
+          classificationPhase: phase,
+        ));
+
+    Widget locating({required bool isLoading}) => host(CaptureImagePreview(
+          image: sampleImage,
+          isLoading: isLoading,
+          isClassifying: false,
+          address: 'Fazenda Boa Vista',
+        ));
+
+    testWidgets('phase_label_crossfades', (tester) async {
+      await tester.pumpWidget(inPhase(ClassificationPhase.readingPhotograph));
+      await tester.pumpWidget(inPhase(ClassificationPhase.findingSheet));
+      await tester.pump(AppMotion.base ~/ 2);
+      expect(find.text('Lendo a foto...'), findsOneWidget);
+      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+
+      await tester.pump(AppMotion.base);
+      expect(find.text('Lendo a foto...'), findsNothing);
+      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+    });
+
+    testWidgets('the location chip crossfades too', (tester) async {
+      await tester.pumpWidget(locating(isLoading: true));
+      await tester.pumpWidget(locating(isLoading: false));
+      await tester.pump(AppMotion.base ~/ 2);
+      expect(find.text('Localizando...'), findsOneWidget);
+      expect(find.text('Fazenda Boa Vista'), findsOneWidget);
+
+      await tester.pump(AppMotion.base);
+      expect(find.text('Localizando...'), findsNothing);
+      expect(find.text('Fazenda Boa Vista'), findsOneWidget);
+    });
+
+    // Retry, then the same failure within the crossfade: the returning label
+    // is a new chip, not a clash with the one still fading out.
+    testWidgets('a_label_back_mid_crossfade_is_a_new_chip', (tester) async {
+      await tester.pumpWidget(inPhase(ClassificationPhase.readingPhotograph));
+      await tester.pumpWidget(inPhase(ClassificationPhase.findingSheet));
+      await tester.pump(AppMotion.base ~/ 4);
+      await tester.pumpWidget(inPhase(ClassificationPhase.readingPhotograph));
+      await tester.pump(AppMotion.base ~/ 4);
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(AppMotion.base);
+      expect(find.text('Lendo a foto...'), findsOneWidget);
+      expect(find.text('Procurando a folha A4...'), findsNothing);
+    });
+
+    testWidgets('crossfade_announces_only_the_new_label', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(inPhase(ClassificationPhase.readingPhotograph));
+      await tester.pumpWidget(inPhase(ClassificationPhase.findingSheet));
+      await tester.pump(AppMotion.base ~/ 2);
+
+      expect(find.text('Lendo a foto...'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Lendo a foto')), findsNothing);
+      expect(
+        find.bySemanticsLabel(RegExp('Procurando a folha A4')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('fading_chip_takes_no_tap', (tester) async {
+      var retries = 0;
+      Widget preview({required bool retrying}) => host(CaptureImagePreview(
+            image: sampleImage,
+            isLoading: false,
+            isClassifying: retrying,
+            classificationFailed: !retrying,
+            onRetryClassification: () => retries++,
+          ));
+      await tester.pumpWidget(preview(retrying: false));
+      await tester.pumpWidget(preview(retrying: true));
+      await tester.pump(AppMotion.base ~/ 2);
+
+      expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+      await tester.tap(
+        find.byKey(const Key('retryClassification')),
+        warnIfMissed: false,
+      );
+      expect(retries, 0);
+    });
+
+    testWidgets('crossfade_respects_reduced_motion', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      await tester.pumpWidget(inPhase(ClassificationPhase.readingPhotograph));
+      await tester.pumpWidget(inPhase(ClassificationPhase.findingSheet));
+      await tester.pump();
+
+      expect(find.text('Lendo a foto...'), findsNothing);
+      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+    });
   });
 }
 
