@@ -48,13 +48,16 @@ class PermissionDeniedView extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: context.palette.warning.withValues(alpha: 0.15),
+                color: context.palette.discFill(
+                  context.palette.warning,
+                  alpha: 0.15,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 40,
-                color: context.palette.warning,
+                color: context.palette.discInk(context.palette.warning),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),

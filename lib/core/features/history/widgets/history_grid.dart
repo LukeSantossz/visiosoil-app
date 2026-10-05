@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
@@ -289,13 +290,17 @@ class _SelectionOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
+    final palette = context.palette;
     return Positioned.fill(
-      child: Container(
-        color: isSelected
-            ? theme.colorScheme.primary.withValues(alpha: 0.3)
-            : Colors.transparent,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: isSelected ? palette.selectionWash : Colors.transparent,
+            border: isSelected && palette.highContrast
+                ? Border.all(color: palette.primary, width: palette.edgeWidth)
+                : null,
+          ),
+        ),
       ),
     );
   }
@@ -309,6 +314,7 @@ class _SelectionCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.palette;
 
     return Positioned(
       top: AppSpacing.sm,
@@ -319,7 +325,9 @@ class _SelectionCheckbox extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary
-              : Colors.white.withValues(alpha: 0.8),
+              : palette.highContrast
+                  ? palette.surface
+                  : Colors.white.withValues(alpha: 0.8),
           shape: BoxShape.circle,
           border: Border.all(
             color: isSelected
