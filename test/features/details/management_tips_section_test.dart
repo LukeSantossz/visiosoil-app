@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
+import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
+import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -57,6 +59,28 @@ void main() {
     expect(find.textContaining('consultivo'), findsOneWidget);
     expect(find.text('Atualizar dicas'), findsOneWidget);
     expect(find.textContaining('recomenda'), findsNothing);
+  });
+
+  testWidgets('tips_error_is_in_the_region', (tester) async {
+    await tester.pumpWidget(harness(
+      record: tipsRecord(),
+      repo: FakeManagementTipsRepository(),
+      service: FakeResearchService(
+        (_) async => const ResearchFailure(ResearchFailureKind.network),
+      ),
+      connectivity: ConnectivityStatus.online,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gerar dicas'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(CollapseOnCorrection),
+        matching: find.byType(ErrorState),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('empty cache online shows the generate button', (tester) async {

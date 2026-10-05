@@ -6,6 +6,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -73,7 +74,9 @@ class HistoryFilterBar extends ConsumerWidget {
               onChanged: onSearchChanged,
             ),
           ),
-          availableClasses.when(
+          CollapseOnCorrection(
+            isError: availableClasses.hasError,
+            child: availableClasses.when(
             loading: () => const SizedBox.shrink(),
             // Surface a load failure inline with a retry instead of silently
             // collapsing the chip bar (#117).
@@ -145,6 +148,7 @@ class HistoryFilterBar extends ConsumerWidget {
                 ),
               );
             },
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
         ],
