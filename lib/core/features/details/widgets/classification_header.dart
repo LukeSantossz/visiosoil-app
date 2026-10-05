@@ -144,7 +144,8 @@ class _ConfidenceBadge extends StatelessWidget {
 
 /// Shared advisory banner for low/moderate confidence. Colors come from [level];
 /// the border tint is the level's semantic color (error for low, warning for
-/// moderate). Replaces the previously duplicated low/moderate inline banners.
+/// moderate), and in high contrast its text color (SPEC 0135). Replaces the
+/// previously duplicated low/moderate inline banners.
 class _ConfidenceBanner extends StatelessWidget {
   const _ConfidenceBanner({required this.level, required this.message});
 
@@ -154,7 +155,7 @@ class _ConfidenceBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final borderColor =
+    final accent =
         level == ConfidenceLevel.low ? context.palette.error : context.palette.warning;
 
     return Container(
@@ -162,7 +163,13 @@ class _ConfidenceBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: level.backgroundColor(context.palette),
         borderRadius: AppRadius.borderRadiusMd,
-        border: Border.all(color: borderColor.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: context.palette.bannerBorder(
+            accent: accent,
+            onContainer: level.foregroundColor(context.palette),
+          ),
+          width: context.palette.edgeWidth,
+        ),
       ),
       child: Row(
         children: [

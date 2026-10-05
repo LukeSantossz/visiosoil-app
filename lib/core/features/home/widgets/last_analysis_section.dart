@@ -82,7 +82,10 @@ class _RecordRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: context.palette.surface,
             borderRadius: AppRadius.borderRadiusLg,
-            border: Border.all(color: context.palette.cardBorder),
+            border: Border.all(
+              color: context.palette.cardBorder,
+              width: context.palette.edgeWidth,
+            ),
             boxShadow: [
               BoxShadow(
                 color: context.palette.shadowCard,

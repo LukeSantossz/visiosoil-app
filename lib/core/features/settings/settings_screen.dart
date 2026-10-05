@@ -459,7 +459,10 @@ class _SettingsTile extends StatelessWidget {
             vertical: AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            border: Border.all(color: context.palette.cardBorder),
+            border: Border.all(
+              color: context.palette.cardBorder,
+              width: context.palette.edgeWidth,
+            ),
             borderRadius: AppRadius.borderRadiusMd,
           ),
           // At large text a trailing label or button wraps within half the

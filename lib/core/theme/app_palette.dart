@@ -109,6 +109,16 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get cardBorder =>
       highContrast ? outline : outlineVariant.withValues(alpha: 0.5);
 
+  /// A banner's edge: its [accent] at 30 % by default; in high contrast its
+  /// own text colour, [onContainer], solid, which reads against the banner's
+  /// container where the accent does not (SPEC 0135).
+  Color bannerBorder({required Color accent, required Color onContainer}) =>
+      highContrast ? onContainer : accent.withValues(alpha: 0.3);
+
+  /// The width of a card's or a banner's edge: thicker in high contrast
+  /// (SPEC 0135).
+  double get edgeWidth => highContrast ? 2 : 1;
+
   static const light = AppPalette(
     brightness: Brightness.light,
     primary: AppColors.primary,
@@ -192,11 +202,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
     shadowElevated: Color(0x33000000),
   );
 
-  /// [light] with solid structural edges (SPEC 0130).
-  static final lightHighContrast = light.copyWith(highContrast: true);
+  /// [light] with solid structural edges (SPEC 0130), whose lines all draw
+  /// in [outline] (SPEC 0135).
+  static final lightHighContrast =
+      light.copyWith(highContrast: true, outlineVariant: light.outline);
 
-  /// [dark] with solid structural edges (SPEC 0130).
-  static final darkHighContrast = dark.copyWith(highContrast: true);
+  /// [dark] with solid structural edges (SPEC 0130), whose lines all draw in
+  /// [outline] (SPEC 0135).
+  static final darkHighContrast =
+      dark.copyWith(highContrast: true, outlineVariant: dark.outline);
 
   /// The palette of [context]'s theme, or the one matching its brightness when
   /// the theme carries none (a bare `MaterialApp` in a widget test).
@@ -237,12 +251,16 @@ class AppPalette extends ThemeExtension<AppPalette> {
         inversePrimary: inversePrimary,
       );
 
-  /// The colours are fixed per theme; only [highContrast] can change, which
-  /// is how the high-contrast palettes are made (SPEC 0130).
+  /// The colours are fixed per theme; only [highContrast] and
+  /// [outlineVariant] can change, which is how the high-contrast palettes are
+  /// made (SPEC 0130, SPEC 0135).
   @override
-  AppPalette copyWith({bool? highContrast}) {
+  AppPalette copyWith({bool? highContrast, Color? outlineVariant}) {
     // Nothing to change: the palette itself, as the empty copyWith returned.
-    if (highContrast == null || highContrast == this.highContrast) return this;
+    if ((highContrast == null || highContrast == this.highContrast) &&
+        (outlineVariant == null || outlineVariant == this.outlineVariant)) {
+      return this;
+    }
     return AppPalette(
       brightness: brightness,
       primary: primary,
@@ -271,7 +289,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surfaceVariant: surfaceVariant,
       onSurfaceVariant: onSurfaceVariant,
       outline: outline,
-      outlineVariant: outlineVariant,
+      outlineVariant: outlineVariant ?? this.outlineVariant,
       inverseSurface: inverseSurface,
       onInverseSurface: onInverseSurface,
       inversePrimary: inversePrimary,
@@ -284,7 +302,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       onBrand: onBrand,
       brandTileEnd: brandTileEnd,
       shadowBrand: shadowBrand,
-      highContrast: highContrast,
+      highContrast: highContrast ?? this.highContrast,
     );
   }
 
