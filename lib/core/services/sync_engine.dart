@@ -7,7 +7,8 @@ import 'package:visiosoil_app/models/soil_record.dart';
 class SyncReport {
   const SyncReport({required this.pushed, required this.pulled});
 
-  /// Number of outbox operations drained to the backend.
+  /// Number of outbox operations sent to the backend. An operation a newer
+  /// remote version superseded is drained without being sent (SPEC 0136).
   final int pushed;
 
   /// Number of remote records applied locally.
@@ -16,9 +17,11 @@ class SyncReport {
 
 /// Backend-agnostic sync engine.
 ///
-/// Drains the outbox to a [RemoteSyncBackend] (push), then merges remote
-/// changes back (pull). Conflicts resolve by last-write-wins on `updated_at`,
-/// with delete-wins on a timestamp tie so a tombstone is never resurrected.
+/// Pulls the remote changes first, then drains the outbox to a
+/// [RemoteSyncBackend] (push), then merges the pulled changes back. Conflicts
+/// resolve by last-write-wins on `updated_at`, with delete-wins on a timestamp
+/// tie so a tombstone is never resurrected. The same rule decides each push,
+/// so a stale local operation never overwrites a newer remote one (SPEC 0136).
 class SyncEngine {
   SyncEngine({
     required SyncLocalStore localStore,
@@ -29,22 +32,32 @@ class SyncEngine {
   final RemoteSyncBackend _backend;
 
   Future<SyncReport> sync() async {
-    final pushed = await _drainOutbox();
-    final pulled = await _pullRemote();
+    // Pulled before anything is pushed, so each push is decided against the
+    // remote's version (#88).
+    final remotes = await _backend.pullRecords();
+    final pushed = await _drainOutbox({
+      for (final remote in remotes) remote.uuid!: remote,
+    });
+    final pulled = await _mergeRemote(remotes);
     return SyncReport(pushed: pushed, pulled: pulled);
   }
 
-  /// Pushes every pending outbox operation to the backend and marks it synced.
-  Future<int> _drainOutbox() async {
+  /// Pushes each pending outbox operation whose record wins against the
+  /// pulled remote version, and marks every one synced. One that loses is
+  /// stale: it is dropped, and the merge applies the newer remote instead.
+  Future<int> _drainOutbox(Map<String, SoilRecord> remoteByUuid) async {
     final operations = await _local.pendingOperations();
+    var pushed = 0;
     for (final operation in operations) {
       final record = await _local.findByUuid(operation.recordUuid);
-      if (record != null) {
+      final remote = remoteByUuid[operation.recordUuid];
+      if (record != null && (remote == null || !_remoteWins(record, remote))) {
         await _pushOperation(operation.operation, record);
+        pushed++;
       }
       await _local.markOperationSynced(operation.id);
     }
-    return operations.length;
+    return pushed;
   }
 
   Future<void> _pushOperation(SyncOperation operation, SoilRecord record) async {
@@ -58,9 +71,8 @@ class SyncEngine {
     }
   }
 
-  /// Pulls remote records and applies the ones that win the merge.
-  Future<int> _pullRemote() async {
-    final remotes = await _backend.pullRecords();
+  /// Applies the pulled remote records that win the merge.
+  Future<int> _mergeRemote(List<SoilRecord> remotes) async {
     var applied = 0;
     for (final remote in remotes) {
       final local = await _local.findByUuid(remote.uuid!);
