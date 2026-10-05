@@ -409,6 +409,67 @@ void main() {
       expect(find.text(notice), findsOneWidget);
     });
 
+    testWidgets('hc_selection_is_a_border', (tester) async {
+      Future<void> pump(ThemeData theme, {required bool selected}) {
+        return tester.pumpWidget(ProviderScope(
+          overrides: [
+            filteredRecordsProvider.overrideWith(
+              (ref) => Stream.value([record(id: 7)]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: theme,
+            home: Scaffold(
+              body: HistoryGrid(
+                maxRecords: 150,
+                selectedIds: selected ? {7} : const <int>{},
+                isSelectionMode: true,
+                onTap: (_) {},
+                onLongPress: (_) {},
+              ),
+            ),
+          ),
+        ));
+      }
+
+      BoxDecoration? wash(Color color) {
+        for (final box in tester.widgetList<DecoratedBox>(find.byType(DecoratedBox))) {
+          final decoration = box.decoration;
+          if (decoration is BoxDecoration && decoration.color == color) {
+            return decoration;
+          }
+        }
+        return null;
+      }
+
+      await pump(AppTheme.lightHighContrast, selected: true);
+      await tester.pumpAndSettle();
+      final selectedHc = wash(Colors.transparent);
+      expect(selectedHc, isNotNull);
+      expect(selectedHc!.border?.top.color, AppPalette.light.primary);
+      expect(selectedHc.border?.top.width, AppPalette.lightHighContrast.edgeWidth);
+
+      await tester.pumpWidget(const SizedBox());
+      await pump(AppTheme.lightHighContrast, selected: false);
+      await tester.pumpAndSettle();
+      final openMark = tester.widget<Container>(find.byWidgetPredicate((widget) {
+        final decoration = widget is Container ? widget.decoration : null;
+        return decoration is BoxDecoration && decoration.shape == BoxShape.circle;
+      }));
+      expect(
+        (openMark.decoration! as BoxDecoration).color,
+        AppPalette.lightHighContrast.surface,
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      await pump(AppTheme.light, selected: true);
+      await tester.pumpAndSettle();
+      expect(
+        wash(AppPalette.light.primary.withValues(alpha: 0.3)),
+        isNotNull,
+      );
+    });
+
     testWidgets('no_notice_under_the_cap', (tester) async {
       await tester.pumpWidget(gridWith(records(150)));
       await tester.pumpAndSettle();

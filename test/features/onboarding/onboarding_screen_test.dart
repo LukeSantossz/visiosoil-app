@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 import '../../support/fake_onboarding_store.dart';
 import '../../support/guidelines.dart';
@@ -197,6 +199,26 @@ void main() {
         await tester.pumpAndSettle();
       }
     }
+  });
+
+  testWidgets('hc_discs_are_solid: the first onboarding disc', (tester) async {
+    await tester.pumpWidget(_app(
+      _router(initialLocation: '/onboarding'),
+      FakeOnboardingStore(),
+      theme: AppTheme.lightHighContrast,
+    ));
+    await tester.pumpAndSettle();
+
+    final disc = tester.widget<Container>(find.byWidgetPredicate((widget) {
+      final decoration = widget is Container ? widget.decoration : null;
+      return decoration is BoxDecoration && decoration.shape == BoxShape.circle;
+    }));
+    final decoration = disc.decoration! as BoxDecoration;
+    expect(decoration.color, AppPalette.lightHighContrast.primaryContainer);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.description_outlined)).color,
+      AppPalette.lightHighContrast.onPrimaryContainer,
+    );
   });
 
   // The first step passes Flutter's four accessibility guidelines
