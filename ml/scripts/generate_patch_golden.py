@@ -122,15 +122,17 @@ def _require_off_the_hypot_boundary(diameter: float, patch_px: int, stride_fract
     stride = patch_px * stride_fraction
     limit = diameter / 2.0 - patch_px * math.sqrt(2.0) / 2.0
     steps = int(abs(limit) // stride) + 1
-    for row in range(-steps, steps + 1):
-        for column in range(-steps, steps + 1):
-            distance = math.hypot(row * stride, column * stride)
-            if abs(distance - (limit + 1e-9)) <= HYPOT_MARGIN:
-                raise ValueError(
-                    f"a region of {diameter} px puts a patch centre within "
-                    f"{HYPOT_MARGIN} px of its limit, where the two languages "
-                    f"could disagree; choose another diameter"
-                )
+    # Both lattices: the centred one, and the one moved by half a stride (SPEC 0141).
+    for half in (0.0, 0.5):
+        for row in range(-steps - 1, steps + 1):
+            for column in range(-steps - 1, steps + 1):
+                distance = math.hypot((row + half) * stride, (column + half) * stride)
+                if abs(distance - (limit + 1e-9)) <= HYPOT_MARGIN:
+                    raise ValueError(
+                        f"a region of {diameter} px puts a patch centre within "
+                        f"{HYPOT_MARGIN} px of its limit, where the two languages "
+                        f"could disagree; choose another diameter"
+                    )
 
 
 # --- resample -----------------------------------------------------------------
@@ -180,26 +182,41 @@ def _luma_cases() -> List[dict]:
 # --- geometry -----------------------------------------------------------------
 
 
+#: The floor the first geometry and pipeline cases were written at. They keep
+#: it whatever the configured floor is, so they still pin the step to nine.
+NINE_PATCHES = 9
+
+#: The floor SPEC 0141's cases are written at, where a disc too small for the
+#: centred five moves to the half-stride block of four.
+FOUR_PATCHES = 4
+
+
 def _geometry_cases(cfg: dict) -> List[dict]:
     canonical = cfg["preprocessing"]["canonical_mm_per_px"]
     patch_px = cfg["data"]["image_size"]
     stride_fraction = cfg["preprocessing"]["patch_stride_fraction"]
-    min_patches = cfg["preprocessing"]["min_patches"]
     stride = patch_px * stride_fraction
+    inset = patch_px * math.sqrt(2.0) / 2.0
     # Nine patches need the corner offsets inside the limit: an inset of a
     # half-diagonal plus a stride along the diagonal.
-    floor = 2.0 * (patch_px * math.sqrt(2.0) / 2.0 + stride * math.sqrt(2.0))
+    floor = 2.0 * (inset + stride * math.sqrt(2.0))
+    # The half-stride block of four needs half that diagonal (SPEC 0141).
+    block = 2.0 * (inset + stride * math.sqrt(2.0) / 2.0)
 
     diameters = {
-        "disc_70_mm": 70.0 / canonical,
-        "disc_80_mm": 80.0 / canonical,
-        "disc_90_mm": 90.0 / canonical,
-        "just_below_the_floor": floor - 0.01,
-        "just_above_the_floor": floor + 0.01,
-        "no_room_for_one_patch": 200.0,
+        "disc_70_mm": (70.0 / canonical, NINE_PATCHES),
+        "disc_80_mm": (80.0 / canonical, NINE_PATCHES),
+        "disc_90_mm": (90.0 / canonical, NINE_PATCHES),
+        "just_below_the_floor": (floor - 0.01, NINE_PATCHES),
+        "just_above_the_floor": (floor + 0.01, NINE_PATCHES),
+        "no_room_for_one_patch": (200.0, NINE_PATCHES),
+        "disc_47_5_mm_on_the_half_stride_grid": (47.5 / canonical, FOUR_PATCHES),
+        "disc_51_mm_on_the_centred_five": (51.0 / canonical, FOUR_PATCHES),
+        "just_below_the_half_stride_block": (block - 0.01, FOUR_PATCHES),
+        "just_above_the_half_stride_block": (block + 0.01, FOUR_PATCHES),
     }
     cases = []
-    for name, diameter in diameters.items():
+    for name, (diameter, min_patches) in diameters.items():
         _require_off_the_hypot_boundary(diameter, patch_px, stride_fraction)
         case = {
             "name": name,
@@ -244,24 +261,30 @@ def _half_luma_frame(height: int, width: int) -> np.ndarray:
     return on_half[picks].reshape(height, width, 3)
 
 
-#: (name, frame, measured, canonical, centre_y, centre_x, diameter)
+#: (name, frame, measured, canonical, centre_y, centre_x, diameter, min_patches)
 def _pipeline_inputs() -> list:
+    nine = NINE_PATCHES
     return [
-        ("reduced_nine_patches", _noise(10, 80, 90), 0.1, 0.125, 40.3, 45.7, 62.0),
+        ("reduced_nine_patches", _noise(10, 80, 90), 0.1, 0.125, 40.3, 45.7, 62.0, nine),
         # At the canonical, so nothing resamples, and on a half pixel, so every
         # patch corner rounds half to even.
-        ("at_canonical_on_a_half_pixel", _noise(11, 72, 80), 0.125, 0.125, 36.5, 40.5, 50.0),
-        ("reduced_twenty_one_patches", _noise(12, 96, 100), 0.09, 0.125, 48.6, 50.1, 60.0 / 0.72),
-        ("luma_on_half", _half_luma_frame(48, 48), 0.125, 0.125, 24.0, 24.0, 46.0),
-        ("too_coarse", _noise(13, 48, 48), 0.14, 0.125, 24.0, 24.0, 46.0),
-        ("region_too_small", _noise(14, 48, 48), 0.125, 0.125, 24.0, 24.0, 30.0),
-        ("outside_frame", _noise(15, 48, 48), 0.125, 0.125, 12.0, 24.0, 46.0),
+        ("at_canonical_on_a_half_pixel", _noise(11, 72, 80), 0.125, 0.125, 36.5, 40.5, 50.0, nine),
+        ("reduced_twenty_one_patches", _noise(12, 96, 100), 0.09, 0.125, 48.6, 50.1, 60.0 / 0.72, nine),
+        ("luma_on_half", _half_luma_frame(48, 48), 0.125, 0.125, 24.0, 24.0, 46.0, nine),
+        ("too_coarse", _noise(13, 48, 48), 0.14, 0.125, 24.0, 24.0, 46.0, nine),
+        ("region_too_small", _noise(14, 48, 48), 0.125, 0.125, 24.0, 24.0, 30.0, nine),
+        ("outside_frame", _noise(15, 48, 48), 0.125, 0.125, 12.0, 24.0, 46.0, nine),
+        # A 36 px disc once reduced: the centred grid holds one patch, and the
+        # half-stride grid the block of four at (+-4, +-4) (SPEC 0141).
+        ("reduced_half_stride_four", _noise(16, 60, 60), 0.1, 0.125, 30.3, 29.8, 45.0, FOUR_PATCHES),
     ]
 
 
 def _pipeline_cases() -> List[dict]:
     cases = []
-    for name, frame, measured, canonical, centre_y, centre_x, diameter in _pipeline_inputs():
+    for name, frame, measured, canonical, centre_y, centre_x, diameter, min_patches in (
+        _pipeline_inputs()
+    ):
         height, width, _ = frame.shape
         case = {
             "name": name,
@@ -275,7 +298,7 @@ def _pipeline_cases() -> List[dict]:
             "diameter_px": diameter,
             "patch_px": 16,
             "stride_fraction": 0.5,
-            "min_patches": 9,
+            "min_patches": min_patches,
         }
         if measured <= canonical:
             _require_off_the_hypot_boundary(canonical_diameter(case), 16, 0.5)

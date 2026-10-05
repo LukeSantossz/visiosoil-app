@@ -230,6 +230,74 @@ def test_the_patch_count_steps_where_the_geometry_says_it_does(disc_mm, expected
     assert geometry_or_error == expected
 
 
+def _centred_only(diameter_px: float, min_patches: int):
+    """The grid as it was before SPEC 0141, the reference the floor of nine keeps."""
+    radius = diameter_px / 2.0
+    stride = INPUT_SIZE * 0.5
+    limit = radius - INPUT_SIZE * math.sqrt(2.0) / 2.0
+    offsets = []
+    if limit >= 0.0:
+        steps = int(limit // stride)
+        for row in range(-steps, steps + 1):
+            for column in range(-steps, steps + 1):
+                dy, dx = row * stride, column * stride
+                if math.hypot(dy, dx) <= limit + 1e-9:
+                    offsets.append((dy, dx))
+    return tuple(sorted(offsets)) if len(offsets) >= min_patches else None
+
+
+def test_the_half_stride_grid_fills_a_small_disc():
+    """SPEC 0141: a 47.5 mm disc holds one centred patch and a 2 x 2 block."""
+    radius = (47.5 / CANONICAL) / 2.0
+    small = patch_geometry(
+        region_diameter_px=2.0 * radius,
+        input_size=INPUT_SIZE,
+        canonical_mm_per_px=CANONICAL,
+        min_patches=4,
+    )
+    five = patch_geometry(
+        region_diameter_px=51.0 / CANONICAL,
+        input_size=INPUT_SIZE,
+        canonical_mm_per_px=CANONICAL,
+        min_patches=4,
+    )
+
+    assert small.offsets == ((-40.0, -40.0), (-40.0, 40.0), (40.0, -40.0), (40.0, 40.0))
+    assert five.offsets == ((-80.0, 0.0), (0.0, -80.0), (0.0, 0.0), (0.0, 80.0), (80.0, 0.0))
+    half = INPUT_SIZE / 2.0
+    for offset_y, offset_x in small.offsets:
+        for corner_y in (offset_y - half, offset_y + half):
+            for corner_x in (offset_x - half, offset_x + half):
+                assert math.hypot(corner_y, corner_x) <= radius + 1e-9
+
+
+def test_a_disc_below_the_half_stride_block_is_refused():
+    with pytest.raises(ValueError, match=PatchRefusal.REGION_TOO_SMALL.value):
+        patch_geometry(
+            region_diameter_px=43.5 / CANONICAL,
+            input_size=INPUT_SIZE,
+            canonical_mm_per_px=CANONICAL,
+            min_patches=4,
+        )
+
+
+def test_the_floor_of_nine_never_reaches_the_half_stride_grid():
+    """At the floor the archive was built under, every grid is the centred one."""
+    for tenths in range(400, 1001):
+        diameter_px = (tenths / 10.0) / CANONICAL
+        expected = _centred_only(diameter_px, 9)
+        try:
+            found = patch_geometry(
+                region_diameter_px=diameter_px,
+                input_size=INPUT_SIZE,
+                canonical_mm_per_px=CANONICAL,
+                min_patches=9,
+            ).offsets
+        except ValueError:
+            found = None
+        assert found == expected, f"{tenths / 10.0} mm"
+
+
 # --- cutting ---------------------------------------------------------------
 
 

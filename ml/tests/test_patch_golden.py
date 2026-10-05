@@ -107,10 +107,16 @@ def test_no_geometry_case_sits_on_the_hypot_boundary():
         stride = patch_px * stride_fraction
         limit = diameter / 2.0 - patch_px * math.sqrt(2.0) / 2.0
         steps = int(abs(limit) // stride) + 1
-        for row in range(-steps, steps + 1):
-            for column in range(-steps, steps + 1):
-                distance = math.hypot(row * stride, column * stride)
-                assert abs(distance - (limit + 1e-9)) > HYPOT_MARGIN, (diameter, row, column)
+        # The centred lattice and the half-stride one (SPEC 0141).
+        for half in (0.0, 0.5):
+            for row in range(-steps - 1, steps + 1):
+                for column in range(-steps - 1, steps + 1):
+                    distance = math.hypot((row + half) * stride, (column + half) * stride)
+                    assert abs(distance - (limit + 1e-9)) > HYPOT_MARGIN, (
+                        diameter,
+                        row + half,
+                        column + half,
+                    )
 
 
 def test_the_golden_exercises_what_dart_could_get_wrong():
