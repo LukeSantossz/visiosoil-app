@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -110,12 +111,16 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
           );
     }
 
+    final showingError = _record.hasClassification &&
+        uuid != null &&
+        _lastError != null &&
+        !_generating;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Dicas de manejo', style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSpacing.md),
-        body,
+        CollapseOnCorrection(isError: showingError, child: body),
       ],
     );
   }
