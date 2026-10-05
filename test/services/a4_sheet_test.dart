@@ -63,6 +63,7 @@ const _wholeSheets = [
   'rotated_20',
   'landscape',
   'marks',
+  'pale_table_lit',
 ];
 
 void main() {

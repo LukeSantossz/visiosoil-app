@@ -121,3 +121,7 @@ assets/corpus/*.bin
 /VisioSoil Design System/
 corpus/out/
 corpus/data/
+# Real photographs a sheet-reader check reads (SPEC 0140). The originals carry
+# GPS in their EXIF and run to tens of megabytes; the reduced copies the tests
+# read are under test/fixtures/sheet_photos/.
+/images/

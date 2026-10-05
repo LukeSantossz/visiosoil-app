@@ -328,6 +328,39 @@
         ]
       ],
       "mm_per_px": 0.30306122448979594
+    },
+    {
+      "name": "pale_table_lit",
+      "file": "sheet_pale_table_lit.jpg",
+      "width": 900,
+      "height": 1200,
+      "expected": "sheet",
+      "corners": [
+        [
+          103.5,
+          109.5
+        ],
+        [
+          796.5,
+          109.5
+        ],
+        [
+          796.5,
+          1089.5
+        ],
+        [
+          103.5,
+          1089.5
+        ]
+      ],
+      "mm_per_px": 0.30306122448979594,
+      "soil_mm": {
+        "centre": [
+          105.0,
+          148.5
+        ],
+        "diameter": 90
+      }
     }
   ]
 }
