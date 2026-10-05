@@ -8,21 +8,28 @@ photograph from its full grid, from the centred five and from the half-stride
 four. Its rules are pure and tested here on hand-made records; the one test that
 refits a real fold is gated on the archive, and the guard it relies on is tested
 without it.
+
+The half-stride grid is the study's own: SPEC 0141 shipped it only with a lower
+floor, and the study is what kept the floor at nine.
 """
 
 import copy
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from src.config import load_config
-from src.patches import patch_geometry
+from src.patches import cut_patches, patch_geometry
 from src.small_disc import (
     MAX_MACRO_F1_DROP,
     MIN_AGREEMENT,
     PATCH_SETS,
+    cut_at_offsets,
     decide_floor,
+    half_stride_offsets,
     require_reproduction,
     rescore_fold,
     set_verdict,
@@ -65,21 +72,93 @@ def test_a_simulated_disc_cuts_the_patch_set_it_names():
         "four": ((-40.0, -40.0), (-40.0, 40.0), (40.0, -40.0), (40.0, 40.0)),
     }
 
-    for name, offsets in expected.items():
-        simulated = simulated_measurement(measurement, PATCH_SETS[name])
-        # Only the diameter moves: the scale and the centre are the dish's own.
-        assert {k: v for k, v in simulated.items() if k != "disc_diameter_px"} == {
-            k: v for k, v in measurement.items() if k != "disc_diameter_px"
-        }
-        geometry = patch_geometry(
-            region_diameter_px=simulated["disc_diameter_px"] * measurement["mm_per_px"] / canonical,
+    def centred(diameter):
+        return patch_geometry(
+            region_diameter_px=diameter,
             input_size=study["data"]["image_size"],
             canonical_mm_per_px=canonical,
             min_patches=study["preprocessing"]["min_patches"],
             stride_fraction=study["preprocessing"]["patch_stride_fraction"],
         )
-        assert geometry.offsets == offsets, name
+
+    diameters = {}
+    for name in expected:
+        simulated = simulated_measurement(measurement, PATCH_SETS[name])
+        # Only the diameter moves: the scale and the centre are the dish's own.
+        assert {k: v for k, v in simulated.items() if k != "disc_diameter_px"} == {
+            k: v for k, v in measurement.items() if k != "disc_diameter_px"
+        }
+        diameters[name] = simulated["disc_diameter_px"] * measurement["mm_per_px"] / canonical
     assert measurement == before
+
+    assert centred(diameters["five"]).offsets == expected["five"]
+    assert (
+        half_stride_offsets(
+            diameters["four"],
+            study["data"]["image_size"],
+            study["preprocessing"]["patch_stride_fraction"],
+        )
+        == expected["four"]
+    )
+    # The shipped cutter has no half-stride grid, which is why the study holds it.
+    with pytest.raises(ValueError, match="region_too_small_for_the_patch_floor"):
+        centred(diameters["four"])
+
+
+def test_a_disc_below_the_half_stride_block_holds_none_of_it():
+    cfg = load_config()
+    canonical = cfg["preprocessing"]["canonical_mm_per_px"]
+    size, stride = cfg["data"]["image_size"], cfg["preprocessing"]["patch_stride_fraction"]
+
+    assert half_stride_offsets(43.5 / canonical, size, stride) == ()
+    assert len(half_stride_offsets(43.9 / canonical, size, stride)) == 4
+
+
+def test_the_half_stride_block_is_cut_as_the_training_cuts():
+    cfg = load_config()
+    size = cfg["data"]["image_size"]
+    canonical = cfg["preprocessing"]["canonical_mm_per_px"]
+    stride = cfg["preprocessing"]["patch_stride_fraction"]
+    rgb = np.random.default_rng(141).integers(0, 256, size=(700, 720, 3), dtype=np.uint8)
+    image = Image.fromarray(rgb, "RGB")
+    centre_y, centre_x, diameter = 350.3, 359.8, 600.0
+
+    # On offsets the cutter picks itself, cutting one patch at a time is the
+    # cutter's own output, byte for byte.
+    geometry = patch_geometry(
+        region_diameter_px=diameter,
+        input_size=size,
+        canonical_mm_per_px=canonical,
+        stride_fraction=stride,
+    )
+    reference = cut_patches(
+        image, centre_y, centre_x, diameter, size, canonical, stride_fraction=stride
+    )
+    mine = cut_at_offsets(
+        image,
+        centre_y,
+        centre_x,
+        geometry.offsets,
+        input_size=size,
+        canonical_mm_per_px=canonical,
+        stride_fraction=stride,
+    )
+    assert [patch.tobytes() for patch in mine] == [patch.tobytes() for patch in reference]
+
+    # And a half-stride patch is the grey window at its own rounded corner.
+    (patch,) = cut_at_offsets(
+        image,
+        centre_y,
+        centre_x,
+        ((40.0, -40.0),),
+        input_size=size,
+        canonical_mm_per_px=canonical,
+        stride_fraction=stride,
+    )
+    luma = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    grey = np.rint(luma).clip(0, 255).astype(np.uint8)
+    top, left = round(centre_y + 40.0 - size / 2), round(centre_x - 40.0 - size / 2)
+    assert np.array_equal(patch[..., 0], grey[top : top + size, left : left + size])
 
 
 def test_the_study_cuts_at_a_floor_of_four_and_changes_nothing_else():
