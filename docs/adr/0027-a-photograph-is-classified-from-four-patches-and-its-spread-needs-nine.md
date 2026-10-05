@@ -2,18 +2,10 @@
 
 ## Status
 
-Accepted 2026-10-05, promoted from
-[SPEC 0141](../specs/0141-classify-a-soil-patch-too-small-for-nine.md) at the
-Spec Gate. Amends
-[ADR 0018](0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md),
-whose sentence "the application refuses a soil region too small for nine" this
-record replaces.
-
-**Conditional on SPEC 0141's archive study.** The floor this record sets takes
-effect only at the level the study allows, by the decision table in the spec:
-four when both of the study's patch sets pass, five when only the centred five
-passes. If the centred five fails, this record is withdrawn, and ADR 0018's floor
-of nine stands. `docs/ml/small-disc-study.md` holds the result.
+Withdrawn — SPEC 0141's archive study found that classifying from the centred
+five patches or the half-stride four loses quality, 0.047 and 0.059 of
+photograph macro-F1 below the full grid against a margin of 0.02, so ADR 0018's
+floor of nine stands ([the study](../ml/small-disc-study.md)).
 
 ## Decision
 
