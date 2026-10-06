@@ -48,8 +48,9 @@ final _steps = [
 ///
 /// Uses [PageView] for navigation between steps. Finishing the last step or
 /// skipping marks the onboarding as completed (so first-launch gating shows it
-/// only once) and then leaves: it pops back when opened over another route
-/// (from Settings), or goes home when it replaced Splash on first launch.
+/// only once) and then leaves: it pops back when opened over another route, or
+/// goes home when it replaced Splash on first launch. Settings opens the capture
+/// guide instead since SPEC 0142, so first launch is its only entry today.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
