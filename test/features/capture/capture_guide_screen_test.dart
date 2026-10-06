@@ -1,11 +1,14 @@
 // The capture guide teaches the onboarding's protocol on its own route, and
 // only its primary action returns a go-ahead (SPEC 0142).
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
+import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 
 import '../../support/fake_capture_guide_store.dart';
@@ -27,6 +30,16 @@ class _Returned {
   bool returned = false;
   bool? value;
 }
+
+/// The app's own `/capture-guide` route, so these tests also hold the extra
+/// that names the primary action.
+final _guideRoute = GoRoute(
+  path: '/capture-guide',
+  builder: appRouter.configuration.routes
+      .whereType<GoRoute>()
+      .singleWhere((route) => route.path == '/capture-guide')
+      .builder,
+);
 
 Widget _app(
   FakeCaptureGuideStore store, {
@@ -56,11 +69,7 @@ Widget _app(
           ),
         ),
       ),
-      GoRoute(
-        path: '/capture-guide',
-        builder: (_, state) =>
-            CaptureGuideScreen(beforeCamera: state.extra == true),
-      ),
+      _guideRoute,
     ],
   );
   return ProviderScope(
@@ -142,6 +151,62 @@ void main() {
     expect(store.seen, isFalse);
     expect(returned.returned, isTrue);
     expect(returned.value, isNull);
+  });
+
+  // Back pressed while the flag is being written must not let the guide's
+  // late pop close the screen beneath it, nor mark a guide the user left.
+  testWidgets('back_during_the_write_never_pops_the_caller', (tester) async {
+    final gate = Completer<void>();
+    final store = FakeCaptureGuideStore(writeGate: gate.future);
+    bool? returned;
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, _) => Scaffold(
+            body: ElevatedButton(
+              onPressed: () => context.push('/caller'),
+              child: const Text('ROOT'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/caller',
+          builder: (context, _) => Scaffold(
+            appBar: AppBar(),
+            body: ElevatedButton(
+              onPressed: () async {
+                returned =
+                    await context.push<bool>('/capture-guide', extra: true);
+              },
+              child: const Text('CALLER'),
+            ),
+          ),
+        ),
+        _guideRoute,
+      ],
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [captureGuideStoreProvider.overrideWithValue(store)],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.tap(find.text('ROOT'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('CALLER'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Abrir câmera'));
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pump(const Duration(milliseconds: 50));
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CaptureGuideScreen), findsNothing);
+    expect(find.text('CALLER'), findsOneWidget);
+    expect(returned, isTrue);
+    expect(store.seen, isTrue);
   });
 
   testWidgets('a_failed_write_still_returns_true', (tester) async {
