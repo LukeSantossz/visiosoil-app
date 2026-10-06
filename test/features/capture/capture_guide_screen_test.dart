@@ -193,10 +193,16 @@ void main() {
       await tester.scrollUntilVisible(find.text(_sentences[i]), 100);
       expect(step, findsOneWidget, reason: 'step ${i + 1}');
     }
-    for (final icon in tester.widgetList<Icon>(find.descendant(
-      of: find.byType(CaptureGuideScreen),
+    // The steps' icons; the app bar's back button keeps its own label.
+    final stepIcons = tester.widgetList<Icon>(find.descendant(
+      of: find.descendant(
+        of: find.byType(CaptureGuideScreen),
+        matching: find.byType(SingleChildScrollView),
+      ),
       matching: find.byType(Icon),
-    ))) {
+    ));
+    expect(stepIcons, hasLength(3));
+    for (final icon in stepIcons) {
       expect(icon.semanticLabel, isNull);
     }
     semantics.dispose();
