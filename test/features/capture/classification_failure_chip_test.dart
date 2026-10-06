@@ -34,4 +34,18 @@ void main() {
       }
     }
   });
+
+  // The reader's two ways to this cause, an empty sheet and a disc too small
+  // for nine patches, share one remedy, and the chip names its size
+  // (SPEC 0142).
+  test('the_small_soil_chip_names_the_size', () {
+    final chip =
+        classificationFailureChip(ClassificationFailureCause.soilRegionTooSmall);
+
+    expect(
+      chip.label,
+      'Pouco solo na folha · espalhe um círculo de 8 a 10 cm e tire outra foto',
+    );
+    expect(chip.retryable, isFalse);
+  });
 }

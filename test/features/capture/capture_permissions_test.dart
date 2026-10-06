@@ -15,9 +15,11 @@ import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
+import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/fake_capture_guide_store.dart';
 import '../../support/fake_soil_record_repository.dart';
 
 class _FailingInference extends InferenceService {
@@ -81,6 +83,9 @@ void main() {
     );
     return ProviderScope(
       overrides: [
+        // The guide before the first camera is SPEC 0142's to test.
+        captureGuideStoreProvider
+            .overrideWithValue(FakeCaptureGuideStore(seen: true)),
         inferenceServiceProvider.overrideWithValue(_FailingInference()),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),

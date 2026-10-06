@@ -50,6 +50,7 @@ void main() {
           '/splash',
           '/',
           '/capture',
+          '/capture-guide',
           '/details',
           '/preview',
           '/onboarding',
