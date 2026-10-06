@@ -64,5 +64,6 @@ TensorFlow 2.21.0, and Keras 3.14.0 on CPU with deterministic operations. It
 writes the ignored result to
 `models/v1/descriptors_128px_small_disc/small_patch_study.json`. It requires
 the local `v1` archive and the released arm's 25 local fold artifacts. The
-candidate run performed 125 nested probe fits and reported 154.326 seconds of
-training time; descriptor extraction is cached across folds within the process.
+candidate run recorded 125 training units: 100 inner selection passes and 25
+refits, comprising 525 fitted probes. It reported 154.326 seconds for those
+units; descriptor extraction is cached across folds within the process.
