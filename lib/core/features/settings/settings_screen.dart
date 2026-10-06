@@ -97,7 +97,9 @@ class SettingsScreen extends ConsumerWidget {
               size: 16,
               color: context.palette.onSurfaceVariant,
             ),
-            onTap: () => context.push('/onboarding'),
+            // The guide, not the onboarding, holds the protocol on demand
+            // (SPEC 0142).
+            onTap: () => context.push('/capture-guide'),
           ),
           const SizedBox(height: AppSpacing.sm),
           const _ErrorReportTile(),
