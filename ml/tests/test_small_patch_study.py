@@ -84,3 +84,80 @@ def test_candidate_features_use_nine_patches_and_not_the_label():
     changed_label = {**entry, "label": (entry["label"] + 1) % len(cfg["classes"])}
     assert features.shape[0] == 9
     assert np.array_equal(features, study.candidate_features(changed_label, cfg))
+
+
+def _prediction(path, label, probabilities):
+    return {
+        "path": path,
+        "group": f"group::{path}",
+        "label": label,
+        "probabilities": probabilities,
+    }
+
+
+def test_the_comparison_pairs_folds_and_paths_not_row_order():
+    study = _study()
+    baseline = {
+        (0, 0): [
+            _prediction("a", 0, [0.8, 0.2]),
+            _prediction("b", 1, [0.1, 0.9]),
+        ],
+        (0, 1): [_prediction("c", 0, [0.7, 0.3])],
+    }
+    candidate = {
+        (0, 1): [_prediction("c", 0, [0.6, 0.4])],
+        (0, 0): [
+            _prediction("b", 1, [0.2, 0.8]),
+            _prediction("a", 0, [0.3, 0.7]),
+        ],
+    }
+
+    study.require_paired_predictions(baseline, candidate)
+
+    missing_path = copy.deepcopy(candidate)
+    missing_path[(0, 0)].pop()
+    with pytest.raises(ValueError, match="photograph paths"):
+        study.require_paired_predictions(baseline, missing_path)
+
+    duplicate_path = copy.deepcopy(candidate)
+    duplicate_path[(0, 0)].append(duplicate_path[(0, 0)][0])
+    with pytest.raises(ValueError, match="duplicate"):
+        study.require_paired_predictions(baseline, duplicate_path)
+
+    missing_fold = {(0, 0): candidate[(0, 0)]}
+    with pytest.raises(ValueError, match="folds"):
+        study.require_paired_predictions(baseline, missing_fold)
+
+
+def test_the_verdict_uses_only_the_registered_macro_f1_margin():
+    study = _study()
+    assert study.MAX_MACRO_F1_DROP == 0.02
+    boundary = 0.625 - study.MAX_MACRO_F1_DROP
+    assert study.verdict(baseline_median=0.625, candidate_median=boundary)["passes"]
+    assert not study.verdict(baseline_median=0.625, candidate_median=boundary - 0.001)[
+        "passes"
+    ]
+    assert study.verdict(baseline_median=0.625, candidate_median=0.65)["passes"]
+
+
+def test_the_baseline_metric_must_reproduce_its_record():
+    study = _study()
+    recorded = {
+        "protocol": {"manifest_digest": "same-manifest"},
+        "primary": {
+            "per_repeat": [0.61, 0.62, 0.63],
+            "median": 0.62,
+            "range": [0.61, 0.63],
+        },
+    }
+    study.require_baseline_metrics(copy.deepcopy(recorded), recorded)
+
+    drifted = copy.deepcopy(recorded)
+    drifted["primary"]["median"] += 0.001
+    with pytest.raises(ValueError, match="baseline.*macro-F1"):
+        study.require_baseline_metrics(drifted, recorded)
+
+    wrong_manifest = copy.deepcopy(recorded)
+    wrong_manifest["protocol"]["manifest_digest"] = "other-manifest"
+    with pytest.raises(ValueError, match="manifest"):
+        study.require_baseline_metrics(wrong_manifest, recorded)
