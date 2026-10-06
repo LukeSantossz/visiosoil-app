@@ -3,6 +3,7 @@
 import copy
 import importlib
 import importlib.util
+import json
 from pathlib import Path
 
 import numpy as np
@@ -161,3 +162,36 @@ def test_the_baseline_metric_must_reproduce_its_record():
     wrong_manifest["protocol"]["manifest_digest"] = "other-manifest"
     with pytest.raises(ValueError, match="manifest"):
         study.require_baseline_metrics(wrong_manifest, recorded)
+
+
+def test_the_study_refuses_missing_baseline_before_training(tmp_path):
+    study = _study()
+    candidate_dir = tmp_path / "candidate"
+    folds = {"repeats": 1, "k": 1, "manifest_digest": "fixture"}
+
+    with pytest.raises(FileNotFoundError, match="predictions.json"):
+        study.run_study(load_config(), folds, tmp_path / "baseline", candidate_dir)
+    assert not candidate_dir.exists()
+
+
+@real_only
+def test_candidate_fold_selects_without_reading_outer_test_groups(tmp_path):
+    study = _study()
+    cfg = resolve_paths(study.study_config(load_config()))
+    folds = load_folds_for_config(cfg, cfg["data"]["splits_dir"])
+    split = fold_split(folds, 0, 0)
+
+    study.train_candidate_fold(cfg, folds, tmp_path, repeat=0, fold=0)
+
+    fold_dir = tmp_path / "repeat-0" / "fold-0"
+    audit = json.loads((fold_dir / "selection_audit.json").read_text(encoding="utf-8"))
+    selected = set(audit["groups_read_during_selection"])
+    held_out = {entry["group"] for entry in split["test"]}
+    assert selected.isdisjoint(held_out)
+
+    saved_cfg = json.loads((fold_dir / "config.json").read_text(encoding="utf-8"))
+    assert saved_cfg["data"]["image_size"] == 128
+    predictions = json.loads((fold_dir / "predictions.json").read_text(encoding="utf-8"))
+    assert {record["path"] for record in predictions["predictions"]} == {
+        entry["path"] for entry in split["test"]
+    }
