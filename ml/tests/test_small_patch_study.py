@@ -174,6 +174,22 @@ def test_the_study_refuses_missing_baseline_before_training(tmp_path):
     assert not candidate_dir.exists()
 
 
+def test_stale_candidate_recovery_does_not_name_an_unsupported_flag(tmp_path):
+    study = _study()
+
+    def stale_planner(*args, **kwargs):
+        raise ValueError(
+            "candidate artifacts are stale\n"
+            "Pass --force to recompute them, which discards what is there."
+        )
+
+    with pytest.raises(ValueError) as captured:
+        study._plan_candidate_run(stale_planner, tmp_path, {}, {})
+
+    assert "--force" not in str(captured.value)
+    assert "Archive or remove" in str(captured.value)
+
+
 def test_candidate_features_are_reused_across_folds_by_photograph_path(monkeypatch):
     study = _study()
     calls = []
