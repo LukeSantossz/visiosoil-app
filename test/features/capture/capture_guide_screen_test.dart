@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -231,17 +230,19 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // The action is pinned below the steps, so it is on screen unscrolled.
-    final screen = Offset.zero & tester.view.physicalSize / 2.625;
+    final screen = Offset.zero &
+        tester.view.physicalSize / tester.view.devicePixelRatio;
     final action = tester.getRect(find.text('Abrir câmera'));
     expect(screen.contains(action.topLeft), isTrue);
     expect(screen.contains(action.bottomRight), isTrue);
 
+    // The last sentence can be scrolled whole into view, above the action.
     await tester.scrollUntilVisible(find.text(_sentences.last), 100);
-    expect(
-      tester.renderObject<RenderParagraph>(find.text(_sentences.last))
-          .didExceedMaxLines,
-      isFalse,
-    );
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    final last = tester.getRect(find.text(_sentences.last));
+    expect(screen.contains(last.topLeft), isTrue);
+    expect(last.bottom, lessThanOrEqualTo(action.top));
     expect(tester.takeException(), isNull);
   });
 
