@@ -32,7 +32,9 @@ class _CaptureGuideScreenState extends ConsumerState<CaptureGuideScreen> {
   Future<void> _confirm() async {
     // A second tap in the same frame would pop the caller as well.
     if (_isConfirming) return;
-    _isConfirming = true;
+    // Back is held until the guide pops itself: a back taken during the write
+    // would leave this pop to close the caller, and mark a guide the user left.
+    setState(() => _isConfirming = true);
 
     try {
       await ref.read(captureGuideStoreProvider).markCaptureGuideSeen();
@@ -44,55 +46,57 @@ class _CaptureGuideScreenState extends ConsumerState<CaptureGuideScreen> {
         name: 'CaptureGuideScreen',
       );
     }
-    // Back may have left during the write, and this pop would then close the
-    // caller.
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const VisioAppBar(title: 'Como capturar'),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Semantics(
-                  label: '${captureProtocolSteps.length} passos',
-                  container: true,
-                  explicitChildNodes: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final (i, step) in captureProtocolSteps.indexed) ...[
-                        if (i > 0) const SizedBox(height: AppSpacing.lg),
-                        _GuideStep(number: i + 1, step: step),
+    return PopScope(
+      canPop: !_isConfirming,
+      child: Scaffold(
+        appBar: const VisioAppBar(title: 'Como capturar'),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Semantics(
+                    label: '${captureProtocolSteps.length} passos',
+                    container: true,
+                    explicitChildNodes: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final (i, step)
+                            in captureProtocolSteps.indexed) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.lg),
+                          _GuideStep(number: i + 1, step: step),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            // Pinned below the steps, so it stays in reach at any text size.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.lg,
+              // Pinned below the steps, so it stays in reach at any text size.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: VisioButton(
+                  label: widget.beforeCamera ? 'Abrir câmera' : 'Entendi',
+                  icon: widget.beforeCamera ? Icons.camera_alt : Icons.check,
+                  onPressed: _confirm,
+                  expanded: true,
+                ),
               ),
-              child: VisioButton(
-                label: widget.beforeCamera ? 'Abrir câmera' : 'Entendi',
-                icon: widget.beforeCamera ? Icons.camera_alt : Icons.check,
-                onPressed: _confirm,
-                expanded: true,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -103,6 +107,8 @@ class _CaptureGuideScreenState extends ConsumerState<CaptureGuideScreen> {
 /// The icon is decorative, since the text says everything it shows.
 class _GuideStep extends StatelessWidget {
   const _GuideStep({required this.number, required this.step});
+
+  static const double _iconSize = 32;
 
   final int number;
   final CaptureProtocolStep step;
@@ -116,7 +122,7 @@ class _GuideStep extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(step.icon, size: 32, color: palette.primary),
+          Icon(step.icon, size: _iconSize, color: palette.primary),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
