@@ -176,7 +176,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 7 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
+- **Navigation:** `go_router` with 8 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
 - **Persistence:** Drift + SQLite with schema versioning (currently v7). Repository pattern abstracts Drift from UI
 - **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer` (SPEC 0083), and the default is `a4SheetMeasurer`: it finds the A4 sheet, rectifies it, and measures the round soil patch on it (SPEC 0091, SPEC 0092)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
@@ -200,7 +200,7 @@ lib/
 │   │                                  #   widgets read, light and dark), AppColors (light
 │   │                                  #   values; read only here), AppTypography, AppSpacing,
 │   │                                  #   AppRadius, SoilTextureColors
-│   ├── routes/app_router.dart         # GoRouter config (7 routes + errorBuilder)
+│   ├── routes/app_router.dart         # GoRouter config (8 routes + errorBuilder)
 │   ├── constants/app_strings.dart     # Centralized pt-BR UI strings
 │   ├── widgets/                       # 7 reusable: VisioAppBar, VisioButton, EmptyState,
 │   │                                  #   ErrorState, LoadingIndicator, PermissionDeniedView,
@@ -235,10 +235,10 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 18 files declaring 34 providers (database, repository,
+└── providers/                         # 19 files declaring 37 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, lost capture, appearance, error report, plus the history
+                                       #   storage, lost capture, appearance, error report, capture guide, plus the history
                                        #   filter/search and derived-stats providers)
 ```
 
