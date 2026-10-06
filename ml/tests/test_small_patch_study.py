@@ -174,6 +174,23 @@ def test_the_study_refuses_missing_baseline_before_training(tmp_path):
     assert not candidate_dir.exists()
 
 
+def test_candidate_features_are_reused_across_folds_by_photograph_path(monkeypatch):
+    study = _study()
+    calls = []
+
+    def describe(entry, cfg):
+        calls.append(entry["path"])
+        return np.array([[1.0, 2.0]])
+
+    monkeypatch.setattr(study, "candidate_features", describe)
+    featuriser = study.cached_candidate_features({})
+    first = featuriser({"path": "sample.jpg", "label": 0}, {})
+    second = featuriser({"path": "sample.jpg", "label": 1}, {})
+
+    assert first is second
+    assert calls == ["sample.jpg"]
+
+
 @real_only
 def test_candidate_fold_selects_without_reading_outer_test_groups(tmp_path):
     study = _study()
