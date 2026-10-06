@@ -161,8 +161,9 @@ lib/
 └── providers/                         # 19 files declaring 37 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
-                                       #   storage, lost capture, appearance, error report, capture guide, plus the history
-                                       #   filter/search and derived-stats providers)
+                                       #   storage, lost capture, appearance, error report,
+                                       #   capture guide, plus the history filter/search and
+                                       #   derived-stats providers)
 ```
 
 ### Database Schema (v7)

@@ -1,4 +1,4 @@
-# Capture Guide — Open Decision
+# Capture Guide
 
 **Status: content settled by
 [SPEC 0142](../../specs/0142-show-the-capture-guide-before-the-first-camera-launch.md).**
