@@ -138,6 +138,25 @@ def train_candidate_fold(
     )
 
 
+def _plan_candidate_run(planner, candidate_dir, fold_manifest, candidate_cfg):
+    try:
+        return planner(
+            candidate_dir,
+            fold_manifest,
+            cfg=candidate_cfg,
+            arm=STUDY_ARM,
+            shuffled_control=False,
+        )
+    except ValueError as error:
+        message, separator, _ = str(error).partition("\nPass --force to recompute them")
+        if not separator:
+            raise
+        raise ValueError(
+            f"{message}\nArchive or remove those stale candidate artifacts before "
+            "rerunning the study."
+        ) from error
+
+
 def run_study(
     cfg: Mapping,
     fold_manifest: Mapping,
@@ -187,12 +206,8 @@ def run_study(
     require_baseline_metrics(baseline_metrics, recorded_baseline)
 
     candidate_cfg = study_config(cfg)
-    plan = plan_arm_run(
-        candidate_dir,
-        fold_manifest,
-        cfg=candidate_cfg,
-        arm=STUDY_ARM,
-        shuffled_control=False,
+    plan = _plan_candidate_run(
+        plan_arm_run, candidate_dir, fold_manifest, candidate_cfg
     )
     if plan["run"]:
         verify_images(_images_by_class(fold_manifest))
