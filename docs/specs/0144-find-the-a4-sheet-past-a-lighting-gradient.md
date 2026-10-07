@@ -85,7 +85,7 @@ A new test erases the paper's right edge on `photo_160808.jpg` by a linear ramp 
   - Two or more weak edges. They stay refused as `notFound`.
   - The floors `_minContrast` (60), `_minPaperContrast` (20) and `_minEdgeStep` (10), the hull path, the line path or `_refinedCorners`.
   - A synthetic gradient scene in `ml/scripts/generate_sheet_fixtures.py`. The measured corners on 160808 are the reference, and the variants move them.
-  - The patch grid. 160808 and 160808_1 hold a soil disc too small for nine patches, so both end in `soilRegionTooSmall` like the other 24.
+  - The patch grid. 160808 and 160808_1 are 3200 × 1440, so the sheet's long side spans about 1690 px and reads 0.176 mm/px, coarser than the contract's canonical 0.1292 mm/px. Both end in `photographTooCoarse`, which the grid checks before the soil region. Their soil disc, about 46.5 mm across, is also too small for nine patches.
   - The capture screen, onboarding copy, the model and the contract.
 
 ## Acceptance Criteria
