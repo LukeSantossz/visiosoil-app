@@ -93,6 +93,23 @@ const _minEdgeStep = 10.0;
 /// clear of the edge's own blur, and well inside the smallest sheet accepted.
 const _edgeOffsetPx = 4;
 
+/// How far past the paper region the scan for an edge beyond a lighting
+/// gradient reads, as a fraction of the detection copy's long side: 82 px at
+/// 1024 px. The least that finds the edge on every row of 160808 (SPEC 0144).
+const _gradientReach = 0.08;
+
+/// How many pixels behind and ahead of a point the scan averages its grey step
+/// over (SPEC 0144).
+const _gradientBandPx = 8;
+
+/// How far from the opposite edge each row of the scan starts, clear of that
+/// edge's own blur (SPEC 0144).
+const _gradientInsetPx = 8;
+
+/// How far a row's point may lie from the line fitted through the rows' points
+/// and still be kept (SPEC 0144).
+const _gradientTrimPx = 2.0;
+
 /// The line search's angle bins over half a turn, 0.5 degrees each. Its rho
 /// bins are one detection pixel.
 const _houghAngleBins = 360;
@@ -302,32 +319,242 @@ a4SheetMeasurer(RgbFrame frame) {
     }
     quad = _largestQuadrilateral(hull);
   }
-  final refined = _refinedCorners(quad, boundary);
-  if (refined == null || !_plausible(refined)) {
-    return (corners: null, refusal: SheetRefusal.notFound);
+  var refined = _refinedCorners(quad, boundary);
+  // A quadrilateral with one weak edge gets a second pass, with that edge moved
+  // past the lighting gradient. It is checked exactly as the first, and a weak
+  // edge on it is refused (SPEC 0144).
+  for (var pass = 0; ; pass++) {
+    if (refined == null || !_plausible(refined)) {
+      return (corners: null, refusal: SheetRefusal.notFound);
+    }
+
+    // A detection pixel covers `factor` full-resolution pixels, so its centre
+    // sits at x * factor + (factor - 1) / 2.
+    final offset = (factor - 1) / 2;
+    final corners = [
+      for (final c in refined)
+        (x: c.x * factor + offset, y: c.y * factor + offset),
+    ];
+    for (final c in corners) {
+      if (c.x < 0 ||
+          c.y < 0 ||
+          c.x > frame.width - 1 ||
+          c.y > frame.height - 1) {
+        return (corners: null, refusal: SheetRefusal.cropped);
+      }
+    }
+
+    final steps = _edgeSteps(grey, width, height, refined);
+    if (steps == null) {
+      return (corners: null, refusal: SheetRefusal.cropped);
+    }
+    if (steps.every((step) => step >= _minEdgeStep)) {
+      return (corners: SheetCorners(_ordered(corners)), refusal: null);
+    }
+    if (pass > 0) return (corners: null, refusal: SheetRefusal.notFound);
+    refined = _pastGradient(grey, sheet.mask, width, height, refined, steps);
+  }
+}
+
+/// [quad] with its one weak edge moved out to the paper's edge past a lighting
+/// gradient, or null when more than one edge is weak or no paper edge is found
+/// (SPEC 0144). [steps] are [quad]'s edge steps.
+///
+/// A gradient that darkens one side of the paper below the split leaves the
+/// paper region [mask] bounded there by the gradient's contour, not the paper's
+/// edge. Rows run across the sheet from the opposite edge toward the weak one,
+/// fanned between the two side edges, and leave the region at that contour.
+/// Each row's point is the peak of the first run of steps at or above
+/// [_minEdgeStep] past it: the first, because the surface's own border beyond
+/// the paper can step further than the paper does. A straight line through the
+/// points replaces the weak edge.
+///
+/// The surface must then continue round each new corner. Just outside the new
+/// edge it must read within the side edge's own step of what it reads just
+/// outside the side edge, or the corner lies on a boundary of the surface.
+List<({double x, double y})>? _pastGradient(
+  Uint8List grey,
+  Uint8List mask,
+  int width,
+  int height,
+  List<({double x, double y})> quad,
+  List<double> steps,
+) {
+  final weak = [
+    for (var i = 0; i < 4; i++)
+      if (steps[i] < _minEdgeStep) i,
+  ];
+  if (weak.length != 1) return null;
+  // The weak edge runs from a to b, and the opposite edge from d to c.
+  final i = weak.single;
+  final a = quad[i], b = quad[(i + 1) % 4];
+  final c = quad[(i + 2) % 4], d = quad[(i + 3) % 4];
+  int? at(double x, double y) {
+    final ix = x.round(), iy = y.round();
+    if (ix < 0 || iy < 0 || ix >= width || iy >= height) return null;
+    return grey[iy * width + ix];
   }
 
-  // A detection pixel covers `factor` full-resolution pixels, so its centre
-  // sits at x * factor + (factor - 1) / 2.
-  final offset = (factor - 1) / 2;
-  final corners = [
-    for (final c in refined)
-      (x: c.x * factor + offset, y: c.y * factor + offset),
-  ];
-  for (final c in corners) {
-    if (c.x < 0 || c.y < 0 || c.x > frame.width - 1 || c.y > frame.height - 1) {
-      return (corners: null, refusal: SheetRefusal.cropped);
+  bool onPaper(double x, double y) {
+    final ix = x.round(), iy = y.round();
+    if (ix < 0 || iy < 0 || ix >= width || iy >= height) return false;
+    return mask[iy * width + ix] == 1;
+  }
+
+  final fromD = (
+    x: (a.x - d.x) / _distance(d, a),
+    y: (a.y - d.y) / _distance(d, a),
+  );
+  final fromC = (
+    x: (b.x - c.x) / _distance(c, b),
+    y: (b.y - c.y) / _distance(c, b),
+  );
+  final reach = _gradientReach * math.max(width, height);
+  final rows = math.max(_distance(a, b), _distance(c, d)).round();
+  final points = <({double x, double y})>[];
+  var scanned = 0;
+  for (var r = 0; r < rows; r++) {
+    final f = (r + 0.5) / rows;
+    if (f < 0.1 || f > 0.9) continue;
+    scanned++;
+    final start = (x: d.x + (c.x - d.x) * f, y: d.y + (c.y - d.y) * f);
+    // The quadrilateral is convex, so a and b lie on one side of the opposite
+    // edge, and the blend of the side edges' directions never vanishes.
+    var dx = fromD.x * (1 - f) + fromC.x * f;
+    var dy = fromD.y * (1 - f) + fromC.y * f;
+    final norm = math.sqrt(dx * dx + dy * dy);
+    dx /= norm;
+    dy /= norm;
+
+    var from = _gradientInsetPx.toDouble();
+    while (onPaper(start.x + dx * from, start.y + dy * from)) {
+      from++;
+    }
+    // The mean grey over the band behind v, less the mean over the band ahead.
+    double? stepAt(double v) {
+      var behind = 0, ahead = 0;
+      for (var k = 1; k <= _gradientBandPx; k++) {
+        final p = at(start.x + dx * (v - k), start.y + dy * (v - k));
+        final q = at(start.x + dx * (v + k), start.y + dy * (v + k));
+        if (p == null || q == null) return null;
+        behind += p;
+        ahead += q;
+      }
+      return (behind - ahead) / _gradientBandPx;
+    }
+
+    double? peak, peakAt;
+    for (var v = from; v <= from + reach; v++) {
+      final step = stepAt(v);
+      if (step == null) break;
+      if (step >= _minEdgeStep) {
+        if (peak == null || step > peak) {
+          peak = step;
+          peakAt = v;
+        }
+      } else if (peak != null) {
+        break;
+      }
+    }
+    if (peakAt != null) {
+      points.add((x: start.x + dx * peakAt, y: start.y + dy * peakAt));
     }
   }
 
-  final steps = _edgeSteps(grey, width, height, refined);
-  if (steps == null) {
-    return (corners: null, refusal: SheetRefusal.cropped);
+  // At least half of the rows must find the edge, and stay on its line.
+  if (points.isEmpty || points.length * 2 < scanned) return null;
+  var kept = points;
+  late ({double nx, double ny, double c}) line;
+  for (var fit = 0; fit < 3; fit++) {
+    final mx = kept.map((p) => p.x).reduce((p, q) => p + q) / kept.length;
+    final my = kept.map((p) => p.y).reduce((p, q) => p + q) / kept.length;
+    var sxx = 0.0, sxy = 0.0, syy = 0.0;
+    for (final p in kept) {
+      sxx += (p.x - mx) * (p.x - mx);
+      sxy += (p.x - mx) * (p.y - my);
+      syy += (p.y - my) * (p.y - my);
+    }
+    final theta = 0.5 * math.atan2(2 * sxy, sxx - syy);
+    final nx = -math.sin(theta), ny = math.cos(theta);
+    line = (nx: nx, ny: ny, c: nx * mx + ny * my);
+    final onLine = [
+      for (final p in kept)
+        if ((nx * p.x + ny * p.y - line.c).abs() <= _gradientTrimPx) p,
+    ];
+    if (onLine.length * 2 < scanned) return null;
+    if (onLine.length == kept.length) break;
+    kept = onLine;
   }
-  if (steps.any((step) => step < _minEdgeStep)) {
-    return (corners: null, refusal: SheetRefusal.notFound);
+
+  ({double nx, double ny, double c}) through(
+    ({double x, double y}) p,
+    ({double x, double y}) q,
+  ) {
+    final length = _distance(p, q);
+    final nx = -(q.y - p.y) / length, ny = (q.x - p.x) / length;
+    return (nx: nx, ny: ny, c: nx * p.x + ny * p.y);
   }
-  return (corners: SheetCorners(_ordered(corners)), refusal: null);
+
+  final lines = [
+    for (var k = 0; k < 4; k++)
+      k == i ? line : through(quad[k], quad[(k + 1) % 4]),
+  ];
+  final corners = <({double x, double y})>[];
+  for (var k = 0; k < 4; k++) {
+    final l1 = lines[(k + 3) % 4];
+    final l2 = lines[k];
+    final determinant = l1.nx * l2.ny - l1.ny * l2.nx;
+    if (determinant.abs() < 1e-9) return null;
+    corners.add((
+      x: (l1.c * l2.ny - l1.ny * l2.c) / determinant,
+      y: (l1.nx * l2.c - l1.c * l2.nx) / determinant,
+    ));
+  }
+
+  // The median grey [_edgeOffsetPx] outside an edge of the new quadrilateral,
+  // between fractions [from] and [to] of its length.
+  final cx = corners.map((p) => p.x).reduce((p, q) => p + q) / 4;
+  final cy = corners.map((p) => p.y).reduce((p, q) => p + q) / 4;
+  double? surface(int edge, double from, double to) {
+    final p = corners[edge], q = corners[(edge + 1) % 4];
+    final length = _distance(p, q);
+    final ex = (q.x - p.x) / length, ey = (q.y - p.y) / length;
+    var nx = -ey, ny = ex;
+    if (nx * (cx - p.x) + ny * (cy - p.y) > 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    final values = <int>[];
+    for (var s = from * length; s < to * length; s++) {
+      final value = at(
+        p.x + ex * s + nx * _edgeOffsetPx,
+        p.y + ey * s + ny * _edgeOffsetPx,
+      );
+      if (value != null) values.add(value);
+    }
+    return values.isEmpty ? null : _median(values);
+  }
+
+  // From 5 % to 20 % of each edge's length from the corner: clear of the
+  // corner's own blur, and near enough that the surface is the same place.
+  const near = 0.05, far = 0.2;
+  // The new edge i runs from corner i to corner i + 1. Corner i also ends the
+  // side edge i - 1, and corner i + 1 also starts the side edge i + 1.
+  final atStart = surface(i, near, far);
+  final beforeStart = surface((i + 3) % 4, 1 - far, 1 - near);
+  final atEnd = surface(i, 1 - far, 1 - near);
+  final afterEnd = surface((i + 1) % 4, near, far);
+  if (atStart == null ||
+      beforeStart == null ||
+      atEnd == null ||
+      afterEnd == null) {
+    return null;
+  }
+  if ((atStart - beforeStart).abs() >= steps[(i + 3) % 4] ||
+      (atEnd - afterEnd).abs() >= steps[(i + 1) % 4]) {
+    return null;
+  }
+  return corners;
 }
 
 /// Rectifies the sheet at its own scale in [frame]: all of it, or only
