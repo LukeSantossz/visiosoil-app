@@ -30,6 +30,12 @@ of the sections above rather than exceptions to them.
 - **User-facing UI strings are pt-BR product copy and are exempt** from the
   all-output-in-English rule. Identifiers, comments, commit, PR and issue text,
   and documentation are not.
+- **The thesis article's material under `docs/tcc/` is in pt-BR and is exempt**
+  from the same rule (SPEC 0145). The exemption is the directory and nothing
+  else: a spec, ADR, commit, pull request or issue about the article stays in
+  English. Do not translate it. The article itself lives in its authors' Drive,
+  and its direction is theirs: the material checks the draft's claims against
+  the code and does not rewrite it around the code.
 - **This project declines the Token Economy context-file compression opt-in.**
   The opt-in is a choice the adopter makes, not a framework default, and a
   repository that declines it is fully conformant — so the instruction files
@@ -61,6 +67,43 @@ of the sections above rather than exceptions to them.
   number's history in commit order to enforce it. Contiguity is checked on
   `main` only, because a gap on a feature branch is normally a number a
   concurrent pull request reserved.
+
+## Writing the thesis article (TCC)
+
+The Developer and a co-author are writing an undergraduate thesis article about
+this app, in pt-BR, on their institution's template. The article is theirs. This
+repository supplies the facts about the app and keeps the working material under
+`docs/tcc/` (SPEC 0145); `docs/tcc/guia-de-redacao.md` is the procedure, and
+everything below applies to any session that writes, reviews or answers a
+question about the article.
+
+- **Check the sources before anything else, every session.** The draft changes
+  daily and the app faster, so nothing about the article comes from memory, from
+  an earlier session or from a copy in this repository. The check has four steps:
+  1. List the authors' Drive folder named in the guide's inventory, and compare
+     each file's modified time with the last entry in `docs/tcc/conferencias.md`.
+  2. Read the working copy (the "TCC" tab of the Google Doc the guide names by
+     title), its other tabs, of which "Dicas - Eloiza" holds the advisors'
+     writing rules, and its open comment threads. When an export in the folder
+     differs from the tab, say which is newer and ask before editing either.
+  3. Check every statement the article makes about the app against `main` as it
+     stands that day, not against the commit a survey under `docs/tcc/`
+     describes.
+  4. Append the check to `docs/tcc/conferencias.md`: the date, the files and the
+     commit read, and each divergence with the source that shows it.
+- **Report a divergence; do not resolve it.** The direction is the authors'. The
+  article is an overview of how the app was built, not a treatise on the model.
+  It keeps the management-recommendations feature as they wrote it, and it
+  describes the current model only. Edits go where the authors ask, and none
+  replaces their text without their instruction.
+- **Never write the Google Doc's identifier or link into the repository.** The
+  repository is public and the document's sharing is the authors' to manage. Find
+  it in Drive by its title.
+- **State only what a source records.** Every reference is checked against its
+  source and every number against the record or command the guide names. A claim
+  that cannot be confirmed is flagged as such, never filled with a plausible
+  value. The prose rules (the template's formatting, the advisors' rules, and no
+  AI-assistant vocabulary or dashes in running text) are in the guide.
 
 ## Commands
 
