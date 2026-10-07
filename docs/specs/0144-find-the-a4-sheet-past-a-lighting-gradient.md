@@ -80,7 +80,7 @@ A new test erases the paper's right edge on `photo_160808.jpg` by a linear ramp 
   - `test/fixtures/sheet_photos/expected.json`: 160808 becomes a sheet, with its measured corners.
   - `test/services/a4_sheet_photos_test.dart`: the fixture count becomes five sheets and one refusal, and the erased-edge test is added.
   - `docs/ml/sheet-reader-real-photographs.md`: 26 of 31 read, 160808 and 160808_1 rows, the variants and margins tables, and what the check does not show.
-  - The README, `docs/agents/project.md` with the instruction files `mf agents sync` generates from it, and `docs/architecture/ml-implementation-map.md`. Each says the reader reads 24 of the 31 photographs.
+  - The README, `docs/agents/project.md` with the instruction files `mf agents sync` generates from it, and `docs/architecture/ml-implementation-map.md`. Each says the reader reads 24 of the 31 photographs, and changes to say 26.
 - Does NOT include:
   - Two or more weak edges. They stay refused as `notFound`.
   - The floors `_minContrast` (60), `_minPaperContrast` (20) and `_minEdgeStep` (10), the hull path, the line path or `_refinedCorners`.
