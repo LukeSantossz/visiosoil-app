@@ -4,6 +4,49 @@ Uma entrada por conferência, a mais recente primeiro. O procedimento está no
 [guia de redação](guia-de-redacao.md#2-conferência-obrigatória). Cada entrada
 descreve o dia em que foi feita e não é reescrita depois.
 
+## 2026-10-07, segunda conferência: correções na aba TCC
+
+### O que foi lido
+
+- **Pasta do TCC**: os mesmos itens da primeira conferência. O `.docx` da raiz
+  foi salvo de novo às 14:41, mas o texto é idêntico ao das 14:13; continua sem
+  a correção "propriedade física e um", que só a aba tem. A aba TCC segue sendo a
+  versão mais recente, e foi nela que as correções entraram, como os autores
+  pediram. O `.docx` não foi alterado.
+- **Google Doc**: sem modificação desde 2026-10-06 antes desta sessão. Os sete
+  comentários são os mesmos da primeira conferência.
+- **Repositório**: `main` continua em `834a9ab`.
+
+### O que foi corrigido na aba TCC
+
+A pedido dos autores, só os pontos da primeira conferência, palavra a palavra,
+sem mexer no resto do texto:
+
+- **Resumo**: os 86 laboratórios passaram a ser os "do seu programa de
+  qualidade [...] aprovados para realizar a análise textural", e a acurácia
+  passou a 68,8%. O Resumo ficou com 248 palavras.
+- **Introdução**: "cerca de 150 laboratórios de fertilidade" participam do
+  PAQLF.
+- **2.4**: saiu "(por hora)", e entrou a frase de que o leitor da folha foi
+  verificado em seguida com uma primeira sessão de 31 fotografias reais.
+- **3.1**: 1.404 commits e 193 pull requests, e uma frase sobre outubro.
+- **3.2**: a apresentação inicial não pede permissões, e a Figura 3 passou a se
+  chamar "Apresentação inicial". A captura pede as permissões, salva sem esperar a
+  localização e abre os detalhes. No histórico, o toque abre os detalhes, e a foto
+  se amplia a partir deles. As configurações listam a exclusão da conta, o tema, o
+  alto contraste e o relatório de erros.
+- **3.3**: sete versões do banco.
+- **3.4**: um parágrafo novo com o resultado da sessão de fotografias reais,
+  antes da discussão com Kaplan et al. e Sattar et al.; "a partir"; e a limitação
+  passou a ser a classificação de fotografias reais tiradas conforme o
+  procedimento de captura.
+- **3.5**: 114 arquivos e cerca de 844 casos de teste em Dart, e 800 funções de
+  teste em Python no modelo.
+
+As outras cinco abas não mudaram. O texto da aba TCC depois da edição foi
+conferido contra o planejado, e a formatação dos trechos novos é a dos
+parágrafos vizinhos.
+
 ## 2026-10-07
 
 ### O que foi lido
