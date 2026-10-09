@@ -155,8 +155,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   Future<void> _pickImage() async {
     // Re-entry guard: prevents a rapid double tap from opening two pickers
-    // (and firing duplicate location/classification work).
-    if (_state.isCapturing) return;
+    // (and firing duplicate location/classification work). A retake tapped in
+    // the same frame as a save does nothing (SPEC 0147).
+    if (_state.isCapturing || _state.isSaving) return;
     _state = _state.copyWith(isCapturing: true);
 
     XFile? image;
@@ -210,9 +211,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final previous = ref.read(imageProvider).file;
     final replaced = _useCapturedImage(image.path);
     // A retake: the new photograph has replaced the previous one, whose picker
-    // file goes as "Descartar" deletes it, unless a save in flight still needs
-    // it (SPEC 0147).
-    if (previous != null && previous.path != image.path && !_state.isSaving) {
+    // file goes as "Descartar" deletes it (SPEC 0147).
+    if (previous != null && previous.path != image.path) {
       unawaited(_disposePickedFile(_deletePickedFile, previous.path));
     }
     await replaced;
@@ -347,8 +347,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   Future<void> _saveRecord() async {
     // Guard against double-tap, and against a save tapped in the same frame
     // as a retry: the button's callback is from the last build, so it checks
-    // the state it runs against (SPEC 0117).
-    if (_state.isSaving || _state.isClassifying) return;
+    // the state it runs against (SPEC 0117). A save tapped while the camera is
+    // open for a retake does nothing, as the photograph is about to change
+    // (SPEC 0147).
+    if (_state.isSaving || _state.isClassifying || _state.isCapturing) return;
 
     final selectedImage = ref.read(imageProvider);
     final image = selectedImage.file;
