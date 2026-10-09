@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -1142,6 +1143,343 @@ void main() {
           (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
               as CaptureUiState;
       expect(uiState.classificationResult, isNull);
+    });
+  });
+
+  // A photograph can be replaced without discarding it first, and nothing
+  // changes until the camera returns a new one (SPEC 0147).
+  group('retake', () {
+    late String retakePath;
+
+    setUpAll(() {
+      final dir = Directory.systemTemp.createTempSync('capture_retake_test');
+      final file = File('${dir.path}/retake.png');
+      file.writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+      retakePath = file.path;
+    });
+
+    VisioButton retakeButton(WidgetTester tester) => tester.widget<VisioButton>(
+          find.byWidgetPredicate(
+            (w) => w is VisioButton && w.label == 'Tirar outra foto',
+          ),
+        );
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+    }
+
+    // Location and classification resolve a few frames after the photograph.
+    Future<void> captureFirst(WidgetTester tester) async {
+      await capture(tester);
+      await settle(tester);
+    }
+
+    Future<void> retake(WidgetTester tester) async {
+      await tester.tap(find.text('Tirar outra foto'));
+      await settle(tester);
+      await settle(tester);
+    }
+
+    CaptureUiState uiState(WidgetTester tester) =>
+        (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
+            as CaptureUiState;
+
+    String? shownPath(WidgetTester tester) => tester
+        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
+        .image
+        ?.path;
+
+    // Each reading names its turn, so a test can tell a kept location from a
+    // new one. Typed as the resolver's nullable reading, so the screen's
+    // null-returning timeout fallback type-checks.
+    LocationResolver countedLocate(List<int> count) => () {
+          count[0]++;
+          return Future<LocationReading?>.value(
+            (latitude: -23.5, longitude: -46.6, address: 'Ponto ${count[0]}'),
+          );
+        };
+
+    testWidgets('retake_replaces_the_photograph', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      final picks = [samplePath, retakePath];
+      final classified = <String>[];
+      final locations = [0];
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(picks.removeAt(0)),
+        locate: countedLocate(locations),
+        classify: (path) async {
+          classified.add(path);
+          return InferenceResult(
+            textureClass: path == samplePath ? 'Arenosa' : 'Argilosa',
+            confidenceScore: 0.8,
+          );
+        },
+        repository: repository,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await captureFirst(tester);
+      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).address, 'Ponto 1');
+
+      await retake(tester);
+
+      expect(shownPath(tester), retakePath);
+      expect(classified, [samplePath, retakePath]);
+      expect(locations[0], 2);
+      expect(uiState(tester).classificationResult?.textureClass, 'Argilosa');
+      expect(uiState(tester).address, 'Ponto 2');
+      expect(deleted, [samplePath]);
+      expect(repository.createCalls, isEmpty);
+    });
+
+    testWidgets('cancelling_a_retake_keeps_the_photograph', (tester) async {
+      final picks = <String?>[samplePath, null];
+      final classified = <String>[];
+      final locations = [0];
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async {
+          final path = picks.removeAt(0);
+          return path == null ? null : XFile(path);
+        },
+        locate: countedLocate(locations),
+        classify: (path) async {
+          classified.add(path);
+          return const InferenceResult(
+              textureClass: 'Arenosa', confidenceScore: 0.8);
+        },
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await captureFirst(tester);
+      final generation = uiState(tester).generation;
+      await retake(tester);
+
+      expect(picks, isEmpty, reason: 'the camera opened for the retake');
+      expect(shownPath(tester), samplePath);
+      expect(classified, [samplePath]);
+      expect(locations[0], 1);
+      expect(uiState(tester).generation, generation);
+      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).address, 'Ponto 1');
+      expect(deleted, isEmpty);
+      expect(find.text('Salvar registro'), findsOneWidget);
+    });
+
+    testWidgets('a_failed_retake_keeps_the_photograph', (tester) async {
+      var picks = 0;
+      final locations = [0];
+      final deleted = <String>[];
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async {
+          if (++picks == 1) return XFile(samplePath);
+          throw PlatformException(code: 'camera_error');
+        },
+        locate: countedLocate(locations),
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Arenosa', confidenceScore: 0.8),
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await captureFirst(tester);
+      await retake(tester);
+
+      expect(picks, 2);
+      expect(find.text('Não foi possível abrir a câmera.'), findsOneWidget);
+      expect(shownPath(tester), samplePath);
+      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).address, 'Ponto 1');
+      expect(locations[0], 1);
+      expect(deleted, isEmpty);
+    });
+
+    // The denied view would hide the photograph, and back from it would
+    // discard it, so a refusal while one is held is a SnackBar instead.
+    for (final refusal in [
+      AppPermissionStatus.denied,
+      AppPermissionStatus.permanentlyDenied,
+    ]) {
+      testWidgets('a_refused_retake_keeps_the_photograph (${refusal.name})',
+          (tester) async {
+        var camera = AppPermissionStatus.granted;
+        var picks = 0;
+        final deleted = <String>[];
+        await tester.pumpWidget(ProviderScope(
+          overrides: [
+            _guideAlreadySeen(),
+            inferenceServiceProvider.overrideWithValue(_FakeInference(
+              (_) async => const InferenceResult(
+                  textureClass: 'Arenosa', confidenceScore: 0.8),
+            )),
+          ],
+          child: MaterialApp(
+            home: CaptureScreen(
+              pickFromCamera: () async {
+                picks++;
+                return XFile(samplePath);
+              },
+              locate: () => Future<LocationReading?>.value(
+                (latitude: -23.5, longitude: -46.6, address: 'Ponto 1'),
+              ),
+              checkCameraPermission: () async => camera,
+              requestCameraPermission: () async => camera,
+              deletePickedFile: (path) async => deleted.add(path),
+            ),
+          ),
+        ));
+
+        await captureFirst(tester);
+        camera = refusal;
+        await retake(tester);
+
+        expect(picks, 1);
+        expect(find.text('Sem acesso à câmera. A foto atual foi mantida.'),
+            findsOneWidget);
+        expect(find.text('Acesso à câmera necessário'), findsNothing);
+        expect(find.text('Salvar registro'), findsOneWidget);
+        expect(shownPath(tester), samplePath);
+        expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+        expect(uiState(tester).address, 'Ponto 1');
+        expect(deleted, isEmpty);
+
+        // Without a photograph, a refusal still leads to the denied view.
+        await tester.tap(find.text('Descartar'));
+        await tester.pump();
+        await captureFirst(tester);
+        expect(find.text('Acesso à câmera necessário'), findsOneWidget);
+      });
+    }
+
+    testWidgets('retake_waits_for_the_classification_and_the_save',
+        (tester) async {
+      final gates = [
+        Completer<InferenceResult?>(),
+        Completer<InferenceResult?>(),
+      ];
+      var calls = 0;
+      final picks = [samplePath, retakePath];
+      final saveGate = Completer<void>();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(picks.removeAt(0)),
+        locate: () async => null,
+        classify: (_) => gates[calls++].future,
+        repository: _GatedSoilRecordRepository(saveGate.future),
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await captureFirst(tester);
+
+      expect(retakeButton(tester).onPressed, isNull,
+          reason: 'disabled while the classification runs');
+      gates[0].complete(null);
+      await settle(tester);
+      expect(retakeButton(tester).onPressed, isNotNull,
+          reason: 'enabled after a classification that failed');
+
+      await retake(tester);
+      expect(calls, 2);
+      expect(retakeButton(tester).onPressed, isNull);
+      gates[1].complete(
+          const InferenceResult(textureClass: 'Media', confidenceScore: 0.7));
+      await settle(tester);
+      expect(retakeButton(tester).onPressed, isNotNull,
+          reason: 'enabled after a classification that succeeded');
+
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pump();
+      expect(retakeButton(tester).onPressed, isNull,
+          reason: 'disabled while a save is in flight');
+
+      saveGate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    });
+
+    // A save tapped before the camera covers the screen still owns the
+    // previous file, as it does against "Descartar" (SPEC 0094).
+    testWidgets('a_retake_during_a_save_leaves_the_file_to_the_save',
+        (tester) async {
+      final pickGate = Completer<XFile?>();
+      var picks = 0;
+      final saveGate = Completer<void>();
+      final deleted = <String>[];
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () =>
+            ++picks == 1 ? Future.value(XFile(samplePath)) : pickGate.future,
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: _GatedSoilRecordRepository(saveGate.future),
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await captureFirst(tester);
+
+      await tester.tap(find.text('Tirar outra foto'));
+      await tester.tap(find.text('Salvar registro'));
+      await settle(tester);
+      pickGate.complete(XFile(retakePath));
+      await settle(tester);
+      expect(shownPath(tester), retakePath);
+      expect(deleted, isEmpty);
+
+      saveGate.complete();
+      await tester.pumpAndSettle();
+      expect(deleted, [samplePath]);
+    });
+
+    testWidgets('saving_after_a_retake_saves_the_new_photograph',
+        (tester) async {
+      final repository = FakeSoilRecordRepository();
+      final picks = [samplePath, retakePath];
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(picks.removeAt(0)),
+        locate: () async => null,
+        classify: (path) async => path == samplePath
+            ? const InferenceResult(textureClass: 'Arenosa', confidenceScore: 0.6)
+            : const InferenceResult(
+                textureClass: 'Argilosa', confidenceScore: 0.9),
+        repository: repository,
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await captureFirst(tester);
+      await retake(tester);
+      expect(repository.createCalls, isEmpty);
+
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pumpAndSettle();
+
+      final saved = repository.createCalls.single;
+      expect(saved.imagePath, retakePath);
+      expect(saved.textureClass, 'Argilosa');
+      expect(saved.confidenceScore, 0.9);
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    });
+
+    // The labelled and tap-target guidelines on the whole screen, with the
+    // third button in the column.
+    testWidgets('retake_is_labelled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+      ));
+      await captureFirst(tester);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Tirar outra foto')),
+        isSemantics(isButton: true, isEnabled: true, hasTapAction: true),
+      );
+      await expectMeetsGuidelines(tester);
+      semantics.dispose();
     });
   });
 
