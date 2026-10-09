@@ -5,11 +5,11 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 
 void main() {
-  Position fakePosition() => Position(
+  Position fakePosition({double accuracy = 0}) => Position(
         latitude: -12.0,
         longitude: -55.0,
         timestamp: DateTime.fromMillisecondsSinceEpoch(0),
-        accuracy: 0,
+        accuracy: accuracy,
         altitude: 0,
         altitudeAccuracy: 0,
         heading: 0,
@@ -92,6 +92,31 @@ void main() {
         ],
       );
       expect(address, 'Rua das Flores, Sorriso, MT');
+    });
+  });
+
+  group('LocationService.horizontalAccuracyOf', () {
+    // Android reports 0 for a fix with no accuracy and iOS a negative value
+    // for an invalid one; neither is a measurement (SPEC 0148).
+    test('an_unusable_accuracy_reads_as_none', () {
+      for (final unusable in [
+        0.0,
+        -1.0,
+        double.nan,
+        double.infinity,
+      ]) {
+        expect(
+          LocationService.horizontalAccuracyOf(
+            fakePosition(accuracy: unusable),
+          ),
+          isNull,
+          reason: '$unusable',
+        );
+      }
+      expect(
+        LocationService.horizontalAccuracyOf(fakePosition(accuracy: 4.2)),
+        4.2,
+      );
     });
   });
 }

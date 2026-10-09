@@ -37,6 +37,9 @@ abstract final class ShareContentBuilder {
       }
       if (record.hasCoordinates) {
         lines.add('Coordenadas: ${record.formattedCoordinates}');
+        if (record.horizontalAccuracy != null) {
+          lines.add(record.formattedHorizontalAccuracy);
+        }
       }
     }
     lines.add('Data: ${record.formattedTimestamp}');

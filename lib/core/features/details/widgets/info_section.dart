@@ -21,8 +21,10 @@ class InfoSection extends StatelessWidget {
           value: record.hasValidAddress
               ? record.displayAddress
               : 'Endereço indisponível',
-          subtitle:
-              record.hasCoordinates ? record.formattedCoordinates : null,
+          subtitle: record.hasCoordinates
+              ? '${record.formattedCoordinates}\n'
+                  '${record.formattedHorizontalAccuracy}'
+              : null,
         ),
         const SizedBox(height: AppSpacing.md),
         _InfoTile(

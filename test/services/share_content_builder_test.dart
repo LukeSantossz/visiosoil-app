@@ -17,6 +17,7 @@ void main() {
     double? latitude = -23.5,
     double? longitude = -46.6,
     String? address = 'São Paulo, SP',
+    double? horizontalAccuracy,
   }) {
     return SoilRecord(
       imagePath: '/img.jpg',
@@ -26,6 +27,7 @@ void main() {
       timestamp: DateTime.utc(2026, 1, 2, 14, 30).toIso8601String(),
       textureClass: textureClass,
       confidenceScore: confidenceScore,
+      horizontalAccuracy: horizontalAccuracy,
     );
   }
 
@@ -68,6 +70,25 @@ void main() {
       expect(text, isNot(contains('Local:')));
       expect(text, isNot(contains('Coordenadas:')));
       expect(text, contains('Data:'));
+    });
+    // SPEC 0148: the accuracy follows the coordinates, and only when known.
+    test('the_caption_names_known_accuracy_with_the_location', () {
+      final lines = ShareContentBuilder.caption(
+        record(horizontalAccuracy: 4.2),
+        includeLocation: true,
+      ).split('\n');
+      final coordinates =
+          lines.indexWhere((line) => line.startsWith('Coordenadas:'));
+      expect(lines[coordinates + 1], 'Precisão estimada: ± 5 m');
+
+      expect(
+        ShareContentBuilder.caption(record(horizontalAccuracy: 4.2)),
+        isNot(contains('Precisão')),
+      );
+      expect(
+        ShareContentBuilder.caption(record(), includeLocation: true),
+        isNot(contains('Precisão')),
+      );
     });
   });
 

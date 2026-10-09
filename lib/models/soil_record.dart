@@ -33,6 +33,11 @@ class SoilRecord {
   final String? modelVersion;
   final String? datasetVersion;
 
+  /// The radius in metres the device reported for the GPS fix (SPEC 0148).
+  /// Null when not known: a record saved before schema v8, without a
+  /// location, or whose device reported no usable accuracy.
+  final double? horizontalAccuracy;
+
   const SoilRecord({
     this.id,
     this.uuid,
@@ -50,6 +55,7 @@ class SoilRecord {
     this.classDistribution,
     this.modelVersion,
     this.datasetVersion,
+    this.horizontalAccuracy,
   });
 
   /// Returns a copy of this record with the given fields replaced.
@@ -70,6 +76,7 @@ class SoilRecord {
     List<ClassScore>? classDistribution,
     String? modelVersion,
     String? datasetVersion,
+    double? horizontalAccuracy,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -88,6 +95,7 @@ class SoilRecord {
       classDistribution: classDistribution ?? this.classDistribution,
       modelVersion: modelVersion ?? this.modelVersion,
       datasetVersion: datasetVersion ?? this.datasetVersion,
+      horizontalAccuracy: horizontalAccuracy ?? this.horizontalAccuracy,
     );
   }
 
@@ -111,6 +119,13 @@ class SoilRecord {
   String get formattedCoordinates => hasCoordinates
       ? Formatters.coordinates(latitude!, longitude!)
       : 'Coordenadas não disponíveis';
+
+  /// Returns the GPS fix's accuracy as the device estimated it, or a message
+  /// saying it is not known, so an unknown accuracy is never shown as a
+  /// value (SPEC 0148).
+  String get formattedHorizontalAccuracy => horizontalAccuracy != null
+      ? 'Precisão estimada: ${Formatters.horizontalAccuracy(horizontalAccuracy!)}'
+      : 'Precisão não disponível';
 
   /// Returns the address or a default message.
   String get displayAddress =>

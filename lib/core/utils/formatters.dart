@@ -41,4 +41,12 @@ class Formatters {
   static String coordinates(double latitude, double longitude) {
     return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
   }
+
+  /// Formats a GPS accuracy radius in metres, rounded up so the shown radius
+  /// never claims more precision than the device reported.
+  ///
+  /// Example: 4.2 -> "± 5 m"
+  static String horizontalAccuracy(double metres) {
+    return '± ${metres.ceil()} m';
+  }
 }

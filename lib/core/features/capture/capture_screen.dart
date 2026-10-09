@@ -24,8 +24,15 @@ import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
-/// A device location reading: coordinates plus a reverse-geocoded address.
-typedef LocationReading = ({double latitude, double longitude, String address});
+/// A device location reading: coordinates, the fix's accuracy radius in metres
+/// (null when the device reported no usable one, SPEC 0148) and a
+/// reverse-geocoded address.
+typedef LocationReading = ({
+  double latitude,
+  double longitude,
+  double? accuracy,
+  String address,
+});
 
 /// Resolves the current device location, or `null` when unavailable.
 typedef LocationResolver = Future<LocationReading?> Function();
@@ -140,6 +147,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     return (
       latitude: position.latitude,
       longitude: position.longitude,
+      accuracy: LocationService.horizontalAccuracyOf(position),
       address: address,
     );
   }
@@ -325,6 +333,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           location: LocationStatus.resolved,
           latitude: reading.latitude,
           longitude: reading.longitude,
+          horizontalAccuracy: reading.accuracy,
           address: reading.address,
         );
       } else {
@@ -382,6 +391,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   _state.classificationResult?.classDistribution,
               modelVersion: _state.classificationResult?.modelVersion,
               datasetVersion: _state.classificationResult?.datasetVersion,
+              horizontalAccuracy: _state.horizontalAccuracy,
             ),
           );
     } catch (e) {

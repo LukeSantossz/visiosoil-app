@@ -26,6 +26,7 @@ class CaptureUiState {
     this.location = LocationStatus.idle,
     this.latitude,
     this.longitude,
+    this.horizontalAccuracy,
     this.address,
     this.classification = ClassificationStatus.idle,
     this.classificationResult,
@@ -40,6 +41,10 @@ class CaptureUiState {
   final LocationStatus location;
   final double? latitude;
   final double? longitude;
+
+  /// The fix's accuracy radius in metres, null when the device reported no
+  /// usable one (SPEC 0148).
+  final double? horizontalAccuracy;
   final String? address;
 
   final ClassificationStatus classification;
@@ -68,6 +73,7 @@ class CaptureUiState {
     LocationStatus? location,
     Object? latitude = _unset,
     Object? longitude = _unset,
+    Object? horizontalAccuracy = _unset,
     Object? address = _unset,
     ClassificationStatus? classification,
     Object? classificationResult = _unset,
@@ -84,6 +90,9 @@ class CaptureUiState {
           identical(latitude, _unset) ? this.latitude : latitude as double?,
       longitude:
           identical(longitude, _unset) ? this.longitude : longitude as double?,
+      horizontalAccuracy: identical(horizontalAccuracy, _unset)
+          ? this.horizontalAccuracy
+          : horizontalAccuracy as double?,
       address: identical(address, _unset) ? this.address : address as String?,
       classification: classification ?? this.classification,
       classificationResult: identical(classificationResult, _unset)
@@ -113,6 +122,7 @@ class CaptureUiState {
       location: LocationStatus.idle,
       latitude: null,
       longitude: null,
+      horizontalAccuracy: null,
       address: null,
       classification: ClassificationStatus.idle,
       classificationResult: null,
