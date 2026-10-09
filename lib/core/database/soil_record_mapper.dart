@@ -27,6 +27,8 @@ SoilRecord soilRecordFromRow(SoilRecordRow row) => SoilRecord(
       modelVersion: row.modelVersion,
       datasetVersion: row.datasetVersion,
       horizontalAccuracy: row.horizontalAccuracy,
+      fieldName: row.fieldName,
+      sampleLabel: row.sampleLabel,
     );
 
 /// The `class_distribution` column's text for [distribution]: a JSON array of

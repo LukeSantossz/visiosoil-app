@@ -88,6 +88,28 @@ void main() {
     expect(find.textContaining('Precisão'), findsNothing);
   });
 
+  // SPEC 0149: the identification tile names each label the record has, and
+  // says when it has none.
+  testWidgets('details_show_the_labels', (tester) async {
+    await pumpInfo(
+      tester,
+      recordWith().copyWith(fieldName: 'Talhão 3', sampleLabel: 'A1'),
+    );
+    expect(find.text('Identificação'), findsOneWidget);
+    expect(find.text('Talhão: Talhão 3\nAmostra: A1'), findsOneWidget);
+
+    await pumpInfo(tester, recordWith().copyWith(sampleLabel: 'A1'));
+    expect(find.text('Amostra: A1'), findsOneWidget);
+    expect(find.textContaining('Talhão:'), findsNothing);
+  });
+
+  testWidgets('details_show_no_identification', (tester) async {
+    await pumpInfo(tester, recordWith());
+
+    expect(find.text('Identificação'), findsOneWidget);
+    expect(find.text('Sem identificação'), findsOneWidget);
+  });
+
   // In high contrast the card's edge is solid and 2 dp wide (SPEC 0135).
   testWidgets('hc_edges_are_thicker: the info card', (tester) async {
     await pumpInfo(tester, recordWith(), theme: AppTheme.lightHighContrast);

@@ -44,6 +44,29 @@ SoilRecord _locatedRecord() => SoilRecord(
       confidenceScore: 0.9,
     );
 
+/// Applies label writes to the record details read, as the Drift repository
+/// does, so a re-read shows them (SPEC 0149).
+class _LabellingRepository extends FakeSoilRecordRepository {
+  _LabellingRepository(this.current);
+
+  SoilRecord current;
+
+  @override
+  Future<void> updateLabels(
+    int id, {
+    String? fieldName,
+    String? sampleLabel,
+  }) async {
+    await super.updateLabels(
+      id,
+      fieldName: fieldName,
+      sampleLabel: sampleLabel,
+    );
+    current =
+        current.copyWith(fieldName: fieldName, sampleLabel: sampleLabel);
+  }
+}
+
 SoilRecord _unlocatedRecord() => SoilRecord(
       id: 1,
       imagePath: 'x.png',
@@ -641,6 +664,99 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     semantics.dispose();
+  });
+
+  // SPEC 0149: the labels are edited from the identification tile.
+  group('editing_labels_saves_them', () {
+    late _LabellingRepository repo;
+
+    Future<void> openDialog(WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      repo = _LabellingRepository(
+        _locatedRecord().copyWith(fieldName: 'Talhão 3', sampleLabel: 'A1'),
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordRepositoryProvider.overrideWithValue(repo),
+          soilRecordByIdProvider.overrideWith((ref, id) async => repo.current),
+          managementTipsRepositoryProvider
+              .overrideWithValue(FakeManagementTipsRepository()),
+          researchServiceProvider.overrideWithValue(
+            FakeResearchService(
+              (_) async => const ResearchFailure(
+                ResearchFailureKind.upstreamUnavailable,
+              ),
+            ),
+          ),
+          connectivityServiceProvider.overrideWithValue(
+            FakeConnectivityService(ConnectivityStatus.online),
+          ),
+        ],
+        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder field(String label) => find.widgetWithText(TextField, label);
+
+    testWidgets('the dialog opens with the current labels', (tester) async {
+      await openDialog(tester);
+
+      expect(
+        tester.widget<TextField>(field('Talhão')).controller!.text,
+        'Talhão 3',
+      );
+      expect(
+        tester.widget<TextField>(field('Amostra')).controller!.text,
+        'A1',
+      );
+    });
+
+    testWidgets('saving writes the fields and shows them', (tester) async {
+      await openDialog(tester);
+
+      await tester.enterText(field('Talhão'), 'Talhão 4');
+      await tester.enterText(field('Amostra'), ' B2 ');
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(repo.updateLabelsCalls, hasLength(1));
+      final call = repo.updateLabelsCalls.single;
+      expect(call.id, 1);
+      expect(call.fieldName, 'Talhão 4');
+      expect(call.sampleLabel, ' B2 ');
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Talhão: Talhão 4\nAmostra:  B2 '), findsOneWidget);
+    });
+
+    testWidgets('cancelling writes nothing', (tester) async {
+      await openDialog(tester);
+
+      await tester.enterText(field('Talhão'), 'Talhão 4');
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(repo.updateLabelsCalls, isEmpty);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Talhão: Talhão 3\nAmostra: A1'), findsOneWidget);
+    });
+
+    testWidgets('a failed write says so', (tester) async {
+      await openDialog(tester);
+      repo.throwOnUpdateLabels = true;
+
+      await tester.enterText(field('Talhão'), 'Talhão 4');
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Não foi possível salvar a identificação.'),
+        findsOneWidget,
+      );
+    });
   });
 
   // The top of details, and its actions, each pass Flutter's four

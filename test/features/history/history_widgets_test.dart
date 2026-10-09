@@ -599,6 +599,31 @@ void main() {
       );
     });
 
+    // SPEC 0149: a labelled card names its labels, shown and spoken.
+    testWidgets('the_history_card_shows_the_labels', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final labelled =
+          record(id: 1).copyWith(fieldName: 'Talhão 3', sampleLabel: 'A1');
+      final sampleOnly = record(id: 2).copyWith(sampleLabel: 'B2');
+      final unlabelled = record(id: 3);
+      await tester.pumpWidget(
+        gridWith([labelled, sampleOnly, unlabelled]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Talhão 3 · A1'), findsOneWidget);
+      expect(find.text('B2'), findsOneWidget);
+      expect(find.textContaining(' · '), findsOneWidget);
+      final date = labelled.formattedTimestampCompact;
+      expect(
+        find.bySemanticsLabel('Registro de $date, Talhão 3 · A1'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Registro de $date, B2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Registro de $date'), findsOneWidget);
+      semantics.dispose();
+    });
+
     testWidgets('no_notice_under_the_cap', (tester) async {
       await tester.pumpWidget(gridWith(records(150)));
       await tester.pumpAndSettle();

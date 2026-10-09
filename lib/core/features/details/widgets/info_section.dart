@@ -4,17 +4,41 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// The details screen's metadata block: location, collection date, and (when
-/// classified) the texture class, each in a bordered info tile.
+/// The details screen's metadata block: identification, location, collection
+/// date, and (when classified) the texture class, each in a bordered info
+/// tile.
 class InfoSection extends StatelessWidget {
-  const InfoSection({super.key, required this.record});
+  const InfoSection({super.key, required this.record, this.onEditLabels});
 
   final SoilRecord record;
+
+  /// Opens the label editor; null shows no "Editar" button (SPEC 0149).
+  final VoidCallback? onEditLabels;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Each label the record has on its own line (SPEC 0149).
+        _InfoTile(
+          icon: Icons.label_outline,
+          title: 'Identificação',
+          value: record.hasLabels
+              ? [
+                  if (record.fieldName != null)
+                    'Talhão: ${record.fieldName}',
+                  if (record.sampleLabel != null)
+                    'Amostra: ${record.sampleLabel}',
+                ].join('\n')
+              : 'Sem identificação',
+          action: onEditLabels == null
+              ? null
+              : TextButton(
+                  onPressed: onEditLabels,
+                  child: const Text('Editar'),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _InfoTile(
           icon: Icons.location_on_outlined,
           title: 'Localização',
@@ -52,12 +76,14 @@ class _InfoTile extends StatelessWidget {
     required this.title,
     required this.value,
     this.subtitle,
+    this.action,
   });
 
   final IconData icon;
   final String title;
   final String value;
   final String? subtitle;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +128,7 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
+          ?action,
         ],
       ),
     );

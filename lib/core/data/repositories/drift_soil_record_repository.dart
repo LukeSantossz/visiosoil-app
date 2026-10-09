@@ -131,6 +131,41 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }
 
   @override
+  Future<void> updateLabels(
+    int id, {
+    String? fieldName,
+    String? sampleLabel,
+  }) async {
+    final now = _now();
+    await _db.transaction(() async {
+      final row = await (_db.select(_db.soilRecords)
+            ..where((t) => t.id.equals(id) & t.deleted.equals(false)))
+          .getSingleOrNull();
+      if (row == null) return;
+
+      // A label is record content, so the edit is marked for sync as a
+      // create is.
+      await (_db.update(_db.soilRecords)..where((t) => t.id.equals(id)))
+          .write(
+        SoilRecordsCompanion(
+          fieldName: Value(_storedLabel(fieldName)),
+          sampleLabel: Value(_storedLabel(sampleLabel)),
+          syncStatus: const Value('pending'),
+          updatedAt: Value(now),
+        ),
+      );
+      await _enqueue(row.uuid, SyncOperation.upsert, now);
+    });
+  }
+
+  /// A label as stored: trimmed, and null when nothing is left of it, so a
+  /// blank label is never stored (SPEC 0149).
+  static String? _storedLabel(String? label) {
+    final trimmed = label?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  @override
   Future<void> deleteById(int id) async {
     await _tombstone((t) => t.id.equals(id));
   }
@@ -163,7 +198,8 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         condition = condition & t.textureClass.equals(textureClass);
       }
 
-      // Filter by search term on the address (case-insensitive LIKE).
+      // Filter by search term on the address or either label
+      // (case-insensitive LIKE, SPEC 0149).
       // The term is a literal substring, not a pattern: it is trimmed, and the
       // LIKE metacharacters (% and _) plus the escape character itself are
       // escaped so they match themselves. A term that is empty after trimming
@@ -175,11 +211,14 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             .replaceAll(_likeEscapeChar, '$_likeEscapeChar$_likeEscapeChar')
             .replaceAll('%', '$_likeEscapeChar%')
             .replaceAll('_', '${_likeEscapeChar}_');
+        Expression<bool> contains(GeneratedColumn<String> column) =>
+            column.lower().like('%$escaped%', escapeChar: _likeEscapeChar);
+        // A NULL column matches nothing, so a record without an address is
+        // still found by its labels.
         condition = condition &
-            t.address.lower().like(
-                  '%$escaped%',
-                  escapeChar: _likeEscapeChar,
-                );
+            (contains(t.address) |
+                contains(t.fieldName) |
+                contains(t.sampleLabel));
       }
 
       return condition;
@@ -230,6 +269,8 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             modelVersion: const Value(null),
             datasetVersion: const Value(null),
             horizontalAccuracy: const Value(null),
+            fieldName: const Value(null),
+            sampleLabel: const Value(null),
           ),
         );
         // Per row, like the update above, so a wipe binds no list of uuids.
