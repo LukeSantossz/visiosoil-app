@@ -44,6 +44,27 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
   @override
   Future<void> deleteAll() async => deleteAllCalls++;
 
+  /// Every [updateLabels] call in order, as the screen passed it.
+  final List<({int id, String? fieldName, String? sampleLabel})>
+      updateLabelsCalls =
+      <({int id, String? fieldName, String? sampleLabel})>[];
+
+  /// When true, [updateLabels] throws after recording the call.
+  bool throwOnUpdateLabels = false;
+
+  @override
+  Future<void> updateLabels(
+    int id, {
+    String? fieldName,
+    String? sampleLabel,
+  }) async {
+    updateLabelsCalls
+        .add((id: id, fieldName: fieldName, sampleLabel: sampleLabel));
+    if (throwOnUpdateLabels) {
+      throw Exception('forced updateLabels failure');
+    }
+  }
+
   @override
   Stream<List<SoilRecord>> watchFiltered({
     String? textureClass,

@@ -173,6 +173,9 @@ void main() {
       expect(row.read<String?>('dataset_version'), isNull);
       // SPEC 0148: how precisely the point was fixed describes it, too.
       expect(row.read<double?>('horizontal_accuracy'), isNull);
+      // SPEC 0149: the agronomist's labels are the record's content, too.
+      expect(row.read<String?>('field_name'), isNull);
+      expect(row.read<String?>('sample_label'), isNull);
       expect(row.read<String>('image_path'), isEmpty);
       expect(row.read<String>('timestamp'), row.read<String>('updated_at'));
     }
@@ -219,6 +222,24 @@ void main() {
 
       final row = await storedRow(saved.uuid!);
       expect(row.read<double?>('horizontal_accuracy'), isNull);
+    });
+
+    test('a_deleted_record_erases_its_labels', () async {
+      final saved = await repo.create(captured());
+      await repo.updateLabels(
+        saved.id!,
+        fieldName: 'Talhão 3',
+        sampleLabel: 'A1',
+      );
+      // Guards the test: the columns held something to erase.
+      final before = await storedRow(saved.uuid!);
+      expect(before.read<String?>('field_name'), 'Talhão 3');
+      expect(before.read<String?>('sample_label'), 'A1');
+      now = DateTime.parse(deletedAt);
+
+      await repo.deleteById(saved.id!);
+
+      expectErased(await storedRow(saved.uuid!));
     });
 
     test('delete_keeps_what_sync_reads', () async {
