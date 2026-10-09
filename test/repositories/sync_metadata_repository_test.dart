@@ -151,6 +151,7 @@ void main() {
           ],
           modelVersion: '1.0.0',
           datasetVersion: 'v1',
+          horizontalAccuracy: 4.2,
         );
 
     Future<QueryRow> storedRow(String uuid) => db
@@ -170,6 +171,8 @@ void main() {
       expect(row.read<String?>('class_distribution'), isNull);
       expect(row.read<String?>('model_version'), isNull);
       expect(row.read<String?>('dataset_version'), isNull);
+      // SPEC 0148: how precisely the point was fixed describes it, too.
+      expect(row.read<double?>('horizontal_accuracy'), isNull);
       expect(row.read<String>('image_path'), isEmpty);
       expect(row.read<String>('timestamp'), row.read<String>('updated_at'));
     }
@@ -203,6 +206,19 @@ void main() {
       expect(row.read<String?>('class_distribution'), isNull);
       expect(row.read<String?>('model_version'), isNull);
       expect(row.read<String?>('dataset_version'), isNull);
+    });
+
+    test('a_deleted_record_erases_its_accuracy', () async {
+      final saved = await repo.create(captured());
+      // Guards the test: the column held something to erase.
+      final before = await storedRow(saved.uuid!);
+      expect(before.read<double?>('horizontal_accuracy'), 4.2);
+      now = DateTime.parse(deletedAt);
+
+      await repo.deleteById(saved.id!);
+
+      final row = await storedRow(saved.uuid!);
+      expect(row.read<double?>('horizontal_accuracy'), isNull);
     });
 
     test('delete_keeps_what_sync_reads', () async {

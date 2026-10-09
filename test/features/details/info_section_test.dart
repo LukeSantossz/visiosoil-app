@@ -49,6 +49,45 @@ void main() {
     expect(find.text('Classe textural'), findsOneWidget);
   });
 
+  // SPEC 0148: the accuracy reads under the coordinates, known or not, and
+  // never without them.
+  testWidgets('details_show_known_accuracy', (tester) async {
+    await pumpInfo(
+      tester,
+      const SoilRecord(
+        imagePath: 'x.png',
+        latitude: -23.5,
+        longitude: -46.6,
+        timestamp: '2026-06-26T12:00:00Z',
+        horizontalAccuracy: 4.2,
+      ),
+    );
+
+    expect(
+      find.text('-23.500000, -46.600000\nPrecisão estimada: ± 5 m'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('details_show_unavailable_accuracy', (tester) async {
+    await pumpInfo(
+      tester,
+      const SoilRecord(
+        imagePath: 'x.png',
+        latitude: -23.5,
+        longitude: -46.6,
+        timestamp: '2026-06-26T12:00:00Z',
+      ),
+    );
+    expect(
+      find.text('-23.500000, -46.600000\nPrecisão não disponível'),
+      findsOneWidget,
+    );
+
+    await pumpInfo(tester, recordWith());
+    expect(find.textContaining('Precisão'), findsNothing);
+  });
+
   // In high contrast the card's edge is solid and 2 dp wide (SPEC 0135).
   testWidgets('hc_edges_are_thicker: the info card', (tester) async {
     await pumpInfo(tester, recordWith(), theme: AppTheme.lightHighContrast);

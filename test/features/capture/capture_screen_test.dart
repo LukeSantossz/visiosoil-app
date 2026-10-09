@@ -573,7 +573,8 @@ void main() {
       final classifyGate = Completer<InferenceResult?>();
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),
-        locate: () async => (latitude: -23.5, longitude: -46.6, address: 'X'),
+        locate: () async => (latitude: -23.5, longitude: -46.6,
+            accuracy: null, address: 'X'),
         classify: (_) => classifyGate.future,
       ));
 
@@ -631,7 +632,8 @@ void main() {
       expect(repository.createCalls, hasLength(1));
 
       locateGate.complete(
-        (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+        (latitude: -23.5, longitude: -46.6,
+            accuracy: null, address: 'São Paulo'),
       );
       await settle(tester);
 
@@ -802,6 +804,39 @@ void main() {
     expect(saved.datasetVersion, 'v1');
   });
 
+  // SPEC 0148: the reading's horizontal accuracy reaches the record, and a
+  // reading without one saves none.
+  for (final accuracy in [4.2, null]) {
+    testWidgets('saving_a_located_capture_persists_the_accuracy ($accuracy)',
+        (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () => Future<LocationReading?>.value((
+          latitude: -23.5,
+          longitude: -46.6,
+          accuracy: accuracy,
+          address: 'São Paulo',
+        )),
+        classify: (_) async => null,
+        repository: repository,
+      ));
+
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+
+      final saved = repository.createCalls.single;
+      expect(saved.latitude, -23.5);
+      expect(saved.horizontalAccuracy, accuracy);
+    });
+  }
+
   testWidgets('the default camera picker requests images without full metadata',
       (tester) async {
     // In a unit test ImagePickerPlatform.instance is MethodChannelImagePicker,
@@ -882,7 +917,7 @@ void main() {
     expect(find.text('Localizando...'), findsOneWidget);
 
     locateGate.complete(
-      (latitude: -23.5, longitude: -46.6, address: 'São Paulo'),
+      (latitude: -23.5, longitude: -46.6, accuracy: null, address: 'São Paulo'),
     );
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
@@ -903,6 +938,7 @@ void main() {
       locate: () => Future<LocationReading?>.value((
         latitude: -23.5,
         longitude: -46.6,
+        accuracy: null,
         address: AppStrings.addressUnavailable,
       )),
       classify: (_) async => null,
@@ -1197,7 +1233,8 @@ void main() {
     LocationResolver countedLocate(List<int> count) => () {
           count[0]++;
           return Future<LocationReading?>.value(
-            (latitude: -23.5, longitude: -46.6, address: 'Ponto ${count[0]}'),
+            (latitude: -23.5, longitude: -46.6,
+                accuracy: null, address: 'Ponto ${count[0]}'),
           );
         };
 
@@ -1323,7 +1360,8 @@ void main() {
                 return XFile(samplePath);
               },
               locate: () => Future<LocationReading?>.value(
-                (latitude: -23.5, longitude: -46.6, address: 'Ponto 1'),
+                (latitude: -23.5, longitude: -46.6,
+                    accuracy: null, address: 'Ponto 1'),
               ),
               checkCameraPermission: () async => camera,
               requestCameraPermission: () async => camera,
@@ -1530,7 +1568,8 @@ void main() {
       // Typed as the seam's nullable future: the screen's location timeout
       // answers null, which a non-nullable future cannot hold.
       locate: () => Future<LocationReading?>.value(
-          (latitude: -23.5, longitude: -46.6, address: 'São Paulo')),
+          (latitude: -23.5, longitude: -46.6,
+              accuracy: null, address: 'São Paulo')),
       classify: (path) async {
         classified.add(path);
         return null;

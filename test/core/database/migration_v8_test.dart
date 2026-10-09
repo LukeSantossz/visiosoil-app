@@ -1,13 +1,13 @@
-// Migration tests for schema v6 -> v7 (the class distribution and the contract
-// versions a classification was scored with, SPEC 0097).
+// Migration tests for schema v7 -> v8 (the horizontal accuracy of a record's
+// GPS fix, SPEC 0148).
 //
-// A v6-shaped database is built directly with `package:sqlite3` (its
-// `user_version` pragma set to 6), then opened through [AppDatabase] so Drift
-// runs `onUpgrade`. Mirrors `migration_v6_test.dart`.
+// A v7-shaped database is built directly with `package:sqlite3` (its
+// `user_version` pragma set to 7), then opened through [AppDatabase] so Drift
+// runs `onUpgrade`. Mirrors `migration_v7_test.dart`.
 //
-// The three columns are nullable and arrive NULL on every existing row: a
-// record saved before v7 never had them, and a tombstone keeps only what sync
-// reads, so neither may be given a value it never had.
+// The column is nullable and arrives NULL on every existing row: a record
+// saved before v8 never had it, and a tombstone keeps only what sync reads, so
+// neither may be given a value it never had.
 import 'dart:io';
 
 import 'package:drift/drift.dart' show QueryRow, Variable;
@@ -17,14 +17,14 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 
 void main() {
-  group('migration v6 -> v7 (class distribution and contract versions)', () {
+  group('migration v7 -> v8 (horizontal accuracy)', () {
     late Directory tempDir;
     late File dbFile;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('visiosoil_mig_v7');
-      dbFile = File('${tempDir.path}/visiosoil_v6.db');
-      _seedV6Database(dbFile.path);
+      tempDir = Directory.systemTemp.createTempSync('visiosoil_mig_v8');
+      dbFile = File('${tempDir.path}/visiosoil_v7.db');
+      _seedV7Database(dbFile.path);
     });
 
     tearDown(() {
@@ -33,7 +33,14 @@ void main() {
       }
     });
 
-    test('migration_v6_to_v7_adds_the_columns_as_null', () async {
+    test('schema_version_is_eight', () {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      expect(db.schemaVersion, 8);
+    });
+
+    test('migration_v7_to_v8_adds_the_column_as_null', () async {
       final db = AppDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
 
@@ -46,29 +53,36 @@ void main() {
 
       for (final uuid in ['uuid-live', 'uuid-deleted']) {
         final stored = await row(uuid);
-        expect(stored.read<String?>('class_distribution'), isNull, reason: uuid);
-        expect(stored.read<String?>('model_version'), isNull, reason: uuid);
-        expect(stored.read<String?>('dataset_version'), isNull, reason: uuid);
+        expect(stored.read<double?>('horizontal_accuracy'), isNull,
+            reason: uuid);
       }
 
       // Every other column keeps its value.
       final live = await row('uuid-live');
+      expect(live.read<double?>('latitude'), -22.9);
+      expect(live.read<double?>('longitude'), -47.06);
       expect(live.read<String?>('address'), 'Fazenda Boa Vista');
       expect(live.read<String?>('texture_class'), 'Argilosa');
       expect(live.read<double?>('confidence_score'), 0.87);
+      expect(live.read<String?>('model_version'), '1.0.0');
+      expect(live.read<String?>('dataset_version'), 'v1');
       expect(live.read<String>('image_path'), '/live.jpg');
       final deleted = await row('uuid-deleted');
       expect(deleted.read<String>('image_path'), isEmpty);
       expect(deleted.read<String?>('remote_id'), 'remote-deleted');
 
+      // The upgrade itself stamps the new version on the file.
+      final version =
+          await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.read<int>('user_version'), 8);
     });
   });
 }
 
-/// Creates a v6-shaped database holding one live record and one tombstone that
-/// SPEC 0093 already erased, and stamps `user_version` to 6 so Drift runs only
-/// the v6 -> v7 step.
-void _seedV6Database(String path) {
+/// Creates a v7-shaped database holding one live record and one erased
+/// tombstone, and stamps `user_version` to 7 so Drift runs only the v7 -> v8
+/// step.
+void _seedV7Database(String path) {
   final raw = sqlite3.open(path);
   try {
     raw.execute('''
@@ -85,7 +99,10 @@ void _seedV6Database(String path) {
         updated_at TEXT NOT NULL,
         deleted INTEGER NOT NULL DEFAULT 0,
         texture_class TEXT,
-        confidence_score REAL
+        confidence_score REAL,
+        class_distribution TEXT,
+        model_version TEXT,
+        dataset_version TEXT
       );
     ''');
     raw.execute(
@@ -111,10 +128,10 @@ void _seedV6Database(String path) {
     raw.execute(
       'INSERT INTO soil_records (uuid, image_path, latitude, longitude, '
       'address, timestamp, updated_at, deleted, texture_class, '
-      'confidence_score) VALUES '
+      'confidence_score, model_version, dataset_version) VALUES '
       "('uuid-live', '/live.jpg', -22.9, -47.06, 'Fazenda Boa Vista', "
       "'2026-01-01T09:30:00.000Z', '2026-01-01T12:00:00.000Z', 0, "
-      "'Argilosa', 0.87);",
+      "'Argilosa', 0.87, '1.0.0', 'v1');",
     );
     raw.execute(
       'INSERT INTO soil_records (uuid, remote_id, image_path, timestamp, '
@@ -122,7 +139,7 @@ void _seedV6Database(String path) {
       "('uuid-deleted', 'remote-deleted', '', '2026-02-02T00:00:00.000Z', "
       "'2026-02-02T00:00:00.000Z', 1);",
     );
-    raw.execute('PRAGMA user_version = 6;');
+    raw.execute('PRAGMA user_version = 7;');
   } finally {
     raw.dispose();
   }

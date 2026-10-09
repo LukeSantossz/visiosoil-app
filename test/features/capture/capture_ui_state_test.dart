@@ -55,6 +55,19 @@ void main() {
     expect(cleared.latitude, 1, reason: 'other nullables stay untouched');
   });
 
+  test('a_new_capture_clears_the_accuracy', () {
+    // SPEC 0148: the accuracy belongs to the fix it came with.
+    const s = CaptureUiState(
+      location: LocationStatus.resolved,
+      latitude: 1,
+      longitude: 2,
+      horizontalAccuracy: 4.2,
+    );
+
+    expect(s.copyWith(isSaving: true).horizontalAccuracy, 4.2);
+    expect(s.startingCapture(1).horizontalAccuracy, isNull);
+  });
+
   test('startingCapture advances the generation and resets both async axes', () {
     const s = CaptureUiState(
       location: LocationStatus.resolved,
