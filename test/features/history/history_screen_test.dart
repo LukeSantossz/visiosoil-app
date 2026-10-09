@@ -14,6 +14,28 @@ import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
+/// A repository whose streams serve a fixed list, filtered by class the way
+/// the database filters it.
+final class _ListSoilRecordRepository extends FakeSoilRecordRepository {
+  _ListSoilRecordRepository(this.records);
+
+  final List<SoilRecord> records;
+
+  @override
+  Stream<List<SoilRecord>> watchAll() => Stream.value(records);
+
+  @override
+  Stream<List<SoilRecord>> watchFiltered({
+    String? textureClass,
+    String? searchTerm,
+  }) =>
+      Stream.value([
+        for (final record in records)
+          if (textureClass == null || record.textureClass == textureClass)
+            record,
+      ]);
+}
+
 /// Guards the history texture-filter error state (#117): a provider failure must
 /// surface visible feedback with a retry that actually re-reads the underlying
 /// records stream, not silently collapse the chip bar.
@@ -360,6 +382,86 @@ void main() {
       expect(find.text('Histórico'), findsOneWidget);
       expect(find.byTooltip('Cancelar seleção'), findsNothing);
       expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+    });
+  });
+
+  // Past the first page, a button at the end of the grid adds the next one,
+  // under the filters and across selection mode (SPEC 0145).
+  group('browsing past the first page', () {
+    const showMore = 'Mostrar mais registros';
+    // Ids count..1, newest first; even ids are Argilosa and odd ones Arenosa.
+    final all = [
+      for (var id = 400; id >= 1; id--)
+        SoilRecord(
+          id: id,
+          imagePath: 'x.png',
+          timestamp: '2026-06-26T12:00:00Z',
+          textureClass: id.isEven ? 'Argilosa' : 'Arenosa',
+          confidenceScore: 0.9,
+        ),
+    ];
+
+    Widget appWithAll() => ProviderScope(
+          overrides: [
+            soilRecordsStreamProvider
+                .overrideWithValue(AsyncValue<List<SoilRecord>>.data(all)),
+            soilRecordRepositoryProvider
+                .overrideWithValue(_ListSoilRecordRepository(all)),
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        );
+
+    int gridCount(WidgetTester tester) {
+      final grid = tester.widget<SliverGrid>(find.byType(SliverGrid));
+      return (grid.delegate as SliverChildBuilderDelegate).childCount!;
+    }
+
+    Future<void> tapShowMore(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.text(showMore),
+        3000,
+        scrollable: find
+            .byWidgetPredicate((widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down)
+            .first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(showMore));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('show_more_keeps_the_filters', (tester) async {
+      await tester.pumpWidget(appWithAll());
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
+      await tester.pumpAndSettle();
+      expect(gridCount(tester), 150);
+
+      await tapShowMore(tester);
+
+      expect(gridCount(tester), 200);
+      expect(find.text(showMore), findsNothing);
+      expect(
+        tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
+            .selected,
+        isTrue,
+      );
+    });
+
+    testWidgets('selection_keeps_the_shown_records', (tester) async {
+      await tester.pumpWidget(appWithAll());
+      await tester.pumpAndSettle();
+      await tapShowMore(tester);
+      expect(gridCount(tester), 300);
+
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await tester.pumpAndSettle();
+      expect(gridCount(tester), 300);
+
+      await tester.tap(find.byTooltip('Cancelar seleção'));
+      await tester.pumpAndSettle();
+      expect(gridCount(tester), 300);
     });
   });
 
