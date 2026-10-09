@@ -1,8 +1,13 @@
-# Capture Guide — Open Decision
+# Capture Guide
 
-**Status: open. The content of the guide is being redefined by the product
-owner.** This document holds the open question and the constraints any version
-must satisfy. It deliberately proposes no step list and no copy.
+**Status: content settled by
+[SPEC 0142](../../specs/0142-show-the-capture-guide-before-the-first-camera-launch.md).**
+The guide carries the A4-sheet protocol of ADR 0017, the three steps the
+onboarding already teaches (SPEC 0104). The coin and the 70 % fill weighed in
+§2 left the protocol with ADR 0017, and `guide_names_the_roi` went with them,
+since the framing the reader needs is the whole sheet. §3's behaviour is built
+as written. §4's onboarding rework stays open. The rest of this document is
+kept as it was written, as the record of the question.
 
 An earlier draft of this file did propose both, and settled the protocol
 question unilaterally. That draft was withdrawn before it was committed.

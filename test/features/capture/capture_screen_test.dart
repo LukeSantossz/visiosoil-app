@@ -4,12 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
+import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
@@ -20,9 +22,11 @@ import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/fake_capture_guide_store.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
@@ -70,6 +74,12 @@ class _GatedSoilRecordRepository extends FakeSoilRecordRepository {
   }
 }
 
+// A capture test is about what follows the camera, so the guide that precedes
+// the first one is already seen; the guide's own tests seed it unseen
+// (SPEC 0142).
+Override _guideAlreadySeen() =>
+    captureGuideStoreProvider.overrideWithValue(FakeCaptureGuideStore(seen: true));
+
 // Every test captures the same sample file, so the harness never lets the
 // screen delete it: a test that is about deletion passes its own deleter.
 Future<void> _keepPickedFile(String _) async {}
@@ -97,6 +107,7 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
+        _guideAlreadySeen(),
         inferenceServiceProvider.overrideWithValue(
             inference ?? _FakeInference(classify, cause: failureCause)),
         if (repository != null)
@@ -160,6 +171,7 @@ void main() {
     );
     return ProviderScope(
       overrides: [
+        _guideAlreadySeen(),
         inferenceServiceProvider.overrideWithValue(_FakeInference(classify)),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
@@ -207,6 +219,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        _guideAlreadySeen(),
         inferenceServiceProvider.overrideWithValue(_FakeInference(
           (_) async => null,
           cause: ClassificationFailureCause.sheetNotFound,
@@ -813,6 +826,7 @@ void main() {
     // drives ImagePicker().pickImage down to the intercepted channel.
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        _guideAlreadySeen(),
         inferenceServiceProvider
             .overrideWithValue(_FakeInference((_) async => null)),
       ],
@@ -834,6 +848,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        _guideAlreadySeen(),
         inferenceServiceProvider
             .overrideWithValue(_FakeInference((_) async => null)),
       ],
@@ -1108,4 +1123,167 @@ void main() {
       semantics.dispose();
     });
   }
+
+  // The guide comes before the first camera launch only, its back button
+  // never opens the camera, and a flag that cannot be read or written never
+  // keeps the camera closed (SPEC 0142).
+  group('capture guide', () {
+    Widget buildGuided(FakeCaptureGuideStore store, List<String> picks) {
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, _) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => context.push('/capture'),
+                  child: const Text('open capture'),
+                ),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/capture',
+            builder: (_, _) => CaptureScreen(
+              pickFromCamera: () async {
+                picks.add('camera');
+                return XFile(samplePath);
+              },
+              locate: () async => null,
+              checkCameraPermission: () async => AppPermissionStatus.granted,
+              requestCameraPermission: () async => AppPermissionStatus.granted,
+              deletePickedFile: _keepPickedFile,
+            ),
+          ),
+          GoRoute(
+            path: '/capture-guide',
+            builder: (_, state) =>
+                CaptureGuideScreen(beforeCamera: state.extra == true),
+          ),
+        ],
+      );
+      return ProviderScope(
+        overrides: [
+          captureGuideStoreProvider.overrideWithValue(store),
+          inferenceServiceProvider.overrideWithValue(_FakeInference(
+            (_) async =>
+                const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+          )),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      );
+    }
+
+    Future<void> openCapture(WidgetTester tester) async {
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('guide_shown_before_first_camera', (tester) async {
+      final store = FakeCaptureGuideStore();
+      final picks = <String>[];
+      await tester.pumpWidget(buildGuided(store, picks));
+      await openCapture(tester);
+
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsOneWidget);
+      expect(picks, isEmpty);
+
+      await tester.tap(find.text('Abrir câmera'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsNothing);
+      expect(picks, ['camera']);
+      expect(find.text('Salvar registro'), findsOneWidget);
+
+      // The second capture goes straight to the camera.
+      await tester.tap(find.text('Descartar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsNothing);
+      expect(picks, ['camera', 'camera']);
+    });
+
+    testWidgets('back_does_not_open_camera', (tester) async {
+      final store = FakeCaptureGuideStore();
+      final picks = <String>[];
+      await tester.pumpWidget(buildGuided(store, picks));
+      await openCapture(tester);
+
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CaptureGuideScreen), findsNothing);
+      expect(find.text('Câmera'), findsOneWidget);
+      expect(picks, isEmpty);
+      expect(store.seen, isFalse);
+
+      // Backing out leaves the guide unseen, so the next tap shows it again.
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsOneWidget);
+    });
+
+    testWidgets('an_unreadable_flag_does_not_block_the_camera',
+        (tester) async {
+      final picks = <String>[];
+      await tester.pumpWidget(buildGuided(
+        FakeCaptureGuideStore(readError: Exception('prefs unavailable')),
+        picks,
+      ));
+      await openCapture(tester);
+
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CaptureGuideScreen), findsNothing);
+      expect(picks, ['camera']);
+    });
+
+    testWidgets('an_unwritable_flag_does_not_block_the_camera',
+        (tester) async {
+      final picks = <String>[];
+      await tester.pumpWidget(buildGuided(
+        FakeCaptureGuideStore(writeError: Exception('disk full')),
+        picks,
+      ));
+      await openCapture(tester);
+
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Abrir câmera'));
+      await tester.pumpAndSettle();
+
+      expect(picks, ['camera']);
+      expect(find.text('Salvar registro'), findsOneWidget);
+    });
+
+    testWidgets('guide_reachable_on_demand from capture', (tester) async {
+      final store = FakeCaptureGuideStore();
+      final picks = <String>[];
+      await tester.pumpWidget(buildGuided(store, picks));
+      await openCapture(tester);
+
+      await tester.tap(find.byTooltip('Como capturar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsOneWidget);
+      expect(find.text('Abrir câmera'), findsNothing);
+
+      await tester.tap(find.text('Entendi'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureGuideScreen), findsNothing);
+      expect(find.text('Câmera'), findsOneWidget);
+      expect(picks, isEmpty);
+      expect(store.markCalls, 1);
+
+      // Read on demand counts as seen: the first capture opens the camera.
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      expect(picks, ['camera']);
+    });
+  });
 }

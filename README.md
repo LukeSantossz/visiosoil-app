@@ -203,7 +203,7 @@ visiosoil-app/
 │   ├── core/
 │   │   ├── theme/           # AppTheme, AppColors, AppTypography, AppSpacing,
 │   │   │                    #   SoilTextureColors
-│   │   ├── routes/          # GoRouter config (7 routes + errorBuilder)
+│   │   ├── routes/          # GoRouter config (8 routes + errorBuilder)
 │   │   ├── constants/       # Centralized pt-BR UI strings
 │   │   ├── widgets/         # VisioAppBar, VisioButton, EmptyState, ErrorState,
 │   │   │                    #   LoadingIndicator, PermissionDeniedView, RouteErrorView
@@ -220,7 +220,7 @@ visiosoil-app/
 │   │   └── features/        # Screens: splash, onboarding, main, home, capture,
 │   │                        #          history, details, preview, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 11 files declaring 22 Riverpod providers (database, repository,
+│   └── providers/           # 19 files declaring 37 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
@@ -235,7 +235,7 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme, Riverpod state management, GoRouter navigation (7 routes)
+- [x] Material 3 theme, Riverpod state management, GoRouter navigation (8 routes)
 - [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs

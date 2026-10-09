@@ -17,7 +17,9 @@ import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -177,6 +179,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         setState(() => _state = _state.copyWith(cameraPermission: null));
       }
 
+      if (!await _passCaptureGuide()) return;
       image = await _pickFromCamera();
     } catch (e) {
       developer.log('Camera capture failed: $e', name: 'CaptureScreen');
@@ -195,6 +198,25 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // The shutter's return; a recovered photograph gets none (SPEC 0126).
     unawaited(AppHaptics.confirm());
     await _useCapturedImage(image.path);
+  }
+
+  /// Shows the capture guide before the first camera launch, and answers
+  /// whether the camera may open: a guide already seen, or the guide's primary
+  /// action, lets it; its back button does not (SPEC 0142). A flag that cannot
+  /// be read counts as seen, so the store never keeps the camera closed.
+  Future<bool> _passCaptureGuide() async {
+    final bool seen;
+    try {
+      seen = await ref.read(captureGuideStoreProvider).hasSeenCaptureGuide();
+    } on Exception catch (e) {
+      developer.log('Could not read the capture guide flag: $e',
+          name: 'CaptureScreen');
+      return true;
+    }
+    if (seen) return true;
+    if (!mounted) return false;
+    final confirmed = await context.push<bool>('/capture-guide', extra: true);
+    return mounted && confirmed == true;
   }
 
   /// Shows the photograph at [path] as the capture and runs location and
@@ -435,7 +457,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final hasImage = selectedImage.hasImage;
 
     return Scaffold(
-      appBar: const VisioAppBar(title: 'Nova captura'),
+      appBar: VisioAppBar(
+        title: 'Nova captura',
+        actions: [
+          // The protocol on demand; it returns here and opens no camera
+          // (SPEC 0142).
+          VisioIconButton(
+            label: 'Como capturar',
+            icon: Icons.help_outline,
+            onPressed: () => context.push('/capture-guide'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),

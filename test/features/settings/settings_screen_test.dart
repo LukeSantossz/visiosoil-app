@@ -5,10 +5,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
+import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
+import 'package:visiosoil_app/core/services/capture_guide_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -17,11 +20,13 @@ import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
+import '../../support/fake_capture_guide_store.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/large_text.dart';
@@ -170,6 +175,8 @@ Widget _app(
       const _FakeConnectivityService(ConnectivityStatus.online),
   Future<PackageInfo>? packageInfo,
   ThemeData? theme,
+  CaptureGuideStore? captureGuide,
+  GoRouter? router,
 }) {
   return ProviderScope(
     overrides: [
@@ -199,8 +206,12 @@ Widget _app(
           .overrideWithValue(errorReport ?? _FakeErrorReportStore()),
       if (shareService != null)
         shareServiceProvider.overrideWithValue(shareService),
+      if (captureGuide != null)
+        captureGuideStoreProvider.overrideWithValue(captureGuide),
     ],
-    child: MaterialApp(theme: theme, home: const SettingsScreen()),
+    child: router == null
+        ? MaterialApp(theme: theme, home: const SettingsScreen())
+        : MaterialApp.router(theme: theme, routerConfig: router),
   );
 }
 
@@ -653,6 +664,42 @@ void main() {
       semantics.dispose();
     });
   }
+
+  // "Como capturar bem" opens the capture guide, which returns to Settings
+  // with no camera (SPEC 0142).
+  testWidgets('guide_reachable_on_demand from settings', (tester) async {
+    final store = FakeCaptureGuideStore();
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const SettingsScreen()),
+        GoRoute(
+          path: '/capture-guide',
+          builder: (_, state) =>
+              CaptureGuideScreen(beforeCamera: state.extra == true),
+        ),
+        GoRoute(
+          path: '/onboarding',
+          builder: (_, _) => const Scaffold(body: Text('ONBOARDING_STUB')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(null, captureGuide: store, router: router));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Como capturar bem'), 200);
+    await tester.tap(find.text('Como capturar bem'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CaptureGuideScreen), findsOneWidget);
+    expect(find.text('ONBOARDING_STUB'), findsNothing);
+    expect(find.text('Abrir câmera'), findsNothing);
+
+    await tester.tap(find.text('Entendi'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CaptureGuideScreen), findsNothing);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(store.markCalls, 1);
+  });
 }
 
 /// The pt-BR failure message the account tile surfaces on an auth error.

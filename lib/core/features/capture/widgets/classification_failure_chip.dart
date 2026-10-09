@@ -24,8 +24,13 @@ import 'package:visiosoil_app/core/services/classification_report.dart';
       (label: 'Folha A4 não encontrada · tire outra foto', retryable: false),
     ClassificationFailureCause.sheetCropped =>
       (label: 'Folha cortada no quadro · tire outra foto', retryable: false),
-    ClassificationFailureCause.soilRegionTooSmall =>
-      (label: 'Pouco solo na folha · tire outra foto', retryable: false),
+    // An empty sheet and a disc too small for nine patches share the remedy,
+    // so the chip names its size (SPEC 0142).
+    ClassificationFailureCause.soilRegionTooSmall => (
+        label: 'Pouco solo na folha · espalhe um círculo de 8 a 10 cm e '
+            'tire outra foto',
+        retryable: false,
+      ),
     ClassificationFailureCause.soilRegionOutsideFrame =>
       (label: 'Amostra fora da área lida · tire outra foto', retryable: false),
     ClassificationFailureCause.photographTooCoarse =>
