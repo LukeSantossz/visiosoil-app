@@ -16,24 +16,35 @@ import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// The history results grid: the reactive `filteredRecordsProvider` stream
 /// rendered as tappable thumbnail cards, with loading/error/empty states.
-class HistoryGrid extends ConsumerWidget {
+class HistoryGrid extends ConsumerStatefulWidget {
   const HistoryGrid({
     super.key,
-    required this.maxRecords,
+    required this.pageSize,
     required this.selectedIds,
     required this.isSelectionMode,
     required this.onTap,
     required this.onLongPress,
   });
 
-  final int maxRecords;
+  /// How many records the grid shows at first, and how many more each tap on
+  /// "Mostrar mais registros" adds (SPEC 0145).
+  final int pageSize;
   final Set<int> selectedIds;
   final bool isSelectionMode;
   final ValueChanged<int> onTap;
   final ValueChanged<int> onLongPress;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HistoryGrid> createState() => _HistoryGridState();
+}
+
+class _HistoryGridState extends ConsumerState<HistoryGrid> {
+  // How many records the grid shows. It outlives a filter change and
+  // selection mode, so a record once shown stays reachable (SPEC 0145).
+  late int _shown = widget.pageSize;
+
+  @override
+  Widget build(BuildContext context) {
     final asyncRecords = ref.watch(filteredRecordsProvider);
     final hasActiveFilter = ref.watch(selectedTextureFilterProvider) != null ||
         ref.watch(searchTermProvider).isNotEmpty;
@@ -56,54 +67,85 @@ class HistoryGrid extends ConsumerWidget {
   }
 
   Widget _buildGrid(BuildContext context, List<SoilRecord> records) {
-    final isCut = records.length > maxRecords;
-    final visible = isCut ? records.sublist(0, maxRecords) : records;
-
-    final grid = GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: 1,
-      ),
-      itemCount: visible.length,
-      itemBuilder: (context, index) {
-        final record = visible[index];
-        final id = record.id!;
-
-        return _ThumbnailCard(
-          record: record,
-          isSelected: selectedIds.contains(id),
-          isSelectionMode: isSelectionMode,
-          onTap: () => onTap(id),
-          onLongPress: () => onLongPress(id),
-        );
-      },
-    );
-    if (!isCut) return grid;
-
-    // The cap is said, not silent: the stream is newest first, so what is
-    // left out is the oldest (SPEC 0128).
+    final isCut = records.length > _shown;
+    final visible = isCut ? records.sublist(0, _shown) : records;
     final theme = Theme.of(context);
+
+    // The limit is said, not silent: the stream is newest first, so what is
+    // left out is the oldest (SPEC 0128). The column holds the scroll view
+    // whether or not the notice shows, so the last tap on the button keeps the
+    // scroll offset.
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            0,
-          ),
-          child: Text(
-            'Mostrando os $maxRecords registros mais recentes. Use a busca ou '
-            'os filtros para encontrar os mais antigos.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+        if (isCut)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: Text(
+              'Mostrando os $_shown registros mais recentes de '
+              '${records.length}.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
+        Expanded(
+          child: CustomScrollView(
+            // A screen reader counts the thumbnails, not the button after them.
+            semanticChildCount: visible.length,
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                sliver: SliverGrid.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.md,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    final record = visible[index];
+                    final id = record.id!;
+
+                    return _ThumbnailCard(
+                      key: ValueKey(id),
+                      record: record,
+                      isSelected: widget.selectedIds.contains(id),
+                      isSelectionMode: widget.isSelectionMode,
+                      onTap: () => widget.onTap(id),
+                      onLongPress: () => widget.onLongPress(id),
+                    );
+                  },
+                ),
+              ),
+              // The next page is where the user runs out of records.
+              if (isCut)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: VisioButton(
+                      label: 'Mostrar mais registros',
+                      icon: Icons.expand_more,
+                      variant: VisioButtonVariant.secondary,
+                      expanded: true,
+                      onPressed: () =>
+                          setState(() => _shown += widget.pageSize),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
-        Expanded(child: grid),
       ],
     );
   }
@@ -142,6 +184,7 @@ class _EmptySearchState extends StatelessWidget {
 
 class _ThumbnailCard extends StatelessWidget {
   const _ThumbnailCard({
+    super.key,
     required this.record,
     required this.isSelected,
     required this.isSelectionMode,

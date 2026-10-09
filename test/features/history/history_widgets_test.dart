@@ -1,6 +1,8 @@
 // Direct render tests for the history screen's extracted widgets (#120):
 // HistoryFilterBar (search field + texture chips) and HistoryGrid (results grid
 // and empty state). Complements the flow coverage in history_screen_test.dart.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,9 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+
+import '../../support/guidelines.dart';
+import '../../support/large_text.dart';
 
 Future<void> pumpFilterBar(WidgetTester tester) async {
   final container = ProviderContainer(
@@ -359,14 +364,19 @@ void main() {
   });
 
   group('HistoryGrid', () {
-    Widget gridWith(List<SoilRecord> records) => ProviderScope(
+    Widget gridOn(
+      Stream<List<SoilRecord>> Function() stream, {
+      ThemeData? theme,
+    }) =>
+        ProviderScope(
           overrides: [
-            filteredRecordsProvider.overrideWith((ref) => Stream.value(records)),
+            filteredRecordsProvider.overrideWith((ref) => stream()),
           ],
           child: MaterialApp(
+            theme: theme,
             home: Scaffold(
               body: HistoryGrid(
-                maxRecords: 150,
+                pageSize: 150,
                 selectedIds: const <int>{},
                 isSelectionMode: false,
                 onTap: (_) {},
@@ -375,6 +385,8 @@ void main() {
             ),
           ),
         );
+    Widget gridWith(List<SoilRecord> records, {ThemeData? theme}) =>
+        gridOn(() => Stream.value(records), theme: theme);
 
     testWidgets('renders a thumbnail card per record', (tester) async {
       await tester.pumpWidget(gridWith([record(id: 1), record(id: 2)]));
@@ -391,14 +403,41 @@ void main() {
       expect(find.text('Nenhum registro'), findsOneWidget);
     });
 
-    // The grid stops at maxRecords; past it, it says so (SPEC 0128).
-    const notice = 'Mostrando os 150 registros mais recentes. Use a busca ou '
-        'os filtros para encontrar os mais antigos.';
+    // The grid shows a page at a time and says how much of the total it
+    // shows (SPEC 0128); a button at its end adds the next page (SPEC 0145).
+    const showMore = 'Mostrar mais registros';
     List<SoilRecord> records(int count) =>
         [for (var id = count; id >= 1; id--) record(id: id)];
+    SliverChildBuilderDelegate delegate(WidgetTester tester) =>
+        tester.widget<SliverGrid>(find.byType(SliverGrid)).delegate
+            as SliverChildBuilderDelegate;
+    // The thumbnails shown, which is also the count the scroll view announces
+    // to a screen reader, as the GridView it replaced did.
     int gridCount(WidgetTester tester) {
-      final grid = tester.widget<GridView>(find.byType(GridView));
-      return (grid.childrenDelegate as SliverChildBuilderDelegate).childCount!;
+      final count = delegate(tester).childCount!;
+      expect(
+        tester
+            .widget<CustomScrollView>(find.byType(CustomScrollView))
+            .semanticChildCount,
+        count,
+      );
+      return count;
+    }
+    // The ids the grid shows, in its order, read from each card's key.
+    List<int> shownIds(WidgetTester tester) {
+      final context = tester.element(find.byType(SliverGrid));
+      return [
+        for (var index = 0; index < gridCount(tester); index++)
+          (delegate(tester).builder(context, index)!.key! as ValueKey<int>)
+              .value,
+      ];
+    }
+
+    Future<void> tapShowMore(WidgetTester tester) async {
+      await tester.scrollUntilVisible(find.text(showMore), 3000);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(showMore));
+      await tester.pumpAndSettle();
     }
 
     testWidgets('cap_is_disclosed', (tester) async {
@@ -406,7 +445,97 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(gridCount(tester), 150);
-      expect(find.text(notice), findsOneWidget);
+      expect(
+        find.text('Mostrando os 150 registros mais recentes de 151.'),
+        findsOneWidget,
+      );
+
+      await tapShowMore(tester);
+      expect(find.textContaining('Mostrando os'), findsNothing);
+    });
+
+    testWidgets('show_more_reveals_the_next_records', (tester) async {
+      await tester.pumpWidget(gridWith(records(400)));
+      await tester.pumpAndSettle();
+      expect(shownIds(tester), [for (var id = 400; id > 250; id--) id]);
+
+      await tapShowMore(tester);
+      expect(shownIds(tester), [for (var id = 400; id > 100; id--) id]);
+      expect(
+        find.text('Mostrando os 300 registros mais recentes de 400.'),
+        findsOneWidget,
+      );
+
+      await tapShowMore(tester);
+      expect(shownIds(tester), [for (var id = 400; id > 0; id--) id]);
+      expect(find.text(showMore), findsNothing);
+      expect(find.textContaining('Mostrando os'), findsNothing);
+    });
+
+    testWidgets('count_survives_a_filter_change', (tester) async {
+      final stream = StreamController<List<SoilRecord>>();
+      addTearDown(stream.close);
+      await tester.pumpWidget(gridOn(() => stream.stream));
+      stream.add(records(400));
+      await tester.pumpAndSettle();
+      await tapShowMore(tester);
+      expect(gridCount(tester), 300);
+
+      // A filter or a term rebuilds the grid; the count it reached stays.
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(HistoryGrid)));
+      container.read(selectedTextureFilterProvider.notifier).select('Argilosa');
+      container.read(searchTermProvider.notifier).update('fazenda');
+      await tester.pumpAndSettle();
+      expect(gridCount(tester), 300);
+
+      stream.add(records(250));
+      await tester.pumpAndSettle();
+
+      expect(gridCount(tester), 250);
+      expect(find.text(showMore), findsNothing);
+      expect(find.textContaining('Mostrando os'), findsNothing);
+    });
+
+    testWidgets('no_button_when_all_are_shown', (tester) async {
+      for (final count in [150, 3]) {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(gridWith(records(count)));
+        await tester.pumpAndSettle();
+        await scrollToTheEnd(tester);
+
+        expect(gridCount(tester), count);
+        expect(find.text(showMore), findsNothing, reason: '$count records');
+        expect(find.textContaining('Mostrando os'), findsNothing);
+      }
+    });
+
+    for (final (name, theme) in appThemes) {
+      testWidgets('show_more_meets_guidelines in the $name theme',
+          (tester) async {
+        final semantics = tester.ensureSemantics();
+        await tester.pumpWidget(gridWith(records(151), theme: theme));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.text(showMore), 3000);
+
+        expect(
+          tester.getSemantics(find.bySemanticsLabel(showMore)),
+          isSemantics(isButton: true, hasTapAction: true),
+        );
+        await expectMeetsGuidelines(tester);
+        semantics.dispose();
+      });
+    }
+
+    testWidgets('show_more_scales_to_200_percent', (tester) async {
+      useLargeTextOnAPhone(tester);
+      await tester.pumpWidget(gridWith(records(151), theme: AppTheme.light));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text(showMore), 3000);
+
+      expect(tester.takeException(), isNull);
+      await tapShowMore(tester);
+      expect(gridCount(tester), 151);
     });
 
     testWidgets('hc_selection_is_a_border', (tester) async {
@@ -421,7 +550,7 @@ void main() {
             theme: theme,
             home: Scaffold(
               body: HistoryGrid(
-                maxRecords: 150,
+                pageSize: 150,
                 selectedIds: selected ? {7} : const <int>{},
                 isSelectionMode: true,
                 onTap: (_) {},
@@ -475,7 +604,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(gridCount(tester), 150);
-      expect(find.text(notice), findsNothing);
+      expect(find.textContaining('Mostrando os'), findsNothing);
     });
   });
 }

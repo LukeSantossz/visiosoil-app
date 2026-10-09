@@ -19,7 +19,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  static const int _maxRecords = 150;
+  static const int _pageSize = 150;
 
   final Set<int> _selectedIds = {};
   final TextEditingController _searchController = TextEditingController();
@@ -151,7 +151,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
           Expanded(
             child: HistoryGrid(
-              maxRecords: _maxRecords,
+              pageSize: _pageSize,
               selectedIds: _selectedIds,
               isSelectionMode: _isSelectionMode,
               onTap: _handleTap,
