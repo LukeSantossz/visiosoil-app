@@ -27,6 +27,7 @@ from src.cell import (
     source_payload,
     validate_cell,
 )
+from src.keys import describe_key
 from src.sources import FetchedSource
 
 SUBSTANCE_DISCLAIMER = (
@@ -100,7 +101,9 @@ def build_cell(
     accessed_at = (now or datetime.now(timezone.utc)).isoformat().replace(
         "+00:00", "Z"
     )
-    queries = client.transform_queries(key, count=QUERY_COUNT)
+    # The model is told what the key means, never the key itself (SPEC 0152).
+    question = describe_key(key)
+    queries = client.transform_queries(question, count=QUERY_COUNT)
     _require_queries(queries)
 
     kept = [
@@ -124,7 +127,7 @@ def build_cell(
     rejections: list[str] = []
 
     for attempt in range(1, max_attempts + 1):
-        generated = client.generate_cell(key, kept)
+        generated = client.generate_cell(question, kept)
         # Checked **before** normalising, because a default applied to a missing
         # field hides the fact that the model did not produce it: a missing
         # `status` became "grounded" and missing `tips` became `[]`, so
@@ -210,6 +213,12 @@ def _require_queries(queries: Any) -> None:
     for query in queries:
         if not isinstance(query, str) or not query.strip():
             raise ModelRefused(f"transform returned a blank query: {query!r}")
+        if "_" in query or "|" in query:
+            # Graded against an identifier, CT 33 was dropped on every query
+            # (SPEC 0152).
+            raise ModelRefused(
+                f"transform returned a query carrying an identifier: {query!r}"
+            )
 
 
 def _abstention(

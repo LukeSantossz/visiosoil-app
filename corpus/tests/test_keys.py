@@ -19,6 +19,7 @@ from src.keys import (
     LABELS_PATH,
     LAND_USES,
     UNITS,
+    describe_key,
     read_texture_classes,
     substance_keys,
 )
@@ -103,3 +104,31 @@ def test_the_artifact_count_is_forty_four():
     # The number the budget, the review burden and ADR 0022's consequences all
     # quote. The 6-entry biome table is a lookup, not a reviewed artifact.
     assert len(substance_keys()) + len(LAND_USES) + len(UNITS) == 44
+
+
+def test_every_texture_class_is_described():
+    """Every cell the build derives from the contract has a description, so a
+    class added to the model fails here rather than reaching the chain as an
+    identifier (SPEC 0152)."""
+    for key in substance_keys():
+        assert describe_key(key).strip()
+
+
+def test_the_description_names_the_family_in_words():
+    """The chain was handed `Argilosa|tb_oxidic` and nothing else, so its
+    queries only reordered the identifier and its tip read the family backwards
+    (SPEC 0152)."""
+    description = describe_key("Argilosa|tb_oxidic")
+
+    assert "textura argilosa" in description
+    assert "atividade baixa" in description
+    assert "tb_oxidic" not in description
+    assert "|" not in description
+
+
+@pytest.mark.parametrize(
+    "key", ["Siltosa|tb_oxidic", "Argilosa|unknown", "Argilosa", "Argilosa|"]
+)
+def test_an_undescribed_key_fails_loudly(key):
+    with pytest.raises(ValueError):
+        describe_key(key)
