@@ -169,6 +169,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         if (!mounted) return;
 
         if (requestStatus != AppPermissionStatus.granted) {
+          // A retake keeps the photograph in view: the denied view would hide
+          // it, and back from there would discard it (SPEC 0147).
+          if (ref.read(imageProvider).hasImage) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sem acesso à câmera. A foto atual foi mantida.'),
+              ),
+            );
+            return;
+          }
           setState(
               () => _state = _state.copyWith(cameraPermission: requestStatus));
           return;
@@ -197,7 +207,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     // The shutter's return; a recovered photograph gets none (SPEC 0126).
     unawaited(AppHaptics.confirm());
-    await _useCapturedImage(image.path);
+    final previous = ref.read(imageProvider).file;
+    final replaced = _useCapturedImage(image.path);
+    // A retake: the new photograph has replaced the previous one, whose picker
+    // file goes as "Descartar" deletes it, unless a save in flight still needs
+    // it (SPEC 0147).
+    if (previous != null && previous.path != image.path && !_state.isSaving) {
+      unawaited(_disposePickedFile(_deletePickedFile, previous.path));
+    }
+    await replaced;
   }
 
   /// Shows the capture guide before the first camera launch, and answers
@@ -523,6 +541,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   isBusy: _state.isClassifying || _state.isSaving,
                   onCapture: _pickImage,
                   onSave: _saveRecord,
+                  onRetake: _pickImage,
                   onDiscard: _discardImage,
                 ),
               ],
