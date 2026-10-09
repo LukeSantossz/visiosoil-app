@@ -481,6 +481,14 @@ void main() {
       await tapShowMore(tester);
       expect(gridCount(tester), 300);
 
+      // A filter or a term rebuilds the grid; the count it reached stays.
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(HistoryGrid)));
+      container.read(selectedTextureFilterProvider.notifier).select('Argilosa');
+      container.read(searchTermProvider.notifier).update('fazenda');
+      await tester.pumpAndSettle();
+      expect(gridCount(tester), 300);
+
       stream.add(records(250));
       await tester.pumpAndSettle();
 
@@ -510,6 +518,10 @@ void main() {
         await tester.pumpAndSettle();
         await tester.scrollUntilVisible(find.text(showMore), 3000);
 
+        expect(
+          tester.getSemantics(find.bySemanticsLabel(showMore)),
+          isSemantics(isButton: true, hasTapAction: true),
+        );
         await expectMeetsGuidelines(tester);
         semantics.dispose();
       });
