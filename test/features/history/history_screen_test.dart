@@ -465,6 +465,130 @@ void main() {
     });
   });
 
+  // A populated history starts the next capture from its app bar, and back
+  // from it returns to the same filtered grid (SPEC 0146).
+  group('new capture', () {
+    const newCapture = 'Nova captura';
+
+    testWidgets('new_capture_from_history', (tester) async {
+      final records = [
+        record(7),
+        SoilRecord(
+          id: 8,
+          imagePath: 'x.png',
+          timestamp: '2026-06-26T12:00:00Z',
+          textureClass: 'Arenosa',
+          confidenceScore: 0.9,
+        ),
+      ];
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider
+              .overrideWithValue(AsyncValue<List<SoilRecord>>.data(records)),
+          soilRecordRepositoryProvider
+              .overrideWithValue(_ListSoilRecordRepository(records)),
+        ],
+        child: MaterialApp.router(
+          routerConfig: GoRouter(routes: [
+            GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+            GoRoute(
+              path: '/capture',
+              builder: (_, _) => Scaffold(
+                appBar: AppBar(),
+                body: const Text('CAPTURE_STUB'),
+              ),
+            ),
+          ]),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Image), findsOneWidget);
+
+      await tester.tap(find.byTooltip(newCapture));
+      await tester.pumpAndSettle();
+      expect(find.text('CAPTURE_STUB'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('CAPTURE_STUB'), findsNothing);
+      expect(
+        tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
+            .selected,
+        isTrue,
+      );
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('new_capture_follows_the_grid', (tester) async {
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip(newCapture), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip(newCapture), findsNothing);
+
+      await tester.tap(find.byTooltip('Cancelar seleção'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip(newCapture), findsOneWidget);
+
+      // A grid that shows its error has no records to follow.
+      final failing = StreamController<List<SoilRecord>>();
+      addTearDown(failing.close);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider.overrideWithValue(
+            AsyncValue<List<SoilRecord>>.data([record(7)]),
+          ),
+          filteredRecordsProvider.overrideWith((ref) => failing.stream),
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ));
+      failing.addError(Exception('boom'));
+      await tester.pumpAndSettle();
+      expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
+      expect(find.byTooltip(newCapture), findsNothing);
+
+      // The empty history keeps its own button, and gets no second one.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordsStreamProvider.overrideWithValue(
+            const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
+          ),
+          emptyGrid,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhum registro'), findsOneWidget);
+      expect(find.text(newCapture), findsOneWidget);
+      expect(find.byTooltip(newCapture), findsNothing);
+    });
+
+    testWidgets('new_capture_is_labelled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
+      await tester.pumpAndSettle();
+
+      final action = find.ancestor(
+        of: find.byTooltip(newCapture),
+        matching: find.byType(IconButton),
+      );
+      expect(action, findsOneWidget);
+      expect(
+        tester.getSemantics(action),
+        isSemantics(tooltip: newCapture, isButton: true, hasTapAction: true),
+      );
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      semantics.dispose();
+    });
+  });
+
   // At 200 % text on a phone, the grid, its empty state and the filter error
   // row still lay out (SPEC 0121).
   testWidgets('history_scales_to_200_percent', (tester) async {
