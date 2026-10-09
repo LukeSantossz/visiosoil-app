@@ -35,6 +35,14 @@ class LocationService {
     return await Geolocator.getCurrentPosition();
   }
 
+  /// The horizontal accuracy of [position] in metres, or null when it is not
+  /// a measurement: Android reports `0` for a fix with no accuracy and iOS a
+  /// negative value for an invalid one (SPEC 0148).
+  static double? horizontalAccuracyOf(Position position) {
+    final accuracy = position.accuracy;
+    return accuracy.isFinite && accuracy > 0 ? accuracy : null;
+  }
+
   /// Reverse-geocodes [position] into a human-readable address.
   ///
   /// Geocoding is best-effort: the coordinates are the source of truth, so any

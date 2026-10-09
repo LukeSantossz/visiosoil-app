@@ -26,6 +26,7 @@ SoilRecord soilRecordFromRow(SoilRecordRow row) => SoilRecord(
       classDistribution: decodeClassDistribution(row.classDistribution),
       modelVersion: row.modelVersion,
       datasetVersion: row.datasetVersion,
+      horizontalAccuracy: row.horizontalAccuracy,
     );
 
 /// The `class_distribution` column's text for [distribution]: a JSON array of

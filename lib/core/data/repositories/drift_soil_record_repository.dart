@@ -73,6 +73,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                     Value(encodeClassDistribution(record.classDistribution)),
                 modelVersion: Value(record.modelVersion),
                 datasetVersion: Value(record.datasetVersion),
+                horizontalAccuracy: Value(record.horizontalAccuracy),
               ),
             );
         await _enqueue(uuid, SyncOperation.upsert, now);
@@ -228,6 +229,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             classDistribution: const Value(null),
             modelVersion: const Value(null),
             datasetVersion: const Value(null),
+            horizontalAccuracy: const Value(null),
           ),
         );
         // Per row, like the update above, so a wipe binds no list of uuids.

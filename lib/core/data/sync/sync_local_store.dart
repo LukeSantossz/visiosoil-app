@@ -93,6 +93,7 @@ class SyncLocalStore {
                 Value(encodeClassDistribution(remote.classDistribution)),
             modelVersion: Value(remote.modelVersion),
             datasetVersion: Value(remote.datasetVersion),
+            horizontalAccuracy: Value(remote.horizontalAccuracy),
           ),
         );
   }
@@ -119,6 +120,7 @@ class SyncLocalStore {
             Value(encodeClassDistribution(remote.classDistribution)),
         modelVersion: Value(remote.modelVersion),
         datasetVersion: Value(remote.datasetVersion),
+        horizontalAccuracy: Value(remote.horizontalAccuracy),
       ),
     );
   }

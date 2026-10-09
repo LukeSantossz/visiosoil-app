@@ -39,4 +39,10 @@ class SoilRecords extends Table {
       text().named('class_distribution').nullable()();
   TextColumn get modelVersion => text().named('model_version').nullable()();
   TextColumn get datasetVersion => text().named('dataset_version').nullable()();
+
+  /// v8 (SPEC 0148): the radius in metres the device reported for the GPS
+  /// fix. Null when not known: a record saved before v8, without a location,
+  /// or whose device reported no usable accuracy, never had one.
+  RealColumn get horizontalAccuracy =>
+      real().named('horizontal_accuracy').nullable()();
 }

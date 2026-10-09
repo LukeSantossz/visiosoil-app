@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +69,13 @@ class AppDatabase extends _$AppDatabase {
             await migrator.addColumn(soilRecords, soilRecords.classDistribution);
             await migrator.addColumn(soilRecords, soilRecords.modelVersion);
             await migrator.addColumn(soilRecords, soilRecords.datasetVersion);
+          }
+          if (from < 8) {
+            // v7 -> v8: the horizontal accuracy of the GPS fix (SPEC 0148).
+            // Nullable, so every existing row, tombstones included, arrives
+            // with none, as for v7; the v6 erase cannot name it either.
+            await migrator.addColumn(
+                soilRecords, soilRecords.horizontalAccuracy);
           }
         },
       );

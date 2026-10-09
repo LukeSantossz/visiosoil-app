@@ -177,7 +177,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
 - **Navigation:** `go_router` with 8 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params)
-- **Persistence:** Drift + SQLite with schema versioning (currently v7). Repository pattern abstracts Drift from UI
+- **Persistence:** Drift + SQLite with schema versioning (currently v8). Repository pattern abstracts Drift from UI
 - **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer` (SPEC 0083), and the default is `a4SheetMeasurer`: it finds the A4 sheet, rectifies it, and measures the round soil patch on it (SPEC 0091, SPEC 0092)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
 - **Research agent:** answers on the device. `researchServiceProvider` binds `CorpusResearchService`, which composes a `ManagementTipsResult` out of a reviewed corpus the app holds — no network, no proxy, no model at run time (ADR 0022, narrowed by ADR 0023). `ProxyResearchService` is kept as the transport for fetching corpus *releases*, and has no caller yet
@@ -243,17 +243,17 @@ lib/
                                        #   derived-stats providers)
 ```
 
-### Database Schema (v7)
+### Database Schema (v8)
 
 Three tables, declared in `@DriftDatabase(tables: [SoilRecords, SyncQueue, ManagementTips])`.
 
-`soil_records`: `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`, `class_distribution?`, `model_version?`, `dataset_version?`. The last three are what scored the photograph (SPEC 0097): every class's probability as a JSON array in the contract's class order, and the contract's versions. They are null when not known, which is the case for a record saved before v7 or without a classification
+`soil_records`: `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`, `class_distribution?`, `model_version?`, `dataset_version?`, `horizontal_accuracy?`. `class_distribution`, `model_version` and `dataset_version` are what scored the photograph (SPEC 0097): every class's probability as a JSON array in the contract's class order, and the contract's versions. They are null when not known, which is the case for a record saved before v7 or without a classification. `horizontal_accuracy` is the radius in metres the device reported for the GPS fix (SPEC 0148), null for a record saved before v8, without a location, or whose device reported no usable accuracy
 
 `sync_queue`: outbox of pending sync operations, drained by `SyncEngine`.
 
 `management_tips`: read-through cache for the research agent — `record_uuid`, `payload_json`, `retrieved_at`, `corpus_version?`. The version is nullable because a row cached before v5 has no known one, and a fabricated default would claim a currency it never had; `CachedManagementTips.isStaleAgainst` compares it by exact string inequality.
 
-Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions; v5→v6 erases every tombstone's content and drops its cached tips, as a delete now does; v6→v7 adds the three classification-provenance columns, NULL on every existing row, tombstones included.
+Migrations: v1→v2 adds the classification columns; v2→v3 adds the sync metadata, creates `sync_queue`, backfills uuid/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; v3→v4 creates `management_tips`; v4→v5 adds `corpus_version` to it, guarded by `from >= 4 && from < 5` for the reason under Key Architectural Decisions; v5→v6 erases every tombstone's content and drops its cached tips, as a delete now does; v6→v7 adds the three classification-provenance columns, NULL on every existing row, tombstones included; v7→v8 adds `horizontal_accuracy` the same way.
 
 ## Conventions
 
