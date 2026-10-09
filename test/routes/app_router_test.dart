@@ -58,5 +58,9 @@ void main() {
         ]),
       );
     });
+
+    test('compare_route_is_registered', () {
+      expect(topLevelPaths(), contains('/compare'));
+    });
   });
 }

@@ -387,6 +387,96 @@ void main() {
 
   // Past the first page, a button at the end of the grid adds the next one,
   // under the filters and across selection mode (SPEC 0145).
+  // Two selected records open their comparison (SPEC 0150).
+  group('compare', () {
+    final records = [record(7), record(8), record(9)];
+
+    Widget routedApp() => ProviderScope(
+          overrides: [
+            soilRecordsStreamProvider.overrideWithValue(
+              AsyncValue<List<SoilRecord>>.data(records),
+            ),
+            filteredRecordsProvider
+                .overrideWith((ref) => Stream.value(records)),
+            soilRecordRepositoryProvider
+                .overrideWithValue(FakeSoilRecordRepository()),
+          ],
+          child: MaterialApp.router(
+            routerConfig: GoRouter(routes: [
+              GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+              GoRoute(
+                path: '/compare',
+                builder: (_, state) => Scaffold(
+                  appBar: AppBar(),
+                  body: Text('COMPARE_STUB ${state.extra}'),
+                ),
+              ),
+            ]),
+          ),
+        );
+
+    IconButton compareButton(WidgetTester tester) =>
+        tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.compare_arrows),
+        );
+
+    // Tall enough for all three cards in the two-column grid.
+    void useATallScreen(WidgetTester tester) {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    }
+
+    Finder card(int id) => find.byKey(ValueKey(id));
+
+    Future<void> select(WidgetTester tester, int id) async {
+      await tester.tap(card(id));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('compare_needs_exactly_two', (tester) async {
+      useATallScreen(tester);
+      await tester.pumpWidget(routedApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await tester.pumpAndSettle();
+
+      expect(compareButton(tester).onPressed, isNull, reason: 'none');
+      await select(tester, 7);
+      expect(compareButton(tester).onPressed, isNull, reason: 'one');
+      await select(tester, 8);
+      expect(compareButton(tester).onPressed, isNotNull, reason: 'two');
+      await select(tester, 9);
+      expect(compareButton(tester).onPressed, isNull, reason: 'three');
+    });
+
+    testWidgets('compare_opens_with_the_two_ids', (tester) async {
+      await tester.pumpWidget(routedApp());
+      await tester.pumpAndSettle();
+      await tester.longPress(card(7));
+      await tester.pumpAndSettle();
+      await select(tester, 8);
+
+      await tester.tap(find.byTooltip('Comparar selecionados'));
+      await tester.pumpAndSettle();
+      expect(find.text('COMPARE_STUB [7, 8]'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('2 selecionados'), findsOneWidget);
+      expect(compareButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('compare_is_labelled', (tester) async {
+      await tester.pumpWidget(routedApp());
+      await tester.pumpAndSettle();
+      await tester.longPress(card(7));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Comparar selecionados'), findsOneWidget);
+    });
+  });
+
   group('browsing past the first page', () {
     const showMore = 'Mostrar mais registros';
     // Ids count..1, newest first; even ids are Argilosa and odd ones Arenosa.
