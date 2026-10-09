@@ -14,6 +14,7 @@ from src.keys import describe_key
 from src.llm import ModelRefused
 from src.pipeline import (
     ABSTENTION_DISCLAIMER,
+    MANAGEMENT_TOPICS,
     SUBSTANCE_DISCLAIMER,
     BuildOutcome,
     build_cell,
@@ -40,23 +41,28 @@ class ScriptedClient:
     """
 
     def __init__(self, *, queries=None, grades=None, generation=None, grounded=None):
-        # Three, because `QUERY_COUNT` is three and the chain now refuses a
-        # transform step that returned fewer than it asked for.
-        self.queries = queries if queries is not None else ["q1", "q2", "q3"]
+        # One per topic, because the chain asks the transform step once per
+        # management topic (SPEC 0153).
+        self.queries = queries if queries is not None else topic_queries()
+        # A grade is a verdict, or a function of the query for a test that
+        # needs a document relevant to one topic alone.
         self.grades = grades if grades is not None else {}
         self.generation = generation
         self.grounded = grounded if grounded is not None else [True]
         self.calls = []
         self.questions = []
+        self.topics = []
 
-    def transform_queries(self, question, *, count):
+    def transform_query(self, question, *, topic):
         self.calls.append("transform")
         self.questions.append(("transform", question))
-        return self.queries
+        self.topics.append(topic)
+        return self.queries[len(self.topics) - 1]
 
     def grade_document(self, query, document):
         self.calls.append("grade")
-        return self.grades.get(document.url, True)
+        grade = self.grades.get(document.url, True)
+        return grade(query) if callable(grade) else grade
 
     def generate_cell(self, question, documents):
         self.calls.append("generate")
@@ -78,13 +84,62 @@ class ScriptedClient:
 QUESTION = "Argilosa|tb_oxidic"
 
 
+def topic_queries(replaced=None):
+    """One query per management topic, in topic order, with [replaced] mapping a
+    topic's index to the query it gets instead."""
+    queries = [f"consulta sobre {topic}" for topic in MANAGEMENT_TOPICS]
+    for index, query in (replaced or {}).items():
+        queries[index] = query
+    return queries
+
+
 def test_query_transform_produces_more_than_one_query():
-    client = ScriptedClient(queries=["a", "b", "c"])
+    client = ScriptedClient()
 
     outcome = build_cell(QUESTION, [source(0)], client=client)
 
-    assert outcome.queries == ["a", "b", "c"]
+    assert len(outcome.queries) > 1
+    assert outcome.queries == client.queries
     assert "transform" in client.calls
+
+
+def test_every_topic_gets_its_own_query():
+    """Free queries left the angles to the model, and none of the three reached
+    phosphorus fertilisation, so CT 33 was dropped (SPEC 0153)."""
+    client = ScriptedClient()
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert client.topics == list(MANAGEMENT_TOPICS)
+    assert outcome.queries == topic_queries()
+    transform_questions = [q for step, q in client.questions if step == "transform"]
+    assert transform_questions == [describe_key(QUESTION)] * len(MANAGEMENT_TOPICS)
+
+
+def test_a_document_relevant_to_one_topic_is_kept():
+    phosphorus = topic_queries()[MANAGEMENT_TOPICS.index("fósforo")]
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": lambda query: query == phosphorus,
+            "https://example.org/1": False,
+        }
+    )
+
+    outcome = build_cell(QUESTION, [source(0), source(1)], client=client)
+
+    assert [s.url for s in outcome.kept] == ["https://example.org/0"]
+
+
+def test_the_topics_are_the_ones_version_2_listed():
+    assert MANAGEMENT_TOPICS == (
+        "calagem",
+        "fósforo",
+        "potássio",
+        "matéria orgânica",
+        "água",
+        "o que a classe de textura implica e o que não implica",
+    )
+    assert len(set(MANAGEMENT_TOPICS)) == len(MANAGEMENT_TOPICS)
 
 
 def test_grading_drops_an_irrelevant_document():
@@ -329,15 +384,12 @@ def test_a_boolean_citation_is_refused():
         build_cell(QUESTION, [source(0), source(1)], client=client)
 
 
-def test_transform_must_return_the_queries_it_was_asked_for():
-    with pytest.raises(ModelRefused):
-        build_cell(QUESTION, [source(0)], client=ScriptedClient(queries=["só uma"]))
-
-
 def test_transform_rejects_a_blank_query():
     with pytest.raises(ModelRefused):
         build_cell(
-            QUESTION, [source(0)], client=ScriptedClient(queries=["a", "  ", "c"])
+            QUESTION,
+            [source(0)],
+            client=ScriptedClient(queries=topic_queries({1: "  "})),
         )
 
 
@@ -349,9 +401,8 @@ def test_transform_and_generate_receive_the_description():
     outcome = build_cell(QUESTION, [source(0)], client=client)
 
     assert client.questions == [
-        ("transform", describe_key(QUESTION)),
-        ("generate", describe_key(QUESTION)),
-    ]
+        ("transform", describe_key(QUESTION))
+    ] * len(MANAGEMENT_TOPICS) + [("generate", describe_key(QUESTION))]
     assert outcome.key == QUESTION
 
 
@@ -364,5 +415,5 @@ def test_a_query_carrying_an_identifier_is_refused(leaked):
         build_cell(
             QUESTION,
             [source(0)],
-            client=ScriptedClient(queries=["manejo do fósforo", leaked, "calagem"]),
+            client=ScriptedClient(queries=topic_queries({1: leaked})),
         )
