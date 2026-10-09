@@ -198,6 +198,7 @@ void main() {
           isBusy: false,
           onCapture: () {},
           onSave: () {},
+          onRetake: () {},
           onDiscard: () {},
           checkLocationPermission: () async => AppPermissionStatus.denied,
         )));
@@ -244,6 +245,7 @@ void main() {
           isBusy: false,
           onCapture: () {},
           onSave: () {},
+          onRetake: () {},
           onDiscard: () {},
           checkLocationPermission: () async => location,
         ));
@@ -287,6 +289,7 @@ void main() {
           isBusy: false,
           onCapture: () {},
           onSave: () {},
+          onRetake: () {},
           onDiscard: () {},
           checkCameraPermission: camera,
           checkLocationPermission: () async => AppPermissionStatus.denied,
@@ -339,6 +342,7 @@ void main() {
         isBusy: false,
         onCapture: () {},
         onSave: () {},
+        onRetake: () {},
         onDiscard: () {},
       )));
 
@@ -352,11 +356,14 @@ void main() {
         isBusy: false,
         onCapture: () {},
         onSave: () {},
+        onRetake: () {},
         onDiscard: () {},
       )));
 
       expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Tirar outra foto'), findsOneWidget);
       expect(find.text('Descartar'), findsOneWidget);
+      expect(find.text('Câmera'), findsNothing);
     });
 
     testWidgets('save is disabled while busy', (tester) async {
@@ -365,6 +372,7 @@ void main() {
         isBusy: true,
         onCapture: () {},
         onSave: () {},
+        onRetake: () {},
         onDiscard: () {},
       )));
 
@@ -377,6 +385,38 @@ void main() {
       );
       expect(saveButton.onPressed, isNull,
           reason: 'a busy save button must be disabled');
+    });
+
+    // SPEC 0147: a retake waits for the classification and the save.
+    testWidgets('retake is disabled while busy', (tester) async {
+      var retakes = 0;
+      VisioButton retakeButton() => tester.widget<VisioButton>(
+            find.byWidgetPredicate(
+              (w) => w is VisioButton && w.label == 'Tirar outra foto',
+            ),
+          );
+
+      await tester.pumpWidget(host(CaptureActions(
+        hasImage: true,
+        isBusy: true,
+        onCapture: () {},
+        onSave: () {},
+        onRetake: () => retakes++,
+        onDiscard: () {},
+      )));
+      expect(retakeButton().onPressed, isNull,
+          reason: 'a busy retake button must be disabled');
+
+      await tester.pumpWidget(host(CaptureActions(
+        hasImage: true,
+        isBusy: false,
+        onCapture: () {},
+        onSave: () {},
+        onRetake: () => retakes++,
+        onDiscard: () {},
+      )));
+      await tester.tap(find.text('Tirar outra foto'));
+      expect(retakes, 1);
     });
   });
 
@@ -413,16 +453,46 @@ void main() {
       isBusy: false,
       onCapture: () {},
       onSave: () {},
+      onRetake: () {},
       onDiscard: () {},
     )));
 
     Rect button(String label) => tester.getRect(find.byWidgetPredicate(
           (w) => w is VisioButton && w.label == label,
         ));
+    // The button above Discard is "Tirar outra foto" since SPEC 0147.
     expect(
-      button('Descartar').top - button('Salvar registro').bottom,
+      button('Descartar').top - button('Tirar outra foto').bottom,
       greaterThanOrEqualTo(24),
     );
+    expect(
+      button('Tirar outra foto').top,
+      greaterThan(button('Salvar registro').bottom),
+    );
+  });
+
+  // SPEC 0147: "Tirar outra foto" is a labelled button that meets the
+  // labelled and Android tap-target guidelines.
+  testWidgets('retake_is_labelled', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(host(CaptureActions(
+      hasImage: true,
+      isBusy: false,
+      onCapture: () {},
+      onSave: () {},
+      onRetake: () {},
+      onDiscard: () {},
+    )));
+
+    final retake = find.bySemanticsLabel('Tirar outra foto');
+    expect(retake, findsOneWidget);
+    expect(
+      tester.getSemantics(retake),
+      isSemantics(isButton: true, isEnabled: true, hasTapAction: true),
+    );
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    semantics.dispose();
   });
 
   // Capture's status chips crossfade over AppMotion.base, and the screen

@@ -155,8 +155,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   Future<void> _pickImage() async {
     // Re-entry guard: prevents a rapid double tap from opening two pickers
-    // (and firing duplicate location/classification work).
-    if (_state.isCapturing) return;
+    // (and firing duplicate location/classification work). A retake tapped in
+    // the same frame as a save does nothing (SPEC 0147).
+    if (_state.isCapturing || _state.isSaving) return;
     _state = _state.copyWith(isCapturing: true);
 
     XFile? image;
@@ -169,6 +170,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         if (!mounted) return;
 
         if (requestStatus != AppPermissionStatus.granted) {
+          // A retake keeps the photograph in view: the denied view would hide
+          // it, and back from there would discard it (SPEC 0147).
+          if (ref.read(imageProvider).hasImage) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sem acesso à câmera. A foto atual foi mantida.'),
+              ),
+            );
+            return;
+          }
           setState(
               () => _state = _state.copyWith(cameraPermission: requestStatus));
           return;
@@ -197,7 +208,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     // The shutter's return; a recovered photograph gets none (SPEC 0126).
     unawaited(AppHaptics.confirm());
-    await _useCapturedImage(image.path);
+    final previous = ref.read(imageProvider).file;
+    final replaced = _useCapturedImage(image.path);
+    // A retake: the new photograph has replaced the previous one, whose picker
+    // file goes as "Descartar" deletes it (SPEC 0147).
+    if (previous != null && previous.path != image.path) {
+      unawaited(_disposePickedFile(_deletePickedFile, previous.path));
+    }
+    await replaced;
   }
 
   /// Shows the capture guide before the first camera launch, and answers
@@ -329,8 +347,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   Future<void> _saveRecord() async {
     // Guard against double-tap, and against a save tapped in the same frame
     // as a retry: the button's callback is from the last build, so it checks
-    // the state it runs against (SPEC 0117).
-    if (_state.isSaving || _state.isClassifying) return;
+    // the state it runs against (SPEC 0117). A save tapped while the camera is
+    // open for a retake does nothing, as the photograph is about to change
+    // (SPEC 0147).
+    if (_state.isSaving || _state.isClassifying || _state.isCapturing) return;
 
     final selectedImage = ref.read(imageProvider);
     final image = selectedImage.file;
@@ -523,6 +543,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   isBusy: _state.isClassifying || _state.isSaving,
                   onCapture: _pickImage,
                   onSave: _saveRecord,
+                  onRetake: _pickImage,
                   onDiscard: _discardImage,
                 ),
               ],
