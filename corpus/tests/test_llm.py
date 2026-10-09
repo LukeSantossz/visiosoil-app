@@ -258,3 +258,12 @@ def test_a_pdf_signature_after_leading_bytes_is_still_not_decoded():
     mangled = b"\xef\xbb\xbf" + make_pdf(["Texto."])
 
     assert decode_body(mangled, "utf-8") == mangled
+
+
+def test_the_prompt_versions_moved():
+    """The transform prompt now receives the key's description, and the
+    generate prompt names it `Solo` rather than `Chave` (SPEC 0152)."""
+    versions = OllamaClient().prompt_versions
+
+    assert versions["transform"] == "2"
+    assert versions["generate"] == "3"

@@ -10,6 +10,7 @@ adequate here, and it is why every step below is tested through a fake
 import pytest
 
 from src.cell import CellValidationError
+from src.keys import describe_key
 from src.llm import ModelRefused
 from src.pipeline import (
     ABSTENTION_DISCLAIMER,
@@ -46,9 +47,11 @@ class ScriptedClient:
         self.generation = generation
         self.grounded = grounded if grounded is not None else [True]
         self.calls = []
+        self.questions = []
 
     def transform_queries(self, question, *, count):
         self.calls.append("transform")
+        self.questions.append(("transform", question))
         return self.queries
 
     def grade_document(self, query, document):
@@ -57,6 +60,7 @@ class ScriptedClient:
 
     def generate_cell(self, question, documents):
         self.calls.append("generate")
+        self.questions.append(("generate", question))
         if self.generation is not None:
             return self.generation
         return {
@@ -334,4 +338,31 @@ def test_transform_rejects_a_blank_query():
     with pytest.raises(ModelRefused):
         build_cell(
             QUESTION, [source(0)], client=ScriptedClient(queries=["a", "  ", "c"])
+        )
+
+
+def test_transform_and_generate_receive_the_description():
+    """The key's identifiers stay out of the prompts; the key still names the
+    outcome (SPEC 0152)."""
+    client = ScriptedClient()
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert client.questions == [
+        ("transform", describe_key(QUESTION)),
+        ("generate", describe_key(QUESTION)),
+    ]
+    assert outcome.key == QUESTION
+
+
+@pytest.mark.parametrize(
+    "leaked", ["argilosa tb_oxidic textura", "Argilosa|tb_oxidic manejo"]
+)
+def test_a_query_carrying_an_identifier_is_refused(leaked):
+    """Grading against an identifier dropped CT 33 on every query (SPEC 0152)."""
+    with pytest.raises(ModelRefused, match="identifier"):
+        build_cell(
+            QUESTION,
+            [source(0)],
+            client=ScriptedClient(queries=["manejo do fósforo", leaked, "calagem"]),
         )
