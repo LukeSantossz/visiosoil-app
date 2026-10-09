@@ -77,6 +77,46 @@ def substance_key(texture_class: str, clay_activity: str) -> str:
     return f"{texture_class}|{clay_activity}"
 
 
+_TEXTURE_WORDS = {
+    "Arenosa": "textura arenosa",
+    "Media": "textura média",
+    "Argilosa": "textura argilosa",
+    "Muito Argilosa": "textura muito argilosa",
+}
+
+_FAMILY_WORDS = {
+    "tb_oxidic": (
+        "argila de atividade baixa (Tb, CTC da fração argila abaixo de "
+        "27 cmolc/kg), de solo muito intemperizado e oxídico"
+    ),
+    "intermediate": (
+        "argila de atividade intermediária, entre a baixa (Tb) e a alta (Ta)"
+    ),
+    "ta_less_weathered": (
+        "argila de atividade alta (Ta, CTC da fração argila de 27 cmolc/kg ou "
+        "mais), de solo menos intemperizado"
+    ),
+}
+"""Worded from the families table of the research-agent design, §5.1, and
+nothing past it: a mineral or a soil order it does not state would steer the
+queries toward one reading of the family."""
+
+
+def describe_key(key: str) -> str:
+    """What the cell [key] means, in the words the chain is given (SPEC 0152).
+
+    The chain was handed `Argilosa|tb_oxidic` and nothing else, so its queries
+    only reordered the identifier and its tip read the family backwards. A key
+    with no description fails rather than falling back to the identifier.
+    """
+    texture_class, _, family = key.partition("|")
+    texture = _TEXTURE_WORDS.get(texture_class)
+    activity = _FAMILY_WORDS.get(family)
+    if texture is None or activity is None:
+        raise ValueError(f"no description for the cell key {key!r}")
+    return f"solo de {texture}, com {activity}"
+
+
 def substance_keys(path: Path | None = None) -> list[str]:
     """Every substance cell: each class against each clay-activity family."""
     return [
