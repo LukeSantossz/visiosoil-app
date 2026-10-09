@@ -16,6 +16,8 @@ A retake is the normal answer to most failures the capture preview names. The ca
 
 `CaptureActions` gains a required `onRetake` callback. "Tirar outra foto" is disabled while the screen is busy, which means while classification runs or a save is in flight, the same condition that disables Save.
 
+**A save and a retake never run together.** A button's callback comes from the last frame, so both can be tapped before either disables the other. The screen checks its state when each one runs: a save tapped while the camera is open for a retake does nothing, because the photograph is about to change, and a retake tapped while a save is in flight does nothing. Otherwise a save could finish with the previous photograph while the new one stayed in `imageProvider` after the save left capture, and the next capture would open on it without its classification.
+
 **The retake runs the same path as "Câmera", and changes nothing until a new photograph returns.** "Tirar outra foto" calls the screen's existing `_pickImage`. That method checks permission, passes the capture guide (already seen in practice) and opens the camera. The current photograph and its state stay as they are until the camera returns a file:
 
 - **Cancelled.** The picker returns `null`. The photograph, its classification result or failure, and its location stay unchanged, and nothing is classified or deleted.
@@ -55,7 +57,7 @@ Nothing changes in the router, the database, the repository or `imageProvider`.
 - `cancelling_a_retake_keeps_the_photograph`: when the camera returns nothing, the same photograph, classification result and location are shown. Classification does not run again, and the deleter receives nothing.
 - `a_failed_retake_keeps_the_photograph`: when the camera throws, "Não foi possível abrir a câmera." is shown, and the photograph, its result and its location are kept.
 - `a_refused_retake_keeps_the_photograph`: when camera access is refused, either denied or permanently denied, while a photograph is held, "Sem acesso à câmera. A foto atual foi mantida." is shown. The denied view is not shown, and the photograph, its result and its location are kept. Without a photograph, a refusal still shows the denied view.
-- `retake_waits_for_the_classification_and_the_save`: "Tirar outra foto" is disabled while classification runs and while a save is in flight, and enabled once classification ends, whether it succeeded or failed.
+- `retake_waits_for_the_classification_and_the_save`: "Tirar outra foto" is disabled while classification runs and while a save is in flight, and enabled once classification ends, whether it succeeded or failed. A save tapped while the camera is open for a retake creates no record, and a retake tapped in the same frame as a save opens no camera.
 - `saving_after_a_retake_saves_the_new_photograph`: a save after a retake creates one record, with the new file's path and the new classification.
 - `retake_is_labelled`: "Tirar outra foto" meets the labelled and Android tap-target guidelines, "Descartar" keeps 24 dp from the button above it, and the capture actions lay out at 200 % text with no exception.
 
