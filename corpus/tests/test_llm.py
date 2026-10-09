@@ -70,25 +70,46 @@ class TestParseJsonObject:
             parse_json_object("[1, 2]")
 
 
+def _tags(*entries):
+    """A `/api/tags` payload: one entry per local model, as Ollama lists it."""
+    return {
+        "models": [
+            {"name": name, "model": name, "digest": digest}
+            for name, digest in entries
+        ]
+    }
+
+
 class TestModelDigest:
-    def test_an_unreadable_digest_fails_rather_than_becoming_unknown(self):
-        """The run manifest is the reproducibility guarantee ADR 0023 put in
-        place of a spend ledger. A corpus generated against a model nobody can
-        name does not reproduce, so the lookup failing must stop the build
-        instead of writing "unknown" into the record."""
+    """The digest comes from `GET /api/tags` (SPEC 0151).
 
-        def failing_post(url, payload):
-            raise OSError("ollama is not running")
+    `/api/show` carries no `digest` field, so reading it there failed every
+    real run while a test that faked the field passed.
+    """
 
-        client = OllamaClient(post=failing_post)
+    def test_the_digest_is_read_from_the_tags_list(self):
+        requested = []
 
-        with pytest.raises(OSError):
-            client.model_digest()
+        def get(url):
+            requested.append(url)
+            return _tags(("llama3.1:8b", "other"), ("qwen2.5:7b", "sha256:abc"))
 
-    def test_a_digest_the_server_does_not_report_is_refused(self):
-        client = OllamaClient(post=lambda url, payload: {"model_info": {}})
+        client = OllamaClient(get=get)
 
-        with pytest.raises(ModelRefused):
+        assert client.model_digest() == "sha256:abc"
+        assert requested and requested[0].endswith("/api/tags")
+
+    def test_an_untagged_model_matches_its_latest_entry(self):
+        client = OllamaClient(
+            model="qwen2.5", get=lambda url: _tags(("qwen2.5:latest", "sha256:def"))
+        )
+
+        assert client.model_digest() == "sha256:def"
+
+    def test_a_model_the_server_does_not_list_is_refused(self):
+        client = OllamaClient(get=lambda url: _tags(("llama3.1:8b", "sha256:abc")))
+
+        with pytest.raises(ModelRefused, match="qwen2.5:7b"):
             client.model_digest()
 
     def test_a_digest_that_is_not_a_string_is_refused(self):
@@ -96,16 +117,27 @@ class TestModelDigest:
         # identifies nothing, and `RunManifest` performs no runtime type check,
         # so it would reach `modelDigest` and void the one promise the manifest
         # exists to make.
-        for reported in ({"sha256": "abc"}, ["sha256:abc"], 12345):
-            client = OllamaClient(post=lambda url, payload, r=reported: {"digest": r})
+        for reported in ({"sha256": "abc"}, ["sha256:abc"], 12345, "", "  "):
+            client = OllamaClient(
+                get=lambda url, r=reported: _tags(("qwen2.5:7b", r))
+            )
 
             with pytest.raises(ModelRefused, match="digest"):
                 client.model_digest()
 
-    def test_a_reported_digest_is_returned(self):
-        client = OllamaClient(post=lambda url, payload: {"digest": "sha256:abc"})
+    def test_an_unreadable_digest_fails_rather_than_becoming_unknown(self):
+        """The run manifest is the reproducibility guarantee ADR 0023 put in
+        place of a spend ledger. A corpus generated against a model nobody can
+        name does not reproduce, so the lookup failing must stop the build
+        instead of writing "unknown" into the record."""
 
-        assert client.model_digest() == "sha256:abc"
+        def failing_get(url):
+            raise OSError("ollama is not running")
+
+        client = OllamaClient(get=failing_get)
+
+        with pytest.raises(OSError):
+            client.model_digest()
 
 
 # --- The transport hands a PDF over undecoded -----------------------------------
