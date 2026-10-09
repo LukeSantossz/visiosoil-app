@@ -189,6 +189,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           : null,
       actions: _isSelectionMode
           ? [
+              // Exactly two: the comparison sets one record beside another
+              // (SPEC 0150).
+              VisioIconButton(
+                label: 'Comparar selecionados',
+                icon: Icons.compare_arrows,
+                onPressed: count == 2
+                    ? () => context.push(
+                          '/compare',
+                          extra: _selectedIds.toList(),
+                        )
+                    : null,
+              ),
               VisioIconButton(
                 label: 'Excluir selecionados',
                 icon: Icons.delete_outline,
