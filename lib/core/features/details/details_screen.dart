@@ -156,6 +156,19 @@ class _HeroImageAppBar extends StatelessWidget {
               ),
             )
           : null,
+      // The next sample starts here, in view on the page a save opens
+      // (SPEC 0146).
+      actions: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          child: VisioIconButton(
+            label: 'Nova captura',
+            icon: Icons.add_a_photo_outlined,
+            overPhoto: true,
+            onPressed: () => context.push('/capture'),
+          ),
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         // Below the status bar, so its icons sit on the theme's surface rather
         // than on the photograph.

@@ -419,6 +419,24 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
+  /// Leaving capture discards its photograph, as "Descartar" does
+  /// (SPEC 0146). It clears only once the page has left, so the photograph
+  /// does not blank while it slides out, and with what it reads now, since the
+  /// screen is disposed by then.
+  void _discardOnLeave() {
+    final picked = ref.read(imageProvider).file;
+    if (picked == null) return;
+    final imageNotifier = ref.read(imageProvider.notifier);
+    final deletePicked = _deletePickedFile;
+    // A save in flight deletes the file itself once it succeeds.
+    final saving = _state.isSaving;
+    final left = ModalRoute.of(context)?.completed ?? Future<void>.value();
+    unawaited(left.then((_) {
+      imageNotifier.clearIfPath(picked.path);
+      if (!saving) unawaited(_disposePickedFile(deletePicked, picked.path));
+    }));
+  }
+
   /// Deletes the picker's file once the screen no longer needs it, best
   /// effort (SPEC 0094). The file still carries the original EXIF, GPS
   /// included, which only the durable copy is stripped of (ADR 0005). A
@@ -456,52 +474,59 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
 
-    return Scaffold(
-      appBar: VisioAppBar(
-        title: 'Nova captura',
-        actions: [
-          // The protocol on demand; it returns here and opens no camera
-          // (SPEC 0142).
-          VisioIconButton(
-            label: 'Como capturar',
-            icon: Icons.help_outline,
-            onPressed: () => context.push('/capture-guide'),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: CaptureImagePreview(
-                  image: image,
-                  isLoading: _state.isLocating,
-                  isClassifying: _state.isClassifying,
-                  classificationPhase: _state.classificationPhase,
-                  address: _state.address,
-                  latitude: _state.latitude,
-                  longitude: _state.longitude,
-                  classificationResult: _state.classificationResult,
-                  classificationFailed: _state.classificationFailed,
-                  classificationFailureCause:
-                      _state.classificationFailureCause,
-                  onRetryClassification: _retryClassification,
+    // A save replaces this route instead of popping it (SPEC 0132), so only
+    // back runs this.
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _discardOnLeave();
+      },
+      child: Scaffold(
+        appBar: VisioAppBar(
+          title: 'Nova captura',
+          actions: [
+            // The protocol on demand; it returns here and opens no camera
+            // (SPEC 0142).
+            VisioIconButton(
+              label: 'Como capturar',
+              icon: Icons.help_outline,
+              onPressed: () => context.push('/capture-guide'),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: CaptureImagePreview(
+                    image: image,
+                    isLoading: _state.isLocating,
+                    isClassifying: _state.isClassifying,
+                    classificationPhase: _state.classificationPhase,
+                    address: _state.address,
+                    latitude: _state.latitude,
+                    longitude: _state.longitude,
+                    classificationResult: _state.classificationResult,
+                    classificationFailed: _state.classificationFailed,
+                    classificationFailureCause:
+                        _state.classificationFailureCause,
+                    onRetryClassification: _retryClassification,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              CaptureActions(
-                hasImage: hasImage,
-                // Location is optional, so Save does not wait for it; a record
-                // saved first has no coordinates (SPEC 0117).
-                isBusy: _state.isClassifying || _state.isSaving,
-                onCapture: _pickImage,
-                onSave: _saveRecord,
-                onDiscard: _discardImage,
-              ),
-            ],
+                const SizedBox(height: AppSpacing.lg),
+                CaptureActions(
+                  hasImage: hasImage,
+                  // Location is optional, so Save does not wait for it; a record
+                  // saved first has no coordinates (SPEC 0117).
+                  isBusy: _state.isClassifying || _state.isSaving,
+                  onCapture: _pickImage,
+                  onSave: _saveRecord,
+                  onDiscard: _discardImage,
+                ),
+              ],
+            ),
           ),
         ),
       ),

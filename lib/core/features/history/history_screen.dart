@@ -197,12 +197,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
             ]
           : [
-              if (hasRecords)
+              // The empty history has its own "Nova captura" in the grid
+              // (SPEC 0146).
+              if (hasRecords) ...[
+                VisioIconButton(
+                  label: 'Nova captura',
+                  icon: Icons.add_a_photo_outlined,
+                  onPressed: () => context.push('/capture'),
+                ),
                 VisioIconButton(
                   label: 'Selecionar registros',
                   icon: Icons.checklist,
                   onPressed: _startEmptySelection,
                 ),
+              ],
             ],
     );
   }
