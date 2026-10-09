@@ -1014,10 +1014,12 @@ Recommended order, and why:
    2026-10-05, was refused whole, and SPEC 0140 fixed what it found.** A pale
    table merged with the paper at one threshold, and a lit spot joined the
    sheet to the frame's border. A second split on the bright side, a line fit
-   where the region touches the border, and a step check across each edge now
-   read 24 of the 31 photographs and refuse the other 7 by name
+   where the region touches the border, and a step check across each edge
+   read 24 of the 31 photographs. SPEC 0144's scan past a lighting gradient
+   reads two more, so 26 are read and the other 5 are refused by name
    (`docs/ml/sheet-reader-real-photographs.md`). None of them classifies: the
-   soil patch on them is smaller than the grid's nine patches need.
+   soil patch on them is smaller than the grid's nine patches need, and the two
+   SPEC 0144 reads were also taken too coarse for the grid.
 4. **B3, the release fit**, written into the contract as numbers. **Done by SPEC
    0082.** `ml/src/release.py` chose `C` = 10 over all 25 manifest folds, by E0's
    criterion, and refitted on all 204 photographs of `v1`, population `B`

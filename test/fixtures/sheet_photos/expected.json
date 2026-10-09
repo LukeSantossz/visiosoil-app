@@ -104,8 +104,25 @@
       ],
       "width": 1024,
       "height": 461,
-      "expected": "notFound",
-      "note": "one edge the reader would fit runs along a lighting gradient on the table, not along the paper"
+      "expected": "sheet",
+      "corners": [
+        [
+          219.5,
+          23.5
+        ],
+        [
+          218.7,
+          426.2
+        ],
+        [
+          757.6,
+          433.3
+        ],
+        [
+          760.9,
+          23.0
+        ]
+      ]
     },
     {
       "name": "160812",

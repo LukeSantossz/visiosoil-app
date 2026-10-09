@@ -9,10 +9,10 @@ import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 
-/// The A4-sheet reader against real photographs (SPEC 0140): six taken on
-/// 2026-10-05 on a pale table, reduced to a 1024 px long side. The corners of
-/// each sheet were measured on the full-resolution original, so nothing here
-/// shares the reader's mathematics.
+/// The A4-sheet reader against real photographs (SPEC 0140, SPEC 0144): six
+/// taken on 2026-10-05 on a pale table, reduced to a 1024 px long side. The
+/// corners of each sheet were measured on the full-resolution original, so
+/// nothing here shares the reader's mathematics.
 const _fixtures = 'test/fixtures/sheet_photos';
 
 typedef _Point = ({double x, double y});
@@ -28,9 +28,7 @@ final _decoded = <String, RgbFrame>{};
 RgbFrame _frame(Map<String, dynamic> photo) =>
     _decoded.putIfAbsent(photo['name'] as String, () {
       final frame = InferenceService.frameOf(
-        img.decodeJpg(
-          File('$_fixtures/${photo['file']}').readAsBytesSync(),
-        )!,
+        img.decodeJpg(File('$_fixtures/${photo['file']}').readAsBytesSync())!,
       );
       expect([frame.width, frame.height], [photo['width'], photo['height']]);
       return frame;
@@ -124,16 +122,22 @@ RgbFrame _mirrored(RgbFrame frame) {
   return RgbFrame(frame.width, frame.height, rgb);
 }
 
-RgbFrame _darkened(RgbFrame frame) => RgbFrame(frame.width, frame.height, [
-  for (final value in frame.rgb) (value * 85 + 50) ~/ 100,
-].toUint8List());
+RgbFrame _darkened(RgbFrame frame) => RgbFrame(
+  frame.width,
+  frame.height,
+  [for (final value in frame.rgb) (value * 85 + 50) ~/ 100].toUint8List(),
+);
 
 RgbFrame _noisy(RgbFrame frame) {
   final random = math.Random(140);
-  return RgbFrame(frame.width, frame.height, [
-    for (final value in frame.rgb)
-      (value + random.nextInt(17) - 8).clamp(0, 255),
-  ].toUint8List());
+  return RgbFrame(
+    frame.width,
+    frame.height,
+    [
+      for (final value in frame.rgb)
+        (value + random.nextInt(17) - 8).clamp(0, 255),
+    ].toUint8List(),
+  );
 }
 
 int _reducedSide(int side) => (side * 0.75).round();
@@ -166,6 +170,24 @@ RgbFrame _reduced(RgbFrame frame) {
     }
   }
   return RgbFrame(width, height, rgb);
+}
+
+/// [frame] with columns [from] to [to] of every row replaced by a linear ramp
+/// between the two end columns, so no step is left between them (SPEC 0144).
+RgbFrame _ramped(RgbFrame frame, int from, int to) {
+  final rgb = Uint8List.fromList(frame.rgb);
+  for (var y = 0; y < frame.height; y++) {
+    for (var c = 0; c < 3; c++) {
+      final start = frame.rgb[(y * frame.width + from) * 3 + c];
+      final end = frame.rgb[(y * frame.width + to) * 3 + c];
+      for (var x = from; x <= to; x++) {
+        final t = (x - from) / (to - from);
+        rgb[(y * frame.width + x) * 3 + c] = (start * (1 - t) + end * t)
+            .round();
+      }
+    }
+  }
+  return RgbFrame(frame.width, frame.height, rgb);
 }
 
 extension on List<int> {
@@ -212,12 +234,9 @@ Iterable<Map<String, dynamic>> get _refused =>
     _photos.where((photo) => photo['expected'] != 'sheet');
 
 void main() {
-  test('the_fixtures_hold_four_sheets_and_two_refusals', () {
-    expect(_sheets, hasLength(4));
-    expect(_refused.map((photo) => photo['expected']), [
-      'notFound',
-      'cropped',
-    ]);
+  test('the_fixtures_hold_five_sheets_and_one_refusal', () {
+    expect(_sheets, hasLength(5));
+    expect(_refused.map((photo) => photo['expected']), ['cropped']);
   });
 
   test('a_real_sheet_is_found_where_it_lies', () {
@@ -258,6 +277,28 @@ void main() {
           );
         }
       }
+    }
+  });
+
+  // On 160808 the paper's right edge lies at x ≈ 761 and the table's own
+  // border at x ≈ 797. With the paper's edge ramped away, the first step past
+  // the gradient is the table's border, and a sheet read there is about 7 %
+  // too wide. The surface changes across the new corners, so it is refused.
+  test('an_erased_paper_edge_is_not_read_at_the_table_border', () {
+    final photo = _photos.singleWhere((photo) => photo['name'] == '160808');
+    final erased = _ramped(_frame(photo), 735, 785);
+    expect(
+      findSheet(erased).refusal,
+      SheetRefusal.notFound,
+      reason: '160808 with its right paper edge erased',
+    );
+    for (final variant in _variants) {
+      expect(
+        findSheet(variant.frame(erased)).refusal,
+        SheetRefusal.notFound,
+        reason:
+            '160808 with its right paper edge erased, under ${variant.name}',
+      );
     }
   });
 }
