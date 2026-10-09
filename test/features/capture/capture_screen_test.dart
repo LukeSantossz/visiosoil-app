@@ -1054,6 +1054,97 @@ void main() {
     });
   });
 
+  // Leaving capture discards its photograph as "Descartar" does, once the
+  // page has left, so the next capture starts without it (SPEC 0146).
+  group('leaving capture', () {
+    Future<void> openAndCapture(WidgetTester tester) async {
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      expect(find.text('Salvar registro'), findsOneWidget);
+    }
+
+    testWidgets('leaving_capture_discards_its_photograph', (tester) async {
+      final deleted = <String>[];
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+      await openAndCapture(tester);
+
+      await tester.pageBack();
+      await tester.pump();
+      // The photograph leaves with the page instead of blanking under it.
+      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(deleted, isEmpty);
+
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureScreen), findsNothing);
+      expect(deleted, [samplePath]);
+
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      expect(find.text('Câmera'), findsOneWidget);
+      expect(find.text('Salvar registro'), findsNothing);
+    });
+
+    testWidgets('leaving_during_a_save_leaves_the_file_to_the_save',
+        (tester) async {
+      final gate = Completer<void>();
+      final repository = _GatedSoilRecordRepository(gate.future);
+      final deleted = <String>[];
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+      await openAndCapture(tester);
+
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pump();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureScreen), findsNothing);
+      expect(deleted, isEmpty);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      expect(repository.createCalls, hasLength(1));
+      expect(deleted, [samplePath]);
+    });
+
+    testWidgets('a_saved_capture_starts_the_next_one_clean', (tester) async {
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+        repository: FakeSoilRecordRepository(),
+      ));
+      await openAndCapture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pumpAndSettle();
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Câmera'), findsOneWidget);
+      expect(find.text('Salvar registro'), findsNothing);
+      final uiState =
+          (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
+              as CaptureUiState;
+      expect(uiState.classificationResult, isNull);
+    });
+  });
+
   // A photograph recovered after Android killed the app arrives with the
   // screen, which treats it as a fresh capture without opening the camera
   // (SPEC 0096).

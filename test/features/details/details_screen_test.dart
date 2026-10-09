@@ -561,6 +561,88 @@ void main() {
     semantics.dispose();
   });
 
+  // From a record, the app bar starts the next capture, and back from it
+  // returns to the same record (SPEC 0146).
+  testWidgets('new_capture_from_details', (tester) async {
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.push('/details', extra: 1),
+              child: const Text('open details'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/details',
+          builder: (_, _) => const DetailsScreen(recordId: 1),
+        ),
+        GoRoute(
+          path: '/capture',
+          builder: (_, _) => Scaffold(
+            appBar: AppBar(),
+            body: const Text('CAPTURE_STUB'),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider.overrideWith((ref, id) async => _locatedRecord()),
+        managementTipsRepositoryProvider
+            .overrideWithValue(FakeManagementTipsRepository()),
+        researchServiceProvider.overrideWithValue(
+          FakeResearchService(
+            (_) async =>
+                const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+          ),
+        ),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.tap(find.text('open details'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Nova captura'));
+    await tester.pumpAndSettle();
+    expect(find.text('CAPTURE_STUB'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('CAPTURE_STUB'), findsNothing);
+    expect(find.byType(DetailsScreen), findsOneWidget);
+    expect(find.text('São Paulo, SP'), findsOneWidget);
+    expect(find.byTooltip('Voltar'), findsOneWidget);
+  });
+
+  testWidgets('new_capture_is_labelled', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_detailsUnderTest(
+      share: _RecordingShareService(),
+      record: _locatedRecord(),
+      pushed: true,
+    ));
+    await tester.tap(find.text('open details'));
+    await tester.pumpAndSettle();
+
+    final action = find.ancestor(
+      of: find.byTooltip('Nova captura'),
+      matching: find.byType(IconButton),
+    );
+    expect(action, findsOneWidget);
+    expect(
+      tester.getSemantics(action),
+      isSemantics(tooltip: 'Nova captura', isButton: true, hasTapAction: true),
+    );
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    semantics.dispose();
+  });
+
   // The top of details, and its actions, each pass Flutter's four
   // accessibility guidelines (SPEC 0133).
   for (final (name, theme) in appThemes) {
