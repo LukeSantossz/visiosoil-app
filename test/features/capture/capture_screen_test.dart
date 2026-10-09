@@ -1399,20 +1399,19 @@ void main() {
       expect(find.text('DETAILS_STUB 1'), findsOneWidget);
     });
 
-    // A save tapped before the camera covers the screen still owns the
-    // previous file, as it does against "Descartar" (SPEC 0094).
-    testWidgets('a_retake_during_a_save_leaves_the_file_to_the_save',
-        (tester) async {
+    // A save and a retake never run together: whichever is tapped first runs,
+    // and the other does nothing (SPEC 0147).
+    testWidgets('a_save_waits_for_an_open_retake', (tester) async {
+      final repository = FakeSoilRecordRepository();
       final pickGate = Completer<XFile?>();
       var picks = 0;
-      final saveGate = Completer<void>();
       final deleted = <String>[];
       await tester.pumpWidget(buildRouted(
         pickFromCamera: () =>
             ++picks == 1 ? Future.value(XFile(samplePath)) : pickGate.future,
         locate: () async => null,
         classify: (_) async => null,
-        repository: _GatedSoilRecordRepository(saveGate.future),
+        repository: repository,
         deletePickedFile: (path) async => deleted.add(path),
       ));
       await tester.tap(find.text('open capture'));
@@ -1422,14 +1421,47 @@ void main() {
       await tester.tap(find.text('Tirar outra foto'));
       await tester.tap(find.text('Salvar registro'));
       await settle(tester);
+      expect(repository.createCalls, isEmpty,
+          reason: 'no save while the camera is open for a retake');
+
       pickGate.complete(XFile(retakePath));
       await settle(tester);
       expect(shownPath(tester), retakePath);
-      expect(deleted, isEmpty);
+      expect(deleted, [samplePath]);
+
+      await tester.tap(find.text('Salvar registro'));
+      await tester.pumpAndSettle();
+      expect(repository.createCalls.single.imagePath, retakePath);
+    });
+
+    testWidgets('a_retake_waits_for_a_save', (tester) async {
+      var picks = 0;
+      final saveGate = Completer<void>();
+      final deleted = <String>[];
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async {
+          picks++;
+          return XFile(picks == 1 ? samplePath : retakePath);
+        },
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: _GatedSoilRecordRepository(saveGate.future),
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await captureFirst(tester);
+
+      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.text('Tirar outra foto'));
+      await settle(tester);
+      expect(picks, 1, reason: 'no camera while a save is in flight');
 
       saveGate.complete();
       await tester.pumpAndSettle();
+      expect(picks, 1);
       expect(deleted, [samplePath]);
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
     });
 
     testWidgets('saving_after_a_retake_saves_the_new_photograph',
