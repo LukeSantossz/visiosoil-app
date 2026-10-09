@@ -42,6 +42,7 @@ MIN_CHARS_PER_TOKEN = 2
 PROMPT_CHAR_CEILING = CONTEXT_TOKENS * MIN_CHARS_PER_TOKEN
 
 HttpPost = Callable[[str, dict[str, Any]], dict[str, Any]]
+HttpGet = Callable[[str], dict[str, Any]]
 
 
 class RedirectRefused(Exception):
@@ -118,6 +119,12 @@ def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=300) as response:  # noqa: S310
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _get(url: str) -> dict[str, Any]:
+    # A listing, not a model call: the short timeout the source fetch uses.
+    with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -215,11 +222,13 @@ class OllamaClient:
         seed: int = 1234,
         base_url: str = OLLAMA_URL,
         post: HttpPost | None = None,
+        get: HttpGet | None = None,
     ) -> None:
         self.model = model
         self.seed = seed
         self._base_url = base_url
         self._post = post or _post
+        self._get = get or _get
         self._prompts = {
             name: load_prompt(name)
             for name in ("transform", "grade", "generate", "ground")
@@ -237,9 +246,27 @@ class OllamaClient:
         model nobody can name does not reproduce. Swallowing the lookup and
         writing "unknown" would let the build finish while quietly voiding the
         one thing that record exists to promise.
+
+        Read from `/api/tags`, which lists each local model with its digest;
+        `/api/show` carries no digest at all (SPEC 0151). A model named without
+        a tag is listed under `:latest`.
         """
-        payload = self._post(f"{self._base_url}/api/show", {"model": self.model})
-        digest = payload.get("digest")
+        name = self.model if ":" in self.model else f"{self.model}:latest"
+        payload = self._get(f"{self._base_url}/api/tags")
+        entry = next(
+            (
+                m
+                for m in payload.get("models") or []
+                if name in (m.get("name"), m.get("model"))
+            ),
+            None,
+        )
+        if entry is None:
+            raise ModelRefused(
+                f"ollama does not list {self.model}; the run manifest cannot "
+                f"identify what generated the corpus"
+            )
+        digest = entry.get("digest")
         if not isinstance(digest, str) or not digest.strip():
             # A non-string passes `str()` and reaches `modelDigest` looking like
             # an identifier while naming nothing, and `RunManifest` performs no

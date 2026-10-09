@@ -72,12 +72,15 @@ def main(argv: list[str] | None = None) -> int:
         SourceManifest.load(args.manifest), transport=http_transport
     )
     client = OllamaClient(model=args.model, seed=args.seed)
+    # Before the chain, not after: a server that cannot name the model would
+    # otherwise discard a cell it has already spent the build on (SPEC 0151).
+    model_digest = client.model_digest()
     outcome = build_cell(args.cell, sources, client=client)
 
     manifest = RunManifest(
         key=outcome.key,
         model=args.model,
-        model_digest=client.model_digest(),
+        model_digest=model_digest,
         prompt_versions=client.prompt_versions,
         seed=args.seed,
         sources=outcome.kept,
