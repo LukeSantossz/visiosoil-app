@@ -1,8 +1,8 @@
 """The CRAG chain that builds one cell.
 
-Four steps: transform the question into several queries, grade each document for
-relevance, generate a cited cell from what survived, and check that every tip is
-actually supported by what it cites.
+Four steps: transform the question into one query per management topic, grade
+each document for relevance, generate a cited cell from what survived, and check
+that every tip is actually supported by what it cites.
 
 It is CRAG-shaped rather than Self-RAG-shaped for the reason
 `llm-wiki/wiki/rag-auto-corretivo.md` records: **the grader is external and
@@ -47,10 +47,19 @@ ABSTENTION_DISCLAIMER = (
     "Consulte a assistência técnica local."
 )
 
-QUERY_COUNT = 3
-"""How many queries the transform step produces. More than one is the point of
-the step: a single phrasing of an agronomic question retrieves one phrasing of
-the literature."""
+MANAGEMENT_TOPICS = (
+    "calagem",
+    "fósforo",
+    "potássio",
+    "matéria orgânica",
+    "água",
+    "o que a classe de textura implica e o que não implica",
+)
+"""The topics the transform step writes one query for each of, in order.
+
+Fixed here rather than left to the model: asked for "different angles", it
+wrote three broad questions about fertility, and the phosphorus circular a
+judge asked for was graded irrelevant to all of them (SPEC 0153)."""
 
 
 class LLMClient(Protocol):
@@ -61,7 +70,7 @@ class LLMClient(Protocol):
     touching the chain.
     """
 
-    def transform_queries(self, question: str, *, count: int) -> list[str]: ...
+    def transform_query(self, question: str, *, topic: str) -> str: ...
 
     def grade_document(self, query: str, document: FetchedSource) -> bool: ...
 
@@ -103,7 +112,9 @@ def build_cell(
     )
     # The model is told what the key means, never the key itself (SPEC 0152).
     question = describe_key(key)
-    queries = client.transform_queries(question, count=QUERY_COUNT)
+    queries = [
+        client.transform_query(question, topic=topic) for topic in MANAGEMENT_TOPICS
+    ]
     _require_queries(queries)
 
     kept = [
@@ -200,15 +211,15 @@ def _require_generated_shape(generated: Any) -> None:
 def _require_queries(queries: Any) -> None:
     """Refuses a transform step that did not do its job.
 
-    The point of the step is more than one phrasing, so fewer than asked for —
-    or a blank one — is a step that silently did not run.
+    The point of the step is one phrasing per management topic, so a missing
+    one — or a blank one — is a step that silently did not run.
     """
     from src.llm import ModelRefused
 
-    if not isinstance(queries, list) or len(queries) != QUERY_COUNT:
+    if not isinstance(queries, list) or len(queries) != len(MANAGEMENT_TOPICS):
         raise ModelRefused(
             f"transform returned {len(queries) if isinstance(queries, list) else '?'} "
-            f"queries, not {QUERY_COUNT}"
+            f"queries, not {len(MANAGEMENT_TOPICS)}"
         )
     for query in queries:
         if not isinstance(query, str) or not query.strip():
@@ -241,5 +252,6 @@ __all__ = [
     "BuildOutcome",
     "CellValidationError",
     "LLMClient",
+    "MANAGEMENT_TOPICS",
     "build_cell",
 ]
