@@ -94,6 +94,8 @@ class SyncLocalStore {
             modelVersion: Value(remote.modelVersion),
             datasetVersion: Value(remote.datasetVersion),
             horizontalAccuracy: Value(remote.horizontalAccuracy),
+            fieldName: Value(remote.fieldName),
+            sampleLabel: Value(remote.sampleLabel),
           ),
         );
   }
@@ -121,6 +123,8 @@ class SyncLocalStore {
         modelVersion: Value(remote.modelVersion),
         datasetVersion: Value(remote.datasetVersion),
         horizontalAccuracy: Value(remote.horizontalAccuracy),
+        fieldName: Value(remote.fieldName),
+        sampleLabel: Value(remote.sampleLabel),
       ),
     );
   }

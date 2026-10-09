@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/classification_header.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
+import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
@@ -78,14 +79,37 @@ class _RecordNotFoundView extends StatelessWidget {
 
 // --- Main Content ---
 
-class _DetailsContent extends StatelessWidget {
+class _DetailsContent extends ConsumerWidget {
   const _DetailsContent({required this.record, required this.recordId});
 
   final SoilRecord record;
   final int recordId;
 
+  /// Asks for the labels and writes them, then re-reads the record; a failed
+  /// write says so and leaves the labels as they were (SPEC 0149).
+  Future<void> _editLabels(BuildContext context, WidgetRef ref) async {
+    final labels = await showLabelsDialog(context, record);
+    if (labels == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(soilRecordRepositoryProvider).updateLabels(
+            recordId,
+            fieldName: labels.fieldName,
+            sampleLabel: labels.sampleLabel,
+          );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar a identificação.'),
+        ),
+      );
+      return;
+    }
+    if (context.mounted) ref.invalidate(soilRecordByIdProvider(recordId));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -107,7 +131,10 @@ class _DetailsContent extends StatelessWidget {
                   children: [
                     ClassificationHeader(record: record),
                     const SizedBox(height: AppSpacing.xl),
-                    InfoSection(record: record),
+                    InfoSection(
+                      record: record,
+                      onEditLabels: () => _editLabels(context, ref),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     ManagementTipsSection(record: record),
                     const SizedBox(height: AppSpacing.xl),

@@ -45,4 +45,10 @@ class SoilRecords extends Table {
   /// or whose device reported no usable accuracy, never had one.
   RealColumn get horizontalAccuracy =>
       real().named('horizontal_accuracy').nullable()();
+
+  /// v9 (SPEC 0149): the field or plot the agronomist named for the sample,
+  /// and the sample's own label. Null when not given, which every record
+  /// saved before v9 is.
+  TextColumn get fieldName => text().named('field_name').nullable()();
+  TextColumn get sampleLabel => text().named('sample_label').nullable()();
 }

@@ -206,7 +206,11 @@ class _ThumbnailCard extends StatelessWidget {
     return MergeSemantics(
       child: Semantics(
         button: true,
-        label: 'Registro de ${record.formattedTimestampCompact}',
+        // The labels follow the date, as the card shows them (SPEC 0149).
+        label: record.hasLabels
+            ? 'Registro de ${record.formattedTimestampCompact}, '
+                '${record.labelsSummary}'
+            : 'Registro de ${record.formattedTimestampCompact}',
         selected: isSelectionMode ? isSelected : null,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -215,7 +219,10 @@ class _ThumbnailCard extends StatelessWidget {
             children: [
               _ThumbnailImage(imagePath: record.imagePath),
               const _GradientOverlay(),
-              _TimestampLabel(timestamp: record.formattedTimestampCompact),
+              _TimestampLabel(
+                timestamp: record.formattedTimestampCompact,
+                labels: record.hasLabels ? record.labelsSummary : null,
+              ),
               if (isSelectionMode) _SelectionOverlay(isSelected: isSelected),
               if (isSelectionMode) _SelectionCheckbox(isSelected: isSelected),
               Positioned.fill(
@@ -301,9 +308,13 @@ class _GradientOverlay extends StatelessWidget {
 }
 
 class _TimestampLabel extends StatelessWidget {
-  const _TimestampLabel({required this.timestamp});
+  const _TimestampLabel({required this.timestamp, this.labels});
 
   final String timestamp;
+
+  /// The record's field and sample labels, shown above the date; null when
+  /// it has none (SPEC 0149).
+  final String? labels;
 
   @override
   Widget build(BuildContext context) {
@@ -313,13 +324,28 @@ class _TimestampLabel extends StatelessWidget {
       left: AppSpacing.sm,
       right: AppSpacing.sm,
       bottom: AppSpacing.sm,
-      // The card's label already says the date (SPEC 0118).
+      // The card's label already says the date (SPEC 0118) and the labels.
       child: ExcludeSemantics(
-        child: Text(
-          timestamp,
-          style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (labels != null)
+              Text(
+                labels!,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: Colors.white),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            Text(
+              timestamp,
+              style:
+                  theme.textTheme.labelSmall?.copyWith(color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

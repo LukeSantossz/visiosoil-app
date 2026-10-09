@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -76,6 +76,12 @@ class AppDatabase extends _$AppDatabase {
             // with none, as for v7; the v6 erase cannot name it either.
             await migrator.addColumn(
                 soilRecords, soilRecords.horizontalAccuracy);
+          }
+          if (from < 9) {
+            // v8 -> v9: the field and sample labels (SPEC 0149). Nullable,
+            // so every existing row, tombstones included, arrives unlabelled.
+            await migrator.addColumn(soilRecords, soilRecords.fieldName);
+            await migrator.addColumn(soilRecords, soilRecords.sampleLabel);
           }
         },
       );

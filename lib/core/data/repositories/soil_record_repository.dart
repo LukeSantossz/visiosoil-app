@@ -20,6 +20,18 @@ abstract class SoilRecordRepository {
   /// in a single request.
   Future<List<SoilRecord>> getAll();
 
+  /// Writes the field and sample labels of the record with the given [id]
+  /// and marks it for sync (SPEC 0149).
+  ///
+  /// Each label is trimmed, and one that is empty once trimmed is stored as
+  /// null, so passing it clears the label. No-op if the record does not
+  /// exist or is deleted.
+  Future<void> updateLabels(
+    int id, {
+    String? fieldName,
+    String? sampleLabel,
+  });
+
   /// Deletes the record with the given [id]. No-op if it does not exist.
   Future<void> deleteById(int id);
 
@@ -33,9 +45,10 @@ abstract class SoilRecordRepository {
   ///
   /// [textureClass] filters by texture class (exact match).
   ///
-  /// [searchTerm] filters by address, case-insensitively. It is matched as a
-  /// literal substring: it is trimmed first, and `%` and `_` match themselves
-  /// rather than acting as SQL wildcards.
+  /// [searchTerm] filters by address, field name or sample label,
+  /// case-insensitively: a record matches when any of them contains it. It is
+  /// matched as a literal substring: it is trimmed first, and `%` and `_`
+  /// match themselves rather than acting as SQL wildcards.
   ///
   /// A filter that carries no content is not applied. For either argument that
   /// means null or empty; for [searchTerm] it also means a value that is empty

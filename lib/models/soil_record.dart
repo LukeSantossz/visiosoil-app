@@ -38,6 +38,11 @@ class SoilRecord {
   /// location, or whose device reported no usable accuracy.
   final double? horizontalAccuracy;
 
+  /// The field or plot the agronomist named for the sample, and the
+  /// sample's own label (SPEC 0149). Null when not given.
+  final String? fieldName;
+  final String? sampleLabel;
+
   const SoilRecord({
     this.id,
     this.uuid,
@@ -56,6 +61,8 @@ class SoilRecord {
     this.modelVersion,
     this.datasetVersion,
     this.horizontalAccuracy,
+    this.fieldName,
+    this.sampleLabel,
   });
 
   /// Returns a copy of this record with the given fields replaced.
@@ -77,6 +84,8 @@ class SoilRecord {
     String? modelVersion,
     String? datasetVersion,
     double? horizontalAccuracy,
+    String? fieldName,
+    String? sampleLabel,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -96,6 +105,8 @@ class SoilRecord {
       modelVersion: modelVersion ?? this.modelVersion,
       datasetVersion: datasetVersion ?? this.datasetVersion,
       horizontalAccuracy: horizontalAccuracy ?? this.horizontalAccuracy,
+      fieldName: fieldName ?? this.fieldName,
+      sampleLabel: sampleLabel ?? this.sampleLabel,
     );
   }
 
@@ -126,6 +137,14 @@ class SoilRecord {
   String get formattedHorizontalAccuracy => horizontalAccuracy != null
       ? 'Precisão estimada: ${Formatters.horizontalAccuracy(horizontalAccuracy!)}'
       : 'Precisão não disponível';
+
+  /// Indicates whether the agronomist gave the record either label.
+  bool get hasLabels => fieldName != null || sampleLabel != null;
+
+  /// The labels the record has, joined as "field · sample"; empty when it
+  /// has none.
+  String get labelsSummary =>
+      [fieldName, sampleLabel].whereType<String>().join(' · ');
 
   /// Returns the address or a default message.
   String get displayAddress =>
