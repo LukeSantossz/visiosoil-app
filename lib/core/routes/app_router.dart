@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/compare/compare_screen.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
@@ -44,6 +45,16 @@ final appRouter = GoRouter(
         final extra = state.extra;
         final id = extra is int ? extra : -1;
         return ImagePreviewScreen(recordId: id);
+      },
+    ),
+    GoRoute(
+      path: '/compare',
+      // The two selected ids, in selection order (SPEC 0150).
+      builder: (context, state) {
+        final extra = state.extra;
+        final ids =
+            extra is List<int> && extra.length == 2 ? extra : const [-1, -1];
+        return CompareScreen(firstId: ids[0], secondId: ids[1]);
       },
     ),
     GoRoute(
