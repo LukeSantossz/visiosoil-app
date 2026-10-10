@@ -183,7 +183,7 @@ _POSITIVE = re.compile(r"\b(?:yes|sim|true|relevante)\b")
 _NEGATIVE = re.compile(r"\b(?:no|false|irrelevante)\b")
 
 
-_NUMBER = re.compile(r"\d+")
+_NUMBER = re.compile(r"[-−]?\d+")
 
 
 def parse_score(raw: str) -> int:
@@ -195,8 +195,9 @@ def parse_score(raw: str) -> int:
     numbers = _NUMBER.findall(raw)
     if len(numbers) != 1:
         raise ModelRefused(f"grade is not one score: {raw[:120]!r}")
-    score = int(numbers[0])
-    if score > 3:
+    # Read without its sign, "-3" would pass as 3.
+    score = int(numbers[0].replace("−", "-"))
+    if not 0 <= score <= 3:
         raise ModelRefused(f"grade score is outside 0-3: {raw[:120]!r}")
     return score
 
