@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable
@@ -232,6 +233,32 @@ def parse_yes_no(raw: str) -> bool:
     raise ModelRefused(f"grade is neither yes nor no: {raw[:120]!r}")
 
 
+_LINE_BREAK_HYPHEN = re.compile(r"(\w)-\s+(\w)")
+_WHITESPACE = re.compile(r"\s+")
+
+
+def _normalise(text: str) -> str:
+    text = unicodedata.normalize("NFC", text)
+    # The extracted PDF text keeps a word split at a line end — "poten- cial" —
+    # and a model copying the passage joins it.
+    text = _LINE_BREAK_HYPHEN.sub(r"\1\2", text)
+    return _WHITESPACE.sub(" ", text).strip().casefold()
+
+
+def quote_in_evidence(quote: str, cited_texts: list[str]) -> bool:
+    """Whether [quote] is in what the model saw of any of [cited_texts].
+
+    The grounding check does not take the model's verdict alone: on the B1'
+    cell the model said `sim` and quoted the claim's own words (SPEC 0155).
+    """
+    needle = _normalise(quote)
+    if not needle:
+        return False
+    return any(
+        needle in _normalise(text[:PASSAGE_CHAR_LIMIT]) for text in cited_texts
+    )
+
+
 class OllamaClient:
     """`LLMClient` over a local Ollama server.
 
@@ -373,4 +400,9 @@ class OllamaClient:
                 "\n\n".join(text[:PASSAGE_CHAR_LIMIT] for text in cited_texts),
             )
         )
-        return parse_yes_no(raw)
+        reply = parse_json_object(raw)
+        quote = reply.get("trecho")
+        if not isinstance(quote, str):
+            raise ModelRefused(f"grounding quote is not a string: {raw[:120]!r}")
+        supported = parse_yes_no(str(reply.get("sustenta", "")))
+        return supported and quote_in_evidence(quote, cited_texts)
