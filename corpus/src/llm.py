@@ -404,5 +404,10 @@ class OllamaClient:
         quote = reply.get("trecho")
         if not isinstance(quote, str):
             raise ModelRefused(f"grounding quote is not a string: {raw[:120]!r}")
-        supported = parse_yes_no(str(reply.get("sustenta", "")))
+        verdict = reply.get("sustenta")
+        # `parse_yes_no` would read "sim talvez" as `sim`; this reply has two
+        # allowed values, so a hedge is refused rather than read.
+        if not isinstance(verdict, str) or _normalise(verdict) not in ("sim", "não"):
+            raise ModelRefused(f"grounding verdict is not sim or não: {raw[:120]!r}")
+        supported = parse_yes_no(verdict)
         return supported and quote_in_evidence(quote, cited_texts)
