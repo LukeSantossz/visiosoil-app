@@ -302,17 +302,19 @@ class OllamaClient:
         )
         return str(payload.get("response", ""))
 
-    def transform_queries(self, question: str, *, count: int) -> list[str]:
+    def transform_query(self, question: str, *, topic: str) -> str:
         template, _ = self._prompts["transform"]
         raw = self._complete(
-            template.replace("{{question}}", question).replace(
-                "{{count}}", str(count)
-            )
+            template.replace("{{question}}", question).replace("{{topic}}", topic)
         )
-        queries = parse_json_object(raw).get("queries")
-        if not isinstance(queries, list) or not queries:
-            raise ModelRefused("transform returned no queries")
-        return [str(q) for q in queries][:count]
+        query = parse_json_object(raw).get("query")
+        # A list is refused, not cut to its first item: one query was asked for,
+        # and picking one of several would be this module choosing (SPEC 0153).
+        if not isinstance(query, str) or not query.strip():
+            raise ModelRefused(
+                f"transform returned no query for {topic!r}: {query!r}"
+            )
+        return query
 
     def grade_document(self, query: str, document: FetchedSource) -> bool:
         template, _ = self._prompts["grade"]

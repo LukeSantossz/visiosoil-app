@@ -214,8 +214,8 @@ class TestTheModelReadsAllOfIt:
         and seed read different prompts on different machines."""
         from src.llm import CONTEXT_TOKENS
 
-        queries, queries_requests = recording_client('{"queries": ["a", "b", "c"]}')
-        queries.transform_queries("Argilosa|tb_oxidic", count=3)
+        queries, queries_requests = recording_client('{"query": "a"}')
+        queries.transform_query("Solo argiloso", topic="calagem")
         grades, grades_requests = recording_client("sim")
         grades.grade_document("consulta", document("Texto."))
         grades.is_grounded("afirmação", ["Texto."])
@@ -260,10 +260,35 @@ def test_a_pdf_signature_after_leading_bytes_is_still_not_decoded():
     assert decode_body(mangled, "utf-8") == mangled
 
 
+def test_the_topic_reaches_the_prompt():
+    """One query is written per management topic, so the prompt names the
+    topic as well as the soil (SPEC 0153)."""
+    client, requests = recording_client('{"query": "Como corrigir o fósforo?"}')
+
+    query = client.transform_query("Solo argiloso intemperizado", topic="fósforo")
+
+    assert query == "Como corrigir o fósforo?"
+    assert "Solo argiloso intemperizado" in requests[0]["prompt"]
+    assert "fósforo" in requests[0]["prompt"]
+
+
+@pytest.mark.parametrize(
+    "reply",
+    ['{}', '{"query": "  "}', '{"query": 3}', '{"query": ["a", "b"]}'],
+)
+def test_a_reply_without_one_query_is_refused(reply):
+    """A list is refused rather than cut to its first item: one query was
+    asked for, and taking one of several would be this module choosing."""
+    client, _ = recording_client(reply)
+
+    with pytest.raises(ModelRefused):
+        client.transform_query("Solo argiloso", topic="calagem")
+
+
 def test_the_prompt_versions_moved():
-    """The transform prompt now receives the key's description, and the
-    generate prompt names it `Solo` rather than `Chave` (SPEC 0152)."""
+    """The transform prompt now writes one query about one topic (SPEC 0153);
+    the generate prompt names the key `Solo` rather than `Chave` (SPEC 0152)."""
     versions = OllamaClient().prompt_versions
 
-    assert versions["transform"] == "2"
+    assert versions["transform"] == "3"
     assert versions["generate"] == "3"
