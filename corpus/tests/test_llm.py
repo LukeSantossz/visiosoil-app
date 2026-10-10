@@ -372,9 +372,12 @@ def grounding_reply(quote, verdict="sim"):
     return json.dumps({"trecho": quote, "sustenta": verdict}, ensure_ascii=False)
 
 
-def test_a_supported_claim_quoted_from_the_evidence_is_grounded():
+@pytest.mark.parametrize("verdict", ["sim", " Sim "])
+def test_a_supported_claim_quoted_from_the_evidence_is_grounded(verdict):
     client, _ = recording_client(
-        grounding_reply("sugere-se elevar o teor de P ao limite superior")
+        grounding_reply(
+            "sugere-se elevar o teor de P ao limite superior", verdict=verdict
+        )
     )
 
     assert client.is_grounded("Eleve o P ao limite superior.", [CT33]) is True
@@ -440,6 +443,10 @@ def test_a_quote_from_any_cited_text_counts():
         "sim",
         '{"trecho": "90% do rendimento", "sustenta": "talvez"}',
         '{"trecho": 90, "sustenta": "sim"}',
+        # A hedge holding `sim`, and a boolean, are neither verdict, even with a
+        # passage CT 33 does hold.
+        '{"trecho": "níveis críticos", "sustenta": "sim talvez"}',
+        '{"trecho": "níveis críticos", "sustenta": true}',
     ],
 )
 def test_a_malformed_grounding_reply_is_refused(reply):
