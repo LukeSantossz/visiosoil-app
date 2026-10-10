@@ -41,6 +41,12 @@ MIN_CHARS_PER_TOKEN = 2
 
 PROMPT_CHAR_CEILING = CONTEXT_TOKENS * MIN_CHARS_PER_TOKEN
 
+RELEVANCE_THRESHOLD = 2
+"""The lowest grade score that keeps a document for a query (SPEC 0154). 2 is
+"treats the subject, but not the case the query describes": CT 33 scores 2 on
+the phosphorus query a `sim`/`não` grade dropped it for, and every off-case
+document the diagnosis tried scored 0."""
+
 HttpPost = Callable[[str, dict[str, Any]], dict[str, Any]]
 HttpGet = Callable[[str], dict[str, Any]]
 
@@ -175,6 +181,25 @@ _NEGATED_POSITIVE = re.compile(
 )
 _POSITIVE = re.compile(r"\b(?:yes|sim|true|relevante)\b")
 _NEGATIVE = re.compile(r"\b(?:no|false|irrelevante)\b")
+
+
+_NUMBER = re.compile(r"[-−]?\d+")
+
+
+def parse_score(raw: str) -> int:
+    """A grade score from 0 to 3 out of [raw], or [ModelRefused].
+
+    A reply holding more than one number — "2 ou 3" — is refused rather than
+    resolved, for the reason `parse_yes_no` refuses "sim e não".
+    """
+    numbers = _NUMBER.findall(raw)
+    if len(numbers) != 1:
+        raise ModelRefused(f"grade is not one score: {raw[:120]!r}")
+    # Read without its sign, "-3" would pass as 3.
+    score = int(numbers[0].replace("−", "-"))
+    if not 0 <= score <= 3:
+        raise ModelRefused(f"grade score is outside 0-3: {raw[:120]!r}")
+    return score
 
 
 def parse_yes_no(raw: str) -> bool:
@@ -323,7 +348,7 @@ class OllamaClient:
                 "{{document}}", document.text[:PASSAGE_CHAR_LIMIT]
             )
         )
-        return parse_yes_no(raw)
+        return parse_score(raw) >= RELEVANCE_THRESHOLD
 
     def generate_cell(
         self, question: str, documents: list[FetchedSource]
