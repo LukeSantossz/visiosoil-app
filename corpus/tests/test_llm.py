@@ -13,6 +13,7 @@ from src.llm import (
     parse_json_object,
     parse_score,
     parse_yes_no,
+    quote_in_evidence,
 )
 
 
@@ -209,7 +210,7 @@ class TestTheModelReadsAllOfIt:
 
         passage = "a" * (PASSAGE_CHAR_LIMIT - 1) + "Z"
         grades, grades_requests = recording_client("3")
-        grounds, grounds_requests = recording_client("sim")
+        grounds, grounds_requests = recording_client('{"trecho": "Z", "sustenta": "sim"}')
 
         grades.grade_document("consulta", document(passage))
         grounds.is_grounded("afirmação", [passage])
@@ -228,7 +229,9 @@ class TestTheModelReadsAllOfIt:
         queries.transform_query("Solo argiloso", topic="calagem")
         grades, grades_requests = recording_client("3")
         grades.grade_document("consulta", document("Texto."))
-        grounds, grounds_requests = recording_client("sim")
+        grounds, grounds_requests = recording_client(
+            '{"trecho": "Texto.", "sustenta": "sim"}'
+        )
         grounds.is_grounded("afirmação", ["Texto."])
         cells, cells_requests = recording_client(
             '{"status": "grounded", "tips": [], "limitations": []}'
@@ -352,3 +355,111 @@ def test_the_grade_prompt_version_moved():
 
 def test_the_threshold_is_two():
     assert RELEVANCE_THRESHOLD == 2
+
+
+# --- The grounding check verifies a quote (SPEC 0155) ---------------------------
+
+CT33 = (
+    "Em sistemas de menor risco, sugere-se elevar o teor de P ao limite superior "
+    "da classe adequada, ou seja, 90% do rendimento poten- cial, de modo que os "
+    "níveis críticos serão iguais a 25 mg dm-3."
+)
+
+
+def grounding_reply(quote, verdict="sim"):
+    import json
+
+    return json.dumps({"trecho": quote, "sustenta": verdict}, ensure_ascii=False)
+
+
+def test_a_supported_claim_quoted_from_the_evidence_is_grounded():
+    client, _ = recording_client(
+        grounding_reply("sugere-se elevar o teor de P ao limite superior")
+    )
+
+    assert client.is_grounded("Eleve o P ao limite superior.", [CT33]) is True
+
+
+def test_a_quote_not_in_the_evidence_is_not_grounded():
+    """The B1' tip: the model said `sim` and quoted the claim's own words, which
+    CT 33 does not hold. Only the check of the passage refuses it."""
+    client, _ = recording_client(
+        grounding_reply(
+            "a adubação fosfatada deve ser ajustada para alcançar 90% do "
+            "rendimento potencial"
+        )
+    )
+
+    assert client.is_grounded("Ajuste a adubação para 90%.", [CT33]) is False
+
+
+def test_a_não_verdict_is_not_grounded():
+    client, _ = recording_client(
+        grounding_reply("sugere-se elevar o teor de P", verdict="não")
+    )
+
+    assert client.is_grounded("Solos argilosos dispensam fósforo.", [CT33]) is False
+
+
+@pytest.mark.parametrize("quote", ["", "   "])
+def test_a_blank_quote_is_not_grounded(quote):
+    client, _ = recording_client(grounding_reply(quote))
+
+    assert client.is_grounded("Qualquer afirmação.", [CT33]) is False
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "90% do rendimento potencial",
+        "90%   do rendimento\npoten- cial",
+        "LIMITE SUPERIOR DA CLASSE ADEQUADA",
+    ],
+)
+def test_a_quote_matches_across_a_line_break_hyphen(quote):
+    """The extracted PDF text reads "poten- cial"; a model copying it writes
+    "potencial". Without joining the break a true claim was refused."""
+    assert quote_in_evidence(quote, [CT33]) is True
+
+
+def test_a_quote_past_what_the_model_saw_is_not_found():
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    text = "a" * PASSAGE_CHAR_LIMIT + " trecho que o modelo não leu"
+
+    assert quote_in_evidence("trecho que o modelo não leu", [text]) is False
+
+
+def test_a_quote_from_any_cited_text_counts():
+    assert quote_in_evidence("níveis críticos", ["Outro documento.", CT33]) is True
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "sim",
+        '{"trecho": "90% do rendimento", "sustenta": "talvez"}',
+        '{"trecho": 90, "sustenta": "sim"}',
+    ],
+)
+def test_a_malformed_grounding_reply_is_refused(reply):
+    client, _ = recording_client(reply)
+
+    with pytest.raises(ModelRefused):
+        client.is_grounded("Qualquer afirmação.", [CT33])
+
+
+def test_the_claim_and_evidence_reach_the_prompt():
+    client, requests = recording_client(grounding_reply("níveis críticos"))
+
+    client.is_grounded("Os níveis críticos dependem da argila.", [CT33])
+
+    prompt = requests[0]["prompt"]
+    assert "Os níveis críticos dependem da argila." in prompt
+    assert CT33 in prompt
+    assert "palavra por palavra" in prompt
+    assert '"trecho"' in prompt
+
+
+def test_the_ground_prompt_version_moved():
+    assert OllamaClient().prompt_versions["ground"] == "2"
