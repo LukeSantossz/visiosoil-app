@@ -138,7 +138,9 @@ when its score is 2 or more.**
   `" 0 "` and `"**1**"` as 2, 3, 0 and 1.
 - `a_reply_without_one_score_is_refused`: `parse_score` raises `ModelRefused`
   for each of these replies: `""`, `"sim"`, `"talvez"`, `"2 ou 3"`, `"2/3"`,
-  `"4"` and `"10"`.
+  `"4"`, `"10"`, `"-1"`, `"-3"` and `"−2"` (with a Unicode minus sign). A
+  negative number is outside 0–3, and read without its sign `-3` would pass
+  as 3.
 - `the_scale_reaches_the_prompt`: the prompt `grade_document` sends contains the
   query, the document and the four scale steps.
 - `the_grade_prompt_version_moved`: `prompt_versions` reports grade `2`.
