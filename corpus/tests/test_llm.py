@@ -6,7 +6,14 @@ stop a model's phrasing from becoming a silent decision.
 
 import pytest
 
-from src.llm import ModelRefused, OllamaClient, parse_json_object, parse_yes_no
+from src.llm import (
+    RELEVANCE_THRESHOLD,
+    ModelRefused,
+    OllamaClient,
+    parse_json_object,
+    parse_score,
+    parse_yes_no,
+)
 
 
 class TestParseYesNo:
@@ -201,11 +208,14 @@ class TestTheModelReadsAllOfIt:
         from src.sources import PASSAGE_CHAR_LIMIT
 
         passage = "a" * (PASSAGE_CHAR_LIMIT - 1) + "Z"
-        client, requests = recording_client("sim")
+        grades, grades_requests = recording_client("3")
+        grounds, grounds_requests = recording_client("sim")
 
-        client.grade_document("consulta", document(passage))
-        client.is_grounded("afirmação", [passage])
+        grades.grade_document("consulta", document(passage))
+        grounds.is_grounded("afirmação", [passage])
 
+        requests = grades_requests + grounds_requests
+        assert len(requests) == 2
         assert all(passage in request["prompt"] for request in requests)
 
     def test_every_request_pins_the_context_length(self):
@@ -216,15 +226,16 @@ class TestTheModelReadsAllOfIt:
 
         queries, queries_requests = recording_client('{"query": "a"}')
         queries.transform_query("Solo argiloso", topic="calagem")
-        grades, grades_requests = recording_client("sim")
+        grades, grades_requests = recording_client("3")
         grades.grade_document("consulta", document("Texto."))
-        grades.is_grounded("afirmação", ["Texto."])
+        grounds, grounds_requests = recording_client("sim")
+        grounds.is_grounded("afirmação", ["Texto."])
         cells, cells_requests = recording_client(
             '{"status": "grounded", "tips": [], "limitations": []}'
         )
         cells.generate_cell("Argilosa|tb_oxidic", [document("Texto.")])
 
-        requests = queries_requests + grades_requests + cells_requests
+        requests = queries_requests + grades_requests + grounds_requests + cells_requests
         assert len(requests) == 4
         assert all(r["options"]["num_ctx"] == CONTEXT_TOKENS for r in requests)
 
@@ -292,3 +303,50 @@ def test_the_prompt_versions_moved():
 
     assert versions["transform"] == "3"
     assert versions["generate"] == "3"
+
+
+# --- The grader scores relevance (SPEC 0154) -----------------------------------
+
+
+@pytest.mark.parametrize("reply, relevant", [("0", False), ("1", False), ("2", True), ("3", True)])
+def test_a_score_at_or_above_the_threshold_is_relevant(reply, relevant):
+    """A single `sim`/`não` dropped CT 33 on one wording of the phosphorus query
+    and kept it on four others; on a 0-3 scale it scores 2 on all five."""
+    client, _ = recording_client(reply)
+
+    assert client.grade_document("consulta", document("Texto.")) is relevant
+
+
+@pytest.mark.parametrize(
+    "reply, score", [("2", 2), ("Nota: 3.", 3), (" 0 ", 0), ("**1**", 1)]
+)
+def test_a_score_is_read_through_prose(reply, score):
+    assert parse_score(reply) == score
+
+
+@pytest.mark.parametrize("reply", ["", "sim", "talvez", "2 ou 3", "2/3", "4", "10"])
+def test_a_reply_without_one_score_is_refused(reply):
+    """A hedge between two scores is refused rather than resolved, for the
+    reason `parse_yes_no` refuses "sim e não"."""
+    with pytest.raises(ModelRefused):
+        parse_score(reply)
+
+
+def test_the_scale_reaches_the_prompt():
+    client, requests = recording_client("2")
+
+    client.grade_document("adubação fosfatada", document("Circular técnica."))
+
+    prompt = requests[0]["prompt"]
+    assert "adubação fosfatada" in prompt
+    assert "Circular técnica." in prompt
+    for step in ("0 —", "1 —", "2 —", "3 —"):
+        assert step in prompt
+
+
+def test_the_grade_prompt_version_moved():
+    assert OllamaClient().prompt_versions["grade"] == "2"
+
+
+def test_the_threshold_is_two():
+    assert RELEVANCE_THRESHOLD == 2
