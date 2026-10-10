@@ -324,7 +324,9 @@ def test_a_score_is_read_through_prose(reply, score):
     assert parse_score(reply) == score
 
 
-@pytest.mark.parametrize("reply", ["", "sim", "talvez", "2 ou 3", "2/3", "4", "10"])
+@pytest.mark.parametrize(
+    "reply", ["", "sim", "talvez", "2 ou 3", "2/3", "4", "10", "-1", "-3", "−2"]
+)
 def test_a_reply_without_one_score_is_refused(reply):
     """A hedge between two scores is refused rather than resolved, for the
     reason `parse_yes_no` refuses "sim e não"."""
