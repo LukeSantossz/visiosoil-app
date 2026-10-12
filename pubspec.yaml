@@ -64,6 +64,8 @@ dependencies:
   # HTTP client for the research proxy transport
   http: ^1.6.0
   shared_preferences: ^2.5.5
+  # Opens the privacy policy in the browser from Settings (SPEC 0157)
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

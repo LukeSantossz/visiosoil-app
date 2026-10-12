@@ -2,9 +2,12 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
@@ -83,6 +86,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          const _PrivacyPolicyTile(),
 
           const SizedBox(height: AppSpacing.xl),
 
@@ -351,6 +356,52 @@ class _HighContrastSwitch extends ConsumerWidget {
         ref.read(highContrastProvider.notifier).select(on);
       },
     );
+  }
+}
+
+// --- Privacy Policy ---
+
+/// Shown when the policy could not be opened. Kept in step with the literal in
+/// the widget test.
+const String _privacyPolicyFailedMessage =
+    'Não foi possível abrir a política de privacidade.';
+
+/// Opens the published privacy policy in the browser, which shows its address
+/// (SPEC 0157). A launch that fails is said on screen.
+class _PrivacyPolicyTile extends StatelessWidget {
+  const _PrivacyPolicyTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsTile(
+      icon: Icons.privacy_tip_outlined,
+      title: 'Política de privacidade',
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: context.palette.onSurfaceVariant,
+      ),
+      onTap: () => _open(context),
+    );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    bool opened;
+    try {
+      opened = await launchUrl(
+        Uri.parse(AppLinks.privacyPolicy),
+        mode: LaunchMode.externalApplication,
+      );
+    } on PlatformException catch (e) {
+      developer.log('privacy policy launch failed: $e', name: 'SettingsScreen');
+      opened = false;
+    }
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(_privacyPolicyFailedMessage)),
+      );
+    }
   }
 }
 
