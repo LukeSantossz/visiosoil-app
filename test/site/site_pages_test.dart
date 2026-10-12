@@ -60,6 +60,9 @@ void main() {
     // that risk on the condition that the policy says so.
     test('policy_says_an_error_report_may_carry_fragments', () {
       expect(policy, contains('pode conter trechos da mensagem do erro'));
+      // Each entry also carries up to 40 stack-trace lines, which are not
+      // redacted (ErrorReportStore.stackLineLimit).
+      expect(policy, contains('onde o erro aconteceu no código'));
     });
 
     // A JPEG the EXIF parser cannot read is stored as it came (ADR 0005).
