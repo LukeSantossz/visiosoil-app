@@ -85,7 +85,7 @@ void main() {
 
     // When a storage operation fails and resetOnError is on, its default, the
     // Android plugin wipes the store and answers the read with this string in
-    // place of a value (FlutterSecureStoragePlugin, 10.3.4). It is how a
+    // place of a value (FlutterSecureStoragePlugin, 10.3.4 and 11.2.0). It is how a
     // session the plugin cannot decrypt reaches the store (SPEC 0158).
     test('the_plugin_reset_answer_reads_as_no_session', () async {
       await storage.write(sessionKey, 'Data has been reset');
