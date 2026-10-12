@@ -33,9 +33,10 @@ app". Tapping it opens the policy's URL in the external browser through
   platform packages are already in the lock file through `share_plus`, and #279
   names it.
 - **Tests replace `UrlLauncherPlatform.instance`** with a fake, the plugin's
-  documented test seam. That needs `url_launcher_platform_interface` and
-  `plugin_platform_interface` as dev dependencies; both are already in the lock
-  file.
+  documented test seam. The fake extends the platform class, as the share tests'
+  `RecordingSharePlatform` does, so it needs only
+  `url_launcher_platform_interface` as a dev dependency; it is already in the
+  lock file.
 
 ## Alternatives Considered
 
@@ -54,8 +55,8 @@ app". Tapping it opens the policy's URL in the external browser through
   - `lib/core/features/settings/settings_screen.dart`: the tile, the launch and
     the failure snackbar.
   - `android/app/src/main/AndroidManifest.xml`: the `https` `VIEW` query.
-  - `pubspec.yaml` and `pubspec.lock`: `url_launcher`, and the two dev
-    dependencies.
+  - `pubspec.yaml` and `pubspec.lock`: `url_launcher`, and the dev
+    dependency.
   - Tests in `test/features/settings/settings_screen_test.dart`, and a manifest
     assertion beside the existing ones in `test/android_config_test.dart`.
 - Does NOT include:
