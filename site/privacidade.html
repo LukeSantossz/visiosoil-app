@@ -36,16 +36,16 @@
   <li>o nome do talhão e a identificação da amostra, quando você os informa;</li>
   <li>as orientações de manejo, montadas no próprio aparelho.</li>
 </ul>
-<p>A análise da textura é feita no aparelho, sem enviar a fotografia a ninguém. Antes de guardar cada fotografia, o aplicativo remove os metadados da câmera (EXIF), mantendo apenas a orientação da imagem. O backup do Android e a transferência entre aparelhos não copiam os dados do aplicativo.</p>
+<p>A análise da textura é feita no aparelho, sem enviar a fotografia a ninguém. Antes de guardar cada fotografia JPEG, o aplicativo remove os metadados da câmera (EXIF), mantendo apenas a orientação da imagem. Se o arquivo estiver corrompido e não puder ser lido, a fotografia é guardada como veio, com os metadados que tiver. O backup do Android e a transferência entre aparelhos não copiam os dados do aplicativo.</p>
 
 <h2>Quando algum dado sai do aparelho</h2>
 <ul>
-  <li><strong>Endereço do local.</strong> Para mostrar o endereço de um registro, o aplicativo usa o serviço de geocodificação do Android, que envia as coordenadas ao Google e recebe o endereço de volta.</li>
+  <li><strong>Endereço do local.</strong> Quando uma captura tem localização, o aplicativo consulta o serviço de geocodificação do Android antes de salvar o registro. Esse serviço envia as coordenadas ao Google e recebe o endereço de volta.</li>
   <li><strong>Login com Google.</strong> O login é opcional. Se você entrar, o Google informa ao aplicativo seu nome e e-mail, que ficam guardados no aparelho em armazenamento seguro. Nenhum registro de solo é enviado à sua conta. O uso da sua conta pelo Google segue a política de privacidade do Google.</li>
-  <li><strong>Compartilhamento.</strong> Quando você escolhe compartilhar um registro, ele vai para o aplicativo e as pessoas que você escolher. A localização só vai junto se você ativar essa opção naquele compartilhamento.</li>
-  <li><strong>Relatório de erros.</strong> Se o aplicativo encontrar um erro, ele anota o erro em um relatório de erros guardado no aparelho. O relatório só sai do aparelho se você o compartilhar em Configurações. Ele indica as versões do aplicativo e do sistema, e nenhum identificador do aparelho ou da conta.</li>
+  <li><strong>Compartilhamento.</strong> Quando você escolhe compartilhar um registro, ele vai para o aplicativo que você escolher na tela de compartilhamento do Android, e dali para quem você enviar. O VisioSoil não recebe essa cópia. A localização só vai junto se você ativar essa opção naquele compartilhamento.</li>
+  <li><strong>Relatório de erros.</strong> Se o aplicativo encontrar um erro, ele anota o erro em um relatório de erros guardado no aparelho. O relatório só sai do aparelho se você o compartilhar em Configurações. Ele indica as versões do aplicativo e do sistema, e nenhum identificador do aparelho ou da conta. O aplicativo remove do relatório coordenadas, e-mails e códigos de acesso, mas ele pode conter trechos da mensagem do erro, e um trecho pode incluir um endereço.</li>
 </ul>
-<p>O VisioSoil não usa ferramentas de análise de uso, não exibe publicidade e não vende nem compartilha seus dados com terceiros além dos dois serviços do Google descritos acima.</p>
+<p>O VisioSoil não usa ferramentas de análise de uso, não exibe publicidade e não vende nem compartilha seus dados com terceiros além dos dois serviços do Google descritos acima. O Google e quem recebe um compartilhamento seguem as próprias políticas para o que receberam.</p>
 
 <h2>Permissões</h2>
 <ul>
@@ -54,18 +54,18 @@
 </ul>
 
 <h2>Por quanto tempo os dados ficam</h2>
-<p>Os dados ficam no aparelho até você apagá-los ou desinstalar o aplicativo. Não há cópia em outro lugar.</p>
+<p>Os dados ficam no aparelho até você apagá-los ou desinstalar o aplicativo. O VisioSoil não guarda cópia deles em nenhum outro lugar.</p>
 
 <h2>Como apagar seus dados</h2>
 <ul>
   <li>Em Configurações, “Apagar todos os dados” apaga os registros de solo e o relatório de erros.</li>
-  <li>Em Configurações, “Excluir conta” remove do aparelho a sessão do Google e revoga o acesso concedido ao aplicativo.</li>
+  <li>Em Configurações, com a conta conectada, “Excluir conta” remove do aparelho a sessão do Google e revoga o acesso concedido ao aplicativo. Se o Google não confirmar a revogação, o aplicativo avisa; nesse caso, remova o acesso em myaccount.google.com/connections.</li>
   <li>Ao desinstalar o aplicativo, o Android apaga todos os dados dele.</li>
 </ul>
 <p>Para excluir a conta sem o aplicativo, veja <a href="excluir-conta.html">como excluir sua conta</a>.</p>
 
 <h2>Seus direitos</h2>
-<p>Pela LGPD (art. 18), você pode pedir a confirmação de que seus dados são tratados, o acesso a eles, a correção, a anonimização, o bloqueio ou a eliminação, a portabilidade, informações sobre com quem foram compartilhados e a revogação do consentimento. Como os dados ficam no seu aparelho, a maior parte desses pedidos você mesmo realiza pelo aplicativo. Para qualquer outro pedido, use o contato acima. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
+<p>Pela LGPD (art. 18), você pode pedir a confirmação de que seus dados são tratados, o acesso a eles, a correção, a anonimização, o bloqueio ou a eliminação, a portabilidade, informações sobre com quem foram compartilhados, informações sobre a possibilidade de não fornecer consentimento e o que isso implica, e a revogação do consentimento. O login com Google é a única parte que depende do seu consentimento; sem ele, o aplicativo funciona por completo. Como os dados ficam no seu aparelho, a maior parte desses pedidos você mesmo realiza pelo aplicativo. Para qualquer outro pedido, use o contato acima. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
 
 <h2>Crianças</h2>
 <p>O VisioSoil é uma ferramenta para agrônomos e não é destinado a crianças.</p>
