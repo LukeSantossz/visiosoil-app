@@ -135,7 +135,7 @@ void main() {
         'id-token: write',
       });
       expect(
-        RegExp(r'^\s+permissions:', multiLine: true).hasMatch(workflow),
+        RegExp(r'^[ ]+permissions:', multiLine: true).hasMatch(workflow),
         isFalse,
         reason: 'a job widens the workflow token',
       );
