@@ -5,6 +5,7 @@
 // without the flutter_secure_storage platform channel.
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/auth/auth_session.dart';
 import 'package:visiosoil_app/core/services/auth/key_value_secure_storage.dart';
@@ -152,6 +153,22 @@ void main() {
       // The blob is gone from storage, not merely reported as absent, so the
       // next read does not repeat the failed decode.
       expect(await storage.read(sessionKey), isNull);
+    });
+  });
+
+  // The real wrapper against the plugin's own in-memory platform, so a
+  // flutter_secure_storage upgrade that changes the calls it makes fails here
+  // rather than on a device (SPEC 0158).
+  group('FlutterKeyValueSecureStorage', () {
+    test('flutter_wrapper_round_trips_a_session', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final storage = FlutterKeyValueSecureStorage();
+
+      await storage.write('auth_session', '{"email":"agro@example.com"}');
+      expect(await storage.read('auth_session'), '{"email":"agro@example.com"}');
+
+      await storage.delete('auth_session');
+      expect(await storage.read('auth_session'), isNull);
     });
   });
 }

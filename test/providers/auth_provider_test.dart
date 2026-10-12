@@ -1,9 +1,14 @@
 // Tests for the Riverpod auth-state layer: default signed-out, and transitions
 // on sign-in / sign-out, using a fake AuthService.
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
+import 'package:visiosoil_app/core/services/auth/google_auth_service.dart';
+import 'package:visiosoil_app/core/services/auth/google_sign_in_gateway.dart';
+import 'package:visiosoil_app/core/services/auth/key_value_secure_storage.dart';
+import 'package:visiosoil_app/core/services/auth/secure_credential_store.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 
 class _FakeAuthService implements AuthService {
@@ -171,4 +176,54 @@ void main() {
 
     expect(container.read(authNotifierProvider).hasError, isTrue);
   });
+
+  // A session the storage plugin cannot decrypt, such as one written by
+  // flutter_secure_storage 9 and read by 11, surfaces as a PlatformException
+  // when the plugin does not clear it itself. Through the real service and
+  // store, the app must still start signed out (SPEC 0158).
+  test('an_unreadable_stored_session_restores_signed_out', () async {
+    final service = GoogleAuthService(
+      _UnusedGateway(),
+      SecureCredentialStore(_UndecryptableStorage()),
+    );
+    final container = ProviderContainer(
+      overrides: [authServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+
+    container.read(authNotifierProvider);
+    await pumpEventQueue();
+    final async = container.read(authNotifierProvider);
+
+    expect(async.hasError, isFalse);
+    expect(async.value?.isSignedIn, isFalse);
+  });
+}
+
+/// Secure storage whose read fails the way the Android plugin reports a
+/// value it cannot decrypt.
+class _UndecryptableStorage implements KeyValueSecureStorage {
+  @override
+  Future<String?> read(String key) async => throw PlatformException(
+        code: 'Exception encountered',
+        message: 'read: javax.crypto.BadPaddingException',
+      );
+
+  @override
+  Future<void> write(String key, String value) async {}
+
+  @override
+  Future<void> delete(String key) async {}
+}
+
+/// Restoring a session never reaches Google (SPEC 0106).
+class _UnusedGateway implements GoogleSignInGateway {
+  @override
+  Future<AuthAccount?> signIn() => throw StateError('signIn during restore');
+
+  @override
+  Future<void> signOut() => throw StateError('signOut during restore');
+
+  @override
+  Future<void> disconnect() => throw StateError('disconnect during restore');
 }
