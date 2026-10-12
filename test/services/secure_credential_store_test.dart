@@ -1,8 +1,9 @@
 // Tests for AuthSession serialization and SecureCredentialStore persistence.
 //
-// The store delegates secret storage to a [KeyValueSecureStorage]; tests use an
-// in-memory fake so the real store logic (JSON encode/decode, key, clear) runs
-// without the flutter_secure_storage platform channel.
+// The store delegates secret storage to a [KeyValueSecureStorage]; most tests
+// use an in-memory fake so the real store logic (JSON encode/decode, key,
+// clear) runs without the flutter_secure_storage platform channel. The last
+// group drives the real wrapper on the plugin's own in-memory platform.
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -82,6 +83,17 @@ void main() {
       expect(await store.read(), isNull);
     });
 
+    // When a storage operation fails and resetOnError is on, its default, the
+    // Android plugin wipes the store and answers the read with this string in
+    // place of a value (FlutterSecureStoragePlugin, 10.3.4). It is how a
+    // session the plugin cannot decrypt reaches the store (SPEC 0158).
+    test('the_plugin_reset_answer_reads_as_no_session', () async {
+      await storage.write(sessionKey, 'Data has been reset');
+
+      expect(await store.read(), isNull);
+      expect(await storage.read(sessionKey), isNull);
+    });
+
     test('secure_credential_store_returns_null_when_blob_is_not_a_json_object',
         () async {
       // Valid JSON, but a top-level array: the cast to Map throws, not jsonDecode.
@@ -156,9 +168,10 @@ void main() {
     });
   });
 
-  // The real wrapper against the plugin's own in-memory platform, so a
-  // flutter_secure_storage upgrade that changes the calls it makes fails here
-  // rather than on a device (SPEC 0158).
+  // The real wrapper against the plugin's own in-memory platform (SPEC 0158).
+  // That platform ignores the options, so this pins only the Dart side: the
+  // keys the wrapper reads, writes and deletes. Android's cipher migration and
+  // reset are not reachable from `flutter test`.
   group('FlutterKeyValueSecureStorage', () {
     test('flutter_wrapper_round_trips_a_session', () async {
       FlutterSecureStorage.setMockInitialValues({});

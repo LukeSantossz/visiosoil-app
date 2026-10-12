@@ -177,10 +177,11 @@ void main() {
     expect(container.read(authNotifierProvider).hasError, isTrue);
   });
 
-  // A session the storage plugin cannot decrypt, such as one written by
-  // flutter_secure_storage 9 and read by 11, surfaces as a PlatformException
-  // when the plugin does not clear it itself. Through the real service and
-  // store, the app must still start signed out (SPEC 0158).
+  // Defence in depth (SPEC 0158). With its defaults the Android plugin absorbs
+  // an undecryptable read itself, but an error it reports instead, such as a
+  // failed initialisation, reaches Dart as a PlatformException. Through the
+  // real service and store, which let it pass, the notifier must still start
+  // signed out. The store here is a fake: the plugin itself is not exercised.
   test('an_unreadable_stored_session_restores_signed_out', () async {
     final service = GoogleAuthService(
       _UnusedGateway(),
@@ -200,14 +201,12 @@ void main() {
   });
 }
 
-/// Secure storage whose read fails the way the Android plugin reports a
-/// value it cannot decrypt.
+/// Secure storage whose read fails with the error code the Android plugin
+/// reports for an exception it does not absorb.
 class _UndecryptableStorage implements KeyValueSecureStorage {
   @override
-  Future<String?> read(String key) async => throw PlatformException(
-        code: 'Exception encountered',
-        message: 'read: javax.crypto.BadPaddingException',
-      );
+  Future<String?> read(String key) async =>
+      throw PlatformException(code: 'Exception encountered');
 
   @override
   Future<void> write(String key, String value) async {}

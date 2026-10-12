@@ -20,7 +20,7 @@ no app code unless the new API demands it.**
 Making 11 resolve means also taking `share_plus` 13 and `package_info_plus` 10.
 `package_info_plus` 9 and later need Android Gradle Plugin 8.12.1, and the app is
 on 8.11.1. On 2026-10-12 the Developer chose 10.x now. The `win32` 6 migration
-moves to its own issue: `share_plus` 13, `package_info_plus` 10, AGP 8.12.1 and
+moves to its own issue, #381: `share_plus` 13, `package_info_plus` 10, AGP 8.12.1 and
 `flutter_secure_storage` 11 together, since none of them resolves alone. 10.3.4
 resolves against today's lock, and its Windows package accepts
 `flutter_secure_storage_windows` 4.1.0 on `win32` 5.
@@ -36,9 +36,17 @@ So `FlutterKeyValueSecureStorage` compiles and behaves as it does today.
 **A session saved by 9.2.4 survives.** In 10.3.4, `AndroidOptions` defaults
 `migrateOnAlgorithmChange` to `true`. On first use, the plugin decrypts the data
 with v9's ciphers and re-encrypts it with the current ones, so the user stays
-signed in. If a value still cannot be read, `resetOnError`, also `true` by
-default, deletes it and the read returns `null`. If a platform error escapes
-anyway, `AuthNotifier.build` catches it and resolves to signed out. The soil
+signed in.
+
+If an operation still fails, `resetOnError`, also `true` by default, applies.
+For an undecryptable value, the read deletes that key and retries, and returns
+`null`. For an exception that escapes the operation, the plugin wipes the store
+and answers the call with the string `"Data has been reset"` in place of a
+value (`FlutterSecureStoragePlugin`). `SecureCredentialStore` cannot decode that
+string, so it discards it as an undecodable blob and returns `null`. An error
+the plugin reports instead, such as a failed initialisation, reaches Dart as a
+`PlatformException`, and `AuthNotifier.build` catches it and resolves to signed
+out. The soil
 records live in SQLite, not in this store.
 
 **The release build.** 10.3.4 still depends on Tink (`tink-android` 1.21.0), so
@@ -63,10 +71,12 @@ their meaning. Its Android `minSdkVersion` is 23, below the app's 24.
 - Includes:
   - `pubspec.yaml`: `flutter_secure_storage: ^10.3.4`, and `pubspec.lock`
     regenerated on Flutter 3.44.1.
-  - Two tests, written before the bump:
+  - Tests, written before the bump:
     - In `test/services/secure_credential_store_test.dart`, the real
       `FlutterKeyValueSecureStorage` wrapper is exercised against the plugin's
       own in-memory platform (`FlutterSecureStorage.setMockInitialValues`).
+    - In the same file, the plugin's reset answer must read as no session.
+      This test was added after review.
     - In `test/providers/auth_provider_test.dart`, a storage read that throws a
       `PlatformException` is driven through the real `GoogleAuthService` and
       `SecureCredentialStore`, and `AuthNotifier` must end signed out.
@@ -88,6 +98,8 @@ their meaning. Its Android `minSdkVersion` is 23, below the app's 24.
 - `flutter_wrapper_round_trips_a_session`: through `FlutterKeyValueSecureStorage`
   on the plugin's in-memory platform, a written value reads back, and after a
   delete it reads `null`.
+- `the_plugin_reset_answer_reads_as_no_session`: a stored value of
+  `"Data has been reset"` reads as `null` and is deleted.
 - `an_unreadable_stored_session_restores_signed_out`: when the storage read
   throws a `PlatformException`, `AuthNotifier` resolves to signed out with no
   error.
@@ -108,10 +120,18 @@ flutter analyze && flutter test && mf check
 
 ## Risks and Assumptions
 
-- **Assumption: the two new tests pass on 9.2.4 as well.** They pin behaviour
-  the upgrade must keep, so they cannot fail first. Each assertion is instead
-  proven by a mutation that makes it fail: dropping the wrapper's `delete`, and
-  removing the notifier's catch.
+- **Assumption: the new tests pass on 9.2.4 as well.** They pin behaviour the
+  upgrade must keep, so they cannot fail first. Each is instead proven by a
+  mutation that makes it fail:
+  - dropping the wrapper's `delete`;
+  - removing the notifier's catch;
+  - removing the store's `FormatException` catch.
+- **Limit: the plugin's in-memory platform ignores the options.** The wrapper
+  test pins only the Dart side. Android's migration and reset are read from
+  source, not run.
+- **Risk: Windows.** 10.3.4 resolves `flutter_secure_storage_windows` 4.1.0,
+  which lacks 4.2.x's concurrency fixes. The app ships on Android through Play,
+  and #381 brings the Windows package forward.
 - **Risk: the Android migration path is read from source, not run.** No v9
   session exists on CI. The fallback that does not depend on the plugin is the
   notifier's catch, and the second test covers it.
