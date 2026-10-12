@@ -35,7 +35,8 @@ touches it.**
   the management tips are stored only on the phone. There is no VisioSoil
   server.
 - **What leaves the device, and when:**
-  - The address is looked up by the system's geocoding service, which sends the
+  - When a capture has a location fix, the address is looked up before the
+    record is saved, by the system's geocoding service, which sends the
     coordinates to Google.
   - Google sign-in gives the app the user's name and e-mail, which the app keeps
     on the phone in secure storage. Sign-in is optional.
@@ -43,9 +44,12 @@ touches it.**
     goes only when the user turns it on for that share (ADR 0007).
   - The error report leaves the phone only when the user shares it from
     Settings (SPEC 0110). It names the app and system versions, and no device
-    identifier or account.
+    identifier or account. Coordinates, e-mails and tokens are redacted, but it
+    may carry fragments of an error message, which can include an address, as
+    SPEC 0110's Risks require the policy to say.
 - **What is removed or excluded.** The camera's metadata (EXIF) is stripped from
-  each stored photograph, except its orientation (ADR 0005). Android's backup
+  each stored JPEG, except its orientation; a JPEG the parser cannot read is
+  stored as it came (ADR 0005). Android's backup
   and device-to-device transfer do not copy the app's data (ADR 0006).
 - **No analytics, no advertising,** and no sale or sharing of data with third
   parties beyond the two Google services above.
@@ -72,8 +76,10 @@ touches `site/**` or the workflow itself, and on `workflow_dispatch`. It uploads
 `site/` alone with `actions/upload-pages-artifact` and deploys it with
 `actions/deploy-pages`, each action pinned to a commit SHA as `ci.yml`'s
 `corpus-tests` job pins its own. Its token has `contents: read`, `pages: write`
-and `id-token: write`, and nothing else. It runs on no pull request, so a branch
-cannot publish. Pages is switched on with the GitHub Actions source once, by
+and `id-token: write`, and nothing else. It runs on no pull request, and the job
+runs only when `github.ref` is `refs/heads/main`, because `workflow_dispatch`
+can be started from any branch; so a branch cannot publish. The checkout keeps
+no credentials, as every checkout in `ci.yml` does. Pages is switched on with the GitHub Actions source once, by
 `gh api`, as the Developer chose.
 
 ## Alternatives Considered
