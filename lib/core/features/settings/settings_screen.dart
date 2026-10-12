@@ -396,6 +396,9 @@ class _PrivacyPolicyTile extends StatelessWidget {
     } on PlatformException catch (e) {
       developer.log('privacy policy launch failed: $e', name: 'SettingsScreen');
       opened = false;
+    } on MissingPluginException catch (e) {
+      developer.log('privacy policy launch failed: $e', name: 'SettingsScreen');
+      opened = false;
     }
     if (!opened) {
       messenger.showSnackBar(
