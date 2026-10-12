@@ -22,16 +22,17 @@ app". Tapping it opens the policy's URL in the external browser through
 - **The launch** is `launchUrl(uri, mode: LaunchMode.externalApplication)`. The
   browser shows the page with its own address bar, which a reader of a policy
   should see.
-- **A failure is said, not swallowed.** If `launchUrl` returns `false` or throws
-  a `PlatformException`, a snackbar reads "Não foi possível abrir a política de
-  privacidade." The cause is logged through `dart:developer`, as the account
+- **A failure is said, not swallowed.** If `launchUrl` returns `false`, or
+  throws a `PlatformException` or a `MissingPluginException`, a snackbar reads
+  "Não foi possível abrir a política de privacidade." The cause is logged through `dart:developer`, as the account
   tile logs a failed connectivity read.
 - **Android 11 and later need a `<queries>` entry** for an `https` `VIEW` intent
   so the launcher can resolve a browser. It joins the existing `PROCESS_TEXT`
   entry in `AndroidManifest.xml`. iOS needs no entry for `https`.
-- **`url_launcher` is a new dependency.** It is the Flutter team's plugin, its
-  platform packages are already in the lock file through `share_plus`, and #279
-  names it.
+- **`url_launcher` is a new dependency.** It is the Flutter team's plugin, and
+  #279 names it. Its Linux, web and Windows packages and its platform interface
+  are already in the lock file through `share_plus`; it adds `url_launcher`,
+  `url_launcher_android`, `url_launcher_ios` and `url_launcher_macos`.
 - **Tests replace `UrlLauncherPlatform.instance`** with a fake, the plugin's
   documented test seam. The fake extends the platform class, as the share tests'
   `RecordingSharePlatform` does, so it needs only
