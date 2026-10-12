@@ -741,6 +741,7 @@ void main() {
 
       double top(String text) => tester.getTopLeft(find.text(text)).dy;
       expect(find.text(_privacyPolicyLabel), findsOneWidget);
+      expect(top('SOBRE'), lessThan(top('Versão do app')));
       expect(top('Versão do app'), lessThan(top(_privacyPolicyLabel)));
       expect(top(_privacyPolicyLabel), lessThan(top('AJUDA')));
     });
@@ -767,6 +768,16 @@ void main() {
     testWidgets('a_launch_that_fails_says_so: the platform throws',
         (tester) async {
       launcher.error = PlatformException(code: 'ACTIVITY_NOT_FOUND');
+      await tapThePolicy(tester);
+
+      expect(find.text(_policyFailedMessage), findsOneWidget);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+    });
+
+    // A build whose plugin did not register reaches no platform at all.
+    testWidgets('a_launch_that_fails_says_so: the plugin is missing',
+        (tester) async {
+      launcher.error = MissingPluginException('no url_launcher');
       await tapThePolicy(tester);
 
       expect(find.text(_policyFailedMessage), findsOneWidget);
