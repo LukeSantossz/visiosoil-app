@@ -1,17 +1,31 @@
-# SPEC: build(deps): upgrade flutter_secure_storage to 11.x
+# SPEC: build(deps): upgrade flutter_secure_storage to 10.x
 
 ## Problem
 
-The app keeps its sign-in session in `flutter_secure_storage` 9.2.4. That is two
-majors behind 11.2.0, and the majors since then hardened the Android ciphers
-(#380, split from #119).
+The app keeps its sign-in session in `flutter_secure_storage` 9.2.4, a major
+behind the hardened Android ciphers that 10.x introduced (#380, split from
+#119).
 
 ## Design Decision
 
-**Bump `flutter_secure_storage` to `^11.2.0` with the default options, and change
+**Bump `flutter_secure_storage` to `^10.3.4` with the default options, and change
 no app code unless the new API demands it.**
 
-**The API the wrapper uses is unchanged.** Checked against the 11.2.0 source:
+**Why 10, not 11.** The Spec Gate first approved 11.2.0. Resolving it failed:
+
+- 11.x depends on `flutter_secure_storage_windows` ^4.2.2, which needs `win32`
+  ^6.0.1.
+- `share_plus` 12.0.2 needs `win32` ^5.5.3.
+
+Making 11 resolve means also taking `share_plus` 13 and `package_info_plus` 10.
+`package_info_plus` 9 and later need Android Gradle Plugin 8.12.1, and the app is
+on 8.11.1. On 2026-10-12 the Developer chose 10.x now. The `win32` 6 migration
+moves to its own issue: `share_plus` 13, `package_info_plus` 10, AGP 8.12.1 and
+`flutter_secure_storage` 11 together, since none of them resolves alone. 10.3.4
+resolves against today's lock, and its Windows package accepts
+`flutter_secure_storage_windows` 4.1.0 on `win32` 5.
+
+**The API the wrapper uses is unchanged.** Checked against the 10.3.4 source:
 
 - `const FlutterSecureStorage()` still takes only optional, defaulted options.
 - `read`, `write` and `delete` still take `key:` (and `value:`), with the
@@ -19,53 +33,35 @@ no app code unless the new API demands it.**
 
 So `FlutterKeyValueSecureStorage` compiles and behaves as it does today.
 
-**What happens to a session saved by 9.2.4.** Version 11 removed v9's default
-ciphers, so the session blob v9 wrote cannot be decrypted after the upgrade. The
-11.2.0 Android source shows how it degrades:
-
-- `KeyCipherAlgorithm.fromString` maps v9's `RSA_ECB_PKCS1Padding` marker to the
-  current algorithm, "so the plugin can initialise".
-- `AndroidOptions.resetOnError` defaults to `true`, so a read that fails to
-  decrypt deletes that key and retries, returning `null`.
-
-`SecureCredentialStore.read` then returns `null`, and the app starts signed out.
-If a platform error escapes anyway, `AuthNotifier.build` catches it and resolves
-to signed out. Either way the user signs in again. Nothing else is lost: the soil
+**A session saved by 9.2.4 survives.** In 10.3.4, `AndroidOptions` defaults
+`migrateOnAlgorithmChange` to `true`. On first use, the plugin decrypts the data
+with v9's ciphers and re-encrypts it with the current ones, so the user stays
+signed in. If a value still cannot be read, `resetOnError`, also `true` by
+default, deletes it and the read returns `null`. If a platform error escapes
+anyway, `AuthNotifier.build` catches it and resolves to signed out. The soil
 records live in SQLite, not in this store.
 
-**Why 11 directly, not 10 first.** The Developer chose this on 2026-10-12.
-
-- Only 10.x migrates v9 data, and only on a device that runs a 10.x build.
-- No Play release has shipped, so the only v9 sessions are on development
-  devices.
-- Going through 10 would ship the first release on a superseded major and leave a
-  second migration for later.
-
-**`checkUpgradeStatus()` is not called.** It reports, read-only, whether old data
-survived. Its only use here would be a notice telling the user they were signed
-out, and the only affected users are developers.
-
-**The release build.** Version 11 still depends on Tink (`tink-android` 1.23.0),
-so the existing R8 keep rule and CI's `Lcom/google/crypto/tink/` DEX check keep
-their meaning. Its Android `minSdk` is 24, which is the pinned Flutter's
-`minSdkVersion` and what the app already uses.
+**The release build.** 10.3.4 still depends on Tink (`tink-android` 1.21.0), so
+the existing R8 keep rule and CI's `Lcom/google/crypto/tink/` DEX check keep
+their meaning. Its Android `minSdkVersion` is 23, below the app's 24.
 
 ## Alternatives Considered
 
-- **10.3.1, which migrates v9 data.** Rejected by the Developer, for the reason
-  above.
-- **10.3.1 now and 11 later.** Rejected. Two migrations to protect sessions that
-  only exist on development devices.
-- **Call `checkUpgradeStatus()` and show a notice.** Rejected. It is code and copy
-  for a case no released user can reach.
-- **Set `resetOnError: false` and handle the error in the app.** Rejected. The
-  default already deletes the unreadable blob, which is what `SecureCredentialStore`
-  does itself for a blob it cannot decode.
+- **11.2.0, as first approved.** It does not resolve against `share_plus` 12, as
+  stated above.
+- **11.2.0 plus `share_plus` 13, `package_info_plus` 10 and AGP 8.12.1.**
+  Rejected by the Developer for this change. It turns a dependency bump into an
+  Android build-system change that this machine cannot build, and it moves to the
+  follow-up issue instead.
+- **A `dependency_overrides` entry forcing `win32` 6.** Rejected. It would run
+  `share_plus` 12 against a `win32` major it was never built for.
+- **Call `checkUpgradeStatus()` and show a notice.** Rejected. That API is 11.x
+  only, and 10.x migrates the session instead of losing it.
 
 ## Scope
 
 - Includes:
-  - `pubspec.yaml`: `flutter_secure_storage: ^11.2.0`, and `pubspec.lock`
+  - `pubspec.yaml`: `flutter_secure_storage: ^10.3.4`, and `pubspec.lock`
     regenerated on Flutter 3.44.1.
   - Two tests, written before the bump:
     - In `test/services/secure_credential_store_test.dart`, the real
@@ -74,20 +70,21 @@ their meaning. Its Android `minSdk` is 24, which is the pinned Flutter's
     - In `test/providers/auth_provider_test.dart`, a storage read that throws a
       `PlatformException` is driven through the real `GoogleAuthService` and
       `SecureCredentialStore`, and `AuthNotifier` must end signed out.
-  - Any change to `FlutterKeyValueSecureStorage` that the 11.x API forces. None
+  - Any change to `FlutterKeyValueSecureStorage` that the 10.x API forces. None
     is expected.
+  - Opening the follow-up issue for the `win32` 6 migration.
 - Does NOT include:
+  - `flutter_secure_storage` 11, `share_plus` 13, `package_info_plus` 10, or any
+    Android Gradle Plugin change (the follow-up issue).
   - The `google_sign_in` 7 migration (#119).
-  - `checkUpgradeStatus()`, biometrics, `storageNamespace`, or any other new
-    option.
+  - Biometrics, `storageNamespace`, `migrateWithBackup`, or any other new option.
   - Any change to `android/app/proguard-rules.pro` or the CI DEX check.
-  - Migrating sessions on development devices.
 
 ## Acceptance Criteria
 
-- `pubspec_lock_resolves_flutter_secure_storage_11`: `pubspec.lock` resolves
-  `flutter_secure_storage` 11.x, generated by Flutter 3.44.1. Checked from the
-  lock diff.
+- `pubspec_lock_resolves_flutter_secure_storage_10`: `pubspec.lock` resolves
+  `flutter_secure_storage` 10.x, generated by Flutter 3.44.1, and no other
+  direct dependency changes version. Checked from the lock diff.
 - `flutter_wrapper_round_trips_a_session`: through `FlutterKeyValueSecureStorage`
   on the plugin's in-memory platform, a written value reads back, and after a
   delete it reads `null`.
@@ -115,8 +112,11 @@ flutter analyze && flutter test && mf check
   the upgrade must keep, so they cannot fail first. Each assertion is instead
   proven by a mutation that makes it fail: dropping the wrapper's `delete`, and
   removing the notifier's catch.
-- **Risk: the Android degrade path is read from source, not run.** No v9 session
-  exists on CI. The fallback that does not depend on the plugin is the notifier's
-  catch, and the second test covers it.
-- **Risk: iOS.** Version 11 moves iOS to `flutter_secure_storage_darwin`. The
+- **Risk: the Android migration path is read from source, not run.** No v9
+  session exists on CI. The fallback that does not depend on the plugin is the
+  notifier's catch, and the second test covers it.
+- **Risk: iOS.** 10.x moves iOS to `flutter_secure_storage_darwin`. The
   `build-ios` job is the check, because this machine cannot build iOS.
+- **Risk: 10.x is no longer the current major.** The follow-up issue tracks the
+  move to 11, which then has v10 data to read, so no session is lost on that
+  step either.
