@@ -57,13 +57,19 @@ is checked in code.
   that states a number is rejected before grounding is asked. Limitations ship
   in the cell beside the tips, so the stance covers them too. This was added
   after review.
-- A text states a number when it holds digits with an optional decimal part
-  that are not preceded by a word character or a hyphen, or a fraction glyph
-  ("½"). So "18 mg dm-3", "90% do rendimento", "pH 5,5", "½ da dose" and
-  "CT 33" are numbers.
+- A text states a number when it holds either of these:
+  - digits with an optional decimal part, preceded neither by a word character
+    nor by a hyphen glued to one;
+  - any Unicode fraction glyph.
+
+  So "18 mg dm-3", "90% do rendimento", "pH 5,5", "-2%", "½" and "⅜ da dose",
+  and "CT 33" are numbers.
 - Some text holds digits and names something, and is not a number:
   - "Mehlich-1" and "Mehlich 1", the extractant;
-  - a clay mineral's layer ratio, "1:1" or "2:1", which clay activity turns on;
+  - a clay mineral's layer ratio, "1:1" or "2:1", only after a clay or mineral
+    word ("argilas 1:1", "minerais do tipo 2:1"), which is what clay activity
+    turns on. A ratio anywhere else, such as a mixing ratio ("proporção 1:1"),
+    is a number;
   - a chemical formula such as "P2O5", whose digits follow a letter.
 
   A dose or a level always carries a standalone figure, so none of these hides
