@@ -510,6 +510,13 @@ def test_a_numeric_tip_retried_into_a_directional_one_is_grounded():
         "Aplique ½ da dose.",
         "Mantenha o pH 5,5.",
         "Segundo a CT 33.",
+        # Found by R3 on PR #384: every fraction glyph, a signed figure, and a
+        # mixing ratio outside clay mineralogy.
+        "Aplique ⅜ da dose.",
+        "Aplique ⅞ da dose.",
+        "O teor caiu -2% na safra.",
+        "Misture solo e corretivo em 1:1.",
+        "Aplique os insumos na proporção 1:1.",
     ],
 )
 def test_a_figure_is_a_number(text):
@@ -525,6 +532,7 @@ def test_a_figure_is_a_number(text):
         # A clay mineral's layer ratio, central to clay activity.
         "Predominam argilas 1:1, de baixa atividade.",
         "Argilas 2:1 retêm mais cátions.",
+        "Os minerais do tipo 2:1 expandem.",
         # A chemical formula names a substance, not an amount.
         "O fósforo é expresso como P2O5.",
     ],
