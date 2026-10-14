@@ -11,8 +11,8 @@ paraphrase, and the calibration cell abstains (#251, SPEC 0155's run).
 ## Design Decision
 
 **The generate prompt (version 4) asks for the direction the numbers show, never
-the numbers. The build rejects any tip that states a number, the way it rejects
-an ungrounded one.** The Developer chose this on 2026-10-12, over permitting
+the numbers. The build rejects any tip or limitation that states a number, the
+way it rejects an ungrounded tip.** The Developer chose this on 2026-10-12, over permitting
 critical levels and over accepting the abstention.
 
 **Why it fits the advisory stance.** `CONTEXT.md` and ADR 0022 forbid
@@ -53,14 +53,25 @@ Nothing else in the prompt changes.
 **The build enforces it.** A prompt rule is one the model can ignore; this one
 is checked in code.
 
-- In `pipeline.build_cell`'s generate-and-check loop, a tip whose text states a
-  number is rejected before grounding is asked.
-- A tip states a number when it holds a run of digits, optionally with a decimal
-  part, that is not glued to a preceding letter-and-hyphen name. So "18 mg dm-3",
-  "90% do rendimento", "pH 5,5" and "CT 33" are numbers. "Mehlich-1" is a
-  method's name and is not.
-- The rejection is recorded as `states a number: <tip text>`, beside the
-  ungrounded ones.
+- In `pipeline.build_cell`'s generate-and-check loop, a tip or a limitation
+  that states a number is rejected before grounding is asked. Limitations ship
+  in the cell beside the tips, so the stance covers them too. This was added
+  after review.
+- A text states a number when it holds digits with an optional decimal part
+  that are not preceded by a word character or a hyphen, or a fraction glyph
+  ("½"). So "18 mg dm-3", "90% do rendimento", "pH 5,5", "½ da dose" and
+  "CT 33" are numbers.
+- Some text holds digits and names something, and is not a number:
+  - "Mehlich-1" and "Mehlich 1", the extractant;
+  - a clay mineral's layer ratio, "1:1" or "2:1", which clay activity turns on;
+  - a chemical formula such as "P2O5", whose digits follow a letter.
+
+  A dose or a level always carries a standalone figure, so none of these hides
+  one.
+- The rejection is recorded as `states a number: <text>`, beside the
+  ungrounded tips. When an attempt has a number, grounding is not asked for any
+  of its tips. So an ungrounded tip in the same attempt is not recorded; the
+  attempt is rejected either way.
 - As today, any rejection fails the attempt. The loop retries up to
   `max_attempts`, and then the cell abstains.
 - The check lives in the pipeline, not in `cell.validate_cell`. A number is the
@@ -108,6 +119,9 @@ is checked in code.
   called for a tip that states a number.
 - `a_method_name_is_not_a_number`: a tip naming "Mehlich-1", with no other
   number, reaches grounding, and the cell is grounded when grounding passes.
+- `a_figure_is_a_number` and `a_name_or_a_ratio_is_not_a_number`: the cases
+  above, each way.
+- `a_limitation_stating_a_number_is_rejected_then_abstains`.
 - `a_numeric_tip_retried_into_a_directional_one_is_grounded`: a first attempt
   with a number and a second without one ends grounded on attempt 2.
 - `the_generate_prompt_asks_for_the_direction_not_the_number`: the generate
