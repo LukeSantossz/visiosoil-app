@@ -19,6 +19,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from src.pipeline import Grounding
 from src.sources import (
     PASSAGE_CHAR_LIMIT,
     PDF_SIGNATURE,
@@ -392,7 +393,7 @@ class OllamaClient:
         )
         return parse_json_object(raw)
 
-    def is_grounded(self, tip_text: str, cited_texts: list[str]) -> bool:
+    def ground(self, tip_text: str, cited_texts: list[str]) -> Grounding:
         template, _ = self._prompts["ground"]
         raw = self._complete(
             template.replace("{{claim}}", tip_text).replace(
@@ -409,5 +410,9 @@ class OllamaClient:
         # allowed values, so a hedge is refused rather than read.
         if not isinstance(verdict, str) or _normalise(verdict) not in ("sim", "não"):
             raise ModelRefused(f"grounding verdict is not sim or não: {raw[:120]!r}")
-        supported = parse_yes_no(verdict)
-        return supported and quote_in_evidence(quote, cited_texts)
+        found = quote_in_evidence(quote, cited_texts)
+        # The verdict is unchanged; the quote is kept for the run manifest
+        # (SPEC 0161).
+        return Grounding(
+            supported=parse_yes_no(verdict) and found, quote=quote, found=found
+        )

@@ -34,6 +34,9 @@ class RunManifest:
         default_factory=lambda: datetime.now(timezone.utc)
     )
     rejections: list[str] = field(default_factory=list)
+    groundings: list[dict[str, Any]] = field(default_factory=list)
+    """Each grounding check with the passage it quoted, rejected attempts
+    included, so a judge reads why a tip held or failed (SPEC 0161)."""
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -45,6 +48,7 @@ class RunManifest:
             "attempts": self.attempts,
             "builtAt": self.built_at.isoformat().replace("+00:00", "Z"),
             "rejections": list(self.rejections),
+            "groundings": [dict(entry) for entry in self.groundings],
             "sources": [
                 {
                     "url": source.url,
