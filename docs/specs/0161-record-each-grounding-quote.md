@@ -23,7 +23,8 @@ them out.**
   - `found: bool`, whether that passage was found in the cited text.
 
   `OllamaClient.ground` computes exactly what `is_grounded` does today and keeps
-  the parts. `supported` is `sustenta == "sim"` and `found`, as before.
+  the parts. `supported` is the parsed `sustenta` verdict (only "sim" or "não"
+  is accepted) and `found`, as before.
 - **`BuildOutcome` gains `groundings`:** one entry per grounding call, in order,
   across attempts. Each entry is `{"attempt", "tip", "supported", "quote",
   "found"}`. The rejected attempts are recorded as well, because the passage
@@ -72,7 +73,8 @@ them out.**
   `supported`, `quote` and `found` for these cases:
   - a supported quote that is found;
   - a "não" verdict;
-  - a quote that is not found.
+  - a quote that is not found;
+  - a blank quote, which is never found.
 
   `supported` equals what `is_grounded` returned for the same reply.
 - `the_existing_grounding_tests_hold_through_ground`: every SPEC 0155 grounding
@@ -101,7 +103,10 @@ python -m pytest tests -q   # Python 3.12 with corpus/requirements.txt; no model
 - **Assumption: the quote is worth reading even when `found` is false.** A
   passage the model invented is evidence of why a tip failed. It is recorded
   with `found: false`, and never presented as the source.
-- **Risk: a manifest grows with long quotes.** A quote is at most a passage, and
-  passages are capped by `PASSAGE_CHAR_LIMIT`; a cell checks a handful of tips.
+- **Risk: a manifest grows with long quotes.** The quote is the model's reply
+  as given, and it is not cut. Only the evidence sent to the model is capped by
+  `PASSAGE_CHAR_LIMIT`. Cutting the quote would hide part of what the judge
+  reads, and the manifest is local, git-ignored output, so it is recorded
+  whole.
 - **Merge order:** this builds on #384 (SPEC 0160), whose loop it changes, and
   merges after it.
