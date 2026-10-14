@@ -18,6 +18,7 @@ from src.pipeline import (
     SUBSTANCE_DISCLAIMER,
     BuildOutcome,
     build_cell,
+    states_a_number,
 )
 from src.sources import FetchedSource
 
@@ -499,3 +500,49 @@ def test_a_numeric_tip_retried_into_a_directional_one_is_grounded():
     assert outcome.attempts == 2
     assert outcome.cell["tips"][0]["text"] == directional
     assert outcome.rejections == [f"states a number: {numeric}"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "O nível crítico é 18 mg dm-3.",
+        "Teor de argila ≤15%.",
+        "Aplique ½ da dose.",
+        "Mantenha o pH 5,5.",
+        "Segundo a CT 33.",
+    ],
+)
+def test_a_figure_is_a_number(text):
+    assert states_a_number(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # A method's name, hyphenated or spaced (SPEC 0160 review).
+        "No Mehlich-1, o nível crítico é menor.",
+        "No Mehlich 1, o nível crítico é menor.",
+        # A clay mineral's layer ratio, central to clay activity.
+        "Predominam argilas 1:1, de baixa atividade.",
+        "Argilas 2:1 retêm mais cátions.",
+        # A chemical formula names a substance, not an amount.
+        "O fósforo é expresso como P2O5.",
+    ],
+)
+def test_a_name_or_a_ratio_is_not_a_number(text):
+    assert not states_a_number(text)
+
+
+def test_a_limitation_stating_a_number_is_rejected_then_abstains():
+    """The stance covers every text the model writes into a cell, and the
+    limitations ship beside the tips (SPEC 0160 review)."""
+    limitation = "Vale para teor de argila acima de 60%."
+    generation = generation_with("Em solo argiloso, o nível crítico é menor.")
+    generation["limitations"] = [limitation]
+    client = ScriptedClient(generation=generation)
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.rejections == [f"states a number: {limitation}"] * 2
+    assert "ground" not in client.calls
