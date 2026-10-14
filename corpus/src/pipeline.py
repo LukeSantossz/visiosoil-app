@@ -211,7 +211,7 @@ def build_cell(
             for text in [tip["text"] for tip in cell["tips"]] + cell["limitations"]
             if states_a_number(text)
         ]
-        unsupported = numeric
+        unsupported = list(numeric)
         if not numeric:
             for tip in cell["tips"]:
                 grounding = client.ground(
