@@ -62,15 +62,23 @@ Fixed here rather than left to the model: asked for "different angles", it
 wrote three broad questions about fertility, and the phosphorus circular a
 judge asked for was graded irrelevant to all of them (SPEC 0153)."""
 
-_NUMBER = re.compile(r"(?<![\w-])\d+(?:[.,]\d+)?|[½¼¾⅓⅔⅛]")
+_NUMBER = re.compile(
+    r"(?<!\w)(?<!\w-)\d+(?:[.,]\d+)?|[¼-¾⅐-⅟↉]"
+)
 """A number: digits with an optional decimal part, not preceded by a word
-character or a hyphen, or a fraction glyph. So "18", "90%", "5,5", "½" and the
-"33" of "CT 33" are numbers, while "P2O5" and "Mehlich-1" are names (SPEC 0160)."""
+character nor by a hyphen glued to one, or any Unicode fraction glyph. So "18",
+"90%", "5,5", "-2%", "½", "⅜" and the "33" of "CT 33" are numbers, while "P2O5"
+and "Mehlich-1" are names (SPEC 0160)."""
 
-_NOT_A_NUMBER = re.compile(r"\bMehlich[\s-]?\d\b|(?<![\w.,:-])\d:\d(?![\d:]|[.,]\d)")
+_NOT_A_NUMBER = re.compile(
+    r"\bMehlich[\s-]?\d\b"
+    r"|\b(?:argil|minera)\w*\s+(?:do\s+tipo\s+)?[12]:1(?![\d:]|[.,]\d)",
+    re.IGNORECASE,
+)
 """Names and ratios that carry digits without stating an amount: the Mehlich
-extractant, spaced or hyphenated, and a clay mineral's layer ratio, "1:1" or
-"2:1", which is what clay activity turns on (SPEC 0160 review)."""
+extractant, spaced or hyphenated, and a clay mineral's layer ratio, "argilas
+1:1" or "minerais do tipo 2:1", which is what clay activity turns on. A ratio
+outside that context, such as a mixing ratio, stays a number (SPEC 0160)."""
 
 
 def states_a_number(text: str) -> bool:
