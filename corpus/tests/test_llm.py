@@ -498,6 +498,7 @@ def test_the_ground_prompt_version_moved():
         (grounding_reply("sugere-se elevar o teor de P ao limite superior"), True, True),
         (grounding_reply("sugere-se elevar o teor de P", verdict="não"), False, True),
         (grounding_reply("ajustada para alcançar 90% do rendimento"), False, False),
+        (grounding_reply(""), False, False),
     ],
 )
 def test_grounding_returns_the_verdict_and_the_quote(reply, supported, found):
