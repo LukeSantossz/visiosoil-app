@@ -17,6 +17,7 @@ refuses an orchestration framework for exactly this shape.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -60,6 +61,21 @@ MANAGEMENT_TOPICS = (
 Fixed here rather than left to the model: asked for "different angles", it
 wrote three broad questions about fertility, and the phosphorus circular a
 judge asked for was graded irrelevant to all of them (SPEC 0153)."""
+
+_NUMBER = re.compile(r"(?<![\w-])\d+(?:[.,]\d+)?")
+"""A number in a tip: digits, with an optional decimal part, not glued to a
+preceding name. "Mehlich-1" is a method's name; "18", "90%", "5,5" and the
+"33" of "CT 33" are numbers (SPEC 0160)."""
+
+
+def states_a_number(text: str) -> bool:
+    """Whether [text] states a number, which a tip never does (SPEC 0160).
+
+    The advisory stance forbids doses and critical levels, and the generate
+    prompt asks for the direction a source's numbers show instead. A prompt rule
+    is one the model can ignore, so the build checks it.
+    """
+    return _NUMBER.search(text) is not None
 
 
 class LLMClient(Protocol):
@@ -157,7 +173,14 @@ def build_cell(
         # the check a page's injected instruction runs into.
         validate_cell(cell, source_count=len(source_array))
 
-        unsupported = [
+        # A number is refused before grounding is asked: the stance forbids it
+        # however well the source supports it (SPEC 0160).
+        numeric = [
+            f"states a number: {tip['text']}"
+            for tip in cell["tips"]
+            if states_a_number(tip["text"])
+        ]
+        unsupported = numeric or [
             tip["text"]
             for tip in cell["tips"]
             if not client.is_grounded(
