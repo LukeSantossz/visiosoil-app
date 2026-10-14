@@ -417,3 +417,85 @@ def test_a_query_carrying_an_identifier_is_refused(leaked):
             [source(0)],
             client=ScriptedClient(queries=topic_queries({1: leaked})),
         )
+
+
+# --- A tip states a direction, never a number (SPEC 0160) ----------------------
+
+
+def generation_with(*texts):
+    return {
+        "status": "grounded",
+        "tips": [{"text": text, "citations": [0]} for text in texts],
+        "limitations": [],
+    }
+
+
+class SequencedClient(ScriptedClient):
+    """A `ScriptedClient` whose generations change between attempts."""
+
+    def __init__(self, generations, **kwargs):
+        super().__init__(**kwargs)
+        self.generations = list(generations)
+
+    def generate_cell(self, question, documents):
+        self.calls.append("generate")
+        return self.generations.pop(0)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Em solo argiloso, o nível crítico é 18 mg dm-3.",
+        "Ajuste a adubação para 90% do rendimento potencial.",
+        "Mantenha o pH 5,5 antes do plantio.",
+        "Segundo a CT 33, interprete o laudo pela argila.",
+    ],
+)
+def test_a_tip_stating_a_number_is_rejected_then_abstains(text):
+    client = ScriptedClient(generation=generation_with(text))
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.attempts == 2
+    assert outcome.rejections == [f"states a number: {text}"] * 2
+
+
+def test_a_number_is_rejected_before_grounding_is_asked():
+    client = ScriptedClient(
+        generation=generation_with("Em solo argiloso, o nível crítico é 18 mg dm-3.")
+    )
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert "ground" not in client.calls
+
+
+def test_a_method_name_is_not_a_number():
+    text = (
+        "No Mehlich-1, o nível crítico de fósforo é menor quanto mais argiloso "
+        "o solo."
+    )
+    client = ScriptedClient(generation=generation_with(text), grounded=[True])
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.attempts == 1
+    assert outcome.rejections == []
+    assert client.calls.count("ground") == 1
+
+
+def test_a_numeric_tip_retried_into_a_directional_one_is_grounded():
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    directional = "Em solo argiloso, o nível crítico de fósforo é menor."
+    client = SequencedClient(
+        [generation_with(numeric), generation_with(directional)], grounded=[True]
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.attempts == 2
+    assert outcome.cell["tips"][0]["text"] == directional
+    assert outcome.rejections == [f"states a number: {numeric}"]

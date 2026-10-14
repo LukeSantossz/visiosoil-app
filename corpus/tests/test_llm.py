@@ -305,7 +305,24 @@ def test_the_prompt_versions_moved():
     versions = OllamaClient().prompt_versions
 
     assert versions["transform"] == "3"
-    assert versions["generate"] == "3"
+    assert versions["generate"] == "4"
+
+
+def test_the_generate_prompt_asks_for_the_direction_not_the_number():
+    """CT 33 states what a clayey class changes in reading a phosphorus result
+    only as critical levels by clay range. The prompt asks for the direction
+    those numbers show, and never the numbers (SPEC 0160)."""
+    client, requests = recording_client(
+        '{"status": "abstained", "tips": [], "limitations": []}'
+    )
+
+    client.generate_cell("Solo argiloso", [document("Texto.")])
+
+    prompt = requests[0]["prompt"]
+    assert "Nunca doses e nunca números" in prompt
+    assert "escreva a direção que os números mostram" in prompt
+    assert "nunca pelo nome" in prompt
+    assert client.prompt_versions["generate"] == "4"
 
 
 # --- The grader scores relevance (SPEC 0154) -----------------------------------
