@@ -64,6 +64,8 @@ dependencies:
   # HTTP client for the research proxy transport
   http: ^1.6.0
   shared_preferences: ^2.5.5
+  # Opens the privacy policy in the browser from Settings (SPEC 0157)
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +87,8 @@ dev_dependencies:
   # Fake SharePlatform in ShareService tests (share_plus federated seam)
   share_plus_platform_interface: ^7.2.0
   flutter_launcher_icons: 0.14.4
+  # Fake UrlLauncherPlatform in the Settings tests (url_launcher federated seam)
+  url_launcher_platform_interface: ^2.3.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

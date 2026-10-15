@@ -43,6 +43,27 @@ void main() {
         '<uses-feature\\b[^>]*android:name="${RegExp.escape(name)}"[^>]*/>',
       ).firstMatch(activeManifest)?.group(0);
 
+  // On Android 11 and later, the launcher resolves a browser only for an
+  // intent the manifest queries; Settings opens the privacy policy through it
+  // (SPEC 0157).
+  test('manifest_queries_an_https_view_intent', () {
+    final queries = RegExp(r'<queries>.*?</queries>', dotAll: true)
+        .firstMatch(activeManifest)
+        ?.group(0);
+    expect(queries, isNotNull, reason: '<queries> is missing');
+    final intents = RegExp(r'<intent>.*?</intent>', dotAll: true)
+        .allMatches(queries!)
+        .map((match) => match.group(0)!);
+    expect(
+      intents.any((intent) =>
+          intent.contains('android.intent.action.VIEW') &&
+          intent.contains('android:scheme="https"')),
+      isTrue,
+      reason: 'no https VIEW intent is queried, so the privacy policy link '
+          'cannot resolve a browser on Android 11 and later',
+    );
+  });
+
   test('manifest_requires_the_camera', () {
     final feature = usesFeature('android.hardware.camera');
     expect(feature, isNotNull,
