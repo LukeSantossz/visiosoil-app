@@ -213,7 +213,7 @@ class TestTheModelReadsAllOfIt:
         grounds, grounds_requests = recording_client('{"trecho": "Z", "sustenta": "sim"}')
 
         grades.grade_document("consulta", document(passage))
-        grounds.is_grounded("afirmação", [passage])
+        grounds.ground("afirmação", [passage])
 
         requests = grades_requests + grounds_requests
         assert len(requests) == 2
@@ -232,7 +232,7 @@ class TestTheModelReadsAllOfIt:
         grounds, grounds_requests = recording_client(
             '{"trecho": "Texto.", "sustenta": "sim"}'
         )
-        grounds.is_grounded("afirmação", ["Texto."])
+        grounds.ground("afirmação", ["Texto."])
         cells, cells_requests = recording_client(
             '{"status": "grounded", "tips": [], "limitations": []}'
         )
@@ -397,7 +397,7 @@ def test_a_supported_claim_quoted_from_the_evidence_is_grounded(verdict):
         )
     )
 
-    assert client.is_grounded("Eleve o P ao limite superior.", [CT33]) is True
+    assert client.ground("Eleve o P ao limite superior.", [CT33]).supported is True
 
 
 def test_a_quote_not_in_the_evidence_is_not_grounded():
@@ -410,7 +410,7 @@ def test_a_quote_not_in_the_evidence_is_not_grounded():
         )
     )
 
-    assert client.is_grounded("Ajuste a adubação para 90%.", [CT33]) is False
+    assert client.ground("Ajuste a adubação para 90%.", [CT33]).supported is False
 
 
 def test_a_não_verdict_is_not_grounded():
@@ -418,14 +418,14 @@ def test_a_não_verdict_is_not_grounded():
         grounding_reply("sugere-se elevar o teor de P", verdict="não")
     )
 
-    assert client.is_grounded("Solos argilosos dispensam fósforo.", [CT33]) is False
+    assert client.ground("Solos argilosos dispensam fósforo.", [CT33]).supported is False
 
 
 @pytest.mark.parametrize("quote", ["", "   "])
 def test_a_blank_quote_is_not_grounded(quote):
     client, _ = recording_client(grounding_reply(quote))
 
-    assert client.is_grounded("Qualquer afirmação.", [CT33]) is False
+    assert client.ground("Qualquer afirmação.", [CT33]).supported is False
 
 
 @pytest.mark.parametrize(
@@ -470,13 +470,13 @@ def test_a_malformed_grounding_reply_is_refused(reply):
     client, _ = recording_client(reply)
 
     with pytest.raises(ModelRefused):
-        client.is_grounded("Qualquer afirmação.", [CT33])
+        client.ground("Qualquer afirmação.", [CT33])
 
 
 def test_the_claim_and_evidence_reach_the_prompt():
     client, requests = recording_client(grounding_reply("níveis críticos"))
 
-    client.is_grounded("Os níveis críticos dependem da argila.", [CT33])
+    client.ground("Os níveis críticos dependem da argila.", [CT33])
 
     prompt = requests[0]["prompt"]
     assert "Os níveis críticos dependem da argila." in prompt
@@ -487,3 +487,27 @@ def test_the_claim_and_evidence_reach_the_prompt():
 
 def test_the_ground_prompt_version_moved():
     assert OllamaClient().prompt_versions["ground"] == "2"
+
+
+# --- The quote is kept (SPEC 0161) ---------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "reply, supported, found",
+    [
+        (grounding_reply("sugere-se elevar o teor de P ao limite superior"), True, True),
+        (grounding_reply("sugere-se elevar o teor de P", verdict="não"), False, True),
+        (grounding_reply("ajustada para alcançar 90% do rendimento"), False, False),
+        (grounding_reply(""), False, False),
+    ],
+)
+def test_grounding_returns_the_verdict_and_the_quote(reply, supported, found):
+    import json
+
+    client, _ = recording_client(reply)
+
+    grounding = client.ground("Uma afirmação.", [CT33])
+
+    assert grounding.supported is supported
+    assert grounding.found is found
+    assert grounding.quote == json.loads(reply)["trecho"]

@@ -17,6 +17,7 @@ from src.pipeline import (
     MANAGEMENT_TOPICS,
     SUBSTANCE_DISCLAIMER,
     BuildOutcome,
+    Grounding,
     build_cell,
     states_a_number,
 )
@@ -77,9 +78,12 @@ class ScriptedClient:
             "limitations": [],
         }
 
-    def is_grounded(self, tip_text, cited_texts):
+    def ground(self, tip_text, cited_texts):
         self.calls.append("ground")
-        return self.grounded.pop(0) if self.grounded else True
+        supported = self.grounded.pop(0) if self.grounded else True
+        return Grounding(
+            supported=supported, quote=f"trecho para {tip_text}", found=supported
+        )
 
 
 QUESTION = "Argilosa|tb_oxidic"
@@ -554,3 +558,56 @@ def test_a_limitation_stating_a_number_is_rejected_then_abstains():
     assert outcome.cell["status"] == "abstained"
     assert outcome.rejections == [f"states a number: {limitation}"] * 2
     assert "ground" not in client.calls
+
+
+# --- Every grounding is recorded with its quote (SPEC 0161) ---------------------
+
+
+def test_each_grounding_call_is_recorded_with_its_attempt():
+    client = ScriptedClient(grounded=[False, True])
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.groundings == [
+        {
+            "attempt": 1,
+            "tip": "Uma dica.",
+            "supported": False,
+            "quote": "trecho para Uma dica.",
+            "found": False,
+        },
+        {
+            "attempt": 2,
+            "tip": "Uma dica.",
+            "supported": True,
+            "quote": "trecho para Uma dica.",
+            "found": True,
+        },
+    ]
+
+
+def test_an_abstained_cell_still_records_its_groundings():
+    client = ScriptedClient(grounded=[False, False])
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert [g["supported"] for g in outcome.groundings] == [False, False]
+    assert [g["attempt"] for g in outcome.groundings] == [1, 2]
+
+
+def test_a_numeric_tip_records_no_grounding():
+    client = ScriptedClient(
+        generation=generation_with("Em solo argiloso, o nível crítico é 18 mg dm-3.")
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.groundings == []
+
+
+def test_the_cell_artifact_is_unchanged():
+    outcome = build_cell(QUESTION, [source(0)], client=ScriptedClient())
+
+    assert "groundings" not in outcome.cell
+    assert all("quote" not in tip for tip in outcome.cell["tips"])

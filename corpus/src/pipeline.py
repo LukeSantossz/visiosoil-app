@@ -107,7 +107,21 @@ class LLMClient(Protocol):
         self, question: str, documents: list[FetchedSource]
     ) -> dict[str, Any]: ...
 
-    def is_grounded(self, tip_text: str, cited_texts: list[str]) -> bool: ...
+    def ground(self, tip_text: str, cited_texts: list[str]) -> "Grounding": ...
+
+
+@dataclass(frozen=True)
+class Grounding:
+    """One grounding check: its verdict and the passage the model quoted for it.
+
+    [supported] is the verdict the build acts on. [quote] and [found] are kept
+    so whoever judges a run can read which passage held a tip, or why it did
+    not (SPEC 0161).
+    """
+
+    supported: bool
+    quote: str
+    found: bool
 
 
 @dataclass
@@ -120,6 +134,8 @@ class BuildOutcome:
     cell: dict[str, Any]
     attempts: int
     rejections: list[str] = field(default_factory=list)
+    groundings: list[dict[str, Any]] = field(default_factory=list)
+    """Every grounding check, rejected attempts included, in order."""
 
 
 def build_cell(
@@ -165,6 +181,7 @@ def build_cell(
 
     source_array = [source_payload(s, accessed_at=accessed_at) for s in kept]
     rejections: list[str] = []
+    groundings: list[dict[str, Any]] = []
 
     for attempt in range(1, max_attempts + 1):
         generated = client.generate_cell(question, kept)
@@ -194,13 +211,23 @@ def build_cell(
             for text in [tip["text"] for tip in cell["tips"]] + cell["limitations"]
             if states_a_number(text)
         ]
-        unsupported = numeric or [
-            tip["text"]
-            for tip in cell["tips"]
-            if not client.is_grounded(
-                tip["text"], [kept[i].text for i in tip["citations"]]
-            )
-        ]
+        unsupported = list(numeric)
+        if not numeric:
+            for tip in cell["tips"]:
+                grounding = client.ground(
+                    tip["text"], [kept[i].text for i in tip["citations"]]
+                )
+                groundings.append(
+                    {
+                        "attempt": attempt,
+                        "tip": tip["text"],
+                        "supported": grounding.supported,
+                        "quote": grounding.quote,
+                        "found": grounding.found,
+                    }
+                )
+                if not grounding.supported:
+                    unsupported.append(tip["text"])
         if not unsupported:
             return BuildOutcome(
                 key=key,
@@ -209,6 +236,7 @@ def build_cell(
                 cell=cell,
                 attempts=attempt,
                 rejections=rejections,
+                groundings=groundings,
             )
         rejections.extend(unsupported)
 
@@ -221,6 +249,7 @@ def build_cell(
         cell=_abstention(sources=source_array, limitations=[]),
         attempts=max_attempts,
         rejections=rejections,
+        groundings=groundings,
     )
 
 
@@ -288,6 +317,7 @@ __all__ = [
     "SUBSTANCE_DISCLAIMER",
     "BuildOutcome",
     "CellValidationError",
+    "Grounding",
     "LLMClient",
     "MANAGEMENT_TOPICS",
     "build_cell",

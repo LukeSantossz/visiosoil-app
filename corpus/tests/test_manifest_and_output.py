@@ -180,3 +180,41 @@ def test_the_run_manifest_records_the_page_range_its_digest_covers():
 
     assert recorded["https://example.org/sistema.pdf"] == [12, 15]
     assert recorded["https://example.org/1"] is None
+
+
+def test_the_manifest_writes_the_groundings():
+    """The passage each grounding check quoted, rejected attempts included, so
+    a judge reads why a tip held or failed (SPEC 0161)."""
+    entry = {
+        "attempt": 1,
+        "tip": "Uma dica.",
+        "supported": True,
+        "quote": "trecho",
+        "found": True,
+    }
+    manifest = RunManifest(
+        key="k",
+        model="m",
+        model_digest="d",
+        prompt_versions={},
+        seed=7,
+        sources=[source()],
+        attempts=1,
+        groundings=[entry],
+    )
+
+    assert manifest.to_json()["groundings"] == [entry]
+
+
+def test_a_manifest_without_groundings_writes_an_empty_list():
+    manifest = RunManifest(
+        key="k",
+        model="m",
+        model_digest="d",
+        prompt_versions={},
+        seed=7,
+        sources=[source()],
+        attempts=0,
+    )
+
+    assert manifest.to_json()["groundings"] == []
