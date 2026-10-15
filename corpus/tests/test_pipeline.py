@@ -361,17 +361,32 @@ def test_missing_tips_are_refused_not_defaulted():
         build_cell(QUESTION, [source(0)], client=client)
 
 
-def test_limitations_of_the_wrong_type_are_refused():
+def test_the_models_limitations_are_ignored():
+    """The build derives limitations from coverage; whatever the model sends
+    there, of any type, never ships (SPEC 0162)."""
+    for limitations in (["Algo que o modelo afirmou."], "uma string, não uma lista"):
+        client = ScriptedClient(
+            generation={
+                "status": "grounded",
+                "tips": [{"text": "t", "citations": [0]}],
+                "limitations": limitations,
+            }
+        )
+
+        outcome = build_cell(QUESTION, [source(0)], client=client)
+
+        assert outcome.cell["status"] == "grounded"
+        assert outcome.cell["limitations"] == []
+
+
+def test_a_generation_without_limitations_is_accepted():
     client = ScriptedClient(
-        generation={
-            "status": "grounded",
-            "tips": [{"text": "t", "citations": [0]}],
-            "limitations": "uma string, não uma lista",
-        }
+        generation={"status": "grounded", "tips": [{"text": "t", "citations": [0]}]}
     )
 
-    with pytest.raises(CellValidationError):
-        build_cell(QUESTION, [source(0)], client=client)
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["status"] == "grounded"
 
 
 def test_a_boolean_citation_is_refused():
@@ -545,19 +560,17 @@ def test_a_name_or_a_ratio_is_not_a_number(text):
     assert not states_a_number(text)
 
 
-def test_a_limitation_stating_a_number_is_rejected_then_abstains():
-    """The stance covers every text the model writes into a cell, and the
-    limitations ship beside the tips (SPEC 0160 review)."""
-    limitation = "Vale para teor de argila acima de 60%."
+def test_the_number_rule_reads_tips_only():
+    """A model limitation is ignored, so its number no longer rejects the
+    attempt; derived limitations hold no numbers (SPEC 0162)."""
     generation = generation_with("Em solo argiloso, o nível crítico é menor.")
-    generation["limitations"] = [limitation]
+    generation["limitations"] = ["Vale para teor de argila acima de 60%."]
     client = ScriptedClient(generation=generation)
 
     outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
 
-    assert outcome.cell["status"] == "abstained"
-    assert outcome.rejections == [f"states a number: {limitation}"] * 2
-    assert "ground" not in client.calls
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.rejections == []
 
 
 # --- Every grounding is recorded with its quote (SPEC 0161) ---------------------
@@ -611,3 +624,91 @@ def test_the_cell_artifact_is_unchanged():
 
     assert "groundings" not in outcome.cell
     assert all("quote" not in tip for tip in outcome.cell["tips"])
+
+
+# --- Limitations come from what the sources cover (SPEC 0162) -------------------
+
+
+def relevant_to(*topics):
+    """A grade that finds a source relevant to [topics] alone."""
+    wanted = {f"consulta sobre {topic}" for topic in topics}
+    return lambda query: query in wanted
+
+
+def test_a_topic_no_source_covers_becomes_a_limitation():
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": relevant_to("fósforo"),
+            "https://example.org/1": relevant_to("calagem"),
+        }
+    )
+
+    outcome = build_cell(QUESTION, [source(0), source(1)], client=client)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == [
+        "As fontes desta célula não tratam de potássio.",
+        "As fontes desta célula não tratam de matéria orgânica.",
+        "As fontes desta célula não tratam de água.",
+        "As fontes desta célula não tratam do que a classe de textura implica "
+        "e do que não implica.",
+    ]
+
+
+def test_a_cell_whose_sources_cover_every_topic_has_no_limitations():
+    outcome = build_cell(QUESTION, [source(0)], client=ScriptedClient())
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == []
+
+
+def test_grading_asks_every_topic_of_every_source():
+    last_topic = MANAGEMENT_TOPICS[-1]
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": True,
+            "https://example.org/1": False,
+            "https://example.org/2": relevant_to(last_topic),
+        }
+    )
+
+    outcome = build_cell(
+        QUESTION, [source(0), source(1), source(2)], client=client
+    )
+
+    assert client.calls.count("grade") == len(MANAGEMENT_TOPICS) * 3
+    assert [d.url for d in outcome.kept] == [
+        "https://example.org/0",
+        "https://example.org/2",
+    ]
+
+
+def test_the_outcome_maps_each_topic_to_the_sources_that_cover_it():
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": relevant_to("fósforo", "calagem"),
+            "https://example.org/1": relevant_to("fósforo"),
+        }
+    )
+
+    outcome = build_cell(QUESTION, [source(0), source(1)], client=client)
+
+    assert list(outcome.coverage) == list(MANAGEMENT_TOPICS)
+    assert outcome.coverage["fósforo"] == [
+        "https://example.org/0",
+        "https://example.org/1",
+    ]
+    assert outcome.coverage["calagem"] == ["https://example.org/0"]
+    assert outcome.coverage["potássio"] == []
+
+
+def test_an_abstained_cell_has_no_limitations():
+    client = ScriptedClient(
+        grades={"https://example.org/0": relevant_to("fósforo")},
+        grounded=[False, False],
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.cell["limitations"] == []

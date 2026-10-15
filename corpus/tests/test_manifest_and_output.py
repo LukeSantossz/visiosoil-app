@@ -218,3 +218,21 @@ def test_a_manifest_without_groundings_writes_an_empty_list():
     )
 
     assert manifest.to_json()["groundings"] == []
+
+
+def test_the_manifest_writes_the_coverage():
+    """Which sources each topic was graded relevant to, so a judge sees why a
+    limitation was stated (SPEC 0162)."""
+    coverage = {"fósforo": ["https://example.org/0"], "calagem": []}
+    manifest = RunManifest(
+        key="k",
+        model="m",
+        model_digest="d",
+        prompt_versions={},
+        seed=7,
+        sources=[source()],
+        attempts=1,
+        coverage=coverage,
+    )
+
+    assert manifest.to_json()["coverage"] == coverage

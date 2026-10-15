@@ -52,6 +52,7 @@ def test_the_probe_writes_the_outcomes_groundings(monkeypatch, tmp_path):
         cell=cell,
         attempts=1,
         groundings=[entry],
+        coverage={"fósforo": ["https://example.org/0"]},
     )
     monkeypatch.setattr(sources, "fetch_sources", lambda manifest, transport: [])
     monkeypatch.setattr(llm.OllamaClient, "model_digest", lambda self: "d")
@@ -66,4 +67,5 @@ def test_the_probe_writes_the_outcomes_groundings(monkeypatch, tmp_path):
         next(tmp_path.glob("*.cell.json")).read_text(encoding="utf-8")
     )
     assert manifest["groundings"] == [entry]
+    assert manifest["coverage"] == {"fósforo": ["https://example.org/0"]}
     assert "groundings" not in written_cell
