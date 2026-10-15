@@ -3,10 +3,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
+import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
@@ -700,7 +704,111 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(store.markCalls, 1);
   });
+
+  // Play expects the policy to open from inside the app (SPEC 0157, #279).
+  group('privacy policy link', () {
+    late UrlLauncherPlatform original;
+    late _RecordingUrlLauncher launcher;
+
+    setUp(() {
+      original = UrlLauncherPlatform.instance;
+      launcher = _RecordingUrlLauncher();
+      UrlLauncherPlatform.instance = launcher;
+    });
+
+    tearDown(() => UrlLauncherPlatform.instance = original);
+
+    Future<void> tapThePolicy(WidgetTester tester) async {
+      await tester.pumpWidget(_app(null));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text(_privacyPolicyLabel), 200);
+      await tester.tap(find.text(_privacyPolicyLabel));
+      await tester.pumpAndSettle();
+    }
+
+    test('privacy_policy_url_is_the_published_page', () {
+      expect(
+        AppLinks.privacyPolicy,
+        'https://lukesantossz.github.io/visiosoil-app/privacidade.html',
+      );
+    });
+
+    testWidgets('settings_lists_the_privacy_policy_under_sobre',
+        (tester) async {
+      await tester.pumpWidget(_app(null));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('AJUDA'), 200);
+
+      double top(String text) => tester.getTopLeft(find.text(text)).dy;
+      expect(find.text(_privacyPolicyLabel), findsOneWidget);
+      expect(top('SOBRE'), lessThan(top('Versão do app')));
+      expect(top('Versão do app'), lessThan(top(_privacyPolicyLabel)));
+      expect(top(_privacyPolicyLabel), lessThan(top('AJUDA')));
+    });
+
+    testWidgets('tapping_the_privacy_policy_opens_it_in_the_browser',
+        (tester) async {
+      await tapThePolicy(tester);
+
+      expect(launcher.launches, [
+        (AppLinks.privacyPolicy, PreferredLaunchMode.externalApplication),
+      ]);
+      expect(find.text(_policyFailedMessage), findsNothing);
+    });
+
+    testWidgets('a_launch_that_fails_says_so: no app opens it',
+        (tester) async {
+      launcher.result = false;
+      await tapThePolicy(tester);
+
+      expect(find.text(_policyFailedMessage), findsOneWidget);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+    });
+
+    testWidgets('a_launch_that_fails_says_so: the platform throws',
+        (tester) async {
+      launcher.error = PlatformException(code: 'ACTIVITY_NOT_FOUND');
+      await tapThePolicy(tester);
+
+      expect(find.text(_policyFailedMessage), findsOneWidget);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+    });
+
+    // A build whose plugin did not register reaches no platform at all.
+    testWidgets('a_launch_that_fails_says_so: the plugin is missing',
+        (tester) async {
+      launcher.error = MissingPluginException('no url_launcher');
+      await tapThePolicy(tester);
+
+      expect(find.text(_policyFailedMessage), findsOneWidget);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+    });
+  });
 }
+
+/// Records each launch, and answers with [result] or throws [error].
+class _RecordingUrlLauncher extends UrlLauncherPlatform {
+  final launches = <(String, PreferredLaunchMode)>[];
+  bool result = true;
+  Exception? error;
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launches.add((url, options.mode));
+    final failure = error;
+    if (failure != null) throw failure;
+    return result;
+  }
+}
+
+const _privacyPolicyLabel = 'Política de privacidade';
+
+/// Kept in step with the literal in `settings_screen.dart`.
+const _policyFailedMessage =
+    'Não foi possível abrir a política de privacidade.';
 
 /// The pt-BR failure message the account tile surfaces on an auth error.
 /// Kept in step with the literal in `settings_screen.dart`.
