@@ -38,11 +38,14 @@ it is specific to the cell.
     instead of stopping early. For the B1' cell that is at most 6 × 3 = 18
     local calls.
 - **Limitations come from uncovered topics.** For each uncovered topic, in
-  topic order, the cell carries one sentence: "As fontes desta célula não tratam
-  de {topic}." The topic names are the ones in `MANAGEMENT_TOPICS`.
-  - The last topic, "o que a classe de textura implica e o que não implica",
-    reads "não tratam do que a classe de textura implica e do que não implica",
-    phrased by a fixed table rather than by the model.
+  topic order, the cell carries one sentence: "As fontes consultadas não tratam
+  de {topic}." A fixed table phrases them, not the model.
+  - The topic names are the ones in `MANAGEMENT_TOPICS`, with two exceptions.
+    "água" reads "do manejo da água", so it is not read as water itself. The
+    last topic reads "do que a classe de textura implica e do que não implica".
+  - "As fontes consultadas" rather than "desta célula": the app composes
+    several layers into one result, and "célula" is the build's word, not the
+    user's. The Developer chose this wording after review, on 2026-10-14.
   - A cell whose sources cover every topic carries no limitations.
   - An abstained cell keeps `limitations: []`, as today. Its abstention
     disclaimer already says it has no guidance.
