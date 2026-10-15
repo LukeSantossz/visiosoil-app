@@ -1,9 +1,14 @@
 // Tests for the Riverpod auth-state layer: default signed-out, and transitions
 // on sign-in / sign-out, using a fake AuthService.
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
+import 'package:visiosoil_app/core/services/auth/google_auth_service.dart';
+import 'package:visiosoil_app/core/services/auth/google_sign_in_gateway.dart';
+import 'package:visiosoil_app/core/services/auth/key_value_secure_storage.dart';
+import 'package:visiosoil_app/core/services/auth/secure_credential_store.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 
 class _FakeAuthService implements AuthService {
@@ -171,4 +176,53 @@ void main() {
 
     expect(container.read(authNotifierProvider).hasError, isTrue);
   });
+
+  // Defence in depth (SPEC 0158). With its defaults the Android plugin absorbs
+  // an undecryptable read itself, but an error it reports instead, such as a
+  // failed initialisation, reaches Dart as a PlatformException. Through the
+  // real service and store, which let it pass, the notifier must still start
+  // signed out. The store here is a fake: the plugin itself is not exercised.
+  test('an_unreadable_stored_session_restores_signed_out', () async {
+    final service = GoogleAuthService(
+      _UnusedGateway(),
+      SecureCredentialStore(_UndecryptableStorage()),
+    );
+    final container = ProviderContainer(
+      overrides: [authServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+
+    container.read(authNotifierProvider);
+    await pumpEventQueue();
+    final async = container.read(authNotifierProvider);
+
+    expect(async.hasError, isFalse);
+    expect(async.value?.isSignedIn, isFalse);
+  });
+}
+
+/// Secure storage whose read fails with the error code the Android plugin
+/// reports for an exception it does not absorb.
+class _UndecryptableStorage implements KeyValueSecureStorage {
+  @override
+  Future<String?> read(String key) async =>
+      throw PlatformException(code: 'Exception encountered');
+
+  @override
+  Future<void> write(String key, String value) async {}
+
+  @override
+  Future<void> delete(String key) async {}
+}
+
+/// Restoring a session never reaches Google (SPEC 0106).
+class _UnusedGateway implements GoogleSignInGateway {
+  @override
+  Future<AuthAccount?> signIn() => throw StateError('signIn during restore');
+
+  @override
+  Future<void> signOut() => throw StateError('signOut during restore');
+
+  @override
+  Future<void> disconnect() => throw StateError('disconnect during restore');
 }

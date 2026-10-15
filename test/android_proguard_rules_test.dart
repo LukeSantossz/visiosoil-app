@@ -5,12 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// Guards the R8 release-config for the auth stack (#69): the ProGuard keep rules
 /// and the CI checks that exercise them.
 ///
-/// The release build enables R8 shrinking. Tink (via `flutter_secure_storage`)
-/// and Google Play Services auth (via `google_sign_in`) are partly loaded by
-/// reflection R8 cannot see, so `-keep` rules protect their classes and members.
-/// The rules are defensive today — the dependencies' own consumer rules already
-/// retain the classes — but this guards against them, and the CI checks that
-/// would catch a regression, being silently dropped.
+/// The release build enables R8 shrinking. Tink (declared by
+/// `flutter_secure_storage`) and Google Play Services auth (via
+/// `google_sign_in`) are partly loaded by reflection R8 cannot see, so `-keep`
+/// rules protect their classes and members. For Play Services auth the rule is
+/// defensive, since its AAR ships consumer rules. For Tink it is load-bearing
+/// since flutter_secure_storage 11 (SPEC 0159): the plugin no longer calls
+/// Tink and ships no consumer rules, so the rule is what keeps Tink in the APK.
+/// This guards against the rules, and the CI checks that exercise them, being
+/// silently dropped.
 void main() {
   final rules = File('android/app/proguard-rules.pro').readAsStringSync();
   final ci = File('.github/workflows/ci.yml').readAsStringSync();
