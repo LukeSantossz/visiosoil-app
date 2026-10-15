@@ -229,8 +229,9 @@ def build_cell(
             disclaimer=SUBSTANCE_DISCLAIMER,
             tips=generated["tips"],
             sources=source_array,
-            # Derived from coverage, never the model's (SPEC 0162).
-            limitations=limitations,
+            # Derived from coverage, never the model's, and only on a grounded
+            # cell: an abstention carries none, however it abstained (SPEC 0162).
+            limitations=limitations if generated["status"] == "grounded" else [],
         )
         # Validated before grounding: a cell that does not satisfy the contract
         # is a build failure however well supported its claims are, and this is
