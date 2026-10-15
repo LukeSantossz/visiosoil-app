@@ -47,8 +47,10 @@ it is specific to the cell.
     several layers into one result, and "célula" is the build's word, not the
     user's. The Developer chose this wording after review, on 2026-10-14.
   - A cell whose sources cover every topic carries no limitations.
-  - An abstained cell keeps `limitations: []`, as today. Its abstention
-    disclaimer already says it has no guidance.
+  - An abstained cell keeps `limitations: []`, as today, however it abstained:
+    exhausted attempts, nothing kept, or the generator returning `abstained`
+    itself (the last found by R3 on #386). Its abstention disclaimer already
+    says it has no guidance.
 - **The generate prompt (version 5)** stops asking for `limitations`. The JSON
   it asks for becomes `{"status": ..., "tips": [...]}`.
 - **Model output.** `_require_generated_shape` no longer requires `limitations`.
@@ -59,6 +61,16 @@ it is specific to the cell.
 - **`BuildOutcome` gains `coverage`:** a mapping from each topic to the URLs
   graded relevant to it. The run manifest writes it as `"coverage"`, so a judge
   can see why a limitation was stated.
+
+**What this supersedes in SPEC 0160.** Two parts of SPEC 0160 are replaced, and
+the rest of it stands. SPEC 0160 is not edited, because the archive keeps what
+was approved and the successor states the change (`spec_method.md`).
+
+- **The number rule on limitations,** with its criterion
+  `a_limitation_stating_a_number_is_rejected_then_abstains`. Limitations are
+  now the build's sentences, so the rule reads tips only.
+- **The generate prompt's version 4.** It is now version 5, which keeps 0160's
+  advisory rule word for word and drops `limitations` from the reply.
 
 ## Alternatives Considered
 
