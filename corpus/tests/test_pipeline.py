@@ -712,3 +712,11 @@ def test_an_abstained_cell_has_no_limitations():
 
     assert outcome.cell["status"] == "abstained"
     assert outcome.cell["limitations"] == []
+
+
+def test_every_topic_has_a_limitation_sentence():
+    """A topic added to the list without a sentence would raise mid-build."""
+    from src.pipeline import TOPIC_LIMITATIONS
+
+    assert list(TOPIC_LIMITATIONS) == list(MANAGEMENT_TOPICS)
+    assert all(not states_a_number(text) for text in TOPIC_LIMITATIONS.values())
