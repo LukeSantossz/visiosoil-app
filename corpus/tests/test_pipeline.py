@@ -647,10 +647,10 @@ def test_a_topic_no_source_covers_becomes_a_limitation():
 
     assert outcome.cell["status"] == "grounded"
     assert outcome.cell["limitations"] == [
-        "As fontes desta célula não tratam de potássio.",
-        "As fontes desta célula não tratam de matéria orgânica.",
-        "As fontes desta célula não tratam de água.",
-        "As fontes desta célula não tratam do que a classe de textura implica "
+        "As fontes consultadas não tratam de potássio.",
+        "As fontes consultadas não tratam de matéria orgânica.",
+        "As fontes consultadas não tratam do manejo da água.",
+        "As fontes consultadas não tratam do que a classe de textura implica "
         "e do que não implica.",
     ]
 
