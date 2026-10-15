@@ -29,7 +29,8 @@ touches it.**
 **What the policy states, each item as the build does it today:**
 
 - **Who.** The controller is Lucas Gonçalves, the developer, with a contact
-  e-mail for data requests (to be supplied by the Developer at the Gate).
+  e-mail for data requests, `visiosoilapp@gmail.com`, which the Developer created
+  on 2026-10-14.
 - **What stays on the device.** The photographs, the coordinates and their
   accuracy, the address, the texture result, the field and sample names, and
   the management tips are stored only on the phone. There is no VisioSoil
