@@ -63,13 +63,13 @@ wrote three broad questions about fertility, and the phosphorus circular a
 judge asked for was graded irrelevant to all of them (SPEC 0153)."""
 
 TOPIC_LIMITATIONS = {
-    "calagem": "As fontes desta célula não tratam de calagem.",
-    "fósforo": "As fontes desta célula não tratam de fósforo.",
-    "potássio": "As fontes desta célula não tratam de potássio.",
-    "matéria orgânica": "As fontes desta célula não tratam de matéria orgânica.",
-    "água": "As fontes desta célula não tratam de água.",
+    "calagem": "As fontes consultadas não tratam de calagem.",
+    "fósforo": "As fontes consultadas não tratam de fósforo.",
+    "potássio": "As fontes consultadas não tratam de potássio.",
+    "matéria orgânica": "As fontes consultadas não tratam de matéria orgânica.",
+    "água": "As fontes consultadas não tratam do manejo da água.",
     "o que a classe de textura implica e o que não implica": (
-        "As fontes desta célula não tratam do que a classe de textura implica "
+        "As fontes consultadas não tratam do que a classe de textura implica "
         "e do que não implica."
     ),
 }
