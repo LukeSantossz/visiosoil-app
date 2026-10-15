@@ -78,6 +78,18 @@ void main() {
       );
     });
 
+    // The third-party sentence must not contradict the share paragraph: a
+    // record the user shares reaches whom they choose (found by R3 on #378).
+    test('policy_names_user_chosen_recipients_beside_google', () {
+      expect(
+        policy,
+        contains(
+          'além dos dois serviços do Google descritos acima e de quem você '
+          'escolher ao compartilhar',
+        ),
+      );
+    });
+
     // Google and the share recipients keep what they received under their
     // own policies, so neither page may claim nothing is kept anywhere.
     test('pages_do_not_claim_nothing_is_kept_elsewhere', () {
