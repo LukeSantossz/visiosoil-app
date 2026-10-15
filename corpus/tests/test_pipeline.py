@@ -720,3 +720,17 @@ def test_every_topic_has_a_limitation_sentence():
 
     assert list(TOPIC_LIMITATIONS) == list(MANAGEMENT_TOPICS)
     assert all(not states_a_number(text) for text in TOPIC_LIMITATIONS.values())
+
+
+def test_a_cell_the_model_abstains_has_no_limitations():
+    """An abstention the generator returns itself, with sources kept, carries
+    no limitations either (SPEC 0162; found by R3 on #386)."""
+    client = ScriptedClient(
+        grades={"https://example.org/0": relevant_to("fósforo")},
+        generation={"status": "abstained", "tips": []},
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.cell["limitations"] == []
