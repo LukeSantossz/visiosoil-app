@@ -37,6 +37,9 @@ class RunManifest:
     groundings: list[dict[str, Any]] = field(default_factory=list)
     """Each grounding check with the passage it quoted, rejected attempts
     included, so a judge reads why a tip held or failed (SPEC 0161)."""
+    coverage: dict[str, list[str]] = field(default_factory=dict)
+    """Each topic, mapped to the URLs graded relevant to it, so a judge sees why
+    a limitation was stated (SPEC 0162)."""
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -49,6 +52,9 @@ class RunManifest:
             "builtAt": self.built_at.isoformat().replace("+00:00", "Z"),
             "rejections": list(self.rejections),
             "groundings": [dict(entry) for entry in self.groundings],
+            "coverage": {
+                topic: list(urls) for topic, urls in self.coverage.items()
+            },
             "sources": [
                 {
                     "url": source.url,

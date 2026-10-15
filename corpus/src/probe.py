@@ -87,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         attempts=outcome.attempts,
         rejections=outcome.rejections,
         groundings=outcome.groundings,
+        coverage=outcome.coverage,
     )
     written = write_output(outcome.cell, manifest, out_dir=args.out)
     print(f"cell:     {written.cell_path}")
