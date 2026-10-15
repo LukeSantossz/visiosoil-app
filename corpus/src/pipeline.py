@@ -17,6 +17,7 @@ refuses an orchestration framework for exactly this shape.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -60,6 +61,34 @@ MANAGEMENT_TOPICS = (
 Fixed here rather than left to the model: asked for "different angles", it
 wrote three broad questions about fertility, and the phosphorus circular a
 judge asked for was graded irrelevant to all of them (SPEC 0153)."""
+
+_NUMBER = re.compile(
+    r"(?<!\w)(?<!\w-)\d+(?:[.,]\d+)?|[¼-¾⅐-⅟↉]"
+)
+"""A number: digits with an optional decimal part, not preceded by a word
+character nor by a hyphen glued to one, or any Unicode fraction glyph. So "18",
+"90%", "5,5", "-2%", "½", "⅜" and the "33" of "CT 33" are numbers, while "P2O5"
+and "Mehlich-1" are names (SPEC 0160)."""
+
+_NOT_A_NUMBER = re.compile(
+    r"\bMehlich[\s-]?\d\b"
+    r"|\b(?:argil|minera)\w*\s+(?:do\s+tipo\s+)?[12]:1(?![\d:]|[.,]\d)",
+    re.IGNORECASE,
+)
+"""Names and ratios that carry digits without stating an amount: the Mehlich
+extractant, spaced or hyphenated, and a clay mineral's layer ratio, "argilas
+1:1" or "minerais do tipo 2:1", which is what clay activity turns on. A ratio
+outside that context, such as a mixing ratio, stays a number (SPEC 0160)."""
+
+
+def states_a_number(text: str) -> bool:
+    """Whether [text] states a number, which a tip never does (SPEC 0160).
+
+    The advisory stance forbids doses and critical levels, and the generate
+    prompt asks for the direction a source's numbers show instead. A prompt rule
+    is one the model can ignore, so the build checks it.
+    """
+    return _NUMBER.search(_NOT_A_NUMBER.sub("", text)) is not None
 
 
 class LLMClient(Protocol):
@@ -157,7 +186,15 @@ def build_cell(
         # the check a page's injected instruction runs into.
         validate_cell(cell, source_count=len(source_array))
 
-        unsupported = [
+        # A number is refused before grounding is asked: the stance forbids it
+        # however well the source supports it, in a tip or in a limitation,
+        # since both ship in the cell (SPEC 0160).
+        numeric = [
+            f"states a number: {text}"
+            for text in [tip["text"] for tip in cell["tips"]] + cell["limitations"]
+            if states_a_number(text)
+        ]
+        unsupported = numeric or [
             tip["text"]
             for tip in cell["tips"]
             if not client.is_grounded(

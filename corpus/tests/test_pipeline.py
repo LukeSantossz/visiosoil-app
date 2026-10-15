@@ -18,6 +18,7 @@ from src.pipeline import (
     SUBSTANCE_DISCLAIMER,
     BuildOutcome,
     build_cell,
+    states_a_number,
 )
 from src.sources import FetchedSource
 
@@ -417,3 +418,139 @@ def test_a_query_carrying_an_identifier_is_refused(leaked):
             [source(0)],
             client=ScriptedClient(queries=topic_queries({1: leaked})),
         )
+
+
+# --- A tip states a direction, never a number (SPEC 0160) ----------------------
+
+
+def generation_with(*texts):
+    return {
+        "status": "grounded",
+        "tips": [{"text": text, "citations": [0]} for text in texts],
+        "limitations": [],
+    }
+
+
+class SequencedClient(ScriptedClient):
+    """A `ScriptedClient` whose generations change between attempts."""
+
+    def __init__(self, generations, **kwargs):
+        super().__init__(**kwargs)
+        self.generations = list(generations)
+
+    def generate_cell(self, question, documents):
+        self.calls.append("generate")
+        return self.generations.pop(0)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Em solo argiloso, o nível crítico é 18 mg dm-3.",
+        "Ajuste a adubação para 90% do rendimento potencial.",
+        "Mantenha o pH 5,5 antes do plantio.",
+        "Segundo a CT 33, interprete o laudo pela argila.",
+    ],
+)
+def test_a_tip_stating_a_number_is_rejected_then_abstains(text):
+    client = ScriptedClient(generation=generation_with(text))
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.attempts == 2
+    assert outcome.rejections == [f"states a number: {text}"] * 2
+
+
+def test_a_number_is_rejected_before_grounding_is_asked():
+    client = ScriptedClient(
+        generation=generation_with("Em solo argiloso, o nível crítico é 18 mg dm-3.")
+    )
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert "ground" not in client.calls
+
+
+def test_a_method_name_is_not_a_number():
+    text = (
+        "No Mehlich-1, o nível crítico de fósforo é menor quanto mais argiloso "
+        "o solo."
+    )
+    client = ScriptedClient(generation=generation_with(text), grounded=[True])
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.attempts == 1
+    assert outcome.rejections == []
+    assert client.calls.count("ground") == 1
+
+
+def test_a_numeric_tip_retried_into_a_directional_one_is_grounded():
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    directional = "Em solo argiloso, o nível crítico de fósforo é menor."
+    client = SequencedClient(
+        [generation_with(numeric), generation_with(directional)], grounded=[True]
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.attempts == 2
+    assert outcome.cell["tips"][0]["text"] == directional
+    assert outcome.rejections == [f"states a number: {numeric}"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "O nível crítico é 18 mg dm-3.",
+        "Teor de argila ≤15%.",
+        "Aplique ½ da dose.",
+        "Mantenha o pH 5,5.",
+        "Segundo a CT 33.",
+        # Found by R3 on PR #384: every fraction glyph, a signed figure, and a
+        # mixing ratio outside clay mineralogy.
+        "Aplique ⅜ da dose.",
+        "Aplique ⅞ da dose.",
+        "O teor caiu -2% na safra.",
+        "Misture solo e corretivo em 1:1.",
+        "Aplique os insumos na proporção 1:1.",
+    ],
+)
+def test_a_figure_is_a_number(text):
+    assert states_a_number(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # A method's name, hyphenated or spaced (SPEC 0160 review).
+        "No Mehlich-1, o nível crítico é menor.",
+        "No Mehlich 1, o nível crítico é menor.",
+        # A clay mineral's layer ratio, central to clay activity.
+        "Predominam argilas 1:1, de baixa atividade.",
+        "Argilas 2:1 retêm mais cátions.",
+        "Os minerais do tipo 2:1 expandem.",
+        # A chemical formula names a substance, not an amount.
+        "O fósforo é expresso como P2O5.",
+    ],
+)
+def test_a_name_or_a_ratio_is_not_a_number(text):
+    assert not states_a_number(text)
+
+
+def test_a_limitation_stating_a_number_is_rejected_then_abstains():
+    """The stance covers every text the model writes into a cell, and the
+    limitations ship beside the tips (SPEC 0160 review)."""
+    limitation = "Vale para teor de argila acima de 60%."
+    generation = generation_with("Em solo argiloso, o nível crítico é menor.")
+    generation["limitations"] = [limitation]
+    client = ScriptedClient(generation=generation)
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.rejections == [f"states a number: {limitation}"] * 2
+    assert "ground" not in client.calls
