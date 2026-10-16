@@ -122,12 +122,17 @@ lib/
 │   ├── theme/                         # AppTheme.light + .dark, AppPalette (the colour roles
 │   │                                  #   widgets read, light and dark), AppColors (light
 │   │                                  #   values; read only here), AppTypography, AppSpacing,
-│   │                                  #   AppRadius, SoilTextureColors
+│   │                                  #   AppRadius, SoilTextureColors, AppMotion (motion
+│   │                                  #   tokens), AppHaptics (one haptic tier per event class)
 │   ├── routes/app_router.dart         # GoRouter config (9 routes + errorBuilder)
-│   ├── constants/app_strings.dart     # Centralized pt-BR UI strings
-│   ├── widgets/                       # 7 reusable: VisioAppBar, VisioButton, EmptyState,
-│   │                                  #   ErrorState, LoadingIndicator, PermissionDeniedView,
-│   │                                  #   RouteErrorView
+│   ├── constants/                     # app_strings.dart (centralized pt-BR UI strings),
+│   │                                  #   app_links.dart (the published privacy policy URL,
+│   │                                  #   SPEC 0157), capture_protocol.dart (the capture
+│   │                                  #   guide's steps)
+│   ├── widgets/                       # 12 reusable: VisioAppBar, VisioButton, VisioIconButton,
+│   │                                  #   VisioSoilLogo, EmptyState, ErrorState, LoadingIndicator,
+│   │                                  #   PermissionDeniedView, RouteErrorView, PressScale,
+│   │                                  #   CollapseOnCorrection, confirmDestructiveAction
 │   ├── utils/                         # LocationService (GPS+geocoding), Formatters
 │   ├── services/                      # inference_service.dart (descriptor path, isolate-based),
 │   │   │                              #   image_storage_service.dart (EXIF strip boundary),
@@ -199,12 +204,15 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 7. **smoke** — boots the minified release APK on an emulator at API 34, 35 and 36, one leg each (needs build)
 8. **gates** — the standards gates the hooks run, so a clone that never wired `core.hooksPath` still meets them (SPEC 0085). It installs `mf` at the `framework_version` `.framework.lock` pins, from the release asset with its checksum verified, and fails if the binary reports another version. It runs `mf check` on a pull request, after restoring the head and base refs that `actions/checkout` leaves detached, and `mf check docs records agents design` on any other event
 
+A second workflow, `.github/workflows/pages.yml`, publishes `site/` to GitHub Pages: the privacy policy and the account-deletion page Play links to (SPEC 0156). It runs on a push to `main` that touches `site/**` or the workflow, and on `workflow_dispatch` from `main` only, with the token limited to `contents: read`, `pages: write` and `id-token: write`. The pages live at `https://lukesantossz.github.io/visiosoil-app/privacidade.html` and `.../excluir-conta.html`.
+
 ## Current Limitations
 
 - The released classifier is `assets/models/spec.json`, which is tracked: the descriptor contract `1.0.0`, fitted on `v1` by `ml/src/release.py` and promoted by `ml/scripts/deploy_to_app.sh` (SPEC 0082, ADR 0012). `InferenceService` reads it and runs the descriptor path (SPEC 0083), with the scale read from the A4 sheet (SPEC 0092). **The sheet reader is graded on synthetic scenes**, drawn by `ml/scripts/generate_sheet_fixtures.py`, **and on one session of real photographs** (SPEC 0140, SPEC 0144, `docs/ml/sheet-reader-real-photographs.md`). It reads 26 of those 31 and refuses the rest by name, but every one it reads stops before the grid — 24 at `soilRegionTooSmall` because the soil patch is smaller than the grid needs, and 2 at `photographTooCoarse` because they were taken at 3200 × 1440 — so no real photograph has been classified yet. Photographs taken fully to ADR 0017's protocol must validate it before the Play release (ADR 0026). A photograph without a readable sheet is refused by name, and a scale is never guessed (ADR 0017)
 - Camera-only capture by design — gallery source will not be added
 - Sync foundation is implemented (uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, `RemoteSyncBackend` contract) but **no concrete backend exists and `SyncEngine` is not wired into the provider graph** — data is still device-local
 - Management tips compose on the device and answer offline, but **no reviewed corpus artifact exists yet**. `assets/corpus/` holds only `.gitkeep` and a README, and `corpus.json` plus both `.bin` grids are git-ignored the way the `.tflite` is. Until the corpus build releases one, every key composes to `insufficient_evidence` and the surface reads that as absent coverage — which is a normal state, not an error
+- The corpus build's calibration cell (`Argilosa|tb_oxidic`, #251) was re-probed on 2026-10-15 and a delegated model review judged it worth reading, narrowly. That verdict is preliminary: the agronomist's judgement the B1 gate names is still owed, so B3 (the other cells) has not started. Its chain now writes a direction rather than a number (SPEC 0160), records the passage each grounding check quoted (SPEC 0161), and derives a cell's limitations from the topics its sources cover (SPEC 0162)
 - The corpus **refresh** half is not built: there is no release endpoint, so a device can only ever read the bundled snapshot. That is where being offline means "cannot refresh", and it is also where the connectivity gate removed from `ManagementTipsController` belongs
 - `drift_flutter` pinned to `>=0.2.0 <0.2.4` — do not bump without verifying compatibility
 
@@ -214,6 +222,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` or `dev`, 
 - `InferenceService.classify` reports a `ClassificationReport` — an outcome and, on failure, one of ADR 0015's fourteen named causes, as amended by SPEC 0083 and SPEC 0092 — since SPEC 0078. `initialize` produces the three contract causes, the sheet reader produces `sheetNotFound` and `sheetCropped`, and `rejectedOod` has no producer at all. The capture preview names the cause in its chip and offers a retry only for `timeout`, `isolateFailure` and `computationError` (SPEC 0105). A saved record keeps no cause, and the named processing phases and fuller retake flow remain the UI/UX terminal's roadmap items
 - The model's class list is four (ADR 0016, SPEC 0046) and the archive's vocabulary is five; `src.manifest.ARCHIVE_CLASSES` is what a manifest row may say and `cfg["classes"]` is what the model emits. The shipped contract's classes are asserted against `ml/config.yaml` by `test/standards/class_list_test.dart` (SPEC 0048, SPEC 0083), so the two languages can no longer drift. What remains is that several Python test modules still carry their own five-entry literal of the *archive* vocabulary, tied to `ARCHIVE_CLASSES` only in `test_manifest.py`
 - `ClassificationVerdict` (ADR 0011) and `ImageQualityAnalyzer` (SPEC 0030) are implemented and tested with zero production callers, each waiting on a wiring spec — the UI/UX terminal's roadmap items 2 and 6 respectively. Both are deliberate, and both are recorded in their specs' Scope
+- Since `flutter_secure_storage` 11 (SPEC 0159), the plugin still declares `tink-android` but its code no longer calls Tink, so the `-keep class com.google.crypto.tink.**` rule in `android/app/proguard-rules.pro` is what keeps Tink in the APK, and CI's DEX check asserts that Tink and Google Play Services auth classes are defined in the release DEX, without telling which rule kept them. Dropping the rule and the Tink assertion would shrink the APK; it is an open decision
 - The corpus build carries **six modules that shipped ahead of their own Spec Gate** — `corpus/src/keys.py`, `clay_activity.py`, `grids.py`, `build_grids.py`, `embrapa_units.py` and `search.py`. SPEC 0071's Scope excludes them explicitly, and no other spec covers them. `mf check spec` passes anyway, so **the gate detects a missing specification but not code that outruns one**. Three of them — `keys.py`, `embrapa_units.py` and `search.py` — also have no production caller until the full corpus build lands
 
 <!-- mf:role reviewer -->

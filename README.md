@@ -15,9 +15,12 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 - **Guided field workflow** — a 3-step onboarding tutorial explains capture, and capture asks for the camera and location when it needs them
 - **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
 - **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The scale is read from the bare A4 sheet the soil is photographed on ([SPEC 0091](docs/specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md), [SPEC 0092](docs/specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)): the sheet's corners give millimetres per pixel, and the round soil patch on it gives the region the grid reads. A photograph with no readable sheet, or no soil on it, is refused with a named cause. **The reader has met one session of real photographs, and none of them is classified yet** (see Known Issues)
-- **Local catalog** — every sample is persisted to a local database with grid history, texture filters, address search, multi-select, batch delete, and a zoomable full-screen viewer
+- **Local catalog** — every sample is persisted to a local database with grid history (paged past the first 150), texture filters, search over the address and the field and sample names, multi-select, batch delete, a side-by-side comparison of two records, and a zoomable full-screen viewer
+- **Management tips** — advisory soil-management tips composed on the device from a reviewed corpus, offline and with every tip citing its source ([ADR 0022](docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md), [ADR 0023](docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)). No reviewed corpus has shipped yet, so the section reads as no coverage
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
-- **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer
+- **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer. The account can be deleted from Settings
+- **Privacy** — the [privacy policy](https://lukesantossz.github.io/visiosoil-app/privacidade.html) and the [account-deletion page](https://lukesantossz.github.io/visiosoil-app/excluir-conta.html) are published from `site/`; Settings links the privacy policy
+- **Accessible in the field** — light and dark themes, a high-contrast mode for sunlight, text that scales to 200 %, reduced motion honoured, and haptics on confirmations
 
 ## What It Is
 
@@ -33,11 +36,12 @@ VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a per
 | Navigation | GoRouter |
 | Data layer | Drift + SQLite (`sqlite3_flutter_libs`) |
 | On-device inference | Descriptor arithmetic in Dart, isolate-based, from the released `spec.json` contract |
-| Model training | TensorFlow / Keras — MobileNetV2 transfer learning (in `ml/`) |
-| Device I/O | `image_picker` (camera), `geolocator` + `geocoding` (GPS), `share_plus` |
+| Model training | scikit-learn logistic probe over 26 classical texture descriptors, fitted and released in `ml/` (ADR 0024). The TensorFlow / Keras CNN stays only as E0's control arms |
+| Corpus build | Python 3.12 with local open-source models served by Ollama (`qwen2.5:7b`), in `corpus/`; ships nothing at run time |
+| Device I/O | `image_picker` (camera), `geolocator` + `geocoding` (GPS), `share_plus`, `url_launcher` (the privacy policy) |
 | Auth | `google_sign_in`, session persisted via `flutter_secure_storage` |
-| Connectivity / network | `connectivity_plus`, `http` (research agent proxy) |
-| Testing / CI | `flutter_test`, GitHub Actions |
+| Connectivity / network | `connectivity_plus`, `http` (the corpus-release transport, which has no caller yet) |
+| Testing / CI | `flutter_test`, `pytest`, GitHub Actions (`ci.yml`, and `pages.yml` for `site/`) |
 
 ## Architecture
 
@@ -51,15 +55,15 @@ flowchart LR
     DB --> UI[Home / History / Details\nreactive streams]
 ```
 
-### Database schema (v4)
+### Database schema (v9)
 
-Three tables: `soil_records`, `sync_queue` (the outbox `SyncEngine` drains) and `management_tips` (a read-through cache).
+Three tables: `soil_records`, `sync_queue` (the outbox `SyncEngine` drains) and `management_tips` (a read-through cache, keyed by record and carrying the `corpus_version` that answered).
 
-`soil_records` holds `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?` and `confidence_score?`.
+`soil_records` holds `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`, `class_distribution?`, `model_version?` and `dataset_version?` (what scored the photograph, SPEC 0097), `horizontal_accuracy?` (the GPS fix's radius, SPEC 0148), and `field_name?` and `sample_label?` (SPEC 0149).
 
-Migrations are cumulative: **v1→v2** adds the classification columns; **v2→v3** adds the sync metadata, creates `sync_queue`, backfills `uuid`/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; **v3→v4** creates `management_tips`.
+Migrations are cumulative: **v1→v2** adds the classification columns; **v2→v3** adds the sync metadata, creates `sync_queue`, backfills `uuid`/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; **v3→v4** creates `management_tips`; **v4→v5** adds its `corpus_version`; **v5→v6** erases every tombstone's content; **v6→v7**, **v7→v8** and **v8→v9** add the provenance, accuracy and field and sample columns, null on every existing row.
 
-Deletes are soft: a tombstone sets `deleted` and enqueues a sync operation instead of removing the row, and every read excludes tombstoned rows.
+Deletes are soft: a tombstone keeps only what sync reads (uuid, `remote_id`, `updated_at` and the flag), erases the record's content and cached tips (SPEC 0093), and enqueues a sync operation; every read excludes tombstoned rows.
 
 The UI talks only to Riverpod providers, which depend on an abstract `SoilRecordRepository` — never on Drift types directly. Classification runs in a separate Dart isolate to keep the UI thread free. The contract is read from assets and parsed once, then copied into the isolate, because `rootBundle` is unavailable there. The model itself is produced by a separate training pipeline under `ml/`, which is decoupled from the app and integrates through one file: the `spec.json` contract of numbers that `ml/src/release.py` writes and `ml/scripts/deploy_to_app.sh` copies into `assets/models/`. The app takes its class labels from that contract and from nowhere else.
 
@@ -70,7 +74,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Repository pattern abstracting Drift | UI queries Drift directly | UI imports only the interface, so the persistence backend (local DB, remote API, cache) can be swapped without touching screens |
 | Classification in a separate isolate | Run it on the main thread | Decoding, resampling and describing up to 25 patches never block the UI; the parsed contract is copied into the isolate, since `rootBundle` cannot be used there |
 | Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The integration contract is `spec.json`, which the app reads at run time |
-| Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v4) |
+| Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v9) |
 | Image files stored outside the cache, repository-owned lifecycle ([ADR 0002](docs/adr/0002-image-file-storage-and-lifecycle.md)) | Keep the `image_picker` cache path in the DB | The picker's cache path is transient, so a stored record could outlive its photo; the repository copies into durable storage before the row is written |
 | Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
 | Flutter toolchain version has a single source of truth ([ADR 0004](docs/adr/0004-flutter-toolchain-version-single-source.md)) | Let each contributor use any Flutter 3.x | Another 3.x SDK silently rewrites `pubspec.lock`, and a local/CI mismatch hid a widget-finder failure that only surfaced on CI |
@@ -201,29 +205,33 @@ visiosoil-app/
 ├── lib/
 │   ├── main.dart            # Entry: ProviderScope + MaterialApp.router
 │   ├── core/
-│   │   ├── theme/           # AppTheme, AppColors, AppTypography, AppSpacing,
-│   │   │                    #   SoilTextureColors
-│   │   ├── routes/          # GoRouter config (8 routes + errorBuilder)
-│   │   ├── constants/       # Centralized pt-BR UI strings
-│   │   ├── widgets/         # VisioAppBar, VisioButton, EmptyState, ErrorState,
-│   │   │                    #   LoadingIndicator, PermissionDeniedView, RouteErrorView
+│   │   ├── theme/           # AppTheme (light + dark), AppPalette, AppColors, AppTypography,
+│   │   │                    #   AppSpacing, AppRadius, AppMotion, AppHaptics, SoilTextureColors
+│   │   ├── routes/          # GoRouter config (9 routes + errorBuilder)
+│   │   ├── constants/       # pt-BR UI strings, published links, capture protocol steps
+│   │   ├── widgets/         # 12 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
+│   │   │                    #   EmptyState, ErrorState, LoadingIndicator, PressScale, ...
 │   │   ├── utils/           # LocationService (GPS + geocoding), formatters
 │   │   ├── services/        # InferenceService (descriptor path, isolate), ImageStorageService,
 │   │   │   │                #   ShareService, ConnectivityService, PermissionService,
-│   │   │   │                #   SyncEngine
+│   │   │   │                #   SyncEngine, ErrorReportStore, LostCaptureService
+│   │   │   ├── descriptors/ # A4-sheet reader, patch grid, patch descriptors, contract
 │   │   │   ├── auth/        # AuthService + Google implementation, secure credential store
-│   │   │   └── research/    # ResearchService + HTTP proxy, management tips controller
+│   │   │   ├── region/      # Site resolution from the packed grids
+│   │   │   └── research/    # CorpusResearchService, CorpusComposer, corpus store, tips controller
 │   │   ├── database/        # Drift DB class + tables/ + generated code + row mapper
 │   │   ├── data/
 │   │   │   ├── repositories/# Interfaces + Drift impls (soil records, management tips)
 │   │   │   └── sync/        # RemoteSyncBackend contract, local store, sync operations
-│   │   └── features/        # Screens: splash, onboarding, main, home, capture,
-│   │                        #          history, details, preview, settings
+│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide),
+│   │                        #          history, details, preview, compare, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
 │   └── providers/           # 19 files declaring 37 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
+├── corpus/                  # The management-tips corpus build (Python, local models)
+├── site/                    # The privacy policy and account-deletion page (GitHub Pages)
 ├── assets/models/           # The released descriptor contract, spec.json (tracked)
 ├── docs/                    # specs/ (durable SPEC archive), adr/, architecture/
 └── test/                    # Unit, widget and repository tests (in-memory SQLite)
@@ -235,26 +243,27 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme, Riverpod state management, GoRouter navigation (8 routes)
+- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (9 routes)
 - [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs
 - [x] Camera capture with real GPS (`geolocator` + `geocoding` via `LocationService`)
 - [x] Image preview after capture and zoomable full-screen viewer
-- [x] History grid with texture filters, address search, multi-select, and batch delete
+- [x] History grid with texture filters, search, multi-select, batch delete, paging past the first 150, and a side-by-side comparison of two records
 - [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
-- [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v4, soft deletes)
+- [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v9, soft deletes)
 - [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract, with the scale read from the A4 sheet — graded on synthetic scenes and on one session of real photographs ([SPEC 0140](docs/specs/0140-find-the-a4-sheet-on-a-pale-table.md)), with classification of a real photograph still owed
 - [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
 - [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
-- [x] Optional Google sign-in with the session in secure storage
-- [x] Management tips foundation: UI section, controller, `management_tips` cache table and `ResearchService` seam
+- [x] Optional Google sign-in with the session in secure storage, and account deletion from Settings
+- [x] Privacy policy and account-deletion page published on GitHub Pages, with the privacy policy linked from Settings
+- [x] Management tips composed on the device from a corpus (`CorpusResearchService`), cached per record with the corpus version
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
-- [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 436 Dart tests plus 234 Python tests under `ml/tests/`. Three Dart tests are skipped on a feature branch: an icon-generation test gated on `GENERATE_ICONS`, and the two spec-numbering contiguity guards, which run on `main` only
+- [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 992 Dart tests on `main` on 2026-10-15, plus 810 Python test functions under `ml/tests/` and 189 under `corpus/tests/`. Ten Dart tests are skipped, among them an icon-generation test gated on `GENERATE_ICONS` and guards that run on `main` only
 - [x] CI pipeline of eight jobs — `analyze`, `test`, `ml-tests`, `corpus-tests` and `gates` (the standards gates at the `mf` version `.framework.lock` pins, [SPEC 0085](docs/specs/0085-run-the-standards-gates-in-ci.md)) in parallel, then `build` (release APK and app bundle) and `build-ios` (unsigned), then `smoke` booting the minified APK on emulators at API 34, 35 and 36 — with the Flutter toolchain pinned in each of the four jobs that use it
-- [x] ML training pipeline implemented under `ml/` (MobileNetV2 transfer learning, 2-phase training)
+- [x] ML pipeline under `ml/`: dataset ingestion, repeated group k-fold evaluation (ADR 0020), the E0 gate, and the release fit of the descriptor contract
 
 ### Pending
 
@@ -265,7 +274,7 @@ visiosoil-app/
 - [ ] Produce a genuinely release-signed APK in CI. A missing contract can no longer pass a green suite: `the_shipped_contract_loads` fails without `assets/models/spec.json`
 - [x] Read the class labels from `spec.json` at runtime instead of hardcoding them in `InferenceService` — done on the descriptor path by [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md). The input size and normalization [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specified belonged to the TFLite contract that ADR 0024 retired
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
-- [ ] Wire `ProxyResearchService` and per-user auth so management tips actually resolve
+- [ ] Build and review the management-tips corpus: the calibration cell was re-probed on 2026-10-15 and judged worth reading by a preliminary, delegated model review ([#251](https://github.com/LukeSantossz/visiosoil-app/issues/251)); the agronomist's judgement of it, the other cells (B3) and the human review gate (B4) remain
 
 ## Known Issues & Limitations
 
@@ -274,7 +283,7 @@ visiosoil-app/
 - **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
 - **Camera-only capture** — gallery selection is intentionally not supported.
 - **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
-- **Management tips always report unavailable** — `researchServiceProvider` returns `UnavailableResearchService` until the proxy and per-user auth wiring lands, so the UI, cache table and `ProxyResearchService` exist but no tip is ever fetched.
+- **No management-tips corpus has shipped** — tips compose on the device, but `assets/corpus/` holds no reviewed corpus yet, so every key composes to `insufficient_evidence` and the section reads as no coverage. A device can only read the bundled snapshot: there is no corpus-release endpoint to refresh from.
 - **`drift_flutter` pinned to `>=0.2.0 <0.2.4`** — do not bump without verifying compatibility.
 
 ## Contributing

@@ -9,7 +9,7 @@ and
 [ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-09-22. **Lane A is done through A4's bundled half**
+Last updated: 2026-10-15. **Lane A is done through A4's bundled half**
 (SPECs 0068, 0069, 0070): the composition path is wired end to end on the device,
 `researchServiceProvider` no longer returns `UnavailableResearchService`, the
 cache records which corpus answered, and the app reads `assets/corpus/` at first
@@ -21,8 +21,10 @@ that as absent coverage. Content comes from Lane B.
 of B2 recorded below). The verdict was that the pipeline works and the cell is
 not worth reading, and the Developer's answer to that on 2026-09-18 is recorded
 in B1: re-probe with management-guidance sources before any other cell is built.
-**The re-probe's code is built** (SPEC 0072) and the run is next; building it
-found that the first run's model never read an article body, which B1 records.
+**The B1' re-probe ran on 2026-10-15** (#251), after SPECs 0072 and 0151 to
+0162 changed the chain. A delegated model review judged it worth reading,
+narrowly, which is preliminary: the agronomist's judgement that B1's gate names
+is still owed, and B3 waits on it. B1 records that review and three follow-ups.
 
 ## 1. What exists today
 
@@ -294,8 +296,8 @@ parts, and the slice that carries them passes its own Spec Gate first:
   already gives: a verdict of "not worth reading" stops the plan, and it has
   been returned once.
 
-**The first two parts are built, SPEC 0072 (2026-09-22); the run and its
-judgement are not.** Building them found that the first verdict rested on less
+**The first two parts are built, SPEC 0072 (2026-09-22), and the run followed
+on 2026-10-15; the agronomist's judgement of it is still owed.** Building them found that the first verdict rested on less
 than it appeared to. Re-fetched through the build's own code, the two SciELO
 articles that still answer are 42,213 and 40,462 characters long and their
 introductions start at 9,660 and 8,280, while the client sent the model
@@ -336,6 +338,41 @@ reached from the provider side.
 Gate: one cell exists, its citations all resolve, and the judgement is recorded —
 including a judgement of "not worth reading", which stops the plan before the
 other cells are built.
+
+**B1' preliminary verdict, 2026-10-15: worth reading, narrowly** (#251, which
+holds the cell and the run manifest).
+
+**The run.**
+- **Setup:** `qwen2.5:7b` (digest `845dbda0…697e`), seed 1234, prompt versions
+  transform 3, grade 2, generate 5 and ground 2, on `main` at `37ba409`.
+- **Sources:** the three source digests match those measured on 2026-09-22.
+- **Result:** `grounded` on the first attempt. The cell has one tip, citing
+  CT 33 and Doc 206: Mehlich-1 phosphorus is read against clay content,
+  because a clayey soil consumes the extractant, so its critical levels are
+  lower.
+- **Grounding:** the check quoted Doc 206's passage word for word (SPEC 0161).
+- **Limitations:** grading covered all six topics, so the cell carries none
+  (SPEC 0162).
+
+**The §12.3 checklist.**
+- **Items 1–6 pass.** The guidance is correct and supported. It states no
+  number, prescribes no field action, rests on tier-1 sources only, and carries
+  nothing injected.
+- **Item 7 does not apply:** the chain has no producer for `evidenceStrength`.
+- **Item 8 fails:** the cell surfaces no source age, and CT 32 dates from 2005.
+
+The reviewer was Claude (`claude-opus-5-5`), on the Developer's delegation, and
+is not an agronomist, so this verdict is preliminary. This slice's gate puts the
+cell in front of an agronomist, and that judgement is still owed; B3 waits on
+it, and B4's named human review still gates every cell.
+
+**Before B3:**
+1. A source-age limitation, which needs a date per manifest source (§8.3).
+2. A producer for `evidenceStrength`.
+3. A generate prompt that asks for the "what the class does not mean"
+   corrections, since this cell carries only the lab-report one.
+
+Each gets its own spec, and whether B3 waits for them is the Developer's call.
 
 ### B2 — slice 2: cells, region tables and structured sources
 
@@ -499,7 +536,7 @@ wrongly to unknown.
 
 ### B3 — slice 3: the whole corpus is built
 
-**Blocked on B1's re-probe, not on code.** The chain B3 was written to build
+**Blocked on the agronomist's judgement of B1', not on code.** The chain B3 was written to build
 already exists and has run: query transform, allowlisted search, source grading,
 generation with citations, and the grounding graders, CRAG-shaped so that the
 grader stays external and light — which is what makes a small local model
@@ -514,7 +551,7 @@ negotiable from this side — `corpusVersion`, `classListVersion`, `model`,
 `substance`, `landUse`, `unit` and `biome` — plus a run manifest for the build as
 a whole rather than per cell.
 
-It waits on B1's second judgement because building 43 more cells from a source
+It waits on the agronomist's judgement of B1' because building 43 more cells from a source
 policy that produced one unreadable cell would repeat the measured failure at
 forty-four times the cost. Gate: the 44 artifacts exist, every citation resolves,
 and the release file parses through `Corpus.fromJson` unchanged.
@@ -559,8 +596,8 @@ A5 ── UI/UX terminal ── after A1 lands the fields it renders
 ```
 
 **B1'** is the re-probe: the same one cell, rebuilt from management-guidance
-sources read out of PDF, and judged again. Its code is SPEC 0072; the run and
-the judgement are what remain. It sits between B2 and B3 because B1's
+sources read out of PDF, and judged again. Its code is SPEC 0072 and it ran on
+2026-10-15; the agronomist's judgement is what remains. It sits between B2 and B3 because B1's
 first verdict was that the cell is not worth reading, and nothing downstream is
 worth building until that answer changes.
 
