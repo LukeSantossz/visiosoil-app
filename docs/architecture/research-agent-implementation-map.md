@@ -21,9 +21,10 @@ that as absent coverage. Content comes from Lane B.
 of B2 recorded below). The verdict was that the pipeline works and the cell is
 not worth reading, and the Developer's answer to that on 2026-09-18 is recorded
 in B1: re-probe with management-guidance sources before any other cell is built.
-**The B1' re-probe ran on 2026-10-15 and was judged worth reading, narrowly**
-(#251). It ran after SPECs 0072 and 0151 to 0162 changed the chain. Three
-follow-ups precede B3, which B1 records.
+**The B1' re-probe ran on 2026-10-15** (#251), after SPECs 0072 and 0151 to
+0162 changed the chain. A delegated model review judged it worth reading,
+narrowly, which is preliminary: the agronomist's judgement that B1's gate names
+is still owed, and B3 waits on it. B1 records that review and three follow-ups.
 
 ## 1. What exists today
 
@@ -295,8 +296,8 @@ parts, and the slice that carries them passes its own Spec Gate first:
   already gives: a verdict of "not worth reading" stops the plan, and it has
   been returned once.
 
-**The first two parts are built, SPEC 0072 (2026-09-22); the run and its
-judgement are not.** Building them found that the first verdict rested on less
+**The first two parts are built, SPEC 0072 (2026-09-22), and the run followed
+on 2026-10-15; the agronomist's judgement of it is still owed.** Building them found that the first verdict rested on less
 than it appeared to. Re-fetched through the build's own code, the two SciELO
 articles that still answer are 42,213 and 40,462 characters long and their
 introductions start at 9,660 and 8,280, while the client sent the model
@@ -338,8 +339,8 @@ Gate: one cell exists, its citations all resolve, and the judgement is recorded 
 including a judgement of "not worth reading", which stops the plan before the
 other cells are built.
 
-**B1' verdict, 2026-10-15: worth reading, narrowly** (#251, which holds the
-cell and the run manifest).
+**B1' preliminary verdict, 2026-10-15: worth reading, narrowly** (#251, which
+holds the cell and the run manifest).
 
 **The run.**
 - **Setup:** `qwen2.5:7b` (digest `845dbda0…697e`), seed 1234, prompt versions
@@ -361,7 +362,9 @@ cell and the run manifest).
 - **Item 8 fails:** the cell surfaces no source age, and CT 32 dates from 2005.
 
 The reviewer was Claude (`claude-opus-5-5`), on the Developer's delegation, and
-is not an agronomist. B4's named human review still gates every cell.
+is not an agronomist, so this verdict is preliminary. This slice's gate puts the
+cell in front of an agronomist, and that judgement is still owed; B3 waits on
+it, and B4's named human review still gates every cell.
 
 **Before B3:**
 1. A source-age limitation, which needs a date per manifest source (§8.3).
@@ -533,7 +536,7 @@ wrongly to unknown.
 
 ### B3 — slice 3: the whole corpus is built
 
-**Blocked on B1's re-probe, not on code.** The chain B3 was written to build
+**Blocked on the agronomist's judgement of B1', not on code.** The chain B3 was written to build
 already exists and has run: query transform, allowlisted search, source grading,
 generation with citations, and the grounding graders, CRAG-shaped so that the
 grader stays external and light — which is what makes a small local model
@@ -548,7 +551,7 @@ negotiable from this side — `corpusVersion`, `classListVersion`, `model`,
 `substance`, `landUse`, `unit` and `biome` — plus a run manifest for the build as
 a whole rather than per cell.
 
-It waits on B1's second judgement because building 43 more cells from a source
+It waits on the agronomist's judgement of B1' because building 43 more cells from a source
 policy that produced one unreadable cell would repeat the measured failure at
 forty-four times the cost. Gate: the 44 artifacts exist, every citation resolves,
 and the release file parses through `Corpus.fromJson` unchanged.
@@ -593,8 +596,8 @@ A5 ── UI/UX terminal ── after A1 lands the fields it renders
 ```
 
 **B1'** is the re-probe: the same one cell, rebuilt from management-guidance
-sources read out of PDF, and judged again. Its code is SPEC 0072; the run and
-the judgement are what remain. It sits between B2 and B3 because B1's
+sources read out of PDF, and judged again. Its code is SPEC 0072 and it ran on
+2026-10-15; the agronomist's judgement is what remains. It sits between B2 and B3 because B1's
 first verdict was that the cell is not worth reading, and nothing downstream is
 worth building until that answer changes.
 

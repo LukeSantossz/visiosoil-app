@@ -19,7 +19,7 @@ VisioSoil lets agronomists and field technicians capture, classify, and catalog 
 - **Management tips** — advisory soil-management tips composed on the device from a reviewed corpus, offline and with every tip citing its source ([ADR 0022](docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md), [ADR 0023](docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)). No reviewed corpus has shipped yet, so the section reads as no coverage
 - **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
 - **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer. The account can be deleted from Settings
-- **Privacy** — the [privacy policy](https://lukesantossz.github.io/visiosoil-app/privacidade.html) and the [account-deletion page](https://lukesantossz.github.io/visiosoil-app/excluir-conta.html) are published from `site/` and linked from Settings
+- **Privacy** — the [privacy policy](https://lukesantossz.github.io/visiosoil-app/privacidade.html) and the [account-deletion page](https://lukesantossz.github.io/visiosoil-app/excluir-conta.html) are published from `site/`; Settings links the privacy policy
 - **Accessible in the field** — light and dark themes, a high-contrast mode for sunlight, text that scales to 200 %, reduced motion honoured, and haptics on confirmations
 
 ## What It Is
@@ -258,7 +258,7 @@ visiosoil-app/
 - [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
 - [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
 - [x] Optional Google sign-in with the session in secure storage, and account deletion from Settings
-- [x] Privacy policy and account-deletion page published on GitHub Pages, and linked from Settings
+- [x] Privacy policy and account-deletion page published on GitHub Pages, with the privacy policy linked from Settings
 - [x] Management tips composed on the device from a corpus (`CorpusResearchService`), cached per record with the corpus version
 - [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
 - [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 992 Dart tests on `main` on 2026-10-15, plus 810 Python test functions under `ml/tests/` and 189 under `corpus/tests/`. Ten Dart tests are skipped, among them an icon-generation test gated on `GENERATE_ICONS` and guards that run on `main` only
@@ -274,7 +274,7 @@ visiosoil-app/
 - [ ] Produce a genuinely release-signed APK in CI. A missing contract can no longer pass a green suite: `the_shipped_contract_loads` fails without `assets/models/spec.json`
 - [x] Read the class labels from `spec.json` at runtime instead of hardcoding them in `InferenceService` — done on the descriptor path by [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md). The input size and normalization [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specified belonged to the TFLite contract that ADR 0024 retired
 - [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
-- [ ] Build and review the management-tips corpus: the calibration cell was judged worth reading on 2026-10-15 ([#251](https://github.com/LukeSantossz/visiosoil-app/issues/251)), and the other cells (B3) and the human review gate (B4) remain
+- [ ] Build and review the management-tips corpus: the calibration cell was re-probed on 2026-10-15 and judged worth reading by a preliminary, delegated model review ([#251](https://github.com/LukeSantossz/visiosoil-app/issues/251)); the agronomist's judgement of it, the other cells (B3) and the human review gate (B4) remain
 
 ## Known Issues & Limitations
 
