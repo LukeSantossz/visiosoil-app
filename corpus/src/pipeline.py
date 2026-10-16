@@ -62,6 +62,23 @@ Fixed here rather than left to the model: asked for "different angles", it
 wrote three broad questions about fertility, and the phosphorus circular a
 judge asked for was graded irrelevant to all of them (SPEC 0153)."""
 
+TOPIC_LIMITATIONS = {
+    "calagem": "As fontes consultadas não tratam de calagem.",
+    "fósforo": "As fontes consultadas não tratam de fósforo.",
+    "potássio": "As fontes consultadas não tratam de potássio.",
+    "matéria orgânica": "As fontes consultadas não tratam de matéria orgânica.",
+    "água": "As fontes consultadas não tratam do manejo da água.",
+    "o que a classe de textura implica e o que não implica": (
+        "As fontes consultadas não tratam do que a classe de textura implica "
+        "e do que não implica."
+    ),
+}
+"""The limitation a cell carries for a topic no kept source covers (SPEC 0162).
+
+A fixed table rather than the model's words: what the sources leave out cannot
+be quoted, so it cannot be grounded, and a limitation the build states from its
+own grading is true by construction."""
+
 _NUMBER = re.compile(
     r"(?<!\w)(?<!\w-)\d+(?:[.,]\d+)?|[¼-¾⅐-⅟↉]"
 )
@@ -136,6 +153,8 @@ class BuildOutcome:
     rejections: list[str] = field(default_factory=list)
     groundings: list[dict[str, Any]] = field(default_factory=list)
     """Every grounding check, rejected attempts included, in order."""
+    coverage: dict[str, list[str]] = field(default_factory=dict)
+    """Each management topic, mapped to the URLs graded relevant to it."""
 
 
 def build_cell(
@@ -162,10 +181,23 @@ def build_cell(
     ]
     _require_queries(queries)
 
-    kept = [
-        document
-        for document in sources
-        if any(client.grade_document(query, document) for query in queries)
+    # Every source is graded against every topic, so the build knows which
+    # topics its sources cover; stopping at the first relevant topic would leave
+    # the rest unknown (SPEC 0162).
+    coverage: dict[str, list[str]] = {topic: [] for topic in MANAGEMENT_TOPICS}
+    kept: list[FetchedSource] = []
+    for document in sources:
+        covered = [
+            topic
+            for topic, query in zip(MANAGEMENT_TOPICS, queries)
+            if client.grade_document(query, document)
+        ]
+        if covered:
+            kept.append(document)
+        for topic in covered:
+            coverage[topic].append(document.url)
+    limitations = [
+        TOPIC_LIMITATIONS[topic] for topic in MANAGEMENT_TOPICS if not coverage[topic]
     ]
 
     if not kept:
@@ -177,6 +209,7 @@ def build_cell(
             cell=_abstention(sources=[], limitations=[]),
             attempts=0,
             rejections=["no document passed relevance grading"],
+            coverage=coverage,
         )
 
     source_array = [source_payload(s, accessed_at=accessed_at) for s in kept]
@@ -196,7 +229,9 @@ def build_cell(
             disclaimer=SUBSTANCE_DISCLAIMER,
             tips=generated["tips"],
             sources=source_array,
-            limitations=generated["limitations"],
+            # Derived from coverage, never the model's, and only on a grounded
+            # cell: an abstention carries none, however it abstained (SPEC 0162).
+            limitations=limitations if generated["status"] == "grounded" else [],
         )
         # Validated before grounding: a cell that does not satisfy the contract
         # is a build failure however well supported its claims are, and this is
@@ -204,12 +239,12 @@ def build_cell(
         validate_cell(cell, source_count=len(source_array))
 
         # A number is refused before grounding is asked: the stance forbids it
-        # however well the source supports it, in a tip or in a limitation,
-        # since both ship in the cell (SPEC 0160).
+        # however well the source supports it (SPEC 0160). Limitations are the
+        # build's own sentences, so only tips are read (SPEC 0162).
         numeric = [
-            f"states a number: {text}"
-            for text in [tip["text"] for tip in cell["tips"]] + cell["limitations"]
-            if states_a_number(text)
+            f"states a number: {tip['text']}"
+            for tip in cell["tips"]
+            if states_a_number(tip["text"])
         ]
         unsupported = list(numeric)
         if not numeric:
@@ -237,6 +272,7 @@ def build_cell(
                 attempts=attempt,
                 rejections=rejections,
                 groundings=groundings,
+                coverage=coverage,
             )
         rejections.extend(unsupported)
 
@@ -250,6 +286,7 @@ def build_cell(
         attempts=max_attempts,
         rejections=rejections,
         groundings=groundings,
+        coverage=coverage,
     )
 
 
@@ -261,7 +298,9 @@ def _require_generated_shape(generated: Any) -> None:
     """
     if not isinstance(generated, dict):
         raise CellValidationError("generation did not return an object")
-    for field, expected in (("status", str), ("tips", list), ("limitations", list)):
+    # `limitations` is not asked for: the build derives them (SPEC 0162), and
+    # one the model sends anyway is ignored rather than read.
+    for field, expected in (("status", str), ("tips", list)):
         if field not in generated:
             raise CellValidationError(f"generation omitted {field!r}")
         if not isinstance(generated[field], expected):
@@ -269,9 +308,6 @@ def _require_generated_shape(generated: Any) -> None:
                 f"generation returned {field!r} as "
                 f"{type(generated[field]).__name__}, not {expected.__name__}"
             )
-    for item in generated["limitations"]:
-        if not isinstance(item, str):
-            raise CellValidationError("a limitation is not a string")
 
 
 def _require_queries(queries: Any) -> None:

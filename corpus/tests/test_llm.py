@@ -305,7 +305,7 @@ def test_the_prompt_versions_moved():
     versions = OllamaClient().prompt_versions
 
     assert versions["transform"] == "3"
-    assert versions["generate"] == "4"
+    assert versions["generate"] == "5"
 
 
 def test_the_generate_prompt_asks_for_the_direction_not_the_number():
@@ -322,7 +322,7 @@ def test_the_generate_prompt_asks_for_the_direction_not_the_number():
     assert "Nunca doses e nunca números" in prompt
     assert "escreva a direção que os números mostram" in prompt
     assert "nunca pelo nome" in prompt
-    assert client.prompt_versions["generate"] == "4"
+    assert client.prompt_versions["generate"] == "5"
 
 
 # --- The grader scores relevance (SPEC 0154) -----------------------------------
@@ -511,3 +511,14 @@ def test_grounding_returns_the_verdict_and_the_quote(reply, supported, found):
     assert grounding.supported is supported
     assert grounding.found is found
     assert grounding.quote == json.loads(reply)["trecho"]
+
+
+def test_the_generate_prompt_no_longer_asks_for_limitations():
+    """The build derives limitations from coverage, so the model is not asked
+    for them (SPEC 0162)."""
+    client, requests = recording_client('{"status": "abstained", "tips": []}')
+
+    client.generate_cell("Solo argiloso", [document("Texto.")])
+
+    assert '"limitations"' not in requests[0]["prompt"]
+    assert client.prompt_versions["generate"] == "5"
