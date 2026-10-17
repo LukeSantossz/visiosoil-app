@@ -113,7 +113,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       await camera.initialize();
     } on Exception catch (e, stack) {
       _initializing = false;
-      await _release(camera);
+      await _queueRelease(camera);
       if (generation != _generation || !mounted) {
         _reopenIfWanted();
         return;
@@ -133,7 +133,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
     _initializing = false;
     if (generation != _generation || !mounted) {
-      await _release(camera);
+      await _queueRelease(camera);
       _reopenIfWanted();
       return;
     }
@@ -165,18 +165,27 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
   }
 
-  /// Queues the live camera's release behind any release still in flight.
-  /// [rebuild] is false from dispose, where the screen cannot rebuild.
+  /// Puts [camera]'s release at the end of the one queue every release goes
+  /// through, so the next camera, which waits on [_teardown], never opens
+  /// while any earlier one is still closing.
+  Future<void> _queueRelease(CaptureCamera? camera) {
+    final previous = _teardown;
+    final release = () async {
+      await previous;
+      await _release(camera);
+    }();
+    _teardown = release;
+    return release;
+  }
+
+  /// Releases the live camera. [rebuild] is false from dispose, where the
+  /// screen cannot rebuild.
   void _releaseCamera({bool rebuild = true}) {
     _generation++;
     final camera = _camera;
     _camera = null;
     if (rebuild && mounted) setState(() {});
-    final previous = _teardown;
-    _teardown = () async {
-      await previous;
-      await _release(camera);
-    }();
+    unawaited(_queueRelease(camera));
   }
 
   @override

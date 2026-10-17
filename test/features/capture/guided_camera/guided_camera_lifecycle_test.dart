@@ -160,4 +160,61 @@ void main() {
     expect(h.cameras.log.last, 'orientations:[]');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a_stale_camera_is_released_before_the_next_opens',
+      (tester) async {
+    final h = GuidedCameraHarness()..cameras.initializeGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    final binding = tester.binding;
+    // Released while camera 0 initialises: it completes stale.
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+
+    h.cameras.disposeGate = Completer<void>();
+    final initGate = h.cameras.initializeGate!;
+    h.cameras.initializeGate = null;
+    initGate.complete();
+    await tester.pump();
+    // Camera 0 is being released; a resume now must wait for it.
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(h.cameras.log, isNot(contains('initialize:1')));
+
+    h.cameras.disposeGate!.complete();
+    h.cameras.disposeGate = null;
+    await tester.pumpAndSettle();
+    final log = h.cameras.log;
+    expect(log.indexOf('dispose:0'), lessThan(log.indexOf('initialize:1')));
+    expect(fakePreview, findsOneWidget);
+  });
+
+  testWidgets('a_failed_camera_is_released_before_the_next_opens',
+      (tester) async {
+    final h = await openGuidedCamera(tester);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    // Camera 1 fails to open while the screen is wanted; its release is held.
+    h.cameras.initializeGate = Completer<void>();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    h.cameras.disposeGate = Completer<void>();
+    h.cameras.initializeError = const CameraUnavailableException('busy');
+    final initGate = h.cameras.initializeGate!;
+    h.cameras.initializeGate = null;
+    initGate.complete();
+    await tester.pump();
+    h.cameras.initializeError = null;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(h.cameras.log, isNot(contains('initialize:2')));
+
+    h.cameras.disposeGate!.complete();
+    h.cameras.disposeGate = null;
+    await tester.pumpAndSettle();
+    final log = h.cameras.log;
+    expect(log.indexOf('dispose:1'), lessThan(log.indexOf('initialize:2')));
+  });
 }
