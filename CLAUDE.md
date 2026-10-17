@@ -176,7 +176,7 @@ UI (Screens) → Riverpod Providers → Repository (abstract) → Drift DB / des
 ```
 
 - **State management:** `flutter_riverpod` — `Provider` for singletons, `StreamProvider` for reactive lists, `FutureProvider.family` for record-by-id lookups
-- **Navigation:** `go_router` with 9 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params), and `/compare` passes the two selected ids the same way
+- **Navigation:** `go_router` with 10 routes plus an `errorBuilder` rendering `RouteErrorView`. `/details` and `/preview` pass record id via `state.extra` (not URL params), and `/compare` passes the two selected ids the same way. `/camera` is the guided camera (SPEC 0165), pushed by the capture screen and popping a `GuidedCaptureResult`
 - **Persistence:** Drift + SQLite with schema versioning (currently v9). Repository pattern abstracts Drift from UI
 - **AI inference:** `InferenceService` parses the released contract once (`assets/models/spec.json`), then runs each photograph through the descriptor path in a separate Dart `Isolate`: decode, bake the EXIF orientation, measure, cut the canonical patch grid, describe each patch, and score with the contract. The contract is copied into the isolate because `rootBundle` is unavailable there. The measurement is an injected `PhotographMeasurer` (SPEC 0083), and the default is `a4SheetMeasurer`: it finds the A4 sheet, rectifies it, and measures the round soil patch on it (SPEC 0091, SPEC 0092)
 - **Auth:** Google sign-in behind an `AuthService` interface, with the session persisted through `SecureCredentialStore`
@@ -201,7 +201,7 @@ lib/
 │   │                                  #   values; read only here), AppTypography, AppSpacing,
 │   │                                  #   AppRadius, SoilTextureColors, AppMotion (motion
 │   │                                  #   tokens), AppHaptics (one haptic tier per event class)
-│   ├── routes/app_router.dart         # GoRouter config (9 routes + errorBuilder)
+│   ├── routes/app_router.dart         # GoRouter config (10 routes + errorBuilder)
 │   ├── constants/                     # app_strings.dart (centralized pt-BR UI strings),
 │   │                                  #   app_links.dart (the published privacy policy URL,
 │   │                                  #   SPEC 0157), capture_protocol.dart (the capture
@@ -235,16 +235,17 @@ lib/
 │   │   ├── repositories/              # Abstract interfaces + Drift implementations
 │   │   │                              #   (soil records, management tips)
 │   │   └── sync/                      # RemoteSyncBackend contract, SyncLocalStore, SyncOperation
-│   └── features/                      # Screens: splash, onboarding, main, home, capture,
+│   └── features/                      # Screens: splash, onboarding, main, home, capture
+│                                      #          (+ guided_camera/: the in-app camera, SPEC 0165),
 │                                      #          history, details, preview, settings, compare
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 19 files declaring 37 providers (database, repository,
+└── providers/                         # 20 files declaring 39 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
                                        #   storage, lost capture, appearance, error report,
-                                       #   capture guide, plus the history filter/search and
+                                       #   capture guide, guided camera, plus the history filter/search and
                                        #   derived-stats providers)
 ```
 

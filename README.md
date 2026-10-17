@@ -208,7 +208,7 @@ visiosoil-app/
 │   ├── core/
 │   │   ├── theme/           # AppTheme (light + dark), AppPalette, AppColors, AppTypography,
 │   │   │                    #   AppSpacing, AppRadius, AppMotion, AppHaptics, SoilTextureColors
-│   │   ├── routes/          # GoRouter config (9 routes + errorBuilder)
+│   │   ├── routes/          # GoRouter config (10 routes + errorBuilder)
 │   │   ├── constants/       # pt-BR UI strings, published links, capture protocol steps
 │   │   ├── widgets/         # 12 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
 │   │   │                    #   EmptyState, ErrorState, LoadingIndicator, PressScale, ...
@@ -224,10 +224,10 @@ visiosoil-app/
 │   │   ├── data/
 │   │   │   ├── repositories/# Interfaces + Drift impls (soil records, management tips)
 │   │   │   └── sync/        # RemoteSyncBackend contract, local store, sync operations
-│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide),
+│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide, guided camera),
 │   │                        #          history, details, preview, compare, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 19 files declaring 37 Riverpod providers (database, repository,
+│   └── providers/           # 20 files declaring 39 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
@@ -244,7 +244,7 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (9 routes)
+- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (10 routes)
 - [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs
