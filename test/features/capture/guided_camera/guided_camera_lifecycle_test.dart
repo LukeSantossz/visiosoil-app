@@ -217,4 +217,27 @@ void main() {
     final log = h.cameras.log;
     expect(log.indexOf('dispose:1'), lessThan(log.indexOf('initialize:2')));
   });
+
+  // R2 round 2: the queue spans screens, not one screen's lifetime.
+  testWidgets('a_new_screen_waits_for_the_previous_release', (tester) async {
+    final h = await openGuidedCamera(tester);
+    h.cameras.disposeGate = Completer<void>();
+    await backOut(tester);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(h.cameras.log, isNot(contains('initialize:1')),
+        reason: 'the first camera is still closing');
+
+    h.cameras.disposeGate!.complete();
+    h.cameras.disposeGate = null;
+    await tester.pumpAndSettle();
+    final log = h.cameras.log;
+    const portrait = 'orientations:[DeviceOrientation.portraitUp]';
+    final reset = log.indexOf('orientations:[]');
+    expect(log.indexOf('dispose:0'), lessThan(reset));
+    expect(reset, lessThan(log.lastIndexOf(portrait)));
+    expect(log.lastIndexOf(portrait), lessThan(log.indexOf('initialize:1')));
+    expect(fakePreview, findsOneWidget);
+  });
 }

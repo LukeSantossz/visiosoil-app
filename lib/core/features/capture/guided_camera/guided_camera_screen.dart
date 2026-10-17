@@ -6,6 +6,7 @@ import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guide_overlay.dart';
@@ -39,8 +40,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   int _generation = 0;
   bool _initializing = false;
 
-  /// The release in flight, if any; the next camera opens only after it.
-  Future<void> _teardown = Future.value();
+  /// The app-wide queue of releases; the next camera opens only after it.
+  late final CameraReleaseQueue _releases =
+      ref.read(cameraReleaseQueueProvider);
 
   /// The initialisation in flight, if any; dispose waits for it.
   Future<void>? _opening;
@@ -81,6 +83,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }
 
   Future<void> _start() async {
+    // A camera screen closed just before this one may still be releasing its
+    // camera and resetting the orientation; both must land first.
+    await _releases.idle;
+    if (!mounted) return;
     // Set before the camera opens, so its first frames are already portrait.
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     if (!mounted) return;
@@ -102,7 +108,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final cameras = ref.read(captureCameraFactoryProvider);
     // A camera being released must be gone before the next one opens: two
     // native sessions on one sensor conflict.
-    await _teardown;
+    await _releases.idle;
     if (generation != _generation || !mounted) {
       _initializing = false;
       _reopenIfWanted();
@@ -113,7 +119,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       await camera.initialize();
     } on Exception catch (e, stack) {
       _initializing = false;
-      await _queueRelease(camera);
+      await _releaseStale(camera);
       if (generation != _generation || !mounted) {
         _reopenIfWanted();
         return;
@@ -133,7 +139,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
     _initializing = false;
     if (generation != _generation || !mounted) {
-      await _queueRelease(camera);
+      await _releaseStale(camera);
       _reopenIfWanted();
       return;
     }
@@ -165,17 +171,30 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
   }
 
-  /// Puts [camera]'s release at the end of the one queue every release goes
-  /// through, so the next camera, which waits on [_teardown], never opens
-  /// while any earlier one is still closing.
-  Future<void> _queueRelease(CaptureCamera? camera) {
-    final previous = _teardown;
-    final release = () async {
-      await previous;
-      await _release(camera);
-    }();
-    _teardown = release;
-    return release;
+  /// Puts [camera]'s release on the app-wide queue, so the next camera,
+  /// which waits on it, never opens while any earlier one is still closing.
+  Future<void> _queueRelease(CaptureCamera? camera) =>
+      _releases.add(() => _release(camera));
+
+  /// Releases a camera whose initialisation completed failed or stale. Once
+  /// the screen is disposed, its dispose step already holds the queue waiting
+  /// for this initialisation, so the release runs directly: queueing it behind
+  /// that step would wait on itself.
+  Future<void> _releaseStale(CaptureCamera camera) =>
+      mounted ? _queueRelease(camera) : _release(camera);
+
+  Future<void> _resetOrientation() async {
+    try {
+      // Back to the app's default of every orientation.
+      await SystemChrome.setPreferredOrientations(const []);
+    } on PlatformException catch (e, stack) {
+      developer.log(
+        'Restoring the orientation failed: $e',
+        name: 'GuidedCameraScreen',
+        error: e,
+        stackTrace: stack,
+      );
+    }
   }
 
   /// Releases the live camera. [rebuild] is false from dispose, where the
@@ -254,20 +273,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_tiltSubscription?.cancel());
     _releaseCamera(rebuild: false);
-    final teardown = _teardown;
     final opening = _opening;
-    unawaited(() async {
-      try {
-        await teardown;
-        // An initialisation still in flight releases its own camera when it
-        // completes stale; wait for that too.
-        await opening;
-      } finally {
-        // Back to the app's default of every orientation, once every camera
-        // is released.
-        await SystemChrome.setPreferredOrientations(const []);
-      }
-    }());
+    // Queued after the live camera's release. An initialisation still in
+    // flight releases its own camera when it completes stale; the reset waits
+    // for that too, and a camera screen opened meanwhile waits for the reset.
+    unawaited(_releases.add(() async {
+      await opening;
+      await _resetOrientation();
+    }));
     super.dispose();
   }
 

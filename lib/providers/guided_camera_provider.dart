@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.dart';
 
@@ -11,4 +12,10 @@ final captureCameraFactoryProvider = Provider<CaptureCameraFactory>(
 /// The accelerometer behind the guided camera's level. Overridden in tests.
 final tiltSourceProvider = Provider<TiltSource>(
   (ref) => SensorsPlusTiltSource(),
+);
+
+/// The app-wide queue of guided camera releases and orientation resets, so
+/// a reopened camera waits for the previous one to close (SPEC 0165).
+final cameraReleaseQueueProvider = Provider<CameraReleaseQueue>(
+  (ref) => CameraReleaseQueue(),
 );
