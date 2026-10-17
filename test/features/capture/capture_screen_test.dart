@@ -17,7 +17,7 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
-import 'package:visiosoil_app/core/features/capture/guided_camera/guided_camera_screen.dart';
+import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
@@ -1872,6 +1872,10 @@ void main() {
   // The guided camera reached the way the app reaches it: a GoRouter push of
   // /camera, popped by the screen itself (SPEC 0165; R2 review).
   group('guided camera through the router', () {
+    final productionCameraRoute = appRouter.configuration.routes
+        .whereType<GoRoute>()
+        .singleWhere((route) => route.path == '/camera');
+
     Future<(GuidedCameraHarness, List<String>)> pumpRouted(
       WidgetTester tester,
     ) async {
@@ -1894,10 +1898,8 @@ void main() {
               deletePickedFile: (path) async => deleted.add(path),
             ),
           ),
-          GoRoute(
-            path: '/camera',
-            builder: (_, _) => const GuidedCameraScreen(),
-          ),
+          // The production route's own builder, so a broken /camera fails here.
+          GoRoute(path: '/camera', builder: productionCameraRoute.builder),
         ],
       );
       await tester.pumpWidget(ProviderScope(
