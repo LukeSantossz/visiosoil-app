@@ -6,6 +6,10 @@
 	<string>Acesso à localização para marcação de amostras</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Acesso à câmera para captura de imagens</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O VisioSoil não grava áudio; o sistema pede esta declaração para usar a câmera.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>O VisioSoil usa o sensor de movimento para mostrar se o celular está nivelado.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

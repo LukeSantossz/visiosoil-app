@@ -1,9 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 <uses-permission android:name="android.permission.CAMERA"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<!-- The camera plugin merges RECORD_AUDIO for video; the app records none and
+     opens the camera with enableAudio: false (SPEC 0165). -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
 <!-- Play filters the listing by required hardware, declared or implied by a
      permission. Capture is camera-only; a record saves without coordinates,
      and the camera app handles focus (SPEC 0100). -->
