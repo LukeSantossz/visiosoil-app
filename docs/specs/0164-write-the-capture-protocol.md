@@ -10,16 +10,17 @@ The protocol exists only in pieces: three sentences of product copy in `lib/core
 
 - Includes:
   - `docs/capture-protocol.md`: a short, direct protocol in English, with what to prepare, how to frame and light the photograph, a checklist before the shot, and what each refusal the app names means and how to fix it. Every limit it states is the one the code enforces today, cited to its source.
-  - `test/standards/capture_protocol_doc_test.dart`: holds the two numbers the document derives from the released contract to the contract, so a re-released geometry that moves them fails the suite instead of leaving the protocol stale.
+  - `docs/capture-protocol.pt-BR.md`: the same protocol in pt-BR, for the photographers who take the sessions, at the Developer's request of 2026-10-17. It is a departure from the all-output-in-English rule of the same kind as the UI strings: it is read by the people using the product, not by its developers. The English file stays the source, and the two state the same steps and limits.
+  - `test/standards/capture_protocol_doc_test.dart`: holds the two numbers both documents derive from the released contract to the contract, so a re-released geometry that moves them fails the suite instead of leaving the protocol stale.
 - Does NOT include:
   - Any change to `lib/`, the in-app capture guide copy, `assets/models/spec.json`, the sheet reader or the patch grid.
   - Any claim of classification accuracy on real photographs: none has been classified yet.
-  - A pt-BR version of the document. The in-app guide is the pt-BR surface, and documentation is in English.
+  - Any other language, or translating any other document.
   - Changes to ADR 0017, ADR 0014 or the withdrawn `docs/ml/collection-protocol.md`.
 
 ## Acceptance Criteria
 
-- `the_protocol_states_the_least_sheet_span_the_contract_allows`: the document states the least number of pixels the sheet's 297 mm side must span, and it equals `ceil(297 / canonical_mm_per_px)` from `assets/models/spec.json`.
-- `the_protocol_states_the_least_soil_circle_nine_patches_need`: the document states the least soil circle, in whole millimetres, and it equals the smallest disc `patchGeometry` accepts at the contract's `min_patches`, plus the reader's `soilMarginMm` on each side, rounded up.
-- `the_protocol_names_every_refusal_a_retake_fixes`: for every cause whose capture-preview chip asks for another photograph rather than offering a retry, and that is not a contract cause, the document names the cause and quotes the chip's label, so a photographer can find the remedy from what the screen says.
+- `the_protocol_states_the_least_sheet_span_the_contract_allows`: each document states the least number of pixels the sheet's 297 mm side must span, and it equals `ceil(297 / canonical_mm_per_px)` from `assets/models/spec.json`.
+- `the_protocol_states_the_least_soil_circle_nine_patches_need`: each document states the least soil circle, in whole millimetres, and it equals the smallest disc `patchGeometry` accepts at the contract's `min_patches`, plus the reader's `soilMarginMm` on each side, rounded up.
+- `the_protocol_names_every_refusal_a_retake_fixes`: for every cause whose capture-preview chip asks for another photograph rather than offering a retry, and that is not a contract cause, each document names the cause and quotes the chip's label, so a photographer can find the remedy from what the screen says.
 - `mf check` passes.
