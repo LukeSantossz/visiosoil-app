@@ -25,7 +25,7 @@ The composition lives in `CaptureScreen`'s default picker and nowhere else. `Cap
 
 **The screen, `GuidedCameraScreen`**, in `lib/core/features/capture/guided_camera/`, is locked to portrait while it is open: it awaits `SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])` before it initialises the camera, and restores the empty list, the app's default of every orientation, after it has released the camera on dispose. It holds, top to bottom:
 
-- **An instruction banner**: one short pt-BR sentence on a state colour taken from `AppPalette`: `primary` for green, `warning` for amber and `error` for red. The state is also carried by an icon, so it is never told by colour alone.
+- **An instruction banner**: one short pt-BR sentence on a state colour taken from `AppPalette`: the container of `primary` for green, of `warning` for amber and of `error` for red, each with its own ink (`onPrimaryContainer`, `onWarningContainer`, `onErrorContainer`). Amended in implementation: the bare `warning` cannot carry a sentence at WCAG's 4.5 : 1 in any ink. The state is also carried by an icon, so it is never told by colour alone.
 - **The full-screen preview**, covered by `CaptureGuideOverlay`, a `CustomPainter`:
   - **The preview fills the screen** with `BoxFit.cover`, so the overlay is laid out on the screen's rectangle, which the preview covers.
   - **The sheet outline**: a portrait rectangle of A4's aspect (210 : 297), centred, whose width is 85 % of the screen's width, or less if its height would exceed 85 % of the space between the banner and the footer, drawn as corner brackets. Outside it the preview is dimmed. The margin around it is the margin the protocol asks for.
@@ -51,7 +51,7 @@ A `CameraException` on a re-initialisation whose code is `CameraAccessDenied`, `
 | up to 5° | green | "Nivelado. Encaixe a folha no contorno." |
 | over 5° and up to 12° | amber | "Quase. Deixe o celular paralelo ao chão." |
 | over 12° | red | "Segure o celular paralelo ao chão, de cima." |
-| no tilt (`tiltUnavailable`) | neutral, `surfaceVariant` | "Encaixe a folha no contorno." |
+| no tilt (`tiltUnavailable`) | neutral, `surfaceVariant` with `onSurfaceVariant` | "Encaixe a folha no contorno." |
 
 The bands are starting values. If the field session of SPEC 0167 shows them wrong, a follow-up spec revises them; this one is not edited after its Gate. The level guides and never blocks: the sheet reader rectifies perspective, and a photograph taken at a tilt is still judged by the reader on the full photograph.
 
@@ -65,7 +65,7 @@ The bands are starting values. If the field session of SPEC 0167 shows them wron
 
 **Recovery after the process dies.** `LostCaptureService` recovers only the system camera's photograph, through `ImagePicker.retrieveLostData()`, so it keeps serving the fallback and nothing else. The guided camera needs no recovery of its own: the app's process stays alive while its own screen is open, and the only window in which a photograph exists unsaved is between `takePicture` returning and the screen popping, which is a frame.
 
-**Platform declarations.** iOS gains `NSMotionUsageDescription`, which `sensors_plus` requires or the app crashes on reading the sensor, worded "O VisioSoil usa o sensor de movimento para mostrar se o celular está nivelado.", and `NSMicrophoneUsageDescription`, which the `camera` README's iOS setup lists, worded "O VisioSoil não grava áudio; o sistema pede esta declaração para usar a câmera." The app passes `enableAudio: false`, so the microphone is never requested. On Android, the merged release manifest must not gain `RECORD_AUDIO`. If the plugin brings it, it is removed by a `<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>` entry, with `xmlns:tools="http://schemas.android.com/tools"` declared on the manifest's root, because the Play Data safety answers (#293) depend on it.
+**Platform declarations.** iOS gains `NSMotionUsageDescription`, which `sensors_plus` requires or the app crashes on reading the sensor, worded "O VisioSoil usa o sensor de movimento para mostrar se o celular está nivelado.", and `NSMicrophoneUsageDescription`, which the `camera` README's iOS setup lists, worded "O VisioSoil não grava áudio; o sistema pede esta declaração para usar a câmera." The app passes `enableAudio: false`, so the microphone is never requested. On Android, the merged release manifest must not gain `RECORD_AUDIO`. If the plugin brings it, it is removed by a `<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>` entry, with `xmlns:tools="http://schemas.android.com/tools"` declared on the manifest's root, because the Play Data safety answers (#293) depend on it. Amended in implementation: the plugin's CameraX implementation also merges `WRITE_EXTERNAL_STORAGE` (to API 28), which implies `READ_EXTERNAL_STORAGE`; its stills go to the app's cache directory (`ImageCaptureProxyApi`), which needs neither, so both are removed the same way.
 
 ## Alternatives Considered
 
@@ -83,7 +83,7 @@ The bands are starting values. If the field session of SPEC 0167 shows them wron
   - `lib/core/features/capture/capture_screen.dart`: the default picker composes the guided camera and the system camera through `GuidedCaptureResult`.
   - Providers for `CaptureCamera` and `TiltSource`, so tests inject fakes.
   - `ios/Runner/Info.plist`: `NSMotionUsageDescription` and `NSMicrophoneUsageDescription`.
-  - `android/app/src/main/AndroidManifest.xml`: the `RECORD_AUDIO` removal, only if the plugin merges it.
+  - `android/app/src/main/AndroidManifest.xml`: the `RECORD_AUDIO`, `WRITE_EXTERNAL_STORAGE` and `READ_EXTERNAL_STORAGE` removals.
   - Tests for each criterion.
   - The route, provider and widget counts in `docs/agents/project.md` and the README, with `CLAUDE.md` and `AGENTS.md` regenerated by `mf agents sync`, never edited; and the status of phase 2 in `docs/design/ux-2026/06-capture-experience.md`.
 - Does NOT include:
@@ -113,7 +113,7 @@ The bands are starting values. If the field session of SPEC 0167 shows them wron
 - `a_revoked_permission_cancels`: a re-initialisation that throws an access-denied `CameraException` pops `cancelled`, not `unavailable`.
 - `the_orientation_is_restored`: the screen sets portrait-up before the fake camera's `initialize` is called, and restores every orientation after its release on dispose.
 - `the_camera_is_configured`: the production `CaptureCamera` selects the first back-facing camera listed, creates its controller with `ResolutionPreset.max` and `enableAudio: false`, and after initialise sets `FlashMode.off` and locks the capture orientation to portrait-up (checked against the plugin's platform interface with a fake platform).
-- `no_audio_permission_on_android`: the merged manifest of `flutter build apk --release` declares no `android.permission.RECORD_AUDIO`.
+- `no_audio_permission_on_android`: the merged manifest of `flutter build apk --release` declares no `android.permission.RECORD_AUDIO`, `WRITE_EXTERNAL_STORAGE` or `READ_EXTERNAL_STORAGE`: its permissions are those the app's own manifest declares.
 - On a device (Developer), recorded in the PR with the phone's model and OS: a photograph taken through the guided screen with the phone held flat over a sheet is saved and classified, or refused by name, by today's flow; the stored file's pixel dimensions equal those of the still `takePicture` returned; it displays upright in history; and `decodeJpgExif` on the stored bytes yields the orientation tag and nothing else.
 - The router registers `/camera`, and every existing capture test passes, with the picker still injected.
 
@@ -122,7 +122,7 @@ The bands are starting values. If the field session of SPEC 0167 shows them wron
 ```sh
 flutter test test/features/capture test/routes
 flutter analyze && flutter test && mf check
-flutter build apk --release   # then inspect the merged manifest for RECORD_AUDIO
+flutter build apk --release   # then inspect the merged manifest's permissions
 ```
 
 Flutter 3.44.1, Dart 3.12.1, `mf` v0.8.0.
