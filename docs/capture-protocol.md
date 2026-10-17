@@ -5,6 +5,9 @@ reads the scale from the A4 sheet, and a photograph that breaks a step is
 refused by name rather than guessed at
 ([ADR 0017](adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
 
+A pt-BR version is [`capture-protocol.pt-BR.md`](capture-protocol.pt-BR.md).
+This file is its source, and the two state the same steps and limits.
+
 **No real photograph has been classified yet.** The limits below are the ones the
 code enforces today. They say what the app will read, not how accurate the
 reading is on field photographs
