@@ -29,8 +29,8 @@ class TiltSmoother {
   /// The smoothed tilt in degrees, or null before the first valid sample.
   double? get value => _value;
 
-  /// The unit vector of the last valid sample's x and y, or zero when it had
-  /// none.
+  /// Toward the raised side, in screen coordinates: the unit vector of the
+  /// last valid sample's x and y, or zero when it had none.
   Offset get direction => _direction;
 
   /// Folds one accelerometer sample in and returns the smoothed tilt. A
@@ -39,7 +39,9 @@ class TiltSmoother {
     final angle = tiltDegrees(x, y, z);
     if (angle == null) return _value;
     final planar = math.sqrt(x * x + y * y);
-    _direction = planar == 0 ? Offset.zero : Offset(x / planar, y / planar);
+    // The sensor's +y is the screen's top and the screen's +y points down, so
+    // y flips: the dot moves toward the raised side on both axes, as a bubble.
+    _direction = planar == 0 ? Offset.zero : Offset(x / planar, -y / planar);
     final previous = _value;
     _value = previous == null ? angle : previous + alpha * (angle - previous);
     return _value;

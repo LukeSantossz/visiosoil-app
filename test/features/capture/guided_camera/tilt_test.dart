@@ -50,9 +50,11 @@ void main() {
   test('the_direction_points_along_the_last_valid_sample', () {
     final smoother = TiltSmoother();
     expect(smoother.direction, Offset.zero);
+    // The right edge and the top edge raised: the dot goes right and up,
+    // toward the raised side as a bubble does. Screen y points down.
     smoother.add(3, 4, 9.81);
     expect(smoother.direction.dx, closeTo(0.6, 1e-9));
-    expect(smoother.direction.dy, closeTo(0.8, 1e-9));
+    expect(smoother.direction.dy, closeTo(-0.8, 1e-9));
     smoother.add(0, 0, 9.81);
     expect(smoother.direction, Offset.zero);
   });
