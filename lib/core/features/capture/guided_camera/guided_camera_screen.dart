@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guide_
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 
@@ -227,11 +228,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      IconButton(
+                      VisioIconButton(
                         key: const ValueKey('guided-camera-close'),
-                        tooltip: 'Fechar câmera',
+                        label: 'Fechar câmera',
+                        icon: Icons.close,
                         iconSize: 32,
-                        icon: const Icon(Icons.close, color: Colors.white),
+                        overPhoto: true,
                         onPressed: () =>
                             _pop(const GuidedCaptureResult.cancelled()),
                       ),
