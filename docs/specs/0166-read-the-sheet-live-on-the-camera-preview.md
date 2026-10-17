@@ -48,7 +48,7 @@ Those are the refusals that stopped all 31 photographs of 2026-10-05 ([the check
 | 7 | Tilt over 5° and up to 12° | amber | "Quase. Deixe o celular paralelo ao chão." |
 | 8 | Otherwise | green | "Pronto. Segure firme." |
 
-The colours are SPEC 0165's: `primary`, `warning` and `error`, each with its own icon. In `tiltUnavailable` (SPEC 0165), rows 1 and 7 never hold, and row 8 reads "Folha e solo certos." on `primary`, because nothing says the phone is level. Before the first reading arrives, the banner is SPEC 0165's tilt banner.
+The colours are SPEC 0165's, through `guidanceColors`: each role's container with its own ink (`primaryContainer`/`onPrimaryContainer` for green, `warningContainer`/`onWarningContainer` for amber, `errorContainer`/`onErrorContainer` for red), each with its own icon. In `tiltUnavailable` (SPEC 0165), rows 1 and 7 never hold, and row 8 reads "Folha e solo certos." on `primaryContainer`, because nothing says the phone is level. Before the first reading arrives, the banner is SPEC 0165's tilt banner.
 
 **Every refusal the still can meet on the A4 path has a row or cannot happen there.** `sheetNotFound` and `sheetCropped` are rows 2 and 3, `photographTooCoarse` row 4, and `soilRegionTooSmall`, whether from a null disc or too few patches, rows 5 and 6. `soilRegionOutsideFrame` needs no row: `a4SheetMeasurer` rectifies a square reaching 1 mm (`_squarePadMm`) beyond the soil disc on every side, and `patchGeometry` places every patch inside the disc, so the grid lies in the square by construction; the check that names it is a guard against rounding. The classification's own failures, a timeout or an isolate failure, are not about the photograph and have no live counterpart.
 
