@@ -51,6 +51,7 @@ void main() {
           '/',
           '/capture',
           '/capture-guide',
+          '/camera',
           '/details',
           '/preview',
           '/onboarding',

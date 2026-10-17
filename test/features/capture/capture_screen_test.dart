@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
@@ -96,7 +97,9 @@ void main() {
   });
 
   Widget buildScreen({
-    required CameraImagePicker pickFromCamera,
+    CameraImagePicker? pickFromCamera,
+    GuidedCameraOpener? openGuidedCamera,
+    CameraImagePicker? pickFromSystemCamera,
     required LocationResolver locate,
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
@@ -118,6 +121,8 @@ void main() {
         theme: theme,
         home: CaptureScreen(
           pickFromCamera: pickFromCamera,
+          openGuidedCamera: openGuidedCamera,
+          pickFromSystemCamera: pickFromSystemCamera,
           locate: locate,
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
@@ -858,8 +863,9 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
 
-    // pickFromCamera is left as the real default on purpose, so the capture
-    // drives ImagePicker().pickImage down to the intercepted channel.
+    // pickFromCamera and pickFromSystemCamera are left as the real defaults on
+    // purpose, so the capture drives ImagePicker().pickImage down to the
+    // intercepted channel.
     await tester.pumpWidget(ProviderScope(
       overrides: [
         _guideAlreadySeen(),
@@ -868,6 +874,9 @@ void main() {
       ],
       child: MaterialApp(
         home: CaptureScreen(
+          // The guided camera is unavailable, so the system camera's own
+          // default runs (SPEC 0165).
+          openGuidedCamera: (_) async => const GuidedCaptureResult.unavailable(),
           locate: () async => null,
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
@@ -1785,5 +1794,74 @@ void main() {
       await tester.pumpAndSettle();
       expect(picks, ['camera']);
     });
+  });
+
+  // The default picker composes the guided camera and the system camera it
+  // falls back to (SPEC 0165).
+  group('guided camera composition', () {
+    File? shownImage(WidgetTester tester) => tester
+        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
+        .image;
+
+    testWidgets('no_camera_falls_back_to_the_system_camera', (tester) async {
+      var systemCalls = 0;
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async => const GuidedCaptureResult.unavailable(),
+        pickFromSystemCamera: () async {
+          systemCalls++;
+          return XFile(samplePath);
+        },
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+
+      await capture(tester);
+
+      expect(systemCalls, 1);
+      expect(shownImage(tester), isNotNull);
+    });
+
+    testWidgets('a_guided_photograph_skips_the_system_camera', (tester) async {
+      var systemCalls = 0;
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async =>
+            GuidedCaptureResult.captured(XFile(samplePath)),
+        pickFromSystemCamera: () async {
+          systemCalls++;
+          return null;
+        },
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+
+      await capture(tester);
+
+      expect(systemCalls, 0);
+      expect(shownImage(tester), isNotNull);
+    });
+
+    for (final (name, result) in <(String, GuidedCaptureResult?)>[
+      ('cancelled', const GuidedCaptureResult.cancelled()),
+      ('back', null),
+    ]) {
+      testWidgets('close_returns_nothing_$name', (tester) async {
+        var systemCalls = 0;
+        await tester.pumpWidget(buildScreen(
+          openGuidedCamera: (_) async => result,
+          pickFromSystemCamera: () async {
+            systemCalls++;
+            return XFile(samplePath);
+          },
+          locate: () async => null,
+          classify: (_) async => null,
+        ));
+
+        await capture(tester);
+
+        expect(systemCalls, 0);
+        expect(shownImage(tester), isNull);
+        expect(find.text('Câmera'), findsOneWidget);
+      });
+    }
   });
 }
