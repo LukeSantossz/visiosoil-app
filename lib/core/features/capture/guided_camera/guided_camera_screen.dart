@@ -257,21 +257,21 @@ class _GuidanceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
+    final colours = guidanceColors(guidance.tone, context.palette);
     return Container(
       key: const ValueKey('guided-camera-banner'),
       height: GuidedCameraScreen.bannerHeight,
-      color: guidanceColor(guidance.tone, palette),
+      color: colours.background,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Icon(guidance.icon, color: Colors.white),
+          Icon(guidance.icon, color: colours.foreground),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               guidance.message,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: colours.foreground,
                 fontWeight: FontWeight.w600,
               ),
             ),

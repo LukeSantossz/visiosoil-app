@@ -65,10 +65,28 @@ Guidance guidanceForTilt(double? tilt) {
   );
 }
 
-/// The palette role a [tone] is drawn in.
-Color guidanceColor(GuidanceTone tone, AppPalette palette) => switch (tone) {
-      GuidanceTone.ready => palette.primary,
-      GuidanceTone.caution => palette.warning,
-      GuidanceTone.alert => palette.error,
-      GuidanceTone.neutral => palette.surfaceVariant,
+/// The banner's colours for a [tone]: each role's container and the ink
+/// drawn on it, the pairs the palette holds to WCAG text contrast. The bare
+/// `warning` cannot carry a sentence in any ink at 4.5 : 1.
+({Color background, Color foreground}) guidanceColors(
+  GuidanceTone tone,
+  AppPalette palette,
+) =>
+    switch (tone) {
+      GuidanceTone.ready => (
+          background: palette.primaryContainer,
+          foreground: palette.onPrimaryContainer,
+        ),
+      GuidanceTone.caution => (
+          background: palette.warningContainer,
+          foreground: palette.onWarningContainer,
+        ),
+      GuidanceTone.alert => (
+          background: palette.errorContainer,
+          foreground: palette.onErrorContainer,
+        ),
+      GuidanceTone.neutral => (
+          background: palette.surfaceVariant,
+          foreground: palette.onSurfaceVariant,
+        ),
     };

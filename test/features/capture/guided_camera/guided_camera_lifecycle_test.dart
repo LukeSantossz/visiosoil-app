@@ -1,0 +1,122 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+
+import '../../../support/guided_camera_harness.dart';
+import '../../../support/guidelines.dart';
+
+void main() {
+  testWidgets('the_camera_follows_the_lifecycle', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final binding = tester.binding;
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(h.cameras.log.where((entry) => entry == 'dispose:0'), hasLength(1));
+    expect(fakePreview, findsNothing);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(h.cameras.cameras, hasLength(2));
+    expect(fakePreview, findsOneWidget);
+
+    // A second resume while an initialisation is pending starts none.
+    h.cameras.initializeGate = Completer<void>();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(h.cameras.cameras, hasLength(3));
+    h.cameras.initializeGate!.complete();
+    h.cameras.initializeGate = null;
+    await tester.pumpAndSettle();
+    expect(fakePreview, findsOneWidget);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+    await tester.pump();
+    expect(h.cameras.cameras.last.disposed, isTrue);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a_stale_initialisation_restarts_when_wanted', (tester) async {
+    final h = GuidedCameraHarness()..cameras.initializeGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    final gate = h.cameras.initializeGate!;
+    h.cameras.initializeGate = null;
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(h.cameras.cameras.first.disposed, isTrue);
+    expect(h.cameras.cameras.where((camera) => !camera.disposed), hasLength(1));
+    expect(fakePreview, findsOneWidget);
+  });
+
+  testWidgets('an_initialisation_after_dispose_disposes_its_camera',
+      (tester) async {
+    final h = GuidedCameraHarness()..cameras.initializeGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    await backOut(tester);
+
+    h.cameras.initializeGate!.complete();
+    await tester.pumpAndSettle();
+    expect(h.cameras.cameras.single.disposed, isTrue);
+    expect(h.cameras.cameras, hasLength(1));
+  });
+
+  testWidgets('a_revoked_permission_cancels', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    h.cameras.initializeError =
+        const CameraPermissionRevokedException('CameraAccessDenied');
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(h.popped.single, isA<GuidedCaptureCancelled>());
+  });
+
+  testWidgets('another_error_on_resume_is_unavailable', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    h.cameras.initializeError = const CameraUnavailableException('gone');
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(h.popped.single, isA<GuidedCaptureUnavailable>());
+  });
+
+  testWidgets('the_orientation_is_restored', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final log = h.cameras.log;
+    const portrait = 'orientations:[DeviceOrientation.portraitUp]';
+    expect(log, contains(portrait));
+    expect(log.indexOf(portrait), lessThan(log.indexOf('initialize:0')));
+
+    await backOut(tester);
+    expect(log.last, 'orientations:[]');
+    expect(log.indexOf('dispose:0'), lessThan(log.lastIndexOf('orientations:[]')));
+  });
+
+  for (final (name, theme) in appThemes) {
+    testWidgets('guided_camera_meets_guidelines_$name', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final h = await openGuidedCamera(tester, theme: theme);
+      for (final degrees in [0.0, 8.0, 20.0]) {
+        await tiltTo(tester, h, degrees);
+        await expectMeetsGuidelines(tester);
+      }
+      semantics.dispose();
+    });
+  }
+}
