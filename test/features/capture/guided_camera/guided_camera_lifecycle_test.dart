@@ -119,4 +119,45 @@ void main() {
       semantics.dispose();
     });
   }
+
+  // Final review fixes (R2, Codex Luna).
+  testWidgets('a_resume_waits_for_the_release', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final binding = tester.binding;
+    h.cameras.disposeGate = Completer<void>();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(h.cameras.log, isNot(contains('initialize:1')),
+        reason: 'a second camera must not open while the first is released');
+
+    h.cameras.disposeGate!.complete();
+    h.cameras.disposeGate = null;
+    await tester.pumpAndSettle();
+    final log = h.cameras.log;
+    expect(log.indexOf('dispose:0'), lessThan(log.indexOf('initialize:1')));
+    expect(fakePreview, findsOneWidget);
+  });
+
+  testWidgets('closing_during_initialisation_restores_after_release',
+      (tester) async {
+    final h = GuidedCameraHarness()..cameras.initializeGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    await backOut(tester);
+    h.cameras.initializeGate!.complete();
+    await tester.pumpAndSettle();
+
+    final log = h.cameras.log;
+    expect(log, contains('dispose:0'));
+    expect(log.indexOf('dispose:0'), lessThan(log.lastIndexOf('orientations:[]')));
+  });
+
+  testWidgets('a_failing_release_still_restores_the_orientation',
+      (tester) async {
+    final h = await openGuidedCamera(tester);
+    h.cameras.disposeError = CameraUnavailableException('release failed');
+    await backOut(tester);
+    expect(h.cameras.log.last, 'orientations:[]');
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -17,6 +17,16 @@ class FakeCaptureCameras {
   /// When set, initialize waits on it, so a test can hold it pending.
   Completer<void>? initializeGate;
 
+  /// When set, dispose waits on it before it completes.
+  Completer<void>? disposeGate;
+
+  /// Thrown by dispose, when set.
+  Object? disposeError;
+
+  /// When set, takePicture returns a file at this path instead of a made-up
+  /// one, so a test can check what happens to it.
+  String? picturePath;
+
   final cameras = <FakeCaptureCamera>[];
   final log = <String>[];
 
@@ -64,13 +74,19 @@ class FakeCaptureCamera implements CaptureCamera {
     if (gate != null) await gate.future;
     final error = _owner.takePictureError;
     if (error != null) throw error;
-    return XFile('/tmp/guided_$index.jpg');
+    return XFile(_owner.picturePath ?? '/tmp/guided_$index.jpg');
   }
 
+  /// Logs `dispose:<index>` once the release has completed, so a test can
+  /// check what waited on it.
   @override
   Future<void> dispose() async {
     if (disposed) return;
     disposed = true;
+    final gate = _owner.disposeGate;
+    if (gate != null) await gate.future;
+    final error = _owner.disposeError;
+    if (error != null) throw error;
     _owner.log.add('dispose:$index');
   }
 }

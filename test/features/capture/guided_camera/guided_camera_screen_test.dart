@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 import '../../../support/guided_camera_harness.dart';
 
@@ -146,5 +149,70 @@ void main() {
     await tester.pumpAndSettle();
     expect(h.popped, [isNull]);
     expect(tester.takeException(), isNull);
+  });
+
+  // Final review fixes (R2, Codex Luna).
+  testWidgets('a_late_failure_after_close_is_recorded', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final gate = Completer<void>();
+    h.cameras.cameras.single.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+    await backOut(tester);
+
+    h.cameras.takePictureError = CameraException('captureFailed', 'late');
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(h.errors.sources, ['guided_camera']);
+  });
+
+  testWidgets('a_late_photograph_after_close_is_deleted', (tester) async {
+    final dir = Directory.systemTemp.createTempSync('guided_late');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File('${dir.path}/late.jpg')..writeAsBytesSync([1, 2, 3]);
+    final h = await openGuidedCamera(tester);
+    h.cameras.picturePath = file.path;
+    final gate = Completer<void>();
+    h.cameras.cameras.single.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+    await backOut(tester);
+
+    gate.complete();
+    await tester.runAsync(() async {
+      for (var i = 0; i < 20 && file.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    });
+    await tester.pumpAndSettle();
+    expect(file.existsSync(), isFalse);
+    expect(h.popped, [isNull]);
+  });
+
+  testWidgets('the_banner_uses_each_roles_container', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final palette = AppPalette.light;
+    Color background() => tester
+        .widget<Container>(find.byKey(const ValueKey('guided-camera-banner')))
+        .color!;
+    Color ink() => tester
+        .widget<Text>(find.descendant(
+          of: find.byKey(const ValueKey('guided-camera-banner')),
+          matching: find.byType(Text),
+        ))
+        .style!
+        .color!;
+
+    expect((background(), ink()),
+        (palette.surfaceVariant, palette.onSurfaceVariant));
+    for (final (degrees, container, onContainer) in [
+      (0.0, palette.primaryContainer, palette.onPrimaryContainer),
+      (8.0, palette.warningContainer, palette.onWarningContainer),
+      (20.0, palette.errorContainer, palette.onErrorContainer),
+    ]) {
+      await tiltTo(tester, h, degrees);
+      expect((background(), ink()), (container, onContainer), reason: '$degrees');
+    }
   });
 }

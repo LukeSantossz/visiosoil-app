@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io';
 
+import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +38,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// knows it is stale and disposes its own camera.
   int _generation = 0;
   bool _initializing = false;
+
+  /// The release in flight, if any; the next camera opens only after it.
+  Future<void> _teardown = Future.value();
+
+  /// The initialisation in flight, if any; dispose waits for it.
+  Future<void>? _opening;
 
   /// Whether the screen wants a live camera: false between a release and the
   /// next resume, and after dispose.
@@ -79,16 +87,33 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     await _openCamera();
   }
 
-  Future<void> _openCamera() async {
-    if (_initializing || _camera != null || !_wantCamera || _closed) return;
+  Future<void> _openCamera() {
+    if (_initializing || _camera != null || !_wantCamera || _closed) {
+      return Future.value();
+    }
     _initializing = true;
+    final opening = _initializeCamera();
+    _opening = opening;
+    return opening;
+  }
+
+  Future<void> _initializeCamera() async {
     final generation = _generation;
-    final camera = ref.read(captureCameraFactoryProvider)();
+    final cameras = ref.read(captureCameraFactoryProvider);
+    // A camera being released must be gone before the next one opens: two
+    // native sessions on one sensor conflict.
+    await _teardown;
+    if (generation != _generation || !mounted) {
+      _initializing = false;
+      _reopenIfWanted();
+      return;
+    }
+    final camera = cameras();
     try {
       await camera.initialize();
     } on Exception catch (e, stack) {
       _initializing = false;
-      await camera.dispose();
+      await _release(camera);
       if (generation != _generation || !mounted) {
         _reopenIfWanted();
         return;
@@ -108,7 +133,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
     _initializing = false;
     if (generation != _generation || !mounted) {
-      await camera.dispose();
+      await _release(camera);
       _reopenIfWanted();
       return;
     }
@@ -124,12 +149,34 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     if (mounted && _wantCamera) unawaited(_openCamera());
   }
 
-  Future<void> _releaseCamera() async {
+  /// Releases [camera], logging a failure: a camera that fails to close must
+  /// not stop the screen from reopening one or restoring the orientation.
+  Future<void> _release(CaptureCamera? camera) async {
+    if (camera == null) return;
+    try {
+      await camera.dispose();
+    } on Exception catch (e, stack) {
+      developer.log(
+        'Releasing the guided camera failed: $e',
+        name: 'GuidedCameraScreen',
+        error: e,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// Queues the live camera's release behind any release still in flight.
+  /// [rebuild] is false from dispose, where the screen cannot rebuild.
+  void _releaseCamera({bool rebuild = true}) {
     _generation++;
     final camera = _camera;
     _camera = null;
-    if (mounted) setState(() {});
-    await camera?.dispose();
+    if (rebuild && mounted) setState(() {});
+    final previous = _teardown;
+    _teardown = () async {
+      await previous;
+      await _release(camera);
+    }();
   }
 
   @override
@@ -144,7 +191,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         _wantCamera = false;
-        unawaited(_releaseCamera());
+        _releaseCamera();
     }
   }
 
@@ -152,18 +199,36 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final camera = _camera;
     if (_shooting || camera == null) return;
     _shooting = true;
+    // Read now: the screen may be closed by the time the shot returns.
+    final errors = ref.read(errorReportStoreProvider);
     try {
       final file = await camera.takePicture();
+      if (_closed || !mounted) {
+        // Nobody will receive it: the screen closed while it was taken.
+        await _discard(file);
+        return;
+      }
       _pop(GuidedCaptureResult.captured(file));
     } on Exception catch (e, stack) {
       _shooting = false;
-      unawaited(ref
-          .read(errorReportStoreProvider)
-          .record(source: 'guided_camera', error: e, stack: stack));
+      unawaited(errors.record(source: 'guided_camera', error: e, stack: stack));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Não foi possível tirar a foto. Tente de novo.'),
       ));
+    }
+  }
+
+  Future<void> _discard(XFile file) async {
+    try {
+      await File(file.path).delete();
+    } on FileSystemException catch (e, stack) {
+      developer.log(
+        'Could not delete a photograph taken after the camera closed: $e',
+        name: 'GuidedCameraScreen',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -179,14 +244,20 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _wantCamera = false;
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_tiltSubscription?.cancel());
-    _generation++;
-    final camera = _camera;
-    _camera = null;
+    _releaseCamera(rebuild: false);
+    final teardown = _teardown;
+    final opening = _opening;
     unawaited(() async {
-      await camera?.dispose();
-      // Back to the app's default of every orientation, once the camera is
-      // released.
-      await SystemChrome.setPreferredOrientations(const []);
+      try {
+        await teardown;
+        // An initialisation still in flight releases its own camera when it
+        // completes stale; wait for that too.
+        await opening;
+      } finally {
+        // Back to the app's default of every orientation, once every camera
+        // is released.
+        await SystemChrome.setPreferredOrientations(const []);
+      }
     }());
     super.dispose();
   }
