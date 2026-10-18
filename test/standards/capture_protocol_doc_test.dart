@@ -59,10 +59,14 @@ void main() {
               !classificationFailureChip(cause).retryable,
         );
         expect(retakeCauses, isNotEmpty);
+        final rows = protocol.split('\n').where((line) => line.startsWith('|'));
         for (final cause in retakeCauses) {
-          expect(protocol, contains('`${cause.name}`'), reason: cause.name);
+          // The cause and its chip's label share one table row, so a label
+          // moved to another cause's row is caught.
+          final row = rows.where((line) => line.contains('`${cause.name}`'));
+          expect(row, hasLength(1), reason: cause.name);
           expect(
-            protocol,
+            row.single,
             contains(classificationFailureChip(cause).label),
             reason: '${cause.name} chip label',
           );
