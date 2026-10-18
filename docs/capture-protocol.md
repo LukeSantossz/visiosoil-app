@@ -1,16 +1,19 @@
 # Capture Protocol
 
-How to take a soil photograph VisioSoil can classify. Follow every step: the app
-reads the scale from the A4 sheet, and a photograph that breaks a step is
-refused by name rather than guessed at
+How to take a soil photograph VisioSoil can classify. Follow every step. The app
+reads the scale from the A4 sheet, and a photograph whose sheet or soil it
+cannot read is refused by name rather than guessed at
 ([ADR 0017](adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
+It does not check every step: the soil's dryness and preparation, the light, the
+focus and the circle's upper size are yours to get right, and a photograph that
+misses one may still be read.
 
 A pt-BR version is [`capture-protocol.pt-BR.md`](capture-protocol.pt-BR.md).
 This file is its source, and the two state the same steps and limits.
 
-**No real photograph has been classified yet.** The limits below are the ones the
-code enforces today. They say what the app will read, not how accurate the
-reading is on field photographs
+**No real photograph has been classified yet.** The code enforces two of the
+limits below, 2299 px and 63 mm. They say what the app will read, not how
+accurate the reading is on field photographs
 ([`docs/ml/sheet-reader-real-photographs.md`](ml/sheet-reader-real-photographs.md)).
 
 ## 1. What you need

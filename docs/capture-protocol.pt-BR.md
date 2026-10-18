@@ -1,16 +1,19 @@
 # Protocolo de Captura
 
 Como tirar uma foto de solo que o VisioSoil consegue classificar. Siga todos os
-passos: o app lê a escala pela folha A4, e uma foto que descumpre um passo é
-recusada com o motivo, nunca estimada
+passos. O app lê a escala pela folha A4, e uma foto cuja folha ou cujo solo ele
+não consegue ler é recusada com o motivo, nunca estimada
 ([ADR 0017](adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
+Ele não confere todos os passos: a secagem e o preparo do solo, a luz, o foco e o
+tamanho máximo do círculo ficam por sua conta, e uma foto que falhe num deles
+ainda pode ser lida.
 
 Versão em pt-BR de [`capture-protocol.md`](capture-protocol.md), que é a fonte.
 Os dois documentos trazem os mesmos passos e limites.
 
-**Nenhuma foto real foi classificada ainda.** Os limites abaixo são os que o
-código aplica hoje. Eles dizem o que o app vai ler, não quão precisa é a leitura
-em fotos de campo
+**Nenhuma foto real foi classificada ainda.** O código aplica dois dos limites
+abaixo, 2299 px e 63 mm. Eles dizem o que o app vai ler, não quão precisa é a
+leitura em fotos de campo
 ([`docs/ml/sheet-reader-real-photographs.md`](ml/sheet-reader-real-photographs.md)).
 
 ## 1. O que você precisa
