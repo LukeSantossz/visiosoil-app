@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:camera/camera.dart' show CameraException;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -215,6 +216,19 @@ void main() {
     expect(bannerText(tester), 'Nivelado. Encaixe a folha no contorno.');
     await tester.tap(shutter);
     await tester.pumpAndSettle();
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
+
+  testWidgets('a_stream_that_will_not_stop_is_recorded', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await emitFrame(tester, h);
+    h.cameras.stopFramesError = CameraException('stopFailed', 'still streaming');
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+    expect(h.errors.sources, contains('guided_camera'));
+    // The shot is still attempted; its own failure path handles a camera
+    // that cannot capture while streaming.
+    expect(h.cameras.log, contains('takePicture:0'));
     expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
 }

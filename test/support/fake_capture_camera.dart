@@ -28,6 +28,9 @@ class FakeCaptureCameras {
   /// Thrown by dispose, when set.
   Object? disposeError;
 
+  /// Thrown by stopFrames, when set.
+  Object? stopFramesError;
+
   /// When set, takePicture returns a file at this path instead of a made-up
   /// one, so a test can check what happens to it.
   String? picturePath;
@@ -73,6 +76,8 @@ class FakeCaptureCamera implements CaptureCamera {
 
   @override
   Future<void> stopFrames() async {
+    final error = _owner.stopFramesError;
+    if (error != null) throw error;
     if (_onFrame == null) return;
     _onFrame = null;
     _owner.log.add('stopFrames:$index');

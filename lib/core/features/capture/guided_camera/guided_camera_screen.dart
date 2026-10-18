@@ -220,16 +220,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         await _release(camera);
       });
 
+  /// Stops [camera]'s preview frames. A failure is recorded: a stream left
+  /// running wastes the camera's work and can make the next shot fail, which
+  /// that shot's own error path then reports to the user.
   Future<void> _stopFrames(CaptureCamera camera) async {
     try {
       await camera.stopFrames();
     } on Exception catch (e, stack) {
-      developer.log(
-        'Stopping the preview frames failed: $e',
-        name: 'GuidedCameraScreen',
-        error: e,
-        stackTrace: stack,
-      );
+      unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));
     }
   }
 
