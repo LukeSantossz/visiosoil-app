@@ -2,7 +2,7 @@
 
 ## Problem
 
-The repository tracks Flutter's template scaffolding for four platforms the app does not target: `macos/` (27 files), `linux/` (7), `windows/` (15) and `web/` (7). The README calls VisioSoil a mobile app for Android and iOS. CI builds only those two, and nothing builds, tests or deploys the other four. Each of them is maintenance surface that no gate checks, and `.metadata` lists all seven platform entries, as if every one of them were a target. Found by the nightly audits #393 and #396, and approved for removal by the Developer on 2026-10-18.
+The repository tracks Flutter's template scaffolding for macOS, Linux, Windows and web (56 files, flagged by the nightly audits #393 and #396), although the app targets Android and iOS only, nothing builds, tests or deploys the other four, and `.metadata` still lists all seven platform entries as if each were a target.
 
 ## Scope
 
