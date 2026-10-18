@@ -120,6 +120,65 @@ void main() {
     expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
 
+  testWidgets('a_tap_and_a_firing_in_the_same_frame_take_one_photograph',
+      (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    h.advance(500);
+    await _read(tester, h, _sound);
+    h.advance(600);
+    // The reading that fires and the tap land before the next frame.
+    await emitFrame(tester, h);
+    h.readers.last.reply(_sound);
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+    expect(_shots(h), 1);
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
+
+  testWidgets('a_failed_manual_shot_unlocks', (tester) async {
+    final h = await openGuidedCamera(tester);
+    h.cameras.takePictureError = const _CaptureFailed();
+    await _openWindow(tester, h);
+    await tester.tap(shutter);
+    await tester.pump();
+    await tester.pump();
+    expect(_shots(h), 1, reason: 'the manual shot failed');
+    expect(h.popped, isEmpty);
+
+    h.cameras.takePictureError = null;
+    expect(h.readers, hasLength(2));
+    h.advance(100);
+    await _read(tester, h, _sound);
+    await _read(tester, h, _sound);
+    h.advance(900);
+    await _read(tester, h, _sound);
+    await tester.pumpAndSettle();
+    expect(_shots(h), 1, reason: 'not yet a full second');
+    h.advance(200);
+    await _read(tester, h, _sound);
+    await tester.pumpAndSettle();
+    expect(_shots(h), 2);
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
+
+  testWidgets('the_reader_fallback_disarms_the_trigger', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    expect(_ring, findsOneWidget);
+    h.readers.last.fail();
+    await tester.pumpAndSettle();
+    expect(_ring, findsNothing);
+    // Level tilts that still move, so each one is an event the trigger sees.
+    for (var i = 0; i < 4; i++) {
+      h.advance(500);
+      await tiltTo(tester, h, i.isEven ? 0.2 : 0.4);
+    }
+    await tester.pumpAndSettle();
+    expect(_shots(h), 0);
+    expect(_ring, findsNothing);
+  });
+
   testWidgets('no_tilt_no_trigger', (tester) async {
     final h = await openGuidedCamera(tester);
     h.tilt.controller.addError(StateError('no accelerometer'));
