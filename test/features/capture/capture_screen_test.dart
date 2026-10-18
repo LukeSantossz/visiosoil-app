@@ -14,6 +14,10 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+import 'package:visiosoil_app/providers/guided_camera_provider.dart';
+import 'package:visiosoil_app/providers/error_report_provider.dart';
+import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
@@ -29,6 +33,7 @@ import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_capture_guide_store.dart';
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/guided_camera_harness.dart';
 import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 
@@ -96,7 +101,9 @@ void main() {
   });
 
   Widget buildScreen({
-    required CameraImagePicker pickFromCamera,
+    CameraImagePicker? pickFromCamera,
+    GuidedCameraOpener? openGuidedCamera,
+    CameraImagePicker? pickFromSystemCamera,
     required LocationResolver locate,
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
@@ -118,6 +125,8 @@ void main() {
         theme: theme,
         home: CaptureScreen(
           pickFromCamera: pickFromCamera,
+          openGuidedCamera: openGuidedCamera,
+          pickFromSystemCamera: pickFromSystemCamera,
           locate: locate,
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
@@ -858,8 +867,9 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
 
-    // pickFromCamera is left as the real default on purpose, so the capture
-    // drives ImagePicker().pickImage down to the intercepted channel.
+    // pickFromCamera and pickFromSystemCamera are left as the real defaults on
+    // purpose, so the capture drives ImagePicker().pickImage down to the
+    // intercepted channel.
     await tester.pumpWidget(ProviderScope(
       overrides: [
         _guideAlreadySeen(),
@@ -868,6 +878,9 @@ void main() {
       ],
       child: MaterialApp(
         home: CaptureScreen(
+          // The guided camera is unavailable, so the system camera's own
+          // default runs (SPEC 0165).
+          openGuidedCamera: (_) async => const GuidedCaptureResult.unavailable(),
           locate: () async => null,
           checkCameraPermission: () async => AppPermissionStatus.granted,
           requestCameraPermission: () async => AppPermissionStatus.granted,
@@ -1784,6 +1797,176 @@ void main() {
       await tester.tap(find.text('Câmera'));
       await tester.pumpAndSettle();
       expect(picks, ['camera']);
+    });
+  });
+
+  // The default picker composes the guided camera and the system camera it
+  // falls back to (SPEC 0165).
+  group('guided camera composition', () {
+    File? shownImage(WidgetTester tester) => tester
+        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
+        .image;
+
+    testWidgets('no_camera_falls_back_to_the_system_camera', (tester) async {
+      var systemCalls = 0;
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async => const GuidedCaptureResult.unavailable(),
+        pickFromSystemCamera: () async {
+          systemCalls++;
+          return XFile(samplePath);
+        },
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+
+      await capture(tester);
+
+      expect(systemCalls, 1);
+      expect(shownImage(tester), isNotNull);
+    });
+
+    testWidgets('a_guided_photograph_skips_the_system_camera', (tester) async {
+      var systemCalls = 0;
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async =>
+            GuidedCaptureResult.captured(XFile(samplePath)),
+        pickFromSystemCamera: () async {
+          systemCalls++;
+          return null;
+        },
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+
+      await capture(tester);
+
+      expect(systemCalls, 0);
+      expect(shownImage(tester), isNotNull);
+    });
+
+    for (final (name, result) in <(String, GuidedCaptureResult?)>[
+      ('cancelled', const GuidedCaptureResult.cancelled()),
+      ('back', null),
+    ]) {
+      testWidgets('close_returns_nothing_$name', (tester) async {
+        var systemCalls = 0;
+        await tester.pumpWidget(buildScreen(
+          openGuidedCamera: (_) async => result,
+          pickFromSystemCamera: () async {
+            systemCalls++;
+            return XFile(samplePath);
+          },
+          locate: () async => null,
+          classify: (_) async => null,
+        ));
+
+        await capture(tester);
+
+        expect(systemCalls, 0);
+        expect(shownImage(tester), isNull);
+        expect(find.text('Câmera'), findsOneWidget);
+      });
+    }
+  });
+
+  // The guided camera reached the way the app reaches it: a GoRouter push of
+  // /camera, popped by the screen itself (SPEC 0165; R2 review).
+  group('guided camera through the router', () {
+    final productionCameraRoute = appRouter.configuration.routes
+        .whereType<GoRoute>()
+        .singleWhere((route) => route.path == '/camera');
+
+    Future<(GuidedCameraHarness, List<String>)> pumpRouted(
+      WidgetTester tester,
+    ) async {
+      final h = GuidedCameraHarness();
+      final deleted = <String>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+          SystemChannels.platform, (call) async => null);
+      addTearDown(() =>
+          messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      final router = GoRouter(
+        initialLocation: '/capture',
+        routes: [
+          GoRoute(
+            path: '/capture',
+            builder: (_, _) => CaptureScreen(
+              locate: () async => null,
+              checkCameraPermission: () async => AppPermissionStatus.granted,
+              requestCameraPermission: () async => AppPermissionStatus.granted,
+              deletePickedFile: (path) async => deleted.add(path),
+            ),
+          ),
+          // The production route's own builder, so a broken /camera fails here.
+          GoRoute(path: '/camera', builder: productionCameraRoute.builder),
+        ],
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          _guideAlreadySeen(),
+          inferenceServiceProvider
+              .overrideWithValue(_FakeInference((_) async => null)),
+          captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
+          tiltSourceProvider.overrideWithValue(h.tilt),
+          errorReportStoreProvider.overrideWithValue(h.errors),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+      return (h, deleted);
+    }
+
+    File? shownImage(WidgetTester tester) => tester
+        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
+        .image;
+
+    testWidgets('a_guided_photograph_returns_through_the_router',
+        (tester) async {
+      final (h, deleted) = await pumpRouted(tester);
+      h.cameras.picturePath = samplePath;
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('guided-camera-shutter')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await tester.pumpAndSettle();
+      expect(shownImage(tester)?.path, samplePath);
+      expect(deleted, isEmpty);
+    });
+
+    testWidgets('back_from_the_router_returns_nothing', (tester) async {
+      await pumpRouted(tester);
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('guided-camera-shutter')), findsNothing);
+      expect(shownImage(tester), isNull);
+    });
+
+    testWidgets('a_retake_through_the_router_deletes_the_previous_file',
+        (tester) async {
+      final dir = Directory.systemTemp.createTempSync('guided_retake');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final second = File('${dir.path}/second.png')
+        ..writeAsBytesSync(File(samplePath).readAsBytesSync());
+      final (h, deleted) = await pumpRouted(tester);
+
+      h.cameras.picturePath = samplePath;
+      await tester.tap(find.text('Câmera'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await tester.pumpAndSettle();
+
+      h.cameras.picturePath = second.path;
+      await tester.tap(find.text('Tirar outra foto'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await tester.pumpAndSettle();
+
+      expect(shownImage(tester)?.path, second.path);
+      expect(deleted, [samplePath]);
     });
   });
 }

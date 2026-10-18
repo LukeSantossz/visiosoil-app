@@ -200,6 +200,8 @@ constructs a `TargetSignal`.
 
 ## 4. Phase 2 — the in-app viewfinder
 
+**Status (2026-10-17):** started. [ADR 0028](../../adr/0028-capture-uses-an-in-app-camera-that-reads-the-sheet-live.md) decides it, and three specs deliver it: [SPEC 0165](../../specs/0165-capture-through-an-in-app-camera-with-a-sheet-guide.md) (the camera, the sheet outline, the soil target and the level), [SPEC 0166](../../specs/0166-read-the-sheet-live-on-the-camera-preview.md) (the sheet reader on the preview) and [SPEC 0167](../../specs/0167-capture-automatically-when-the-sheet-reads-green.md) (automatic capture). They depart from this section where the A4 protocol of ADR 0017 replaced the centred square, and where the Developer kept the shutter always enabled.
+
 Its own spec, gated separately. Recorded here so phase 1 does not paint it into
 a corner.
 

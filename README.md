@@ -103,6 +103,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | The Dart resample reproduces Pillow's BILINEAR byte for byte ([ADR 0025](docs/adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md)) | Each language's own box filter, as #180 proposed; a simpler kernel adopted on both sides; pixels equal within a tolerance | The descriptors read the resampled pixels directly: spectral bands measure the very frequencies a low-pass shapes, and LBP, which E0 found carries 15.6 points, reads the neighbours a kernel mixes. Exactness costs nothing extra because Pillow's resample calls no libm function, so a byte-exact golden holds across CPUs. The price is named rather than absorbed: Python's half-to-even rounding becomes a Dart helper, and 13,178 RGB triples whose luma is exactly .5 show why |
 | The first Play release waits for classification ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)) | Ship a georeferenced field notebook first; quote E0's accuracy with a caveat | The product the README, onboarding and listing describe is texture classification, and a release without it would be rated as something else. E0's 0.6883 group accuracy was measured on Petri-dish photographs, not on the A4-sheet captures the app makes, so the listing states no accuracy until one is measured on them |
 | A photograph is classified from four patches, and its spread needs nine ([ADR 0027](docs/adr/0027-a-photograph-is-classified-from-four-patches-and-its-spread-needs-nine.md)) — **Withdrawn**, never implemented | Keep ADR 0018's floor of nine; halve the stride; narrow the soil margin | The first real photographs carry a soil disc of 46.5 to 51.4 mm, too small for nine patches. [SPEC 0141](docs/specs/0141-classify-a-soil-patch-too-small-for-nine.md)'s archive study scored the centred five and a half-stride four against the full grid: they lost 0.047 and 0.059 of photograph macro-F1 against a margin of 0.02, and kept the top class on 84 % and 81 % of readings ([the study](docs/ml/small-disc-study.md)). ADR 0018's floor stands, and the remedy is a bigger soil patch |
+| Capture uses an in-app camera that reads the sheet live ([ADR 0028](docs/adr/0028-capture-uses-an-in-app-camera-that-reads-the-sheet-live.md)) | Keep the system camera and teach the protocol before it; a platform document scanner; a lighter live detector; manual capture only | Every refusal that stopped the first real session (sheet cropped or missing, soil too small, photograph too coarse) is visible while framing, and the system camera shows the app nothing. The live guidance is the sheet reader itself, so the user is told what the still will be judged by |
 
 ## Getting Started
 
@@ -207,7 +208,7 @@ visiosoil-app/
 │   ├── core/
 │   │   ├── theme/           # AppTheme (light + dark), AppPalette, AppColors, AppTypography,
 │   │   │                    #   AppSpacing, AppRadius, AppMotion, AppHaptics, SoilTextureColors
-│   │   ├── routes/          # GoRouter config (9 routes + errorBuilder)
+│   │   ├── routes/          # GoRouter config (10 routes + errorBuilder)
 │   │   ├── constants/       # pt-BR UI strings, published links, capture protocol steps
 │   │   ├── widgets/         # 12 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
 │   │   │                    #   EmptyState, ErrorState, LoadingIndicator, PressScale, ...
@@ -223,10 +224,10 @@ visiosoil-app/
 │   │   ├── data/
 │   │   │   ├── repositories/# Interfaces + Drift impls (soil records, management tips)
 │   │   │   └── sync/        # RemoteSyncBackend contract, local store, sync operations
-│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide),
+│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide, guided camera),
 │   │                        #          history, details, preview, compare, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 19 files declaring 37 Riverpod providers (database, repository,
+│   └── providers/           # 20 files declaring 40 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
@@ -243,7 +244,7 @@ visiosoil-app/
 
 ### Done
 
-- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (9 routes)
+- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (10 routes)
 - [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
 - [x] 3-step onboarding capture tutorial
 - [x] Bottom navigation shell (`MainScreen`) with home and history tabs

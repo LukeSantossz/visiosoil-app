@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/guided_camera_screen.dart';
 import 'package:visiosoil_app/core/features/compare/compare_screen.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
@@ -30,6 +31,11 @@ final appRouter = GoRouter(
       // `true` when the guide stands before the camera (SPEC 0142).
       builder: (context, state) =>
           CaptureGuideScreen(beforeCamera: state.extra == true),
+    ),
+    GoRoute(
+      path: '/camera',
+      // The guided camera pops a GuidedCaptureResult (SPEC 0165).
+      builder: (context, state) => const GuidedCameraScreen(),
     ),
     GoRoute(
       path: '/details',

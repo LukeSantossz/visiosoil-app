@@ -1,9 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 <uses-permission android:name="android.permission.CAMERA"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<!-- The camera plugin merges RECORD_AUDIO for video; the app records none and
+     opens the camera with enableAudio: false (SPEC 0165). -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+<!-- It also merges WRITE_EXTERNAL_STORAGE (to API 28), which implies READ;
+     its stills go to the app's cache directory, which needs neither. -->
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 <!-- Play filters the listing by required hardware, declared or implied by a
      permission. Capture is camera-only; a record saves without coordinates,
      and the camera app handles focus (SPEC 0100). -->

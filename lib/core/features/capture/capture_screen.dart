@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
@@ -40,6 +41,11 @@ typedef LocationResolver = Future<LocationReading?> Function();
 /// Opens the camera and returns the captured image, or `null` if cancelled.
 typedef CameraImagePicker = Future<XFile?> Function();
 
+/// Opens the guided camera and returns what it popped, or `null` for a back
+/// gesture (SPEC 0165).
+typedef GuidedCameraOpener = Future<GuidedCaptureResult?> Function(
+    BuildContext context);
+
 /// Reports a camera permission status.
 typedef CameraPermissionProbe = Future<AppPermissionStatus> Function();
 
@@ -59,6 +65,8 @@ class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({
     super.key,
     this.pickFromCamera,
+    this.openGuidedCamera,
+    this.pickFromSystemCamera,
     this.locate,
     this.checkCameraPermission,
     this.requestCameraPermission,
@@ -72,6 +80,11 @@ class CaptureScreen extends ConsumerStatefulWidget {
   final CameraPermissionProbe? checkCameraPermission;
   final CameraPermissionProbe? requestCameraPermission;
   final PickedFileDeleter? deletePickedFile;
+
+  /// Used only when [pickFromCamera] is not injected: the guided camera, and
+  /// the system camera it falls back to (SPEC 0165).
+  final GuidedCameraOpener? openGuidedCamera;
+  final CameraImagePicker? pickFromSystemCamera;
 
   /// A photograph to start with instead of opening the camera: one recovered
   /// after Android killed the app mid-capture (SPEC 0096).
@@ -98,6 +111,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   late final CameraImagePicker _pickFromCamera =
       widget.pickFromCamera ?? _defaultPickFromCamera;
+  late final GuidedCameraOpener _openGuidedCamera = widget.openGuidedCamera ??
+      (context) => context.push<GuidedCaptureResult>('/camera');
+  late final CameraImagePicker _pickFromSystemCamera =
+      widget.pickFromSystemCamera ?? _systemCameraPick;
   late final LocationResolver _locate = widget.locate ?? _defaultLocate;
   late final CameraPermissionProbe _checkCameraPermission =
       widget.checkCameraPermission ?? PermissionService.checkCamera;
@@ -134,7 +151,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
-  Future<XFile?> _defaultPickFromCamera() => ImagePicker().pickImage(
+  /// The guided camera, and the system camera only when the guided one is
+  /// unavailable (SPEC 0165, ADR 0028).
+  Future<XFile?> _defaultPickFromCamera() async {
+    final result = await _openGuidedCamera(context);
+    return switch (result) {
+      GuidedCaptureCaptured(:final file) => file,
+      GuidedCaptureUnavailable() => _pickFromSystemCamera(),
+      GuidedCaptureCancelled() || null => null,
+    };
+  }
+
+  Future<XFile?> _systemCameraPick() => ImagePicker().pickImage(
         source: ImageSource.camera,
         // Drop EXIF (including GPS) at the source so stored originals carry no
         // uncontrolled location duplicate; the app never reads image metadata.
