@@ -64,6 +64,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   bool _shooting = false;
   bool _closed = false;
 
+  /// Completes once the last shot is done with the camera: a release waits
+  /// for it, so the controller is never disposed under `takePicture`.
+  Future<void> _shotInFlight = Future.value();
+
   final TiltSmoother _smoother = TiltSmoother();
   double? _tilt;
   StreamSubscription<AccelerationSample>? _tiltSubscription;
@@ -234,9 +238,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   /// Puts [camera]'s release on the app-wide queue, so the next camera,
   /// which waits on it, never opens while any earlier one is still closing.
-  /// Its frames stop first.
+  /// A shot still using it finishes first, then its frames stop.
   Future<void> _queueRelease(CaptureCamera? camera) => _releases.add(() async {
         if (camera == null) return;
+        await _shotInFlight;
         await _stopFrames(camera);
         await _release(camera);
       });
@@ -544,9 +549,18 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     // Stopping closes the window, so the ring and its banner go now.
     _stopLive();
     if (mounted) setState(() {});
-    await _stopFrames(camera);
+    // Set before the first await, so a release queued meanwhile waits on it,
+    // and completed in the finally whether the shot succeeds or throws.
+    final inFlight = Completer<void>();
+    _shotInFlight = inFlight.future;
     try {
-      final file = await camera.takePicture();
+      final XFile file;
+      try {
+        await _stopFrames(camera);
+        file = await camera.takePicture();
+      } finally {
+        inFlight.complete();
+      }
       // Learned before the photograph is handed over: whoever owns the file
       // next may move or delete it.
       await _learnStillSize(stillSizes, file);
