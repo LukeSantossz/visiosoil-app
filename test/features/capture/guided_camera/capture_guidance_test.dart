@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
+import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart'
+    show FrameSide;
 
 void main() {
   test('tilt_bands_name_the_sentence', () {
@@ -119,6 +122,211 @@ void main() {
       expect(debouncer.accept(GuidanceRow.ready), GuidanceRow.ready);
       expect(debouncer.accept(GuidanceRow.smallSoil), GuidanceRow.ready);
       expect(debouncer.accept(GuidanceRow.ready), GuidanceRow.ready);
+    });
+  });
+
+  group('reactive guides (SPEC 0169)', () {
+    const sound = LiveSheetFound(
+      sheetLongSidePx: 900,
+      discDiameterMm: 70,
+      holdsMinPatches: true,
+    );
+    const noSoil = LiveSheetFound(
+      sheetLongSidePx: 900,
+      discDiameterMm: null,
+      holdsMinPatches: false,
+    );
+    const placed = {
+      BracketPosition.topLeft: GuideState.placed,
+      BracketPosition.topRight: GuideState.placed,
+      BracketPosition.bottomRight: GuideState.placed,
+      BracketPosition.bottomLeft: GuideState.placed,
+    };
+    final oneNear = {...placed, BracketPosition.topRight: GuideState.near};
+
+    SheetAlignment misaligned(MisalignmentFix fix, {FrameSide? arrow}) =>
+        (brackets: oneNear, arrow: arrow, fix: fix, offScreen: const []);
+
+    String message(
+      LiveReading reading,
+      SheetAlignment? alignment, {
+      bool coarse = false,
+    }) => guidanceFor(
+      tilt: 0,
+      reading: reading,
+      tooCoarse: coarse,
+      alignment: alignment,
+    ).guidance.message;
+
+    test('misalignment_names_its_fix', () {
+      expect(
+        message(
+          sound,
+          misaligned(MisalignmentFix.shift, arrow: FrameSide.right),
+        ),
+        'Leve o celular para a direita.',
+      );
+      expect(
+        message(sound, misaligned(MisalignmentFix.shift, arrow: FrameSide.top)),
+        'Leve o celular para cima.',
+      );
+      expect(
+        message(sound, misaligned(MisalignmentFix.closer)),
+        'Aproxime o celular da folha.',
+      );
+      expect(
+        message(sound, misaligned(MisalignmentFix.farther)),
+        'Afaste o celular da folha.',
+      );
+      expect(
+        message(sound, misaligned(MisalignmentFix.turn)),
+        'Gire o celular até a folha ficar reta no contorno.',
+      );
+      expect(
+        guidanceFor(
+          tilt: 0,
+          reading: sound,
+          tooCoarse: false,
+          alignment: misaligned(MisalignmentFix.turn),
+        ).guidance.tone,
+        GuidanceTone.caution,
+      );
+    });
+
+    test('the_misaligned_row_sits_between_scale_and_soil', () {
+      final turned = misaligned(MisalignmentFix.turn);
+      GuidanceRow rowOf(LiveReading reading, {bool coarse = false}) =>
+          guidanceFor(
+            tilt: 0,
+            reading: reading,
+            tooCoarse: coarse,
+            alignment: turned,
+          ).row;
+      expect(rowOf(noSoil), GuidanceRow.sheetMisaligned);
+      expect(rowOf(sound, coarse: true), GuidanceRow.tooCoarse);
+      expect(
+        guidanceFor(
+          tilt: 0,
+          reading: sound,
+          tooCoarse: false,
+          alignment: (
+            brackets: placed,
+            arrow: null,
+            fix: null,
+            offScreen: const [],
+          ),
+        ).row,
+        GuidanceRow.ready,
+      );
+    });
+
+    test('cropped_sentences_name_the_side', () {
+      expect(
+        message(const LiveSheetCropped(sides: [FrameSide.right]), null),
+        'A folha saiu pela direita.',
+      );
+      expect(
+        message(
+          const LiveSheetCropped(sides: [FrameSide.top, FrameSide.left]),
+          null,
+        ),
+        'A folha saiu pela parte de cima.',
+      );
+      expect(
+        message(
+          const LiveSheetCropped(sides: [FrameSide.left, FrameSide.right]),
+          null,
+        ),
+        'A folha passa da tela. Afaste o celular.',
+      );
+      expect(
+        message(const LiveSheetCropped(), null),
+        'A folha está cortada. Afaste o celular.',
+      );
+      // A whole sheet with a corner past the screen reads as cropped.
+      expect(
+        guidanceFor(
+          tilt: 0,
+          reading: sound,
+          tooCoarse: false,
+          alignment: (
+            brackets: oneNear,
+            arrow: FrameSide.right,
+            fix: MisalignmentFix.shift,
+            offScreen: const [FrameSide.right],
+          ),
+        ),
+        isA<({GuidanceRow row, Guidance guidance})>()
+            .having((g) => g.row, 'row', GuidanceRow.sheetCropped)
+            .having(
+              (g) => g.guidance.message,
+              'message',
+              'A folha saiu pela direita.',
+            ),
+      );
+    });
+
+    test('the_warning_names_the_way_to_move', () {
+      expect(croppedWarning(const [FrameSide.right]), (
+        title: 'A folha saiu da tela',
+        line: 'Leve o celular para a direita',
+      ));
+      expect(croppedWarning(const [FrameSide.bottom]), (
+        title: 'A folha saiu da tela',
+        line: 'Leve o celular para baixo',
+      ));
+      expect(croppedWarning(const [FrameSide.left, FrameSide.right]), (
+        title: 'A folha saiu da tela',
+        line: 'Afaste o celular da folha',
+      ));
+      expect(croppedWarning(const []), (
+        title: 'A folha saiu da tela',
+        line: 'Afaste o celular da folha',
+      ));
+    });
+
+    test('cropped_sides_come_from_the_reading_or_the_screen', () {
+      expect(
+        croppedSidesOf(const LiveSheetCropped(sides: [FrameSide.left]), null),
+        [FrameSide.left],
+      );
+      expect(
+        croppedSidesOf(sound, (
+          brackets: oneNear,
+          arrow: null,
+          fix: MisalignmentFix.turn,
+          offScreen: const [FrameSide.bottom],
+        )),
+        [FrameSide.bottom],
+      );
+      expect(croppedSidesOf(sound, null), isEmpty);
+      expect(croppedSidesOf(null, null), isEmpty);
+    });
+
+    test('no_mapping_keeps_spec_0166', () {
+      for (final reading in <LiveReading?>[
+        null,
+        const LiveSheetNotFound(),
+        const LiveSheetCropped(),
+        sound,
+        noSoil,
+      ]) {
+        for (final tilt in <double?>[null, 0, 8, 20]) {
+          for (final coarse in [false, true]) {
+            final withNone = guidanceFor(
+              tilt: tilt,
+              reading: reading,
+              tooCoarse: coarse,
+              alignment: null,
+            );
+            expect(withNone.row, isNot(GuidanceRow.sheetMisaligned));
+            expect(
+              withNone,
+              guidanceFor(tilt: tilt, reading: reading, tooCoarse: coarse),
+            );
+          }
+        }
+      }
     });
   });
 }
