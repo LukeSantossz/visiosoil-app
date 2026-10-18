@@ -240,4 +240,44 @@ void main() {
     expect(log.lastIndexOf(portrait), lessThan(log.indexOf('initialize:1')));
     expect(fakePreview, findsOneWidget);
   });
+
+  // #391: a release never disposes the controller under a shot.
+  testWidgets('a_release_waits_for_the_shot_in_flight', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final camera = h.cameras.cameras.single;
+    final gate = Completer<void>();
+    camera.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+    expect(camera.takePictureCalls, 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(camera.disposed, isFalse,
+        reason: 'takePicture is still running on this camera');
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(camera.disposed, isTrue);
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a_close_waits_for_the_shot_in_flight', (tester) async {
+    final h = await openGuidedCamera(tester);
+    final camera = h.cameras.cameras.single;
+    final gate = Completer<void>();
+    camera.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+    await backOut(tester);
+    expect(camera.disposed, isFalse,
+        reason: 'takePicture is still running on this camera');
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(camera.disposed, isTrue);
+    expect(h.popped, [isNull]);
+    expect(tester.takeException(), isNull);
+  });
 }
