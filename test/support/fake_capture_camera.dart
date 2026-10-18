@@ -48,6 +48,31 @@ class FakeCaptureCamera implements CaptureCamera {
   /// When set, takePicture waits on it.
   Completer<void>? pictureGate;
 
+  void Function(CameraFrame frame)? _onFrame;
+
+  /// Whether frames are streaming.
+  bool get streaming => _onFrame != null;
+
+  /// Hands [frame] to the screen as the plugin's stream would; ignored when
+  /// not streaming.
+  void emitFrame(CameraFrame frame) => _onFrame?.call(frame);
+
+  @override
+  int get sensorOrientation => 0;
+
+  @override
+  Future<void> startFrames(void Function(CameraFrame frame) onFrame) async {
+    _owner.log.add('startFrames:$index');
+    _onFrame = onFrame;
+  }
+
+  @override
+  Future<void> stopFrames() async {
+    if (_onFrame == null) return;
+    _onFrame = null;
+    _owner.log.add('stopFrames:$index');
+  }
+
   @override
   Future<void> initialize() async {
     _owner.log.add('initialize:$index');

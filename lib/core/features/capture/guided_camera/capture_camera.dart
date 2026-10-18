@@ -1,6 +1,10 @@
+import 'dart:developer' as developer;
+
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_frame.dart';
 
 /// What the guided camera hands back to the capture screen (SPEC 0165).
 sealed class GuidedCaptureResult {
@@ -70,9 +74,28 @@ abstract interface class CaptureCamera {
   /// Releases the camera. Safe to call more than once, or after a failed
   /// [initialize].
   Future<void> dispose();
+
+  /// The clockwise turn, in degrees, that makes a preview frame upright.
+  /// Valid after [initialize].
+  int get sensorOrientation;
+
+  /// Streams preview frames to [onFrame] until [stopFrames].
+  Future<void> startFrames(void Function(CameraFrame frame) onFrame);
+
+  Future<void> stopFrames();
 }
 
 typedef CaptureCameraFactory = CaptureCamera Function();
+
+/// One preview frame's first plane: the luma on Android, BGRA on iOS
+/// (SPEC 0166).
+typedef CameraFrame = ({
+  LivePixelFormat format,
+  int width,
+  int height,
+  Uint8List bytes,
+  int bytesPerRow,
+});
 
 /// [CaptureCamera] over the `camera` plugin.
 class PluginCaptureCamera implements CaptureCamera {
@@ -98,6 +121,10 @@ class PluginCaptureCamera implements CaptureCamera {
         back.first,
         ResolutionPreset.max,
         enableAudio: false,
+        // The plane the live reader reads: the luma on Android, BGRA on iOS.
+        imageFormatGroup: defaultTargetPlatform == TargetPlatform.iOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420,
       );
       _controller = controller;
       await controller.initialize();
@@ -130,5 +157,46 @@ class PluginCaptureCamera implements CaptureCamera {
     final controller = _controller;
     _controller = null;
     await controller?.dispose();
+  }
+
+  @override
+  int get sensorOrientation => _controller!.description.sensorOrientation;
+
+  bool _loggedUnreadable = false;
+
+  @override
+  Future<void> startFrames(void Function(CameraFrame frame) onFrame) =>
+      _controller!.startImageStream((image) {
+        final format = switch (image.format.group) {
+          ImageFormatGroup.yuv420 => LivePixelFormat.yuv420,
+          ImageFormatGroup.bgra8888 => LivePixelFormat.bgra8888,
+          _ => null,
+        };
+        if (format == null) {
+          if (!_loggedUnreadable) {
+            _loggedUnreadable = true;
+            developer.log(
+              'Preview frames in ${image.format.group} are not read',
+              name: 'PluginCaptureCamera',
+            );
+          }
+          return;
+        }
+        final plane = image.planes.first;
+        onFrame((
+          format: format,
+          width: image.width,
+          height: image.height,
+          bytes: plane.bytes,
+          bytesPerRow: plane.bytesPerRow,
+        ));
+      });
+
+  @override
+  Future<void> stopFrames() async {
+    final controller = _controller;
+    if (controller != null && controller.value.isStreamingImages) {
+      await controller.stopImageStream();
+    }
   }
 }

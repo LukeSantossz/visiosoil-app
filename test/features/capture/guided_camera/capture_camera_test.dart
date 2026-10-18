@@ -15,6 +15,7 @@ class _RecordingCameraPlatform extends CameraPlatform {
   final calls = <String>[];
   CameraDescription? created;
   MediaSettings? settings;
+  ImageFormatGroup? formatGroup;
 
   @override
   Future<List<CameraDescription>> availableCameras() async => cameras;
@@ -36,6 +37,7 @@ class _RecordingCameraPlatform extends CameraPlatform {
     ImageFormatGroup imageFormatGroup = ImageFormatGroup.unknown,
   }) async {
     calls.add('initialize');
+    formatGroup = imageFormatGroup;
     final error = initializeError;
     if (error != null) throw error;
   }
@@ -114,6 +116,9 @@ void main() {
       ['create', 'initialize', 'flash:off', 'lock:portraitUp'],
     );
     expect(camera.previewSize, const Size(720, 1280));
+    // Android's luma plane; the test host is not iOS (SPEC 0166).
+    expect(platform.formatGroup, ImageFormatGroup.yuv420);
+    expect(camera.sensorOrientation, 90);
 
     await camera.dispose();
     expect(platform.calls.last, 'dispose');
