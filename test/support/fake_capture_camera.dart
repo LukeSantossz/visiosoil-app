@@ -69,7 +69,7 @@ class FakeCaptureCamera implements CaptureCamera {
   void emitFrame(CameraFrame frame) => _onFrame?.call(frame);
 
   @override
-  int get sensorOrientation => 0;
+  int get frameRotationDegrees => 0;
 
   @override
   Future<void> startFrames(void Function(CameraFrame frame) onFrame) async {

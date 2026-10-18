@@ -75,9 +75,9 @@ abstract interface class CaptureCamera {
   /// [initialize].
   Future<void> dispose();
 
-  /// The clockwise turn, in degrees, that makes a preview frame upright.
+  /// The clockwise turn, in degrees, that makes a preview frame portrait.
   /// Valid after [initialize].
-  int get sensorOrientation;
+  int get frameRotationDegrees;
 
   /// Streams preview frames to [onFrame] until [stopFrames].
   Future<void> startFrames(void Function(CameraFrame frame) onFrame);
@@ -159,8 +159,13 @@ class PluginCaptureCamera implements CaptureCamera {
     await controller?.dispose();
   }
 
+  /// Android streams frames in the sensor's orientation, so they turn by
+  /// it. iOS applies the locked portrait-up capture orientation to the
+  /// stream's connection too, so its frames arrive portrait already.
   @override
-  int get sensorOrientation => _controller!.description.sensorOrientation;
+  int get frameRotationDegrees => defaultTargetPlatform == TargetPlatform.iOS
+      ? 0
+      : _controller!.description.sensorOrientation;
 
   bool _loggedUnreadable = false;
 

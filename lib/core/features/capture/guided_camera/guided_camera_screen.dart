@@ -313,7 +313,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
           bytesPerRow: frame.bytesPerRow,
           format: frame.format,
         ),
-        camera.sensorOrientation,
+        camera.frameRotationDegrees,
       ));
     } on ArgumentError catch (e, stack) {
       _onReaderFailed(e, stack);

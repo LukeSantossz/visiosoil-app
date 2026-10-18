@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
@@ -116,9 +117,9 @@ void main() {
       ['create', 'initialize', 'flash:off', 'lock:portraitUp'],
     );
     expect(camera.previewSize, const Size(720, 1280));
-    // Android's luma plane; the test host is not iOS (SPEC 0166).
+    // Android's luma plane, turned by the sensor's orientation (SPEC 0166).
     expect(platform.formatGroup, ImageFormatGroup.yuv420);
-    expect(camera.sensorOrientation, 90);
+    expect(camera.frameRotationDegrees, 90);
 
     await camera.dispose();
     expect(platform.calls.last, 'dispose');
@@ -161,5 +162,18 @@ void main() {
       PluginCaptureCamera().initialize(),
       throwsA(isA<CameraUnavailableException>()),
     );
+  });
+
+  test('ios_frames_arrive_portrait', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final platform = _RecordingCameraPlatform([_back]);
+    CameraPlatform.instance = platform;
+    final camera = PluginCaptureCamera();
+    await camera.initialize();
+    // BGRA, already turned by the locked portrait-up capture orientation
+    // (camera_avfoundation applies it to the stream's connection).
+    expect(platform.formatGroup, ImageFormatGroup.bgra8888);
+    expect(camera.frameRotationDegrees, 0);
   });
 }
