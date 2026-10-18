@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guide_overlay.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_frame.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_sheet_reader.dart';
@@ -100,6 +101,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   Size? _stillSize;
   ReadingDebouncer _debouncer = ReadingDebouncer();
   LiveReading? _shownReading;
+
+  /// Where the guides stand against the shown reading's corners, or null when
+  /// they cannot be placed on the screen (SPEC 0169).
+  SheetAlignment? _shownAlignment;
   bool _shownTooCoarse = false;
   bool _wasReady = false;
 
@@ -358,13 +363,20 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _frameInFlight = false;
     final reading = reply.reading;
     final tooCoarse = _isTooCoarse(reading);
-    // The reader's own row: the tilt rows follow the sensor, not the reader.
-    final row = guidanceFor(tilt: 0, reading: reading, tooCoarse: tooCoarse).row;
     if (!mounted) return;
+    final alignment = _alignmentFor(reading);
+    // The reader's own row: the tilt rows follow the sensor, not the reader.
+    final row = guidanceFor(
+      tilt: 0,
+      reading: reading,
+      tooCoarse: tooCoarse,
+      alignment: alignment,
+    ).row;
     if (_debouncer.accept(row) == row) {
       setState(() {
         _shownReading = reading;
         _shownTooCoarse = tooCoarse;
+        _shownAlignment = alignment;
       });
       _tickIfGreen();
     }
@@ -389,6 +401,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       tilt: _tilt,
       reading: shown,
       tooCoarse: _shownTooCoarse,
+      alignment: _shownAlignment,
     ).row;
     final openedBefore = _trigger.windowOpenedAt;
     final now = _clock();
@@ -426,6 +439,42 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     );
   }
 
+  /// Where the guides stand against [reading]'s corners on this screen, or
+  /// null when they cannot be placed on it: no corners, no frame read yet,
+  /// or a frame whose aspect is not the preview's (SPEC 0169).
+  SheetAlignment? _alignmentFor(LiveReading reading) {
+    final read = _readSize;
+    final camera = _camera;
+    if (reading is! LiveSheetFound || read == null || camera == null) {
+      return null;
+    }
+    final screen = MediaQuery.sizeOf(context);
+    final padding = MediaQuery.paddingOf(context);
+    final mapped = mapCornersToOverlay(
+      corners: reading.corners,
+      readSize: read,
+      previewSize: camera.previewSize,
+      screenSize: screen,
+      safePadding: padding,
+    );
+    if (mapped == null) return null;
+    return alignSheet(
+      corners: assignCorners(mapped),
+      // The overlay is laid out inside the safe area.
+      layout: CaptureGuideLayout.compute(
+        padding.deflateSize(screen),
+        topInset: GuidedCameraScreen.bannerHeight,
+        bottomInset: GuidedCameraScreen.footerHeight,
+      ),
+      screen: Rect.fromLTWH(
+        -padding.left,
+        -padding.top,
+        screen.width,
+        screen.height,
+      ),
+    );
+  }
+
   /// A selection tick on entering green, once per entry.
   void _tickIfGreen() {
     final ready = _shownReading != null &&
@@ -433,6 +482,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
               tilt: _tilt,
               reading: _shownReading,
               tooCoarse: _shownTooCoarse,
+              alignment: _shownAlignment,
             ).row ==
             GuidanceRow.ready;
     if (ready && !_wasReady) unawaited(AppHaptics.selection());
@@ -471,6 +521,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _reader = null;
     _debouncer = ReadingDebouncer();
     _shownReading = null;
+    _shownAlignment = null;
     _shownTooCoarse = false;
     _wasReady = false;
   }
@@ -644,8 +695,15 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             tilt: _tilt,
             reading: _shownReading,
             tooCoarse: _shownTooCoarse,
+            alignment: _shownAlignment,
           ).guidance;
     final camera = _camera;
+    // A sheet off the screen turns every bracket red under its warning; a
+    // whole one shows each guide's own state (SPEC 0169).
+    final reading = _shownReading;
+    final alignment = _shownAlignment;
+    final croppedSides = croppedSidesOf(reading, alignment);
+    final cropped = reading is LiveSheetCropped || croppedSides.isNotEmpty;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -674,6 +732,16 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
               bottomInset: GuidedCameraScreen.footerHeight,
               tilt: _tilt,
               direction: _smoother.direction,
+              brackets: cropped
+                  ? {
+                      for (final position in BracketPosition.values)
+                        position: GuideState.off,
+                    }
+                  : alignment?.brackets ?? allIdle,
+              arrow: cropped ? null : alignment?.arrow,
+              target: cropped ? GuideState.idle : targetStateFor(reading),
+              glow: croppedSides,
+              warning: cropped ? croppedWarning(croppedSides) : null,
             ),
           ),
           SafeArea(
