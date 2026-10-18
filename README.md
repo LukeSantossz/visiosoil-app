@@ -227,7 +227,7 @@ visiosoil-app/
 │   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide, guided camera),
 │   │                        #          history, details, preview, compare, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 20 files declaring 40 Riverpod providers (database, repository,
+│   └── providers/           # 20 files declaring 43 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
