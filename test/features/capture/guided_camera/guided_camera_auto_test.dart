@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guide_overlay.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 
 import '../../../support/guided_camera_harness.dart';
@@ -65,8 +66,8 @@ void main() {
     expect(bannerText(tester), 'Segure firme…');
     expect(_ring, findsOneWidget);
     await tester.pump(const Duration(milliseconds: 500));
-    final ring = tester.widget<CircularProgressIndicator>(_ring);
-    expect(ring.value, closeTo(0.5, 0.05));
+    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    expect(ring.progress, closeTo(0.5, 0.05));
 
     // Leaving green closes the window and empties the ring at once.
     await _read(tester, h, _cropped);

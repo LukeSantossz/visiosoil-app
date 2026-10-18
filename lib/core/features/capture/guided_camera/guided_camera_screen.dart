@@ -744,12 +744,9 @@ class _Shutter extends StatelessWidget {
                   key: ValueKey(openedAt),
                   tween: Tween(begin: 0, end: 1),
                   duration: AutoCaptureTrigger.window,
-                  builder: (context, value, _) => CircularProgressIndicator(
+                  builder: (context, value, _) => CustomPaint(
                     key: const ValueKey('guided-camera-ring'),
-                    value: value,
-                    strokeWidth: 4,
-                    color: Colors.white,
-                    backgroundColor: Colors.white24,
+                    painter: CountdownRingPainter(value),
                   ),
                 ),
               ),
