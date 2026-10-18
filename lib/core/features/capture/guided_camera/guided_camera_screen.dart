@@ -550,7 +550,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _stopLive();
     if (mounted) setState(() {});
     // Set before the first await, so a release queued meanwhile waits on it,
-    // and completed whatever the camera does, so no release waits forever.
+    // and completed in the finally whether the shot succeeds or throws.
     final inFlight = Completer<void>();
     _shotInFlight = inFlight.future;
     try {
