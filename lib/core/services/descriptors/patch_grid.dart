@@ -173,7 +173,7 @@ class PatchGeometry {
   final ratio = measuredMmPerPx / canonicalMmPerPx;
   final width = math.max(1, _roundHalfEven(frame.width * ratio));
   final height = math.max(1, _roundHalfEven(frame.height * ratio));
-  return (frame: _resizeBilinear(frame, width, height), refusal: null);
+  return (frame: resizeBilinear(frame, width, height), refusal: null);
 }
 
 /// The grid a region of this size carries, or the refusal: `patch_geometry`.
@@ -359,8 +359,10 @@ int _clip8(int accumulator) {
   return value < 0 ? 0 : (value > 255 ? 255 : value);
 }
 
-/// `Image.resize(size, BILINEAR)` on an RGB image, byte for byte.
-RgbFrame _resizeBilinear(RgbFrame frame, int width, int height) {
+/// `Image.resize(size, BILINEAR)` on an RGB image, byte for byte. Public so
+/// the guided camera reduces its preview frames with the same arithmetic
+/// (SPEC 0166); the arithmetic is unchanged.
+RgbFrame resizeBilinear(RgbFrame frame, int width, int height) {
   // `Image.resize` copies rather than resamples when the size does not change.
   if (width == frame.width && height == frame.height) {
     return RgbFrame(width, height, Uint8List.fromList(frame.rgb));

@@ -1,7 +1,12 @@
+import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_sheet_reader.dart';
+import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
+import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.dart';
 
@@ -22,6 +27,12 @@ class FakeCaptureCameras {
 
   /// Thrown by dispose, when set.
   Object? disposeError;
+
+  /// Thrown by stopFrames, when set.
+  Object? stopFramesError;
+
+  /// When set, startFrames waits on it before the stream runs.
+  Completer<void>? startFramesGate;
 
   /// When set, takePicture returns a file at this path instead of a made-up
   /// one, so a test can check what happens to it.
@@ -47,6 +58,35 @@ class FakeCaptureCamera implements CaptureCamera {
 
   /// When set, takePicture waits on it.
   Completer<void>? pictureGate;
+
+  void Function(CameraFrame frame)? _onFrame;
+
+  /// Whether frames are streaming.
+  bool get streaming => _onFrame != null;
+
+  /// Hands [frame] to the screen as the plugin's stream would; ignored when
+  /// not streaming.
+  void emitFrame(CameraFrame frame) => _onFrame?.call(frame);
+
+  @override
+  int get frameRotationDegrees => 0;
+
+  @override
+  Future<void> startFrames(void Function(CameraFrame frame) onFrame) async {
+    _owner.log.add('startFrames:$index');
+    final gate = _owner.startFramesGate;
+    if (gate != null) await gate.future;
+    _onFrame = onFrame;
+  }
+
+  @override
+  Future<void> stopFrames() async {
+    final error = _owner.stopFramesError;
+    if (error != null) throw error;
+    if (_onFrame == null) return;
+    _onFrame = null;
+    _owner.log.add('stopFrames:$index');
+  }
 
   @override
   Future<void> initialize() async {
@@ -74,7 +114,12 @@ class FakeCaptureCamera implements CaptureCamera {
     if (gate != null) await gate.future;
     final error = _owner.takePictureError;
     if (error != null) throw error;
-    return XFile(_owner.picturePath ?? '/tmp/guided_$index.jpg');
+    final path = _owner.picturePath;
+    // A made-up photograph lives in memory, so reading it needs no file I/O
+    // inside the fake clock; a test that needs a real file sets picturePath.
+    return path != null
+        ? XFile(path)
+        : XFile.fromData(Uint8List(0), path: '/tmp/guided_$index.jpg');
   }
 
   /// Logs `dispose:<index>` once the release has completed, so a test can
@@ -97,4 +142,48 @@ class FakeTiltSource implements TiltSource {
 
   @override
   Stream<AccelerationSample> get samples => controller.stream;
+}
+
+/// A [LiveSheetReader] a test answers by hand (SPEC 0166).
+class FakeLiveSheetReader implements LiveSheetReader {
+  final requests = <int>[];
+  final _replies = StreamController<LiveReply>();
+  bool killed = false;
+
+  @override
+  void read(RgbFrame frame, int generation) => requests.add(generation);
+
+  @override
+  Stream<LiveReply> get replies => _replies.stream;
+
+  @override
+  void kill() {
+    if (killed) return;
+    killed = true;
+    unawaited(_replies.close());
+  }
+
+  /// Answers the last request, or [generation] when given.
+  void reply(LiveReading reading, {int? generation}) {
+    if (killed) return;
+    _replies.add((generation: generation ?? requests.last, reading: reading));
+  }
+
+  /// The reader fails, as an isolate that threw or exited would.
+  void fail() {
+    if (!killed) _replies.addError(StateError('the reader failed'));
+  }
+}
+
+/// A [StillSizeStore] held in memory.
+class FakeStillSizeStore implements StillSizeStore {
+  FakeStillSizeStore([this.size]);
+
+  Size? size;
+
+  @override
+  Future<Size?> read() async => size;
+
+  @override
+  Future<void> write(Size size) async => this.size = size;
 }

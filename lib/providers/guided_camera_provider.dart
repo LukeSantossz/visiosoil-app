@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_sheet_reader.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.dart';
+import 'package:visiosoil_app/core/services/still_size_store.dart';
+import 'package:visiosoil_app/providers/inference_provider.dart';
 
 /// Makes a fresh camera each time the guided screen opens one, since a
 /// released camera is not reused (SPEC 0165). Overridden with a fake in tests.
@@ -18,4 +22,27 @@ final tiltSourceProvider = Provider<TiltSource>(
 /// a reopened camera waits for the previous one to close (SPEC 0165).
 final cameraReleaseQueueProvider = Provider<CameraReleaseQueue>(
   (ref) => CameraReleaseQueue(),
+);
+
+/// The size of this device's stills, learned from the first guided shot
+/// (SPEC 0166). Overridden with a fake in tests.
+final stillSizeStoreProvider = Provider<StillSizeStore>(
+  (ref) => SharedPreferencesStillSizeStore(),
+);
+
+/// Loads the contract's numbers the live reader needs, or null when the
+/// contract cannot be loaded: the screen then reads nothing live (SPEC 0166).
+final liveContractLoaderProvider = Provider<Future<LiveContract?> Function()>(
+  (ref) => () async {
+    final inference = ref.read(inferenceServiceProvider);
+    final cause = await inference.initialize();
+    final contract = inference.contract;
+    if (cause != null || contract == null) return null;
+    return liveContractOf(contract);
+  },
+);
+
+/// Spawns the live sheet reader (SPEC 0166). Overridden with a fake in tests.
+final liveSheetReaderFactoryProvider = Provider<LiveSheetReaderFactory>(
+  (ref) => IsolateLiveSheetReader.spawn,
 );

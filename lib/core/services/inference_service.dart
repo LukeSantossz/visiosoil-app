@@ -129,6 +129,10 @@ class InferenceService {
   /// Indicates whether the service is ready for inference.
   bool get isReady => _contract != null;
 
+  /// The parsed contract, once [initialize] has succeeded: the live sheet
+  /// reader reads its geometry from it (SPEC 0166).
+  DescriptorContract? get contract => _contract;
+
   /// Initializes the service by loading and parsing the released contract.
   ///
   /// Returns `null` once the contract is parsed, and the cause otherwise, so

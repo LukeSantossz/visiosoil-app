@@ -15,8 +15,6 @@ import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
-import 'package:visiosoil_app/providers/guided_camera_provider.dart';
-import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
@@ -1907,9 +1905,7 @@ void main() {
           _guideAlreadySeen(),
           inferenceServiceProvider
               .overrideWithValue(_FakeInference((_) async => null)),
-          captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
-          tiltSourceProvider.overrideWithValue(h.tilt),
-          errorReportStoreProvider.overrideWithValue(h.errors),
+          ...guidedCameraOverrides(h),
         ],
         child: MaterialApp.router(routerConfig: router),
       ));
@@ -1930,6 +1926,7 @@ void main() {
       expect(find.byKey(const ValueKey('guided-camera-shutter')), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
       expect(shownImage(tester)?.path, samplePath);
       expect(deleted, isEmpty);
@@ -1957,16 +1954,21 @@ void main() {
       await tester.tap(find.text('Câmera'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
 
       h.cameras.picturePath = second.path;
       await tester.tap(find.text('Tirar outra foto'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
 
       expect(shownImage(tester)?.path, second.path);
       expect(deleted, [samplePath]);
+      // The guided camera reads the shot to learn the still size (SPEC 0166);
+      // let that read finish before the file is deleted.
+      await settleIo(tester);
     });
   });
 }

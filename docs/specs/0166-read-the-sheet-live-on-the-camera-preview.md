@@ -13,7 +13,7 @@ Those are the refusals that stopped all 31 photographs of 2026-10-05 ([the check
 **Frames.** `CaptureCamera` gains the preview stream (`startImageStream` / `stopImageStream`). Only **one frame is in flight** at a time: a frame that arrives while one is being read is dropped, never queued, which caps the rate at what the device can read. The target is about three readings a second. A frame becomes a grey `RgbFrame`, the grey replicated into the three channels, in three steps on the UI isolate, each a plain copy:
 
 1. **Grey.** Android, `ImageFormatGroup.yuv420`: the Y plane, which is the luma, copied row by row so the plane's `bytesPerRow` padding is dropped. iOS, `ImageFormatGroup.bgra8888`: each pixel through the reader's own `greyOf`, also honouring `bytesPerRow`. `findSheet` and `locateSoilDisc` reduce every pixel through `greyOf` before any decision, so a grey frame replicated into three channels feeds them what a colour frame of the same luma would.
-2. **Portrait.** The frame is rotated clockwise by the `sensorOrientation` the camera reports, so the sheet's long side is vertical as it is on the still, whose capture orientation SPEC 0165 locks to portrait-up:
+2. **Portrait.** The frame is rotated clockwise by the `sensorOrientation` the camera reports, so the sheet's long side is vertical as it is on the still, whose capture orientation SPEC 0165 locks to portrait-up. Amended in implementation: that holds on Android, whose stream is in the sensor's orientation; on iOS, `camera_avfoundation` applies the locked capture orientation to the stream's connection as well, so its frames arrive portrait and turn by 0:
 
    | `sensorOrientation` | Output pixel (x, y) is source pixel | Output size |
    |---|---|---|

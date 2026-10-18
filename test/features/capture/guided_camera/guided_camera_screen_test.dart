@@ -180,11 +180,7 @@ void main() {
     await backOut(tester);
 
     gate.complete();
-    await tester.runAsync(() async {
-      for (var i = 0; i < 20 && file.existsSync(); i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-    });
+    await settleIo(tester);
     await tester.pumpAndSettle();
     expect(file.existsSync(), isFalse);
     expect(h.popped, [isNull]);
