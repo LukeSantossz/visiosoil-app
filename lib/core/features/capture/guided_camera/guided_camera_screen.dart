@@ -113,11 +113,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _tiltSubscription = ref.read(tiltSourceProvider).samples.listen(
       (sample) {
         final tilt = _smoother.add(sample.x, sample.y, sample.z);
-        if (mounted && tilt != _tilt) {
+        if (!mounted) return;
+        if (tilt != _tilt) {
           setState(() => _tilt = tilt);
           _tickIfGreen();
-          _feedTrigger(isReading: false);
         }
+        // Every sample is an event: a still phone repeats the same tilt, and
+        // that sample may be the first past the window's second.
+        _feedTrigger(isReading: false);
       },
       onError: (Object error, StackTrace stack) {
         // No accelerometer: the level hides and nothing is blocked.
@@ -128,7 +131,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
           stackTrace: stack,
         );
         unawaited(_tiltSubscription?.cancel());
-        if (mounted) setState(() => _tilt = null);
+        if (mounted) {
+          setState(() {
+            _tilt = null;
+            _trigger.close();
+          });
+        }
       },
     );
     unawaited(_start());
@@ -362,7 +370,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// this reading's disc, and the smoothed tilt, stamped now (SPEC 0167).
   /// With no live reading shown, the trigger is disarmed.
   void _feedTrigger({required bool isReading, LiveReading? reading}) {
-    if (_shooting || _camera == null || !mounted) return;
+    if (_shooting || _closed || _camera == null || !mounted) return;
     final shown = _shownReading;
     if (shown == null || _reader == null) {
       if (_trigger.windowOpenedAt != null) setState(_trigger.close);
@@ -523,7 +531,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   Future<void> _shoot({bool automatic = false}) async {
     final camera = _camera;
-    if (_shooting || camera == null) return;
+    if (_shooting || _closed || camera == null) return;
     _shooting = true;
     if (automatic) _flash();
     // Read now: the screen may be closed by the time the shot returns.

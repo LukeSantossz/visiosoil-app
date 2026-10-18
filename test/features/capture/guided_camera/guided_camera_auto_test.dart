@@ -179,6 +179,46 @@ void main() {
     expect(_ring, findsNothing);
   });
 
+  testWidgets('an_unchanged_tilt_still_reaches_the_trigger', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    h.advance(500);
+    await _read(tester, h, _sound);
+    h.advance(600);
+    // A perfectly still phone repeats the same smoothed tilt; that sample is
+    // still the first event past the second.
+    await tiltTo(tester, h, 0);
+    await tester.pumpAndSettle();
+    expect(_shots(h), 1);
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
+
+  testWidgets('losing_the_tilt_closes_the_window_at_once', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    expect(_ring, findsOneWidget);
+    h.tilt.controller.addError(StateError('no accelerometer'));
+    await tester.pump();
+    expect(_ring, findsNothing);
+    expect(bannerText(tester), isNot('Segure firme…'));
+  });
+
+  testWidgets('closing_the_screen_disarms_the_trigger', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    h.advance(500);
+    await _read(tester, h, _sound);
+    h.advance(600);
+    await emitFrame(tester, h);
+    // The reading that would fire lands during the pop's transition.
+    await tester.tap(closeButton);
+    h.readers.last.reply(_sound);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(_shots(h), 0);
+    expect(h.popped.single, isNot(isA<GuidedCaptureCaptured>()));
+  });
+
   testWidgets('no_tilt_no_trigger', (tester) async {
     final h = await openGuidedCamera(tester);
     h.tilt.controller.addError(StateError('no accelerometer'));
