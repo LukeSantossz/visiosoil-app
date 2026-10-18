@@ -2,6 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
+import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart'
+    show FrameSide;
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 /// An A4 sheet's height over its width, portrait.
 const double sheetAspect = 297 / 210;
@@ -56,6 +60,9 @@ class CaptureGuideLayout {
 }
 
 /// The sheet outline, the soil target and the level, drawn over the preview.
+/// Each corner bracket and the target are drawn in their own state, and a
+/// sheet off the screen lights the sides it left by under a warning card
+/// (SPEC 0169).
 class CaptureGuideOverlay extends StatelessWidget {
   const CaptureGuideOverlay({
     super.key,
@@ -63,6 +70,11 @@ class CaptureGuideOverlay extends StatelessWidget {
     required this.bottomInset,
     required this.tilt,
     required this.direction,
+    this.brackets = allIdle,
+    this.arrow,
+    this.target = GuideState.idle,
+    this.glow = const [],
+    this.warning,
   });
 
   final double topInset;
@@ -74,8 +86,24 @@ class CaptureGuideOverlay extends StatelessWidget {
   /// The direction the phone leans toward, as a unit vector or zero.
   final Offset direction;
 
+  final Map<BracketPosition, GuideState> brackets;
+
+  /// The way to move the phone, drawn from each bracket not placed; null
+  /// draws no arrow.
+  final FrameSide? arrow;
+
+  final GuideState target;
+
+  /// The sides the sheet left the screen by, each lit along its edge.
+  final List<FrameSide> glow;
+
+  /// The card over the outline while the sheet is off the screen.
+  final ({String title, String line})? warning;
+
   static const double _levelRadius = 28;
   static const double _labelWidth = 160;
+  static const double _glowDepth = 34;
+  static const double _warningWidth = 220;
 
   @override
   Widget build(BuildContext context) {
@@ -86,20 +114,27 @@ class CaptureGuideOverlay extends StatelessWidget {
         bottomInset: bottomInset,
       );
       final tilt = this.tilt;
+      final palette = context.palette;
+      final warning = this.warning;
       return Stack(
         fit: StackFit.expand,
         children: [
-          CustomPaint(painter: _GuidePainter(layout)),
-          Positioned(
-            left: layout.targetCentre.dx - _labelWidth / 2,
-            width: _labelWidth,
-            top: layout.targetCentre.dy + layout.targetDiameter / 2 + 8,
-            child: const Text(
-              '8–10 cm de solo',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          CustomPaint(
+            painter: _GuidePainter(
+              layout,
+              brackets: brackets,
+              arrow: arrow,
+              target: target,
+              colours: (
+                placed: palette.primaryContainer,
+                near: palette.warningContainer,
+                off: palette.errorContainer,
+              ),
             ),
           ),
+          for (final side in glow)
+            _glowAlong(side, constraints.biggest, palette.errorContainer),
+          // The level goes under the warning card, which shares its centre.
           if (tilt != null)
             Positioned(
               key: const ValueKey('guided-camera-level'),
@@ -115,16 +150,152 @@ class CaptureGuideOverlay extends StatelessWidget {
                 ),
               ),
             ),
+          if (warning == null)
+            Positioned(
+              left: layout.targetCentre.dx - _labelWidth / 2,
+              width: _labelWidth,
+              top: layout.targetCentre.dy + layout.targetDiameter / 2 + 8,
+              child: const Text(
+                '8–10 cm de solo',
+                textAlign: TextAlign.center,
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            )
+          else
+            Positioned(
+              key: const ValueKey('guided-camera-warning'),
+              left: layout.targetCentre.dx - _warningWidth / 2,
+              width: _warningWidth,
+              top: layout.targetCentre.dy - 44,
+              child: _WarningCard(warning: warning, palette: palette),
+            ),
         ],
       );
     });
   }
+
+  /// A band along [side] fading from [colour] at the edge to nothing, kept
+  /// between the banner and the footer.
+  Widget _glowAlong(FrameSide side, Size size, Color colour) {
+    final (begin, end) = switch (side) {
+      FrameSide.left => (Alignment.centerLeft, Alignment.centerRight),
+      FrameSide.right => (Alignment.centerRight, Alignment.centerLeft),
+      FrameSide.top => (Alignment.topCenter, Alignment.bottomCenter),
+      FrameSide.bottom => (Alignment.bottomCenter, Alignment.topCenter),
+    };
+    final band = IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: begin,
+            end: end,
+            colors: [colour, colour.withValues(alpha: 0)],
+          ),
+        ),
+      ),
+    );
+    final key = ValueKey('guided-camera-glow-${side.name}');
+    final height = math.max(0.0, size.height - topInset - bottomInset);
+    return switch (side) {
+      FrameSide.left => Positioned(
+          key: key,
+          left: 0,
+          top: topInset,
+          width: _glowDepth,
+          height: height,
+          child: band,
+        ),
+      FrameSide.right => Positioned(
+          key: key,
+          right: 0,
+          top: topInset,
+          width: _glowDepth,
+          height: height,
+          child: band,
+        ),
+      FrameSide.top => Positioned(
+          key: key,
+          left: 0,
+          right: 0,
+          top: topInset,
+          height: _glowDepth,
+          child: band,
+        ),
+      FrameSide.bottom => Positioned(
+          key: key,
+          left: 0,
+          right: 0,
+          bottom: bottomInset,
+          height: _glowDepth,
+          child: band,
+        ),
+    };
+  }
 }
 
+/// "A folha saiu da tela" and the way back, on the error container.
+class _WarningCard extends StatelessWidget {
+  const _WarningCard({required this.warning, required this.palette});
+
+  final ({String title, String line}) warning;
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = palette.onErrorContainer;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_rounded, color: ink),
+            const SizedBox(height: 4),
+            Text(
+              warning.title,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ink, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              warning.line,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ink),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+typedef _StateColours = ({Color placed, Color near, Color off});
+
 class _GuidePainter extends CustomPainter {
-  _GuidePainter(this.layout);
+  _GuidePainter(
+    this.layout, {
+    required this.brackets,
+    required this.arrow,
+    required this.target,
+    required this.colours,
+  });
 
   final CaptureGuideLayout layout;
+  final Map<BracketPosition, GuideState> brackets;
+  final FrameSide? arrow;
+  final GuideState target;
+  final _StateColours colours;
+
+  Color _colourOf(GuideState state) => switch (state) {
+        GuideState.idle => Colors.white,
+        GuideState.placed => colours.placed,
+        GuideState.near => colours.near,
+        GuideState.off => colours.off,
+      };
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -135,36 +306,108 @@ class _GuidePainter extends CustomPainter {
       ..addRect(outline);
     canvas.drawPath(dim, Paint()..color = Colors.black.withValues(alpha: 0.45));
 
-    final bracket = Paint()
-      ..color = Colors.white
+    // A dark rim under every stroke keeps it visible on a pale surface.
+    final rim = Paint()
+      ..color = Colors.black54
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
+      ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
     final arm = outline.shortestSide * 0.12;
-    for (final (corner, dx, dy) in [
-      (outline.topLeft, 1.0, 1.0),
-      (outline.topRight, -1.0, 1.0),
-      (outline.bottomLeft, 1.0, -1.0),
-      (outline.bottomRight, -1.0, -1.0),
+    for (final (position, corner, dx, dy) in [
+      (BracketPosition.topLeft, outline.topLeft, 1.0, 1.0),
+      (BracketPosition.topRight, outline.topRight, -1.0, 1.0),
+      (BracketPosition.bottomLeft, outline.bottomLeft, 1.0, -1.0),
+      (BracketPosition.bottomRight, outline.bottomRight, -1.0, -1.0),
     ]) {
-      canvas.drawLine(corner, corner + Offset(arm * dx, 0), bracket);
-      canvas.drawLine(corner, corner + Offset(0, arm * dy), bracket);
+      final state = brackets[position] ?? GuideState.idle;
+      final colour = _colourOf(state);
+      final bracket = Paint()
+        ..color = colour
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+      for (final paint in [rim, bracket]) {
+        canvas.drawLine(corner, corner + Offset(arm * dx, 0), paint);
+        canvas.drawLine(corner, corner + Offset(0, arm * dy), paint);
+      }
+      if (state == GuideState.near || state == GuideState.off) {
+        // The halo tells a bracket out of place apart without its colour.
+        canvas.drawCircle(
+          corner,
+          9,
+          Paint()..color = colour.withValues(alpha: 0.25),
+        );
+        final arrow = this.arrow;
+        if (arrow != null) _drawArrow(canvas, corner, arrow, colour);
+      }
     }
 
-    canvas.drawCircle(
-      layout.targetCentre,
-      layout.targetDiameter / 2,
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.9)
+    final radius = layout.targetDiameter / 2;
+    if (target == GuideState.idle) {
+      _drawDashedCircle(canvas, layout.targetCentre, radius);
+    } else {
+      final ring = Paint()
+        ..color = _colourOf(target)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = 4;
+      canvas.drawCircle(layout.targetCentre, radius, rim);
+      canvas.drawCircle(layout.targetCentre, radius, ring);
+    }
+  }
+
+  /// An arrow from [vertex] toward [side]: the way to move the phone.
+  void _drawArrow(Canvas canvas, Offset vertex, FrameSide side, Color colour) {
+    final unit = switch (side) {
+      FrameSide.left => const Offset(-1, 0),
+      FrameSide.right => const Offset(1, 0),
+      FrameSide.top => const Offset(0, -1),
+      FrameSide.bottom => const Offset(0, 1),
+    };
+    final start = vertex + unit * 16;
+    final end = start + unit * 22;
+    final tip = end + unit * 9;
+    final across = Offset(-unit.dy, unit.dx) * 7;
+    canvas.drawLine(
+      start,
+      end,
+      Paint()
+        ..color = colour
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
     );
+    canvas.drawPath(
+      Path()
+        ..moveTo(tip.dx, tip.dy)
+        ..lineTo((end + across).dx, (end + across).dy)
+        ..lineTo((end - across).dx, (end - across).dy)
+        ..close(),
+      Paint()..color = colour,
+    );
+  }
+
+  /// The target as SPEC 0165 drew it, dashed while no soil is measured.
+  void _drawDashedCircle(Canvas canvas, Offset centre, double radius) {
+    const dashes = 36;
+    const sweep = 2 * math.pi / dashes;
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final rect = Rect.fromCircle(center: centre, radius: radius);
+    for (var i = 0; i < dashes; i++) {
+      canvas.drawArc(rect, i * sweep, sweep * 0.6, false, paint);
+    }
   }
 
   @override
   bool shouldRepaint(_GuidePainter old) =>
       old.layout.outline != layout.outline ||
-      old.layout.targetDiameter != layout.targetDiameter;
+      old.layout.targetDiameter != layout.targetDiameter ||
+      BracketPosition.values
+          .any((position) => old.brackets[position] != brackets[position]) ||
+      old.arrow != arrow ||
+      old.target != target ||
+      old.colours != colours;
 }
 
 class _LevelPainter extends CustomPainter {

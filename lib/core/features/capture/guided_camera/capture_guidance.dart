@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -74,6 +75,7 @@ enum GuidanceRow {
   sheetNotFound,
   sheetCropped,
   tooCoarse,
+  sheetMisaligned,
   soilNotMeasured,
   smallSoil,
   almostLevel,
@@ -82,11 +84,13 @@ enum GuidanceRow {
 
 /// The banner for a smoothed [tilt] (null: `tiltUnavailable`) and the live
 /// [reading] (null: none yet, or no reader), with [tooCoarse] the scale
-/// estimate's verdict. With no reading, the banner is the tilt's alone.
+/// estimate's verdict and [alignment] the guides' (SPEC 0169; null when the
+/// corners are not mapped). With no reading, the banner is the tilt's alone.
 ({GuidanceRow row, Guidance guidance}) guidanceFor({
   required double? tilt,
   required LiveReading? reading,
   required bool tooCoarse,
+  SheetAlignment? alignment,
 }) {
   if (reading == null) {
     final guidance = guidanceForTilt(tilt);
@@ -111,15 +115,10 @@ enum GuidanceRow {
         ),
       );
     case LiveSheetCropped():
-      return (
-        row: GuidanceRow.sheetCropped,
-        guidance: const Guidance(
-          tone: GuidanceTone.alert,
-          message: 'A folha está cortada. Afaste o celular.',
-          icon: Icons.zoom_out_map,
-        ),
-      );
+      return _cropped(croppedSidesOf(reading, alignment));
     case LiveSheetFound(:final discDiameterMm, :final holdsMinPatches):
+      final offScreen = croppedSidesOf(reading, alignment);
+      if (offScreen.isNotEmpty) return _cropped(offScreen);
       if (tooCoarse) {
         return (
           row: GuidanceRow.tooCoarse,
@@ -128,6 +127,13 @@ enum GuidanceRow {
             message: 'Aproxime o celular da folha.',
             icon: Icons.zoom_in,
           ),
+        );
+      }
+      final fix = alignment?.fix;
+      if (fix != null) {
+        return (
+          row: GuidanceRow.sheetMisaligned,
+          guidance: _misaligned(fix, alignment!.arrow),
         );
       }
       if (discDiameterMm == null) {
@@ -165,6 +171,94 @@ enum GuidanceRow {
     ),
   );
 }
+
+/// The screen's sides a sheet has left by: the reader's own when it refused
+/// the sheet as cropped, or, for a whole sheet, the sides a mapped corner
+/// falls past the screen (SPEC 0169). Empty when neither says.
+List<FrameSide> croppedSidesOf(
+  LiveReading? reading,
+  SheetAlignment? alignment,
+) =>
+    switch (reading) {
+      LiveSheetCropped(:final sides) => sides,
+      LiveSheetFound() => alignment?.offScreen ?? const [],
+      _ => const [],
+    };
+
+/// Whether [sides] name one way out: one side, or a first side whose second
+/// is adjacent to it. Opposite sides, or three or more, mean the sheet is
+/// larger than the screen.
+bool _oneWayOut(List<FrameSide> sides) {
+  if (sides.length == 1) return true;
+  if (sides.length != 2) return false;
+  const across = {FrameSide.left, FrameSide.right};
+  return across.contains(sides[0]) != across.contains(sides[1]);
+}
+
+({GuidanceRow row, Guidance guidance}) _cropped(List<FrameSide> sides) {
+  final String message;
+  if (sides.isEmpty) {
+    message = 'A folha está cortada. Afaste o celular.';
+  } else if (_oneWayOut(sides)) {
+    final side = switch (sides.first) {
+      FrameSide.left => 'esquerda',
+      FrameSide.right => 'direita',
+      FrameSide.top => 'parte de cima',
+      FrameSide.bottom => 'parte de baixo',
+    };
+    message = 'A folha saiu pela $side.';
+  } else {
+    message = 'A folha passa da tela. Afaste o celular.';
+  }
+  return (
+    row: GuidanceRow.sheetCropped,
+    guidance: Guidance(
+      tone: GuidanceTone.alert,
+      message: message,
+      icon: Icons.zoom_out_map,
+    ),
+  );
+}
+
+/// The way to move the phone, as the banner and the warning name it.
+String _towards(FrameSide side) => switch (side) {
+      FrameSide.left => 'a esquerda',
+      FrameSide.right => 'a direita',
+      FrameSide.top => 'cima',
+      FrameSide.bottom => 'baixo',
+    };
+
+Guidance _misaligned(MisalignmentFix fix, FrameSide? arrow) => switch (fix) {
+      MisalignmentFix.shift => Guidance(
+          tone: GuidanceTone.caution,
+          message: 'Leve o celular para ${_towards(arrow!)}.',
+          icon: Icons.open_with,
+        ),
+      MisalignmentFix.closer => const Guidance(
+          tone: GuidanceTone.caution,
+          message: 'Aproxime o celular da folha.',
+          icon: Icons.zoom_in,
+        ),
+      MisalignmentFix.farther => const Guidance(
+          tone: GuidanceTone.caution,
+          message: 'Afaste o celular da folha.',
+          icon: Icons.zoom_out_map,
+        ),
+      MisalignmentFix.turn => const Guidance(
+          tone: GuidanceTone.caution,
+          message: 'Gire o celular até a folha ficar reta no contorno.',
+          icon: Icons.rotate_right,
+        ),
+    };
+
+/// The warning card drawn over the outline while the sheet is off the
+/// screen (SPEC 0169).
+({String title, String line}) croppedWarning(List<FrameSide> sides) => (
+      title: 'A folha saiu da tela',
+      line: sides.isNotEmpty && _oneWayOut(sides)
+          ? 'Leve o celular para ${_towards(sides.first)}'
+          : 'Afaste o celular da folha',
+    );
 
 /// The soil patch the user spread, in centimetres to one decimal with a
 /// comma: the disc plus the reader's margin on both sides.

@@ -94,4 +94,30 @@ void main() {
     final right = math.sqrt(10 * 10 + 140 * 140);
     expect(sheetLongSidePx(keystoned), closeTo((left + right) / 2, 1e-9));
   });
+
+  // SPEC 0169: the guides read where the corners are, and which side a
+  // cropped sheet runs off.
+  test('a_found_reading_carries_the_corners', () {
+    final frame = _greyOf(InferenceService.frameOf(img.decodeJpg(
+      File('test/fixtures/sheet/sheet_frontal.jpg').readAsBytesSync(),
+    )!));
+    final reading = readSheet(frame, live) as LiveSheetFound;
+    expect(reading.corners, findSheet(frame).corners!.points);
+  });
+
+  test('a_cropped_reading_carries_the_sides', () {
+    const width = 576, height = 1024;
+    final rgb = Uint8List(width * height * 3);
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final inside = x >= 200 && y >= 150 && y < 150 + 450 * 297 / 210;
+        rgb.fillRange((y * width + x) * 3, (y * width + x) * 3 + 3,
+            inside ? 235 : 90);
+      }
+    }
+    final frame = RgbFrame(width, height, rgb);
+    final reading = readSheet(frame, live) as LiveSheetCropped;
+    expect(reading.sides, findSheet(frame).croppedSides);
+    expect(reading.sides.first, FrameSide.right);
+  });
 }

@@ -29,6 +29,24 @@ enum SheetRefusal {
   cropped,
 }
 
+/// A side of the frame, which a cropped sheet runs off (SPEC 0169).
+enum FrameSide { left, top, right, bottom }
+
+/// What [findSheet] read: the corners, or the refusal's name. A cropped sheet
+/// also names the sides it runs off, most first, when they are known; the
+/// sides are recorded beside the decision and never change it (SPEC 0169).
+typedef SheetFinding = ({
+  SheetCorners? corners,
+  SheetRefusal? refusal,
+  List<FrameSide> croppedSides,
+});
+
+const SheetFinding _notFound = (
+  corners: null,
+  refusal: SheetRefusal.notFound,
+  croppedSides: [],
+);
+
 /// A4, in millimetres.
 const double sheetWidthMm = 210;
 const double sheetHeightMm = 297;
@@ -266,7 +284,7 @@ a4SheetMeasurer(RgbFrame frame) {
 }
 
 /// Finds the sheet's four corners in [frame], or names why there are none.
-({SheetCorners? corners, SheetRefusal? refusal}) findSheet(RgbFrame frame) {
+SheetFinding findSheet(RgbFrame frame) {
   final factor = math.max(
     1,
     (math.max(frame.width, frame.height) / _detectionLongSidePx).ceil(),
@@ -277,7 +295,7 @@ a4SheetMeasurer(RgbFrame frame) {
 
   final split = _otsu(grey);
   if (split.brightMean - split.darkMean < _minContrast) {
-    return (corners: null, refusal: SheetRefusal.notFound);
+    return _notFound;
   }
 
   var sheet = _filledLargestBright(grey, width, height, split.threshold);
@@ -298,7 +316,7 @@ a4SheetMeasurer(RgbFrame frame) {
   }
   final fraction = sheet.area / (width * height);
   if (fraction > _maxSheetFraction || fraction < _minSheetFraction) {
-    return (corners: null, refusal: SheetRefusal.notFound);
+    return _notFound;
   }
 
   final boundary = _outerBoundary(sheet.mask, width, height);
@@ -309,13 +327,17 @@ a4SheetMeasurer(RgbFrame frame) {
     // the patch; the sheet's straight edges do not (SPEC 0140).
     final lines = _lineQuadrilateral(boundary, width, height);
     if (lines == null) {
-      return (corners: null, refusal: SheetRefusal.cropped);
+      return (
+        corners: null,
+        refusal: SheetRefusal.cropped,
+        croppedSides: _bordersTouched(sheet.mask, width, height),
+      );
     }
     quad = lines;
   } else {
     final hull = _thinned(_convexHull(boundary), _hullVertexBudget);
     if (hull.length < 4) {
-      return (corners: null, refusal: SheetRefusal.notFound);
+      return _notFound;
     }
     quad = _largestQuadrilateral(hull);
   }
@@ -325,7 +347,7 @@ a4SheetMeasurer(RgbFrame frame) {
   // edge on it is refused (SPEC 0144).
   for (var pass = 0; ; pass++) {
     if (refined == null || !_plausible(refined)) {
-      return (corners: null, refusal: SheetRefusal.notFound);
+      return _notFound;
     }
 
     // A detection pixel covers `factor` full-resolution pixels, so its centre
@@ -335,23 +357,28 @@ a4SheetMeasurer(RgbFrame frame) {
       for (final c in refined)
         (x: c.x * factor + offset, y: c.y * factor + offset),
     ];
-    for (final c in corners) {
-      if (c.x < 0 ||
-          c.y < 0 ||
-          c.x > frame.width - 1 ||
-          c.y > frame.height - 1) {
-        return (corners: null, refusal: SheetRefusal.cropped);
-      }
+    final past = _sidesPast(corners, frame.width - 1, frame.height - 1);
+    if (past.isNotEmpty) {
+      return (corners: null, refusal: SheetRefusal.cropped, croppedSides: past);
     }
 
     final steps = _edgeSteps(grey, width, height, refined);
     if (steps == null) {
-      return (corners: null, refusal: SheetRefusal.cropped);
+      // No side is known: the edge that fails could be any of the four.
+      return (
+        corners: null,
+        refusal: SheetRefusal.cropped,
+        croppedSides: const [],
+      );
     }
     if (steps.every((step) => step >= _minEdgeStep)) {
-      return (corners: SheetCorners(_ordered(corners)), refusal: null);
+      return (
+        corners: SheetCorners(_ordered(corners)),
+        refusal: null,
+        croppedSides: const [],
+      );
     }
-    if (pass > 0) return (corners: null, refusal: SheetRefusal.notFound);
+    if (pass > 0) return _notFound;
     refined = _pastGradient(grey, sheet.mask, width, height, refined, steps);
   }
 }
@@ -783,6 +810,55 @@ Uint8List _reducedGrey(RgbFrame frame, int factor, int width, int height) {
     }
   }
   return (threshold: threshold, darkMean: darkMean, brightMean: brightMean);
+}
+
+/// The frame's sides [corners] fall past, the furthest first; empty when every
+/// corner lies within 0 to [maxX] and 0 to [maxY].
+List<FrameSide> _sidesPast(
+  List<({double x, double y})> corners,
+  int maxX,
+  int maxY,
+) {
+  final overshoot = <FrameSide, double>{};
+  void note(FrameSide side, double by) {
+    if (by > (overshoot[side] ?? 0)) overshoot[side] = by;
+  }
+
+  for (final c in corners) {
+    note(FrameSide.left, -c.x);
+    note(FrameSide.top, -c.y);
+    note(FrameSide.right, c.x - maxX);
+    note(FrameSide.bottom, c.y - maxY);
+  }
+  return [
+    for (final entry
+        in overshoot.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+      entry.key,
+  ];
+}
+
+/// The frame's sides the sheet region [mask] touches, the longest contact
+/// first.
+List<FrameSide> _bordersTouched(Uint8List mask, int width, int height) {
+  final contact = <FrameSide, int>{};
+  void count(FrameSide side, int p) {
+    if (mask[p] == 1) contact[side] = (contact[side] ?? 0) + 1;
+  }
+
+  for (var x = 0; x < width; x++) {
+    count(FrameSide.top, x);
+    count(FrameSide.bottom, (height - 1) * width + x);
+  }
+  for (var y = 0; y < height; y++) {
+    count(FrameSide.left, y * width);
+    count(FrameSide.right, y * width + width - 1);
+  }
+  return [
+    for (final entry
+        in contact.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+      entry.key,
+  ];
 }
 
 /// The largest bright 4-connected component, with its holes filled: the soil
