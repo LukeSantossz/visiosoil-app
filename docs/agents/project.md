@@ -29,7 +29,10 @@ of the sections above rather than exceptions to them.
 
 - **User-facing UI strings are pt-BR product copy and are exempt** from the
   all-output-in-English rule. Identifiers, comments, commit, PR and issue text,
-  and documentation are not.
+  and documentation are not, with one exception: a document written for the
+  people who take the photographs rather than for the developers, today only
+  the capture protocol (SPEC 0164), may carry a pt-BR copy beside it. The
+  English file stays the source, and the two state the same steps and limits.
 - **This project declines the Token Economy context-file compression opt-in.**
   The opt-in is a choice the adopter makes, not a framework default, and a
   repository that declines it is fully conformant — so the instruction files
