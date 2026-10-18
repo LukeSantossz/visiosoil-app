@@ -363,12 +363,16 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       });
       _tickIfGreen();
     }
-    _feedTrigger(isReading: true, reading: reading);
+    // Only a reading green in its own right counts toward the window's two;
+    // one the debounce has not let through yet is an event that keeps the
+    // window as the banner shows it (SPEC 0167, amended).
+    _feedTrigger(isReading: row == GuidanceRow.ready, reading: reading);
   }
 
   /// Hands one event to the automatic capture: the banner's row as shown,
   /// this reading's disc, and the smoothed tilt, stamped now (SPEC 0167).
-  /// With no live reading shown, the trigger is disarmed.
+  /// [isReading] is false for a tilt sample and for a reading that is not
+  /// green itself. With no live reading shown, the trigger is disarmed.
   void _feedTrigger({required bool isReading, LiveReading? reading}) {
     if (_shooting || _closed || _camera == null || !mounted) return;
     final shown = _shownReading;

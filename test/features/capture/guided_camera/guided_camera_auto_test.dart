@@ -120,6 +120,22 @@ void main() {
     expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
 
+  testWidgets('a_suppressed_reading_does_not_count', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    h.advance(500);
+    // One cropped reading: the debounce keeps the banner green and the window
+    // open, but the reading is not one of the window's two.
+    await _read(tester, h, _cropped);
+    expect(bannerText(tester), 'Segure firme…');
+    h.advance(600);
+    await tiltTo(tester, h, 0);
+    expect(_shots(h), 0, reason: 'one counted reading');
+    await _read(tester, h, _sound);
+    await tester.pumpAndSettle();
+    expect(_shots(h), 1);
+  });
+
   testWidgets('a_shot_clears_the_ring_while_it_runs', (tester) async {
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
