@@ -685,18 +685,19 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   @override
   Widget build(BuildContext context) {
     final windowOpen = _trigger.windowOpenedAt != null;
+    final shown = guidanceFor(
+      tilt: _tilt,
+      reading: _shownReading,
+      tooCoarse: _shownTooCoarse,
+      alignment: _shownAlignment,
+    );
     final guidance = windowOpen
         ? const Guidance(
             tone: GuidanceTone.ready,
             message: 'Segure firme…',
             icon: Icons.pan_tool_outlined,
           )
-        : guidanceFor(
-            tilt: _tilt,
-            reading: _shownReading,
-            tooCoarse: _shownTooCoarse,
-            alignment: _shownAlignment,
-          ).guidance;
+        : shown.guidance;
     final camera = _camera;
     // A sheet off the screen turns every bracket red under its warning; a
     // whole one shows each guide's own state (SPEC 0169).
@@ -738,7 +739,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                         position: GuideState.off,
                     }
                   : alignment?.brackets ?? allIdle,
-              arrow: cropped ? null : alignment?.arrow,
+              // An arrow only ever says what the banner says.
+              arrow: shown.row == GuidanceRow.sheetMisaligned
+                  ? alignment?.arrow
+                  : null,
               target: cropped ? GuideState.idle : targetStateFor(reading),
               glow: croppedSides,
               warning: cropped ? croppedWarning(croppedSides) : null,

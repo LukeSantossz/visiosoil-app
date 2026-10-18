@@ -125,6 +125,25 @@ void main() {
     expect(bannerText(tester), 'Leve o celular para a direita.');
   });
 
+  // R2 round 1: an arrow only ever says what the banner says.
+  testWidgets('no_arrow_while_the_banner_asks_for_something_else',
+      (tester) async {
+    _phone(tester);
+    // A still this small makes every reading too coarse.
+    final h = GuidedCameraHarness()..stillSizes.size = const Size(300, 400);
+    await openGuidedCamera(tester, harness: h);
+    await tiltTo(tester, h, 0);
+    final shift = Offset(0.08 * _outline.width, 0);
+    await _readTwice(
+      tester,
+      h,
+      _sheetAt([for (final v in _vertices) v + shift]),
+    );
+    expect(bannerText(tester), 'Aproxime o celular da folha.');
+    expect(_overlay(tester).arrow, isNull);
+    expect(_overlay(tester).brackets.values, everyElement(GuideState.near));
+  });
+
   testWidgets('the_trigger_needs_every_guide_green', (tester) async {
     final h = await _open(tester);
     final oneOff = _vertices;
