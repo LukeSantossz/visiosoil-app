@@ -537,7 +537,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     // Read now: the screen may be closed by the time the shot returns.
     final stillSizes = ref.read(stillSizeStoreProvider);
     // The reader stops before the shot, and nothing waits on its last frame.
+    // Stopping closes the window, so the ring and its banner go now.
     _stopLive();
+    if (mounted) setState(() {});
     await _stopFrames(camera);
     try {
       final file = await camera.takePicture();

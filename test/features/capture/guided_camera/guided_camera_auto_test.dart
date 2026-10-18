@@ -120,6 +120,20 @@ void main() {
     expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
 
+  testWidgets('a_shot_clears_the_ring_while_it_runs', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    expect(_ring, findsOneWidget);
+    final gate = Completer<void>();
+    h.cameras.cameras.single.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+    expect(_ring, findsNothing);
+    expect(bannerText(tester), isNot('Segure firme…'));
+    gate.complete();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a_tap_and_a_firing_in_the_same_frame_take_one_photograph',
       (tester) async {
     final h = await openGuidedCamera(tester);
