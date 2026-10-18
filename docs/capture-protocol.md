@@ -45,7 +45,7 @@ accurate the reading is on field photographs
 3. Turn the phone so **the sheet's long side runs along the frame's long side**,
    and come as close as the margin allows. The sheet's 297 mm side must span
    **at least 2299 px** in the photograph. On a 12 MP camera (4000 × 3000), that
-   is at least 58 % of the frame's long side. Do not use digital zoom: move closer
+   is at least 57.5 % of the frame's long side. Do not use digital zoom: move closer
    instead.
 4. Use **diffuse light**: shade, an overcast sky, or even room light. **No flash**,
    no patch of direct sun, and no shadow across the sheet, including the phone's

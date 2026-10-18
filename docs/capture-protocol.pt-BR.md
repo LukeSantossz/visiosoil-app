@@ -45,7 +45,7 @@ leitura em fotos de campo
 3. Gire o celular para que **o lado maior da folha fique no lado maior do
    quadro**, e aproxime o quanto a margem permitir. O lado de 297 mm da folha
    precisa ocupar **pelo menos 2299 px** na foto. Numa câmera de 12 MP
-   (4000 × 3000), isso é pelo menos 58 % do lado maior do quadro. Não use zoom
+   (4000 × 3000), isso é pelo menos 57,5 % do lado maior do quadro. Não use zoom
    digital: aproxime o celular.
 4. Use **luz difusa**: sombra, céu nublado ou mesmo a luz do ambiente. **Sem
    flash**, sem mancha de sol direto e sem sombra sobre a folha, nem a do próprio
