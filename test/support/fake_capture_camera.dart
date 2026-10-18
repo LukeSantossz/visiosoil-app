@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_sheet_reader.dart';
+import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
+import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.dart';
 
@@ -122,4 +126,48 @@ class FakeTiltSource implements TiltSource {
 
   @override
   Stream<AccelerationSample> get samples => controller.stream;
+}
+
+/// A [LiveSheetReader] a test answers by hand (SPEC 0166).
+class FakeLiveSheetReader implements LiveSheetReader {
+  final requests = <int>[];
+  final _replies = StreamController<LiveReply>();
+  bool killed = false;
+
+  @override
+  void read(RgbFrame frame, int generation) => requests.add(generation);
+
+  @override
+  Stream<LiveReply> get replies => _replies.stream;
+
+  @override
+  void kill() {
+    if (killed) return;
+    killed = true;
+    unawaited(_replies.close());
+  }
+
+  /// Answers the last request, or [generation] when given.
+  void reply(LiveReading reading, {int? generation}) {
+    if (killed) return;
+    _replies.add((generation: generation ?? requests.last, reading: reading));
+  }
+
+  /// The reader fails, as an isolate that threw or exited would.
+  void fail() {
+    if (!killed) _replies.addError(StateError('the reader failed'));
+  }
+}
+
+/// A [StillSizeStore] held in memory.
+class FakeStillSizeStore implements StillSizeStore {
+  FakeStillSizeStore([this.size]);
+
+  Size? size;
+
+  @override
+  Future<Size?> read() async => size;
+
+  @override
+  Future<void> write(Size size) async => this.size = size;
 }

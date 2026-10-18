@@ -3,9 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/guided_camera_screen.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_frame.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -38,6 +41,18 @@ class GuidedCameraHarness {
   final tilt = FakeTiltSource();
   final errors = RecordingErrorReportStore();
   final popped = <GuidedCaptureResult?>[];
+
+  /// The live reader's contract, or null for one that failed to load.
+  LiveContract? liveContract = (
+    canonicalMmPerPx: 0.12920342774728033,
+    patchPx: 160,
+    strideFraction: 0.5,
+    minPatches: 9,
+  );
+
+  /// Every live reader the screen spawned, in order (SPEC 0166).
+  final readers = <FakeLiveSheetReader>[];
+  final stillSizes = FakeStillSizeStore();
 }
 
 /// Pumps a home page whose "open" button pushes [GuidedCameraScreen], taps
@@ -57,6 +72,9 @@ Future<GuidedCameraHarness> openGuidedCamera(
     if (call.method == 'SystemChrome.setPreferredOrientations') {
       h.cameras.log.add('orientations:${call.arguments}');
     }
+    if (call.method == 'HapticFeedback.vibrate') {
+      h.cameras.log.add('haptic:${call.arguments}');
+    }
     return null;
   });
   addTearDown(
@@ -64,9 +82,7 @@ Future<GuidedCameraHarness> openGuidedCamera(
   );
   await tester.pumpWidget(ProviderScope(
     overrides: [
-      captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
-      tiltSourceProvider.overrideWithValue(h.tilt),
-      errorReportStoreProvider.overrideWithValue(h.errors),
+      ...guidedCameraOverrides(h),
     ],
     child: MaterialApp(
       theme: theme ?? AppTheme.light,
@@ -126,4 +142,54 @@ final fakePreview = find.byKey(const ValueKey('fake-preview'));
 Future<void> backOut(WidgetTester tester) async {
   tester.state<NavigatorState>(find.byType(Navigator)).maybePop();
   await tester.pumpAndSettle();
+}
+
+/// The provider overrides that put the guided camera on [h]'s fakes.
+List<Override> guidedCameraOverrides(GuidedCameraHarness h) => [
+      captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
+      tiltSourceProvider.overrideWithValue(h.tilt),
+      errorReportStoreProvider.overrideWithValue(h.errors),
+      liveContractLoaderProvider.overrideWithValue(() async => h.liveContract),
+      liveSheetReaderFactoryProvider.overrideWithValue((contract) async {
+        final reader = FakeLiveSheetReader();
+        h.readers.add(reader);
+        return reader;
+      }),
+      stillSizeStoreProvider.overrideWithValue(h.stillSizes),
+    ];
+
+/// A tiny luma frame, as the camera's stream would hand one over.
+CameraFrame get tinyFrame => (
+      format: LivePixelFormat.yuv420,
+      width: 4,
+      height: 2,
+      bytes: Uint8List(8),
+      bytesPerRow: 4,
+    );
+
+/// Emits a frame from the live camera and lets the screen hand it over.
+Future<void> emitFrame(WidgetTester tester, GuidedCameraHarness h) async {
+  h.cameras.cameras.last.emitFrame(tinyFrame);
+  await tester.pump();
+}
+
+/// The live reader answers the last frame with [reading].
+Future<void> replyWith(
+  WidgetTester tester,
+  GuidedCameraHarness h,
+  LiveReading reading,
+) async {
+  h.readers.last.reply(reading);
+  await tester.pumpAndSettle();
+}
+
+/// Lets real file I/O started inside the fake clock finish: a real wait for
+/// the I/O, then a pump for its callbacks, a few times over.
+Future<void> settleIo(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
 }
