@@ -231,4 +231,22 @@ void main() {
     expect(h.cameras.log, contains('takePicture:0'));
     expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
+
+  testWidgets('a_shot_waits_for_a_stream_still_starting', (tester) async {
+    final h = GuidedCameraHarness()..cameras.startFramesGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    expect(h.cameras.log, contains('startFrames:0'));
+    await tester.tap(shutter);
+    await tester.pump();
+    expect(h.cameras.log, isNot(contains('takePicture:0')),
+        reason: 'the stream is still starting');
+
+    h.cameras.startFramesGate!.complete();
+    await tester.pumpAndSettle();
+    final log = h.cameras.log;
+    expect(log.indexOf('stopFrames:0'), greaterThanOrEqualTo(0));
+    expect(log.indexOf('stopFrames:0'), lessThan(log.indexOf('takePicture:0')));
+    expect(h.cameras.cameras.single.streaming, isFalse);
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
 }

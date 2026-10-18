@@ -31,6 +31,9 @@ class FakeCaptureCameras {
   /// Thrown by stopFrames, when set.
   Object? stopFramesError;
 
+  /// When set, startFrames waits on it before the stream runs.
+  Completer<void>? startFramesGate;
+
   /// When set, takePicture returns a file at this path instead of a made-up
   /// one, so a test can check what happens to it.
   String? picturePath;
@@ -71,6 +74,8 @@ class FakeCaptureCamera implements CaptureCamera {
   @override
   Future<void> startFrames(void Function(CameraFrame frame) onFrame) async {
     _owner.log.add('startFrames:$index');
+    final gate = _owner.startFramesGate;
+    if (gate != null) await gate.future;
     _onFrame = onFrame;
   }
 

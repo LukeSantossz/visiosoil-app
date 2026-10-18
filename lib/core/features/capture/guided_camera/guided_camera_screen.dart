@@ -85,6 +85,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   /// Bumped by every stop: a startup that resumes after one was cancelled.
   int _liveToken = 0;
+
+  /// The preview stream's start in flight, if any: every stop waits for it,
+  /// so no stream is left running behind a stop that came while it started.
+  Future<void>? _startingFrames;
   LiveContract? _liveContract;
   Size? _readSize;
   Size? _stillSize;
@@ -224,7 +228,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// running wastes the camera's work and can make the next shot fail, which
   /// that shot's own error path then reports to the user.
   Future<void> _stopFrames(CaptureCamera camera) async {
+    final starting = _startingFrames;
     try {
+      // A stream still starting is stopped once it runs, not before.
+      if (starting != null) await starting;
       await camera.stopFrames();
     } on Exception catch (e, stack) {
       unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));
@@ -251,10 +258,13 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       }
       _reader = reader;
       _replies = reader.replies.listen(_onReply, onError: _onReaderFailed);
-      await camera.startFrames(_onFrame);
-      // A shot or a release that came while the stream was starting has
-      // already stopped the reader; the stream it started must stop too.
-      if (token != _liveToken) await _stopFrames(camera);
+      final starting = camera.startFrames(_onFrame);
+      _startingFrames = starting;
+      try {
+        await starting;
+      } finally {
+        if (identical(_startingFrames, starting)) _startingFrames = null;
+      }
     } on Object catch (e, stack) {
       // A reader that cannot start is a reader that failed: recorded, and the
       // banner stays the tilt's for the visit.
