@@ -32,7 +32,11 @@ final class LiveSheetNotFound extends LiveReading {
 
 /// `findSheet` found a sheet that runs off the frame.
 final class LiveSheetCropped extends LiveReading {
-  const LiveSheetCropped();
+  const LiveSheetCropped({this.sides = const []});
+
+  /// The frame's sides the sheet runs off, most first; empty when the reader
+  /// could not tell (SPEC 0169).
+  final List<FrameSide> sides;
 }
 
 /// A whole sheet, and what is on it.
@@ -41,6 +45,7 @@ final class LiveSheetFound extends LiveReading {
     required this.sheetLongSidePx,
     required this.discDiameterMm,
     required this.holdsMinPatches,
+    this.corners = const [],
   });
 
   /// The sheet's long side in the read frame's pixels, for the scale.
@@ -53,6 +58,10 @@ final class LiveSheetFound extends LiveReading {
 
   /// Whether the disc holds the contract's `min_patches` patches.
   final bool holdsMinPatches;
+
+  /// The sheet's four corners in the read frame's pixels, which the guides
+  /// are coloured by (SPEC 0169); empty when not known.
+  final List<({double x, double y})> corners;
 }
 
 /// Reads [frame] with the reader that judges the still: `findSheet`,
@@ -62,7 +71,7 @@ LiveReading readSheet(RgbFrame frame, LiveContract contract) {
   final corners = found.corners;
   if (corners == null) {
     return switch (found.refusal!) {
-      SheetRefusal.cropped => const LiveSheetCropped(),
+      SheetRefusal.cropped => LiveSheetCropped(sides: found.croppedSides),
       SheetRefusal.notFound => const LiveSheetNotFound(),
     };
   }
@@ -73,6 +82,7 @@ LiveReading readSheet(RgbFrame frame, LiveContract contract) {
       sheetLongSidePx: longSide,
       discDiameterMm: null,
       holdsMinPatches: false,
+      corners: corners.points,
     );
   }
   final placed = patchGeometry(
@@ -86,6 +96,7 @@ LiveReading readSheet(RgbFrame frame, LiveContract contract) {
     sheetLongSidePx: longSide,
     discDiameterMm: disc.diameterMm,
     holdsMinPatches: placed.geometry != null,
+    corners: corners.points,
   );
 }
 
