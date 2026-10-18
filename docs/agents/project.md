@@ -167,7 +167,7 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 20 files declaring 43 providers (database, repository,
+└── providers/                         # 20 files declaring 44 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
                                        #   storage, lost capture, appearance, error report,

@@ -195,3 +195,37 @@ class _LevelPainter extends CustomPainter {
   bool shouldRepaint(_LevelPainter old) =>
       old.offset != offset || old.level != level;
 }
+
+/// The ring around the shutter that fills across the automatic capture's
+/// one-second window (SPEC 0167). A countdown, not a loading spinner, so it
+/// is drawn here with the rest of the guide.
+class CountdownRingPainter extends CustomPainter {
+  CountdownRingPainter(this.progress);
+
+  /// From 0, the window just opened, to 1, the second is up.
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(2);
+    final track = Paint()
+      ..color = Colors.white24
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    canvas.drawOval(rect, track);
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * progress.clamp(0.0, 1.0),
+      false,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CountdownRingPainter old) => old.progress != progress;
+}

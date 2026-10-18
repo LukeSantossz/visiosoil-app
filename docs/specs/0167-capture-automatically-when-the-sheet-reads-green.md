@@ -8,7 +8,7 @@ Once the live reader says everything is right (SPEC 0166), the user must still r
 
 **The guided camera takes the photograph itself when the guidance has been green and steady for one second.** `AutoCaptureTrigger` is a pure state machine. It holds no timer: it is fed two kinds of events, each stamped by an injected clock, and decides on each one.
 
-- A **reading** event carries the banner's row after SPEC 0166's debounce and, when the sheet is found, the disc's diameter.
+- A **reading** event carries the banner's row after SPEC 0166's debounce and, when the sheet is found, the disc's diameter. Amended in review: a reading that is not green in its own right, which the debounce has not yet let through to the banner, keeps the window as the banner does but is not a reading event. It counts toward neither the window's two readings nor its diameters, so the trigger never fires on a window whose second reading was refused.
 - A **tilt** event carries the smoothed tilt of SPEC 0165, at `SensorInterval.normalInterval`.
 
 The **window** opens at the first event at which the banner is row 8, green, with a measured tilt. While it is open, every event must keep it qualified, or the window closes at once:
@@ -54,6 +54,7 @@ The trigger **fires** at the first event stamped at least 1000 ms after the wind
 
 - `fires_after_one_steady_green_second`: green readings every 333 ms and tilt events every 200 ms, still and stable, fire the trigger on the first event stamped at or after 1000 ms from the window's opening, and on no event before it.
 - `one_reading_is_not_enough`: a window that reaches 1000 ms holding a single reading does not fire, and fires at the next event once a second reading has arrived.
+- `a_suppressed_reading_does_not_count`: a single cropped reading, held back by the debounce, keeps the window open but does not count, so the window fires only after a second green reading.
 - `leaving_green_closes_the_window`: a non-green reading at 800 ms closes the window, and the trigger fires 1000 ms after the next window opens.
 - `a_moving_phone_does_not_fire`: smoothed tilts spanning 1.0° within the window close it; tilts spanning 0.99° do not.
 - `an_unstable_disc_does_not_fire`: consecutive diameters 2.0 mm apart close the window; 1.99 mm apart do not.

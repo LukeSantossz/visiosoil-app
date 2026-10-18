@@ -6,6 +6,7 @@ import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/auto_capture_trigger.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
@@ -20,6 +21,7 @@ import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -97,18 +99,28 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   bool _shownTooCoarse = false;
   bool _wasReady = false;
 
+  // The automatic capture (SPEC 0167).
+  final AutoCaptureTrigger _trigger = AutoCaptureTrigger();
+  late final DateTime Function() _clock;
+  bool _flashing = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _errors = ref.read(errorReportStoreProvider);
+    _clock = ref.read(autoCaptureClockProvider);
     _tiltSubscription = ref.read(tiltSourceProvider).samples.listen(
       (sample) {
         final tilt = _smoother.add(sample.x, sample.y, sample.z);
-        if (mounted && tilt != _tilt) {
+        if (!mounted) return;
+        if (tilt != _tilt) {
           setState(() => _tilt = tilt);
           _tickIfGreen();
         }
+        // Every sample is an event: a still phone repeats the same tilt, and
+        // that sample may be the first past the window's second.
+        _feedTrigger(isReading: false);
       },
       onError: (Object error, StackTrace stack) {
         // No accelerometer: the level hides and nothing is blocked.
@@ -119,7 +131,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
           stackTrace: stack,
         );
         unawaited(_tiltSubscription?.cancel());
-        if (mounted) setState(() => _tilt = null);
+        if (mounted) {
+          setState(() {
+            _tilt = null;
+            _trigger.close();
+          });
+        }
       },
     );
     unawaited(_start());
@@ -338,12 +355,52 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final tooCoarse = _isTooCoarse(reading);
     // The reader's own row: the tilt rows follow the sensor, not the reader.
     final row = guidanceFor(tilt: 0, reading: reading, tooCoarse: tooCoarse).row;
-    if (_debouncer.accept(row) != row || !mounted) return;
-    setState(() {
-      _shownReading = reading;
-      _shownTooCoarse = tooCoarse;
-    });
-    _tickIfGreen();
+    if (!mounted) return;
+    if (_debouncer.accept(row) == row) {
+      setState(() {
+        _shownReading = reading;
+        _shownTooCoarse = tooCoarse;
+      });
+      _tickIfGreen();
+    }
+    // Only a reading green in its own right counts toward the window's two;
+    // one the debounce has not let through yet is an event that keeps the
+    // window as the banner shows it (SPEC 0167, amended).
+    _feedTrigger(isReading: row == GuidanceRow.ready, reading: reading);
+  }
+
+  /// Hands one event to the automatic capture: the banner's row as shown,
+  /// this reading's disc, and the smoothed tilt, stamped now (SPEC 0167).
+  /// [isReading] is false for a tilt sample and for a reading that is not
+  /// green itself. With no live reading shown, the trigger is disarmed.
+  void _feedTrigger({required bool isReading, LiveReading? reading}) {
+    if (_shooting || _closed || _camera == null || !mounted) return;
+    final shown = _shownReading;
+    if (shown == null || _reader == null) {
+      if (_trigger.windowOpenedAt != null) setState(_trigger.close);
+      return;
+    }
+    final row = guidanceFor(
+      tilt: _tilt,
+      reading: shown,
+      tooCoarse: _shownTooCoarse,
+    ).row;
+    final openedBefore = _trigger.windowOpenedAt;
+    final now = _clock();
+    final fire = isReading
+        ? _trigger.onReading(
+            row: row,
+            discDiameterMm:
+                reading is LiveSheetFound ? reading.discDiameterMm : null,
+            tilt: _tilt,
+            at: now,
+          )
+        : _trigger.onTilt(row: row, tilt: _tilt, at: now);
+    if (fire) {
+      unawaited(_shoot(automatic: true));
+      return;
+    }
+    if (_trigger.windowOpenedAt != openedBefore) setState(() {});
   }
 
   bool _isTooCoarse(LiveReading reading) {
@@ -397,6 +454,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// killed, and any reply still on its way is stale. The frames stop where
   /// the caller awaits them.
   void _stopLive() {
+    _trigger.close();
     _liveToken++;
     _readGeneration++;
     _readTimer?.cancel();
@@ -475,14 +533,17 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     }
   }
 
-  Future<void> _shoot() async {
+  Future<void> _shoot({bool automatic = false}) async {
     final camera = _camera;
-    if (_shooting || camera == null) return;
+    if (_shooting || _closed || camera == null) return;
     _shooting = true;
+    if (automatic) _flash();
     // Read now: the screen may be closed by the time the shot returns.
     final stillSizes = ref.read(stillSizeStoreProvider);
     // The reader stops before the shot, and nothing waits on its last frame.
+    // Stopping closes the window, so the ring and its banner go now.
     _stopLive();
+    if (mounted) setState(() {});
     await _stopFrames(camera);
     try {
       final file = await camera.takePicture();
@@ -497,6 +558,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       _pop(GuidedCaptureResult.captured(file));
     } on Exception catch (e, stack) {
       _shooting = false;
+      // Only a window opened after this failure, lasting its full second,
+      // fires again.
+      _trigger.failedAt(_clock());
       unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -504,6 +568,16 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       ));
       if (identical(_camera, camera)) unawaited(_startLive(camera));
     }
+  }
+
+  /// A short white flash over the preview when the automatic shot fires, not
+  /// shown when the system asks for reduced motion.
+  void _flash() {
+    if (!mounted || MediaQuery.disableAnimationsOf(context)) return;
+    setState(() => _flashing = true);
+    Timer(AppMotion.fast, () {
+      if (mounted) setState(() => _flashing = false);
+    });
   }
 
   Future<void> _discard(XFile file) async {
@@ -545,11 +619,18 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    final guidance = guidanceFor(
-      tilt: _tilt,
-      reading: _shownReading,
-      tooCoarse: _shownTooCoarse,
-    ).guidance;
+    final windowOpen = _trigger.windowOpenedAt != null;
+    final guidance = windowOpen
+        ? const Guidance(
+            tone: GuidanceTone.ready,
+            message: 'Segure firme…',
+            icon: Icons.pan_tool_outlined,
+          )
+        : guidanceFor(
+            tilt: _tilt,
+            reading: _shownReading,
+            tooCoarse: _shownTooCoarse,
+          ).guidance;
     final camera = _camera;
     return Scaffold(
       backgroundColor: Colors.black,
@@ -564,6 +645,13 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                   size: camera.previewSize,
                   child: camera.buildPreview(),
                 ),
+              ),
+            ),
+          if (_flashing)
+            const IgnorePointer(
+              child: ColoredBox(
+                key: ValueKey('guided-camera-flash'),
+                color: Colors.white,
               ),
             ),
           SafeArea(
@@ -593,7 +681,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                         onPressed: () =>
                             _pop(const GuidedCaptureResult.cancelled()),
                       ),
-                      _Shutter(onTap: _shoot),
+                      _Shutter(
+                        onTap: () => unawaited(_shoot()),
+                        windowOpenedAt: _trigger.windowOpenedAt,
+                      ),
                       // Balances the close button, so the shutter is centred.
                       const SizedBox(width: 48),
                     ],
@@ -641,27 +732,57 @@ class _GuidanceBanner extends StatelessWidget {
 }
 
 class _Shutter extends StatelessWidget {
-  const _Shutter({required this.onTap});
+  const _Shutter({required this.onTap, required this.windowOpenedAt});
 
   final VoidCallback onTap;
 
+  /// When the automatic capture's window opened, or null when none is open:
+  /// the ring around the shutter fills across the window's second.
+  final DateTime? windowOpenedAt;
+
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Tirar foto',
-      child: GestureDetector(
-        key: const ValueKey('guided-camera-shutter'),
-        onTap: onTap,
-        child: Container(
-          width: 76,
-          height: 76,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: Colors.white70, width: 4),
+    final openedAt = windowOpenedAt;
+    return SizedBox(
+      width: 92,
+      height: 92,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (openedAt != null)
+            IgnorePointer(
+              child: SizedBox(
+                width: 92,
+                height: 92,
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(openedAt),
+                  tween: Tween(begin: 0, end: 1),
+                  duration: AutoCaptureTrigger.window,
+                  builder: (context, value, _) => CustomPaint(
+                    key: const ValueKey('guided-camera-ring'),
+                    painter: CountdownRingPainter(value),
+                  ),
+                ),
+              ),
+            ),
+          Semantics(
+            button: true,
+            label: 'Tirar foto',
+            child: GestureDetector(
+              key: const ValueKey('guided-camera-shutter'),
+              onTap: onTap,
+              child: Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: Colors.white70, width: 4),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

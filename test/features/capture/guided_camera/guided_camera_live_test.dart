@@ -71,7 +71,9 @@ void main() {
 
     await _read(tester, h, _sound);
     await _read(tester, h, _sound);
-    expect(bannerText(tester), 'Pronto. Segure firme.');
+    // Green with a level phone opens SPEC 0167's one-second window, whose
+    // banner replaces row 8's sentence while it lasts.
+    expect(bannerText(tester), 'Segure firme…');
     expect(ticks(), 1);
     await _read(tester, h, _sound);
     expect(ticks(), 1, reason: 'staying green ticks once');
