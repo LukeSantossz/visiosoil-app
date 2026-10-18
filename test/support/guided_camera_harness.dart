@@ -63,6 +63,13 @@ class GuidedCameraHarness {
 
   /// The stored still size at the moment each result was popped.
   final stillSizeAtPop = <Object?>[];
+
+  /// The clock the automatic capture stamps its events with (SPEC 0167).
+  DateTime now = DateTime.utc(2026, 10, 18, 12);
+
+  /// Moves [now] forward.
+  void advance(int milliseconds) =>
+      now = now.add(Duration(milliseconds: milliseconds));
 }
 
 /// Pumps a home page whose "open" button pushes [GuidedCameraScreen], taps
@@ -172,6 +179,7 @@ List<Override> guidedCameraOverrides(GuidedCameraHarness h) => [
         return reader;
       }),
       stillSizeStoreProvider.overrideWithValue(h.stillSizes),
+      autoCaptureClockProvider.overrideWithValue(() => h.now),
     ];
 
 /// A tiny luma frame, as the camera's stream would hand one over.

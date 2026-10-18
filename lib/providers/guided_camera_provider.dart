@@ -42,6 +42,12 @@ final liveContractLoaderProvider = Provider<Future<LiveContract?> Function()>(
   },
 );
 
+/// The clock the automatic capture stamps its events with (SPEC 0167).
+/// Overridden in tests to drive the one-second window by hand.
+final autoCaptureClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
+
 /// Spawns the live sheet reader (SPEC 0166). Overridden with a fake in tests.
 final liveSheetReaderFactoryProvider = Provider<LiveSheetReaderFactory>(
   (ref) => IsolateLiveSheetReader.spawn,
