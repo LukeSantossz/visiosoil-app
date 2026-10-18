@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:camera/camera.dart';
@@ -103,7 +104,12 @@ class FakeCaptureCamera implements CaptureCamera {
     if (gate != null) await gate.future;
     final error = _owner.takePictureError;
     if (error != null) throw error;
-    return XFile(_owner.picturePath ?? '/tmp/guided_$index.jpg');
+    final path = _owner.picturePath;
+    // A made-up photograph lives in memory, so reading it needs no file I/O
+    // inside the fake clock; a test that needs a real file sets picturePath.
+    return path != null
+        ? XFile(path)
+        : XFile.fromData(Uint8List(0), path: '/tmp/guided_$index.jpg');
   }
 
   /// Logs `dispose:<index>` once the release has completed, so a test can

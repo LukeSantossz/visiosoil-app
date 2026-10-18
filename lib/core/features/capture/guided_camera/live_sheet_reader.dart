@@ -36,19 +36,42 @@ class IsolateLiveSheetReader implements LiveSheetReader {
   final _replies = StreamController<LiveReply>();
   bool _killed = false;
 
+  /// How long the worker has to hand over its port before the spawn fails.
+  static const handshakeTimeout = Duration(seconds: 5);
+
   static Future<IsolateLiveSheetReader> spawn(LiveContract contract) async {
     final fromWorker = ReceivePort();
     final errors = ReceivePort();
     final exits = ReceivePort();
-    final isolate = await Isolate.spawn(
-      _readerMain,
-      (fromWorker.sendPort, contract),
-      onError: errors.sendPort,
-      onExit: exits.sendPort,
-      errorsAreFatal: true,
-    );
+    void closePorts() {
+      fromWorker.close();
+      errors.close();
+      exits.close();
+    }
+
+    final Isolate isolate;
+    try {
+      isolate = await Isolate.spawn(
+        _readerMain,
+        (fromWorker.sendPort, contract),
+        onError: errors.sendPort,
+        onExit: exits.sendPort,
+        errorsAreFatal: true,
+      );
+    } on Object {
+      closePorts();
+      rethrow;
+    }
     final messages = fromWorker.asBroadcastStream();
-    final toWorker = await messages.first as SendPort;
+    final SendPort toWorker;
+    try {
+      toWorker = await messages.first.timeout(handshakeTimeout) as SendPort;
+    } on Object {
+      // A worker that never answers is killed with its ports, not leaked.
+      isolate.kill(priority: Isolate.immediate);
+      closePorts();
+      rethrow;
+    }
     final reader = IsolateLiveSheetReader._(
       isolate,
       toWorker,

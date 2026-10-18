@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -162,9 +163,12 @@ void main() {
     final h = await openGuidedCamera(tester);
     h.cameras.picturePath = file.path;
     await tester.tap(shutter);
-    await tester.pumpAndSettle();
     await settleIo(tester);
+    await tester.pumpAndSettle();
     expect(h.stillSizes.size, const Size(30, 40));
+    // Learned before the photograph is handed over, so nothing that owns the
+    // file afterwards can race the read.
+    expect(h.stillSizeAtPop.single, const Size(30, 40));
   });
 
   testWidgets('a_known_still_size_asks_to_come_closer', (tester) async {
@@ -180,5 +184,37 @@ void main() {
     await _read(tester, h, far);
     await _read(tester, h, far);
     expect(bannerText(tester), 'Aproxime o celular da folha.');
+  });
+
+  // R2 review fixes (Codex Luna).
+  testWidgets('a_shot_during_startup_keeps_the_reader_off', (tester) async {
+    final h = GuidedCameraHarness()..contractGate = Completer<void>();
+    await openGuidedCamera(tester, harness: h);
+    final gate = Completer<void>();
+    h.cameras.cameras.single.pictureGate = gate;
+    await tester.tap(shutter);
+    await tester.pump();
+
+    h.contractGate!.complete();
+    await tester.pumpAndSettle();
+    expect(h.readers, isEmpty, reason: 'the shot invalidated the startup');
+    expect(h.cameras.log, isNot(contains('startFrames:0')));
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
+  });
+
+  testWidgets('a_reader_that_cannot_start_falls_back', (tester) async {
+    final h = GuidedCameraHarness()..spawnError = StateError('no isolate');
+    await openGuidedCamera(tester, harness: h);
+    await tiltTo(tester, h, 0);
+    expect(tester.takeException(), isNull);
+    expect(h.errors.sources, ['live_sheet_reader']);
+    expect(h.cameras.log, isNot(contains('startFrames:0')));
+    expect(bannerText(tester), 'Nivelado. Encaixe a folha no contorno.');
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+    expect(h.popped.single, isA<GuidedCaptureCaptured>());
   });
 }

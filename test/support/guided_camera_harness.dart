@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -53,6 +54,15 @@ class GuidedCameraHarness {
   /// Every live reader the screen spawned, in order (SPEC 0166).
   final readers = <FakeLiveSheetReader>[];
   final stillSizes = FakeStillSizeStore();
+
+  /// When set, loading the contract waits on it.
+  Completer<void>? contractGate;
+
+  /// Thrown by the reader factory, when set.
+  Object? spawnError;
+
+  /// The stored still size at the moment each result was popped.
+  final stillSizeAtPop = <Object?>[];
 }
 
 /// Pumps a home page whose "open" button pushes [GuidedCameraScreen], taps
@@ -95,6 +105,7 @@ Future<GuidedCameraHarness> openGuidedCamera(
                 MaterialPageRoute(builder: (_) => const GuidedCameraScreen()),
               );
               h.popped.add(result);
+              h.stillSizeAtPop.add(h.stillSizes.size);
             },
             child: const Text('open'),
           ),
@@ -149,8 +160,13 @@ List<Override> guidedCameraOverrides(GuidedCameraHarness h) => [
       captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
       tiltSourceProvider.overrideWithValue(h.tilt),
       errorReportStoreProvider.overrideWithValue(h.errors),
-      liveContractLoaderProvider.overrideWithValue(() async => h.liveContract),
+      liveContractLoaderProvider.overrideWithValue(() async {
+        await h.contractGate?.future;
+        return h.liveContract;
+      }),
       liveSheetReaderFactoryProvider.overrideWithValue((contract) async {
+        final error = h.spawnError;
+        if (error != null) throw error;
         final reader = FakeLiveSheetReader();
         h.readers.add(reader);
         return reader;

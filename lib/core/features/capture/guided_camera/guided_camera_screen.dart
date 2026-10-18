@@ -82,6 +82,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   /// Set when the reader failed: no live reading for the rest of the visit.
   bool _liveFailed = false;
+
+  /// Bumped by every stop: a startup that resumes after one was cancelled.
+  int _liveToken = 0;
   LiveContract? _liveContract;
   Size? _readSize;
   Size? _stillSize;
@@ -233,29 +236,43 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// Starts reading [camera]'s preview live, unless the reader failed this
   /// visit or the contract cannot be loaded (SPEC 0166).
   Future<void> _startLive(CaptureCamera camera) async {
-    if (_liveFailed || _reader != null) return;
+    if (_liveFailed || _reader != null || _shooting) return;
+    final token = _liveToken;
     final loadContract = ref.read(liveContractLoaderProvider);
     final spawn = ref.read(liveSheetReaderFactoryProvider);
     final stillSizes = ref.read(stillSizeStoreProvider);
-    final contract = _liveContract ??= await loadContract();
-    if (contract == null || !_canGoLive(camera)) return;
-    _stillSize ??= await _readStillSize(stillSizes);
-    final reader = await spawn(contract);
-    if (!_canGoLive(camera) || _reader != null) {
-      reader.kill();
-      return;
-    }
-    _reader = reader;
-    _replies = reader.replies.listen(_onReply, onError: _onReaderFailed);
     try {
+      final contract = _liveContract ??= await loadContract();
+      if (contract == null || !_canGoLive(camera, token)) return;
+      _stillSize ??= await _readStillSize(stillSizes);
+      if (!_canGoLive(camera, token)) return;
+      final reader = await spawn(contract);
+      if (!_canGoLive(camera, token) || _reader != null) {
+        reader.kill();
+        return;
+      }
+      _reader = reader;
+      _replies = reader.replies.listen(_onReply, onError: _onReaderFailed);
       await camera.startFrames(_onFrame);
-    } on Exception catch (e, stack) {
-      _onReaderFailed(e, stack);
+      // A shot or a release that came while the stream was starting has
+      // already stopped the reader; the stream it started must stop too.
+      if (token != _liveToken) await _stopFrames(camera);
+    } on Object catch (e, stack) {
+      // A reader that cannot start is a reader that failed: recorded, and the
+      // banner stays the tilt's for the visit.
+      if (token == _liveToken) _onReaderFailed(e, stack);
     }
   }
 
-  bool _canGoLive(CaptureCamera camera) =>
-      mounted && !_closed && !_liveFailed && identical(_camera, camera);
+  /// Whether a startup begun under [token] may still go live on [camera]: no
+  /// stop, shot, failure or close came meanwhile.
+  bool _canGoLive(CaptureCamera camera, int token) =>
+      token == _liveToken &&
+      mounted &&
+      !_closed &&
+      !_liveFailed &&
+      !_shooting &&
+      identical(_camera, camera);
 
   Future<Size?> _readStillSize(StillSizeStore store) async {
     try {
@@ -372,6 +389,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// killed, and any reply still on its way is stale. The frames stop where
   /// the caller awaits them.
   void _stopLive() {
+    _liveToken++;
     _readGeneration++;
     _readTimer?.cancel();
     _readTimer = null;
@@ -460,13 +478,15 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     await _stopFrames(camera);
     try {
       final file = await camera.takePicture();
+      // Learned before the photograph is handed over: whoever owns the file
+      // next may move or delete it.
+      await _learnStillSize(stillSizes, file);
       if (_closed || !mounted) {
         // Nobody will receive it: the screen closed while it was taken.
         await _discard(file);
         return;
       }
       _pop(GuidedCaptureResult.captured(file));
-      unawaited(_learnStillSize(stillSizes, file));
     } on Exception catch (e, stack) {
       _shooting = false;
       unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));

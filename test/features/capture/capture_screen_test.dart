@@ -1926,6 +1926,7 @@ void main() {
       expect(find.byKey(const ValueKey('guided-camera-shutter')), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
       expect(shownImage(tester)?.path, samplePath);
       expect(deleted, isEmpty);
@@ -1953,12 +1954,14 @@ void main() {
       await tester.tap(find.text('Câmera'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
 
       h.cameras.picturePath = second.path;
       await tester.tap(find.text('Tirar outra foto'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
+      await settleIo(tester);
       await tester.pumpAndSettle();
 
       expect(shownImage(tester)?.path, second.path);
