@@ -28,7 +28,7 @@ The container roles are the ones the banner already uses (SPEC 0165), drawn as s
 
 This is correct only if the stream and the preview share a field of view. **When the read frame's aspect ratio differs from `previewSize`'s by more than 2 %**, the corners are not mapped, every bracket stays `idle`, and the banner works as in SPEC 0166. Showing a corner in the wrong place would be worse than showing none.
 
-**Each detected corner is assigned to one bracket** by its position on the overlay: top-left is the corner with the least x + y, bottom-right the one with the most, top-right the one with the most x − y, and bottom-left the one with the least x − y. The ordering of `SheetCorners` is not used for this, because it follows the sheet's edges, not the screen.
+**Each detected corner is assigned to one bracket** by its position on the overlay: top-left is the corner with the least x + y, bottom-right the one with the most, top-right the one with the most x − y, and bottom-left the one with the least x − y. The ordering of `SheetCorners` is not used for this, because it follows the sheet's edges, not the screen. Amended in review: the four corners are instead taken in clockwise order around their centre, starting from the one with the least x + y. The four extremes can name one corner twice when the sheet is turned near 45°, and the clockwise order gives each corner exactly one bracket.
 
 **A bracket's state is its corner's distance to the bracket's vertex**, in overlay logical pixels, measured against the outline's width `W`:
 
@@ -40,7 +40,7 @@ This is correct only if the stream and the preview share a field of view. **When
 
 The two fractions are first values, to be tuned in the field session. They are constants in one place, named for what they are.
 
-**Arrows.** A bracket that is `near` or `off` draws an arrow from its vertex. The arrow points along the dominant axis of the sheet's **mean** corner displacement from the brackets, the direction to move the phone, as in the approved mockup. Moving the phone toward the side the sheet has drifted to brings the sheet back. Arrows are drawn only when that mean displacement exceeds 0.06 W, so the misalignment is mostly a shift. When the sheet is mostly too small, too large or turned, a shift does not fix it, so no arrow is drawn, and the banner (below) names the fix.
+**Arrows.** A bracket that is `near` or `off` draws an arrow from its vertex. The arrow points along the dominant axis of the sheet's **mean** corner displacement from the brackets, the direction to move the phone, as in the approved mockup. Moving the phone toward the side the sheet has drifted to brings the sheet back. Arrows are drawn only when that mean displacement exceeds 0.06 W, so the misalignment is mostly a shift. When the sheet is mostly too small, too large or turned, a shift does not fix it, so no arrow is drawn, and the banner (below) names the fix. Amended in review: arrows are drawn only while the banner shows the misalignment row. When an earlier row holds, for example a scale too coarse, an arrow beside it would ask for a different move than the banner.
 
 **The soil target's state follows the soil rows** that SPEC 0166 already defines, so the target never disagrees with the banner or the trigger:
 
