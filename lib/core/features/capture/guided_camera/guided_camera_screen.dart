@@ -829,6 +829,7 @@ class _Shutter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final openedAt = windowOpenedAt;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return SizedBox(
       width: 92,
       height: 92,
@@ -841,8 +842,13 @@ class _Shutter extends StatelessWidget {
                 width: 92,
                 height: 92,
                 child: TweenAnimationBuilder<double>(
-                  key: ValueKey(openedAt),
-                  tween: Tween(begin: 0, end: 1),
+                  // Keyed by the motion setting too, so turning reduced
+                  // motion on mid-window stills the ring at once.
+                  key: ValueKey((openedAt, reduceMotion)),
+                  // Under reduced motion the ring shows full and still.
+                  tween: reduceMotion
+                      ? Tween(begin: 1, end: 1)
+                      : Tween(begin: 0, end: 1),
                   duration: AutoCaptureTrigger.window,
                   builder: (context, value, _) => CustomPaint(
                     key: const ValueKey('guided-camera-ring'),

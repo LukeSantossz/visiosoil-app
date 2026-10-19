@@ -286,6 +286,38 @@ void main() {
     }
   });
 
+  // Amended 2026-10-18: the ring stays still under reduced motion.
+  testWidgets('the_ring_stays_still_under_reduce_motion', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    double progress() =>
+        (tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter)
+            .progress;
+    expect(progress(), 1);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(progress(), 1);
+
+    await _read(tester, h, _cropped);
+    await _read(tester, h, _cropped);
+    expect(_ring, findsNothing);
+  });
+
+  testWidgets('reduce_motion_turned_on_mid_window_stills_the_ring',
+      (tester) async {
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    await tester.pump(const Duration(milliseconds: 200));
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    await tester.pump();
+    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    expect(ring.progress, 1);
+  });
+
   testWidgets('the_trigger_adds_no_haptic', (tester) async {
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
