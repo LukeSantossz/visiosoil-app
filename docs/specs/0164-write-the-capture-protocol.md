@@ -23,4 +23,10 @@ The protocol exists only in pieces: three sentences of product copy in `lib/core
 - `the_protocol_states_the_least_sheet_span_the_contract_allows`: each document states the least number of pixels the sheet's 297 mm side must span, and it equals `ceil(297 / canonical_mm_per_px)` from `assets/models/spec.json`.
 - `the_protocol_states_the_least_soil_circle_nine_patches_need`: each document states the least soil circle, in whole millimetres, and it equals the smallest disc `patchGeometry` accepts at the contract's `min_patches`, plus the reader's `soilMarginMm` on each side, rounded up.
 - `the_protocol_names_every_refusal_a_retake_fixes`: for every cause whose capture-preview chip asks for another photograph rather than offering a retry, and that is not a contract cause, each document names the cause and quotes the chip's label, so a photographer can find the remedy from what the screen says.
+- `the_translations_state_the_same_steps_and_limits` (amended 2026-10-18, a deferred minor of #392's review). The English source and the pt-BR copy have the same sections. Section by section, including the text before the first one, they have:
+  - the same list items and table rows, in the same order and at the same indent;
+  - the same numbers, with a decimal comma read as a point and link targets ignored;
+  - the same set of backticked names, less the two documents' own file names, since each points to the other.
+
+  A step, a limit or a cause added to one document and not the other fails the suite.
 - `mf check` passes.

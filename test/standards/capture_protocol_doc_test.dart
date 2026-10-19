@@ -74,7 +74,54 @@ void main() {
       });
     });
   }
+
+  // The pt-BR copy states the same steps and limits as the English source
+  // (SPEC 0164, amended 2026-10-18): a step, a limit or a cause added to one
+  // document and not the other fails here.
+  test('the_translations_state_the_same_steps_and_limits', () {
+    final source = _sections(File(documents[0]).readAsStringSync());
+    final copy = _sections(File(documents[1]).readAsStringSync());
+    expect(copy, hasLength(source.length), reason: 'section count');
+    for (var i = 0; i < source.length; i++) {
+      final where = 'section $i (${source[i].split('\n').first})';
+      expect(_items(copy[i]), _items(source[i]), reason: '$where items');
+      expect(_numbers(copy[i]), _numbers(source[i]), reason: '$where numbers');
+      expect(_names(copy[i]), _names(source[i]), reason: '$where names');
+    }
+  });
 }
+
+/// [document] split at its `## ` headings, the text before the first one
+/// included.
+List<String> _sections(String document) => document
+    .replaceAll('\r\n', '\n')
+    .split(RegExp(r'^## ', multiLine: true));
+
+/// [section]'s list items and table rows in order, each as its kind and its
+/// indent on its own line, so a nested item or a row traded for an item is
+/// told apart.
+List<String> _items(String section) => [
+      for (final match
+          in RegExp(r'^([ \t]*)([-*+] |\d+\. |\|)', multiLine: true)
+              .allMatches(section))
+        '${match.group(2)!.startsWith('|') ? 'row' : 'item'}'
+            '@${match.group(1)!.length}',
+    ];
+
+/// Every number in [section], a decimal comma read as a point, link targets
+/// left out, sorted.
+List<String> _numbers(String section) => [
+      for (final match in RegExp(r'\d+(?:[.,]\d+)?')
+          .allMatches(section.replaceAll(RegExp(r'\]\([^)]*\)'), ']')))
+        match.group(0)!.replaceAll(',', '.'),
+    ]..sort();
+
+/// The backticked names in [section], less the two documents' own file
+/// names: each points to the other, so those differ by design.
+Set<String> _names(String section) => {
+      for (final match in RegExp('`([^`]+)`').allMatches(section))
+        match.group(1)!,
+    }..removeAll({'capture-protocol.md', 'capture-protocol.pt-BR.md'});
 
 /// The smallest disc diameter, in canonical pixels, that holds the contract's
 /// floor of patches, to a hundredth of a pixel.
