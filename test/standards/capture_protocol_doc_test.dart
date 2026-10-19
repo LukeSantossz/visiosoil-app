@@ -98,10 +98,12 @@ List<String> _sections(String document) => document
     .split(RegExp(r'^## ', multiLine: true));
 
 /// [section]'s list items and table rows in order, each as its kind and its
-/// indent, so a nested item or a row traded for an item is told apart.
+/// indent on its own line, so a nested item or a row traded for an item is
+/// told apart.
 List<String> _items(String section) => [
-      for (final match in RegExp(r'^(\s*)(- |\d+\. |\|)', multiLine: true)
-          .allMatches(section))
+      for (final match
+          in RegExp(r'^([ \t]*)([-*+] |\d+\. |\|)', multiLine: true)
+              .allMatches(section))
         '${match.group(2)!.startsWith('|') ? 'row' : 'item'}'
             '@${match.group(1)!.length}',
     ];
