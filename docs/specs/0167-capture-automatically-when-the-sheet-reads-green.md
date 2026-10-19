@@ -23,7 +23,7 @@ The trigger **fires** at the first event stamped at least 1000 ms after the wind
 
 Amended in implementation (2026-10-18), two follow-ups from review:
 
-- **The ring stays still under reduced motion.** When `MediaQuery.disableAnimationsOf` is true, the ring is drawn full and does not animate while the window is open. It still appears and disappears with the window, so the window stays visible without the motion. This matches the flash.
+- **The ring stays still under reduced motion.** When `MediaQuery.disableAnimationsOf` is true, the ring is drawn full and does not animate while the window is open. It still appears and disappears with the window, so the window stays visible without the motion. This matches the flash. A change of the setting during the window takes effect at once. Turned on, it stills the ring full. Turned off, it resumes the fill from the window's elapsed share, not from empty.
 - **The window is timed by a clock that only moves forward.** The default `autoCaptureClockProvider` returns the time when the provider was first read, plus a `Stopwatch`'s elapsed time. A change to the device's wall clock during the second, whether by the user, by network time or by a time-zone change, can then neither fire the trigger early nor hold it back. Tests still override the clock by hand.
 
 **One photograph per visit, and the manual shutter wins.** One flag, `shooting`, is shared by the trigger and the shutter, and is set synchronously, before any `await`, by whichever acts first; the other then does nothing. A tap while the window is open sets it, closes the window and takes the photograph manually.

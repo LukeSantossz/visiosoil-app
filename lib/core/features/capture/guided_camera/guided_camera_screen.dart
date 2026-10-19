@@ -770,6 +770,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                       _Shutter(
                         onTap: () => unawaited(_shoot()),
                         windowOpenedAt: _trigger.windowOpenedAt,
+                        clock: _clock,
                       ),
                       // Balances the close button, so the shutter is centred.
                       const SizedBox(width: 48),
@@ -818,7 +819,11 @@ class _GuidanceBanner extends StatelessWidget {
 }
 
 class _Shutter extends StatelessWidget {
-  const _Shutter({required this.onTap, required this.windowOpenedAt});
+  const _Shutter({
+    required this.onTap,
+    required this.windowOpenedAt,
+    required this.clock,
+  });
 
   final VoidCallback onTap;
 
@@ -826,10 +831,20 @@ class _Shutter extends StatelessWidget {
   /// the ring around the shutter fills across the window's second.
   final DateTime? windowOpenedAt;
 
+  /// The automatic capture's clock, read when the ring is built, so a ring
+  /// started late fills from where the window already is. Read here and not
+  /// by the parent: a change of the motion setting rebuilds this alone.
+  final DateTime Function() clock;
+
   @override
   Widget build(BuildContext context) {
     final openedAt = windowOpenedAt;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    const window = AutoCaptureTrigger.window;
+    final elapsed = openedAt == null
+        ? 0.0
+        : (clock().difference(openedAt).inMicroseconds / window.inMicroseconds)
+            .clamp(0.0, 1.0);
     return SizedBox(
       width: 92,
       height: 92,
@@ -845,11 +860,11 @@ class _Shutter extends StatelessWidget {
                   // Keyed by the motion setting too, so turning reduced
                   // motion on mid-window stills the ring at once.
                   key: ValueKey((openedAt, reduceMotion)),
-                  // Under reduced motion the ring shows full and still.
-                  tween: reduceMotion
-                      ? Tween(begin: 1, end: 1)
-                      : Tween(begin: 0, end: 1),
-                  duration: AutoCaptureTrigger.window,
+                  // Under reduced motion the ring shows full and still;
+                  // otherwise it fills from the window's elapsed share over
+                  // the rest of its second.
+                  tween: Tween(begin: reduceMotion ? 1 : elapsed, end: 1),
+                  duration: window * (1 - (reduceMotion ? 1 : elapsed)),
                   builder: (context, value, _) => CustomPaint(
                     key: const ValueKey('guided-camera-ring'),
                     painter: CountdownRingPainter(value),

@@ -318,6 +318,23 @@ void main() {
     expect(ring.progress, 1);
   });
 
+  // R2 round 1: turning reduced motion off resumes the ring where the window
+  // is, not from empty.
+  testWidgets('reduce_motion_turned_off_mid_window_resumes_the_ring',
+      (tester) async {
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    final h = await openGuidedCamera(tester);
+    await _openWindow(tester, h);
+    h.advance(400);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures();
+    await tester.pump();
+    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    expect(ring.progress, closeTo(0.4, 0.05));
+  });
+
   testWidgets('the_trigger_adds_no_haptic', (tester) async {
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
