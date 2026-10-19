@@ -21,6 +21,11 @@ The trigger **fires** at the first event stamped at least 1000 ms after the wind
 
 **What the user sees.** While the window is open, a ring around the shutter fills in proportion to the time since it opened, and the banner reads "Segure firme…". A closed window empties the ring at once. When the trigger fires, a short white flash covers the preview, lasting `AppMotion.fast`, which is not shown when `MediaQuery.disableAnimationsOf` is true, as the app's other motion does. No haptic of its own is given: `CaptureScreen` already gives `AppHaptics.confirm()` when the photograph returns, which is the class of event `AppHaptics` assigns it. The trigger then follows the manual shutter's path of SPEC 0166: stop the reader and the stream, `takePicture`, pop `captured`.
 
+Amended in implementation (2026-10-18), two follow-ups from review:
+
+- **The ring stays still under reduced motion.** When `MediaQuery.disableAnimationsOf` is true, the ring is drawn full and does not animate while the window is open. It still appears and disappears with the window, so the window stays visible without the motion. This matches the flash. A change of the setting during the window takes effect at once. Turned on, it stills the ring full. Turned off, it resumes the fill from the window's elapsed share, not from empty.
+- **The window is timed by a clock that only moves forward.** The default `autoCaptureClockProvider` returns the time when the provider was first read, plus a `Stopwatch`'s elapsed time. A change to the device's wall clock during the second, whether by the user, by network time or by a time-zone change, can then neither fire the trigger early nor hold it back. Tests still override the clock by hand.
+
 **One photograph per visit, and the manual shutter wins.** One flag, `shooting`, is shared by the trigger and the shutter, and is set synchronously, before any `await`, by whichever acts first; the other then does nothing. A tap while the window is open sets it, closes the window and takes the photograph manually.
 
 **A failed shot does not loop or lock.** If `takePicture` throws, whether the trigger or the shutter asked for it, the snackbar of SPEC 0165 shows, `shooting` is cleared, the stream and a new reader start, the ring is empty, and the trigger needs a new window: one that opens on an event stamped after the failure and lasts its full second. The shutter works at once.
@@ -66,6 +71,8 @@ The trigger **fires** at the first event stamped at least 1000 ms after the wind
 - `the_ring_follows_the_window`: the ring shows half filled 500 ms into the window and empty after it closes.
 - `the_automatic_shot_stops_the_stream_first`: on firing, the fake camera sees `stopImageStream` before `takePicture`, and `takePicture` once.
 - `the_flash_respects_reduce_motion`: with reduce-motion on, firing shows no flash and still takes the photograph.
+- `the_ring_stays_still_under_reduce_motion` (amended): with reduce-motion on, an open window shows the ring full at once and still full 500 ms later, and no ring once the window closes.
+- `the_window_clock_only_moves_forward` (amended): the default clock's successive readings never decrease, and they advance by the elapsed time, not by the wall clock.
 - `the_trigger_adds_no_haptic`: firing gives no haptic before the photograph returns; `CaptureScreen` gives its `confirm` once it does.
 - Field session (Developer): of the first 10 photographs the trigger takes, at least 9 are classified, recorded as above with each one's outcome.
 

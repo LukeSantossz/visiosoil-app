@@ -42,10 +42,23 @@ final liveContractLoaderProvider = Provider<Future<LiveContract?> Function()>(
   },
 );
 
-/// The clock the automatic capture stamps its events with (SPEC 0167).
-/// Overridden in tests to drive the one-second window by hand.
+/// A clock that starts at [now]'s first reading and then moves only by
+/// [watch]'s elapsed time, so a change to the wall clock cannot reach it.
+DateTime Function() steadyClock({
+  DateTime Function() now = DateTime.now,
+  Stopwatch? watch,
+}) {
+  final start = now();
+  final elapsed = (watch ?? Stopwatch())..start();
+  return () => start.add(elapsed.elapsed);
+}
+
+/// The clock the automatic capture stamps its events with (SPEC 0167): one
+/// that only moves forward, so the device's clock changing mid-window can
+/// neither fire it early nor hold it back. Overridden in tests to drive the
+/// one-second window by hand.
 final autoCaptureClockProvider = Provider<DateTime Function()>(
-  (ref) => DateTime.now,
+  (ref) => steadyClock(),
 );
 
 /// Spawns the live sheet reader (SPEC 0166). Overridden with a fake in tests.
