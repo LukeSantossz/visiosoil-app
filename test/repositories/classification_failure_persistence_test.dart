@@ -4,6 +4,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/data/repositories/drift_soil_record_repository.dart';
+import 'package:visiosoil_app/core/data/sync/sync_local_store.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -83,5 +84,32 @@ void main() {
     await repo.deleteById(saved.id!);
 
     expect(await storedCause(saved.id!), isNull);
+  });
+
+  // A record pulled from the backend, or the backend's version winning a
+  // merge, carries its own cause, as every other field does.
+  test('a_pulled_record_writes_its_cause', () async {
+    final store = SyncLocalStore(db);
+    const remote = SoilRecord(
+      uuid: 'uuid-remote',
+      remoteId: 'remote-1',
+      imagePath: '/remote.jpg',
+      timestamp: '2026-10-19T15:00:00.000Z',
+      updatedAt: '2026-10-19T15:00:00.000Z',
+      classificationFailure: ClassificationFailureCause.sheetNotFound,
+    );
+
+    await store.insertFromRemote(remote);
+    var stored = await store.findByUuid('uuid-remote');
+    expect(stored!.classificationFailure, ClassificationFailureCause.sheetNotFound);
+
+    await store.applyRemote(
+      remote.copyWith(
+        updatedAt: '2026-10-20T08:00:00.000Z',
+        classificationFailure: ClassificationFailureCause.sheetCropped,
+      ),
+    );
+    stored = await store.findByUuid('uuid-remote');
+    expect(stored!.classificationFailure, ClassificationFailureCause.sheetCropped);
   });
 }
