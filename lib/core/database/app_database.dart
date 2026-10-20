@@ -21,7 +21,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +82,13 @@ class AppDatabase extends _$AppDatabase {
             // so every existing row, tombstones included, arrives unlabelled.
             await migrator.addColumn(soilRecords, soilRecords.fieldName);
             await migrator.addColumn(soilRecords, soilRecords.sampleLabel);
+          }
+          if (from < 10) {
+            // v9 -> v10: why a photograph was not classified (SPEC 0173).
+            // Nullable, so every existing row, tombstones included, arrives
+            // with no cause.
+            await migrator.addColumn(
+                soilRecords, soilRecords.classificationFailure);
           }
         },
       );

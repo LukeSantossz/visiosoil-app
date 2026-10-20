@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -76,13 +77,17 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
     Widget body;
     final uuid = _record.uuid;
     if (!_record.hasClassification || uuid == null) {
-      body = const EmptyState(
+      final failure = _record.classificationFailure;
+      body = EmptyState(
         icon: Icons.eco_outlined,
         title: 'Solo não classificado',
-        description:
-            'Este registro foi salvo sem a classe de textura, e as dicas '
-            'dependem dela. Para obtê-las, capture a amostra de novo '
-            'seguindo o passo a passo.',
+        description: [
+          // The reason first, in the capture chip's words (SPEC 0173).
+          if (failure != null) classificationFailureChip(failure).label,
+          'Este registro foi salvo sem a classe de textura, e as dicas '
+              'dependem dela. Para obtê-las, capture a amostra de novo '
+              'seguindo o passo a passo.',
+        ].join('\n\n'),
       );
     } else {
       body = ref.watch(cachedManagementTipsProvider(uuid)).when(

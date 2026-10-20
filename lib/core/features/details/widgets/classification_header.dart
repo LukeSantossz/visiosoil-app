@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -48,6 +49,7 @@ class _TextureNameRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final failure = record.classificationFailure;
     final textureColor = record.hasClassification
         ? SoilTextureColors.forClass(record.textureClass!)
         : context.palette.outline;
@@ -61,9 +63,23 @@ class _TextureNameRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
-            record.displayTextureClass,
-            style: theme.textTheme.headlineMedium,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                record.displayTextureClass,
+                style: theme.textTheme.headlineMedium,
+              ),
+              // Why it was not classified, in the capture chip's words
+              // (SPEC 0173).
+              if (!record.hasClassification && failure != null)
+                Text(
+                  classificationFailureChip(failure).label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: context.palette.onSurfaceVariant,
+                  ),
+                ),
+            ],
           ),
         ),
       ],

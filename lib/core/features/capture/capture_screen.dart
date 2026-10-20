@@ -421,6 +421,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               modelVersion: _state.classificationResult?.modelVersion,
               datasetVersion: _state.classificationResult?.datasetVersion,
               horizontalAccuracy: _state.horizontalAccuracy,
+              // The cause the chip named, kept for the record (SPEC 0173).
+              classificationFailure: _state.classificationResult == null
+                  ? _state.classificationFailureCause
+                  : null,
             ),
           );
     } catch (e) {
