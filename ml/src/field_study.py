@@ -257,6 +257,8 @@ def main() -> None:
         parser.error("--variants must be at least 1")
 
     cfg = resolve_paths(load_config(args.config))
+    if cfg["data"]["dataset_version"] != args.version:
+        raise ValueError("requested dataset version differs from the configuration")
     fold_manifest = load_folds_for_config(cfg, cfg["data"]["splits_dir"])
     models_dir = Path(cfg["export"]["output_dir"])
     report = run_study(

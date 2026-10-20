@@ -32,8 +32,9 @@ MANIFEST_FILENAME = "manifest.json"
 def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
     """The export's photographs as probe entries, in manifest order.
 
-    Each entry's group is its soil sample, so a photograph is never split from
-    its sample, and its label indexes the configured classes. A class the
+    Each entry's group is its soil sample, named `<class>/<sample>` because two
+    classes may each hold a folder of one name, so a photograph is never split
+    from its sample, and its label indexes the configured classes. A class the
     configuration does not hold, or a scale other than the configured
     canonical, is a different export from the one this run expects. A disc too
     small for the patch grid is left out, and named.
@@ -67,6 +68,7 @@ def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
             print(f"left out {row['file']}: {refusal}")
             continue
         path = str(directory / row["file"])
+        sample = f"{row['class']}/{row['sample']}"
         entries.append(
             {
                 "path": path,
@@ -74,8 +76,8 @@ def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
                 "key": row["file"],
                 "class": row["class"],
                 "label": cfg["classes"].index(row["class"]),
-                "group": row["sample"],
-                "sample": row["sample"],
+                "group": sample,
+                "sample": sample,
                 "upsampled": bool(row["upsampled"]),
                 "centre_y": float(row["centre_y"]),
                 "centre_x": float(row["centre_x"]),

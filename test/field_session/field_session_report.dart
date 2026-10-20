@@ -158,6 +158,22 @@ Future<List<FieldPhotograph>> readFieldSession(
   if (entries.isEmpty) {
     throw StateError('No JPEG photograph in $folder');
   }
+  if (exportDir != null) {
+    // Joining the parts with `__` loses where a folder ended, so a name that
+    // already holds `__` can meet another photograph's.
+    final named = <String, String>{};
+    for (final entry in entries) {
+      final source = p.relative(entry.file.path, from: folder);
+      final earlier = named[exportName(entry.file)];
+      if (earlier != null) {
+        throw StateError(
+          '$earlier and $source would both be exported as '
+          '${exportName(entry.file)}; rename one',
+        );
+      }
+      named[exportName(entry.file)] = source;
+    }
+  }
 
   final manifest = <Map<String, Object?>>[];
   final read = [
@@ -299,6 +315,7 @@ Map<String, Object?> _export(
           width: region.width,
           height: region.height,
           bytes: region.rgb.buffer,
+          bytesOffset: region.rgb.offsetInBytes,
           numChannels: 3,
         ),
       ),
