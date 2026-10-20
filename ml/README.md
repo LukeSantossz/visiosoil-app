@@ -439,6 +439,35 @@ nominate, so no fold's model is promoted: the release is its own fit.
 There is no TFLite conversion. The v1 classifier is the descriptor path
 (ADR 0024), and SPEC 0084 removed the export that converted the CNN.
 
+## Field study
+
+The study asks whether a phone's look in training carries the classifier to
+field photographs (SPEC 0175). It runs on the machine that holds the archive,
+after the release, because it fits at the release's chosen `C`.
+
+1. On the app's machine, export the labelled field photographs at the canonical
+   scale (SPEC 0174):
+
+   ```bash
+   VISIOSOIL_PHOTOS=<root>/<class>/<sample>/ VISIOSOIL_EXPORT=<export> \
+     flutter test test/field_session/field_session_test.dart
+   ```
+
+2. Copy `<export>` (the PNGs and `manifest.json`) to this machine and run:
+
+   ```bash
+   python -m src.field_study --version v1 --field <export> [--variants 8] [--seed 20261019]
+   ```
+
+It fits four arms (A0 the release's training side, A1 with phone variants of
+the archive, A2 with phone variants of the other field soils, A3 both). It
+holds each field soil out in turn and scores it on its own unaugmented
+photographs. It also guards the archive on repeat 0 of the fold manifest. It
+writes `models/v1/field_study/report.json` and prints the arms' table with
+which arms the pre-registered rule adopts. A disc too small for the patch grid
+is left out, and named. The study writes no contract: adopting an arm is a
+release spec of its own.
+
 ## Full Pipeline
 
 Cross-validate one arm, then report it:
