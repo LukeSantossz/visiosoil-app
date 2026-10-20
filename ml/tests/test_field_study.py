@@ -283,3 +283,68 @@ def test_a_disc_too_small_for_the_grid_is_left_out(tmp_path, cfg, capsys):
 
     assert [e["sample"] for e in entries] == ["S1"]
     assert "S2.png" in capsys.readouterr().out
+
+
+def test_variants_reach_the_training_matrix(tmp_path, cfg):
+    featurised = []
+    fake = _fake()
+
+    def spy(entry, cfg):
+        featurised.append(entry["path"])
+        return fake(entry, cfg)
+
+    field_study.run_study(
+        cfg,
+        _archive_manifest(tmp_path, cfg),
+        _field_entries(cfg, SAMPLES),
+        c=1.0,
+        archive_featuriser=spy,
+        field_featuriser=spy,
+        variants=2,
+    )
+
+    source = "/field/Media-S3-0.png"
+    assert f"{source}::aug0" in featurised and f"{source}::aug1" in featurised
+    archive_variant = next(p for p in featurised if p.startswith(str(tmp_path)) and p.endswith("::aug1"))
+    assert archive_variant
+
+
+def test_the_cli_writes_the_report(tmp_path, cfg, monkeypatch, capsys):
+    models = tmp_path / "models"
+    release = models / "v1" / "release"
+    release.mkdir(parents=True)
+    (release / "selection.json").write_text(json.dumps({"chosen_c": 1.0}))
+    manifest = _archive_manifest(tmp_path, cfg)
+    seeds = []
+
+    def seeded(name):
+        def featurise(entry, cfg, seed):
+            seeds.append((name, seed))
+            return _fake()(entry, cfg)
+
+        return featurise
+
+    monkeypatch.setattr(
+        field_study,
+        "resolve_paths",
+        lambda c: {**c, "export": {**c["export"], "output_dir": str(models)}},
+    )
+    monkeypatch.setattr(field_study, "load_folds_for_config", lambda c, d: manifest)
+    monkeypatch.setattr(
+        field_study, "load_field_export", lambda d, c: _field_entries(c, SAMPLES)
+    )
+    monkeypatch.setattr(field_study, "archive_features", seeded("archive"))
+    monkeypatch.setattr(field_study, "field_features", seeded("field"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["field_study", "--version", "v1", "--field", "x", "--variants", "1", "--seed", "5"],
+    )
+
+    field_study.main()
+
+    report = json.loads((models / "v1" / "field_study" / "report.json").read_text())
+    assert set(report["arms"]) == set(field_study.ARMS)
+    assert report["c"] == 1.0 and report["variants"] == 1
+    assert {seed for _, seed in seeds} == {5}
+    assert {name for name, _ in seeds} == {"archive", "field"}
+    assert "adoptable:" in capsys.readouterr().out
