@@ -377,4 +377,27 @@ void main() {
       hasLength(1),
     );
   });
+
+  test('exported_files_never_collide', () async {
+    final root = tree({
+      'Media/S1/a.jpg': 'sheet_frontal.jpg',
+      'Arenosa/S1/a.jpg': 'sheet_frontal.jpg',
+      'Argilosa/a.jpg': 'sheet_frontal.jpg',
+      'Argilosa/Argilosa/a.jpg': 'sheet_frontal.jpg',
+    });
+
+    await readFieldSession(root.path, exportDir: '${root.path}/export');
+
+    final manifest =
+        jsonDecode(File('${root.path}/export/manifest.json').readAsStringSync())
+            as List;
+    final files = [for (final row in manifest) row['file'] as String];
+    expect(files.toSet(), hasLength(4));
+    expect(
+      Directory('${root.path}/export')
+          .listSync()
+          .where((f) => f.path.endsWith('.png')),
+      hasLength(4),
+    );
+  });
 }
