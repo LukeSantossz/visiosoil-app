@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:visiosoil_app/core/database/app_database.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -29,7 +30,23 @@ SoilRecord soilRecordFromRow(SoilRecordRow row) => SoilRecord(
       horizontalAccuracy: row.horizontalAccuracy,
       fieldName: row.fieldName,
       sampleLabel: row.sampleLabel,
+      classificationFailure: decodeClassificationFailure(
+        row.classificationFailure,
+      ),
     );
+
+/// The cause [name] stores, or null when it stores none or a name this build
+/// does not know: a retired cause shows no advice rather than wrong advice
+/// (SPEC 0173).
+ClassificationFailureCause? decodeClassificationFailure(String? name) {
+  if (name == null) return null;
+  for (final cause in ClassificationFailureCause.values) {
+    if (cause.name == name) return cause;
+  }
+  developer.log('unknown classification_failure: $name',
+      name: 'SoilRecordMapper');
+  return null;
+}
 
 /// The `class_distribution` column's text for [distribution]: a JSON array of
 /// `{"label", "probability"}` in the order given, which is the contract's

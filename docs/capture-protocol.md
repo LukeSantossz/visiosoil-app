@@ -70,7 +70,7 @@ photograph; change what the last column says before taking it.
 |---|---|---|
 | Folha A4 não encontrada · tire outra foto | `sheetNotFound` | Use a darker surface, and keep the whole sheet in the frame. The sheet must be neither tiny in the frame nor fill almost all of it. |
 | Folha cortada no quadro · tire outra foto | `sheetCropped` | Step back until all four corners show, with a margin. |
-| Foto sem detalhe suficiente · tire outra foto | `photographTooCoarse` | The sheet spans fewer than 2299 px. Set the camera to its highest resolution, align the long sides and come closer. |
+| Aproxime o celular da folha · tire outra foto | `photographTooCoarse` | The sheet spans fewer than 2299 px. Set the camera to its highest resolution, align the long sides and come closer. |
 | Pouco solo na folha · espalhe um círculo de 8 a 10 cm e tire outra foto | `soilRegionTooSmall` | Spread more soil, into a circle of 8 to 10 cm. |
 | Amostra fora da área lida · tire outra foto | `soilRegionOutsideFrame` | Centre the soil circle on the sheet, away from its edges. |
 | Foto ilegível · tire outra foto | `imageMissing`, `imageUndecodable` | Take the photograph again. |

@@ -33,8 +33,10 @@ import 'package:visiosoil_app/core/services/classification_report.dart';
       ),
     ClassificationFailureCause.soilRegionOutsideFrame =>
       (label: 'Amostra fora da área lida · tire outra foto', retryable: false),
+    // Coarser than the contract: the phone was too far from the sheet
+    // (SPEC 0171).
     ClassificationFailureCause.photographTooCoarse =>
-      (label: 'Foto sem detalhe suficiente · tire outra foto', retryable: false),
+      (label: 'Aproxime o celular da folha · tire outra foto', retryable: false),
     ClassificationFailureCause.imageMissing ||
     ClassificationFailureCause.imageUndecodable =>
       (label: 'Foto ilegível · tire outra foto', retryable: false),

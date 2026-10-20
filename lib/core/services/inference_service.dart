@@ -376,7 +376,8 @@ class InferenceService {
 
   /// A decoded image as the interleaved RGB bytes the patch grid reads. Alpha
   /// is dropped rather than composited, as Pillow's `convert("RGB")` does.
-  @visibleForTesting
+  /// The soil sample decodes through it too, so it shows what was measured
+  /// (SPEC 0172).
   static RgbFrame frameOf(img.Image image) {
     final rgb = image.convert(format: img.Format.uint8, numChannels: 3);
     return RgbFrame(

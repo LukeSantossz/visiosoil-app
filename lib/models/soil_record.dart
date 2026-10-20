@@ -1,4 +1,5 @@
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 
@@ -43,6 +44,10 @@ class SoilRecord {
   final String? fieldName;
   final String? sampleLabel;
 
+  /// Why the photograph was not classified (SPEC 0173); null when it was, or
+  /// when the record was saved before the cause was kept.
+  final ClassificationFailureCause? classificationFailure;
+
   const SoilRecord({
     this.id,
     this.uuid,
@@ -63,6 +68,7 @@ class SoilRecord {
     this.horizontalAccuracy,
     this.fieldName,
     this.sampleLabel,
+    this.classificationFailure,
   });
 
   /// Returns a copy of this record with the given fields replaced.
@@ -86,6 +92,7 @@ class SoilRecord {
     double? horizontalAccuracy,
     String? fieldName,
     String? sampleLabel,
+    ClassificationFailureCause? classificationFailure,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -107,6 +114,8 @@ class SoilRecord {
       horizontalAccuracy: horizontalAccuracy ?? this.horizontalAccuracy,
       fieldName: fieldName ?? this.fieldName,
       sampleLabel: sampleLabel ?? this.sampleLabel,
+      classificationFailure:
+          classificationFailure ?? this.classificationFailure,
     );
   }
 

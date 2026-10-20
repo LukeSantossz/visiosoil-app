@@ -51,4 +51,10 @@ class SoilRecords extends Table {
   /// saved before v9 is.
   TextColumn get fieldName => text().named('field_name').nullable()();
   TextColumn get sampleLabel => text().named('sample_label').nullable()();
+
+  /// v10 (SPEC 0173): why the photograph was not classified, as a
+  /// `ClassificationFailureCause` name. Null for a classified record, and for
+  /// every record saved before v10, which kept no cause.
+  TextColumn get classificationFailure =>
+      text().named('classification_failure').nullable()();
 }

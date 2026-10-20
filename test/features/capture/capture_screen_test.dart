@@ -143,6 +143,7 @@ void main() {
     required Future<InferenceResult?> Function(String) classify,
     SoilRecordRepository? repository,
     PickedFileDeleter deletePickedFile = _keepPickedFile,
+    ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -180,7 +181,9 @@ void main() {
     return ProviderScope(
       overrides: [
         _guideAlreadySeen(),
-        inferenceServiceProvider.overrideWithValue(_FakeInference(classify)),
+        inferenceServiceProvider.overrideWithValue(
+          _FakeInference(classify, cause: failureCause),
+        ),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
@@ -810,6 +813,41 @@ void main() {
     expect(saved.modelVersion, '1.0.0');
     expect(saved.datasetVersion, 'v1');
   });
+
+  // SPEC 0173: a record saved after a failed classification keeps the cause
+  // its chip named, and one saved after a success keeps none.
+  for (final failed in [true, false]) {
+    testWidgets(
+        failed
+            ? 'a_failed_capture_keeps_its_cause'
+            : 'a_classified_capture_keeps_no_cause', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => failed
+            ? null
+            : const InferenceResult(
+                textureClass: 'Argilosa', confidenceScore: 0.9),
+        repository: repository,
+        failureCause: ClassificationFailureCause.photographTooCoarse,
+      ));
+
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.tap(find.text('Salvar registro'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+
+      expect(
+        repository.createCalls.single.classificationFailure,
+        failed ? ClassificationFailureCause.photographTooCoarse : null,
+      );
+    });
+  }
 
   // SPEC 0148: the reading's horizontal accuracy reaches the record, and a
   // reading without one saves none.

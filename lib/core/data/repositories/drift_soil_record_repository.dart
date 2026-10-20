@@ -74,6 +74,8 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                 modelVersion: Value(record.modelVersion),
                 datasetVersion: Value(record.datasetVersion),
                 horizontalAccuracy: Value(record.horizontalAccuracy),
+                classificationFailure:
+                    Value(record.classificationFailure?.name),
               ),
             );
         await _enqueue(uuid, SyncOperation.upsert, now);
@@ -269,6 +271,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             modelVersion: const Value(null),
             datasetVersion: const Value(null),
             horizontalAccuracy: const Value(null),
+            classificationFailure: const Value(null),
             fieldName: const Value(null),
             sampleLabel: const Value(null),
           ),

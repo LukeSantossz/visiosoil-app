@@ -16,16 +16,18 @@ import '../../../support/guided_camera_harness.dart';
 /// The guides react to where the sheet lies, and warn when it leaves the
 /// screen (SPEC 0169). The phone is 390 × 844 with no safe-area padding, and
 /// the preview stream has the preview's own aspect, so corners are mapped.
+/// The preview is drawn whole, `BoxFit.contain` (SPEC 0171).
 const _screen = Size(390, 844);
 const _readWidth = 576, _readHeight = 1024;
-const _scale = 844 / 1280;
-const _shownWidth = 720 * _scale;
-const _originX = (390 - _shownWidth) / 2;
+const _scale = 390 / 720;
+const _shownHeight = 1280 * _scale;
+const _originY = (844 - _shownHeight) / 2;
 
 final _layout = CaptureGuideLayout.compute(
   _screen,
   topInset: GuidedCameraScreen.bannerHeight,
   bottomInset: GuidedCameraScreen.footerHeight,
+  preview: const Rect.fromLTWH(0, _originY, 390, _shownHeight),
 );
 final _outline = _layout.outline;
 
@@ -42,8 +44,8 @@ void _phone(WidgetTester tester) {
 
 /// An overlay point as a corner in the read frame's pixels.
 ({double x, double y}) _toFrame(Offset p) => (
-  x: (p.dx - _originX) / _shownWidth * _readWidth,
-  y: p.dy / 844 * _readHeight,
+  x: p.dx / 390 * _readWidth,
+  y: (p.dy - _originY) / _shownHeight * _readHeight,
 );
 
 LiveSheetFound _sheetAt(List<Offset> corners, {bool enoughSoil = true}) =>

@@ -458,6 +458,11 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       safePadding: padding,
     );
     if (mapped == null) return null;
+    final preview = previewRectOnOverlay(
+      previewSize: camera.previewSize,
+      screenSize: screen,
+      safePadding: padding,
+    );
     return alignSheet(
       corners: assignCorners(mapped),
       // The overlay is laid out inside the safe area.
@@ -465,13 +470,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         padding.deflateSize(screen),
         topInset: GuidedCameraScreen.bannerHeight,
         bottomInset: GuidedCameraScreen.footerHeight,
+        preview: preview,
       ),
-      screen: Rect.fromLTWH(
-        -padding.left,
-        -padding.top,
-        screen.width,
-        screen.height,
-      ),
+      // The preview is drawn whole, so leaving it is leaving the frame.
+      screen: preview,
     );
   }
 
@@ -710,10 +712,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Drawn whole, so the screen shows what the still holds and the
+          // outline is a share of the still (SPEC 0171).
           if (camera != null)
             ClipRect(
               child: FittedBox(
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 child: SizedBox.fromSize(
                   size: camera.previewSize,
                   child: camera.buildPreview(),
@@ -729,6 +733,13 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             ),
           SafeArea(
             child: CaptureGuideOverlay(
+              preview: camera == null
+                  ? null
+                  : previewRectOnOverlay(
+                      previewSize: camera.previewSize,
+                      screenSize: MediaQuery.sizeOf(context),
+                      safePadding: MediaQuery.paddingOf(context),
+                    ),
               topInset: GuidedCameraScreen.bannerHeight,
               bottomInset: GuidedCameraScreen.footerHeight,
               tilt: _tilt,

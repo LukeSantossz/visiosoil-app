@@ -18,6 +18,7 @@ import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 
 class DetailsScreen extends ConsumerWidget {
   const DetailsScreen({super.key, required this.recordId});
@@ -206,17 +207,32 @@ class _HeroImageAppBar extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.file(
-                imageFile,
-                fit: BoxFit.cover,
-                cacheHeight: cacheH,
-                errorBuilder: (_, _, _) => Container(
-                  color: context.palette.surfaceVariant,
-                  child: Center(
-                    child: Icon(
-                      Icons.broken_image,
-                      size: 48,
-                      color: context.palette.onSurfaceVariant,
+              // The soil sample once it is cut, the photograph until then
+              // and when there is none (SPEC 0172).
+              Consumer(
+                builder: (context, ref, photo) {
+                  final sample =
+                      ref.watch(soilSampleProvider(record.imagePath)).value;
+                  if (sample == null) return photo!;
+                  return Image.memory(
+                    sample,
+                    key: const ValueKey('soil-sample'),
+                    fit: BoxFit.cover,
+                    cacheHeight: cacheH,
+                  );
+                },
+                child: Image.file(
+                  imageFile,
+                  fit: BoxFit.cover,
+                  cacheHeight: cacheH,
+                  errorBuilder: (_, _, _) => Container(
+                    color: context.palette.surfaceVariant,
+                    child: Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        size: 48,
+                        color: context.palette.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),

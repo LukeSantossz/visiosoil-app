@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -9,12 +10,14 @@ import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
@@ -536,6 +539,78 @@ void main() {
 
   // The photograph at the top is a labelled way into the full-screen viewer
   // (SPEC 0125).
+  // The header shows the soil sample cut from the photograph, and the
+  // photograph itself while there is none (SPEC 0172).
+  for (final (name, sample) in [
+    ('the_details_show_the_sample', true),
+    ('the_details_show_the_photograph_without_a_sample', false),
+  ]) {
+    testWidgets(name, (tester) async {
+      final bytes = img.encodeJpg(img.Image(width: 4, height: 4));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordByIdProvider.overrideWith((ref, id) async => tipsRecord()),
+          soilSampleReaderProvider
+              .overrideWithValue((path) async => sample ? bytes : null),
+          managementTipsRepositoryProvider
+              .overrideWithValue(FakeManagementTipsRepository()),
+          researchServiceProvider.overrideWithValue(
+            FakeResearchService(
+              (_) async =>
+                  const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+            ),
+          ),
+          connectivityServiceProvider.overrideWithValue(
+            FakeConnectivityService(ConnectivityStatus.online),
+          ),
+        ],
+        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('soil-sample')),
+        sample ? findsOneWidget : findsNothing,
+      );
+      expect(find.bySemanticsLabel('Ampliar foto'), findsOneWidget);
+    });
+  }
+
+  // An unclassified record names why, in the header and where the tips
+  // would be, with the capture chip's words (SPEC 0173).
+  for (final (name, cause) in [
+    ('the_details_name_the_cause', ClassificationFailureCause.sheetCropped),
+    ('the_details_without_a_cause_keep_todays_text', null),
+  ]) {
+    testWidgets(name, (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(_detailsUnderTest(
+        share: _RecordingShareService(),
+        record: SoilRecord(
+          id: 1,
+          uuid: 'uuid-1',
+          imagePath: 'x.png',
+          timestamp: '2026-10-19T15:00:00Z',
+          classificationFailure: cause,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      const label = 'Folha cortada no quadro · tire outra foto';
+      expect(find.text('Não classificado'), findsOneWidget);
+      expect(find.text(label), cause == null ? findsNothing : findsOneWidget);
+      expect(
+        find.textContaining('$label\n\nEste registro'),
+        cause == null ? findsNothing : findsOneWidget,
+      );
+      expect(
+        find.textContaining('foi salvo sem a classe de textura'),
+        findsOneWidget,
+      );
+    });
+  }
+
   testWidgets('hero_opens_viewer', (tester) async {
     final semantics = tester.ensureSemantics();
     final router = GoRouter(
