@@ -400,4 +400,26 @@ void main() {
       hasLength(4),
     );
   });
+
+  test('two_paths_giving_one_export_name_fail_the_runner', () async {
+    final root = tree({
+      'Media/S1__a.jpg': 'sheet_frontal.jpg',
+      'Media/S1/a.jpg': 'sheet_frontal.jpg',
+    });
+
+    await expectLater(
+      readFieldSession(root.path, exportDir: '${root.path}/export'),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          allOf(
+            contains('S1__a.jpg'),
+            contains('a.jpg'),
+            contains('Media__S1__a.png'),
+          ),
+        ),
+      ),
+    );
+  });
 }

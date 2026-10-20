@@ -236,7 +236,7 @@ def test_the_study_runs_end_to_end(tmp_path, cfg):
     (export / "manifest.json").write_text(json.dumps(rows))
 
     entries = field.load_field_export(export, cfg)
-    assert [e["sample"] for e in entries] == ["S1", "S1", "S2", "S2", "S3", "S3"]
+    assert [e["sample"] for e in entries] == [f"{n}/{s}" for s, n in SAMPLES[:3] for _ in range(2)]
     block = field.field_features(entries[0], cfg)
     assert block.shape[1] == WIDTH and len(block) >= 1
     augmented = field.field_features({**entries[0], "path": "x::aug1", "variant": 1}, cfg)
@@ -255,7 +255,7 @@ def test_the_study_runs_end_to_end(tmp_path, cfg):
     out = field_study.write_report(report, tmp_path / "field_study")
     written = json.loads(out.read_text())
     assert set(written["arms"]) == set(field_study.ARMS)
-    assert set(written["arms"]["A0"]["field"]["per_sample"]) == {"S1", "S2", "S3"}
+    assert set(written["arms"]["A0"]["field"]["per_sample"]) == {f"{n}/{s}" for s, n in SAMPLES[:3]}
     assert "adoptable" in written and "preferred" in written
 
 
@@ -292,6 +292,49 @@ def test_an_archive_variant_is_keyed_inside_the_dataset_root(tmp_path, cfg):
     assert keys == ["images/a.jpg", "images/a.jpg"]
 
 
+def test_a_sample_is_named_with_its_class(tmp_path, cfg):
+    export = tmp_path / "export"
+    rows = []
+    for index, name in enumerate(("Media", "Arenosa")):
+        file = f"{name}__S1__a.png"
+        _write_png(export / file, 100, seed=index)
+        rows.append(
+            {
+                "file": file,
+                "class": name,
+                "sample": "S1",
+                "source": f"{name}/S1/a.jpg",
+                "measured_mm_per_px": 0.1,
+                "canonical_mm_per_px": cfg["preprocessing"]["canonical_mm_per_px"],
+                "centre_y": 280.0,
+                "centre_x": 280.0,
+                "diameter": 500.0,
+                "upsampled": False,
+            }
+        )
+    (export / "manifest.json").write_text(json.dumps(rows))
+
+    entries = field.load_field_export(export, cfg)
+
+    assert [e["sample"] for e in entries] == ["Media/S1", "Arenosa/S1"]
+    assert len({e["group"] for e in entries}) == 2
+
+
+def test_the_version_is_the_configurations(cfg, monkeypatch):
+    read = []
+    monkeypatch.setattr(field_study, "resolve_paths", lambda c: cfg)
+    monkeypatch.setattr(
+        field_study, "load_folds_for_config", lambda c, d: read.append(d) or {}
+    )
+    monkeypatch.setattr(
+        "sys.argv", ["field_study", "--version", "v2", "--field", "x"]
+    )
+
+    with pytest.raises(ValueError, match="dataset version"):
+        field_study.main()
+    assert read == []
+
+
 def test_a_disc_too_small_for_the_grid_is_left_out(tmp_path, cfg, capsys):
     export = tmp_path / "export"
     export.mkdir()
@@ -314,7 +357,7 @@ def test_a_disc_too_small_for_the_grid_is_left_out(tmp_path, cfg, capsys):
 
     entries = field.load_field_export(export, cfg)
 
-    assert [e["sample"] for e in entries] == ["S1"]
+    assert [e["sample"] for e in entries] == ["Argilosa/S1"]
     assert "S2.png" in capsys.readouterr().out
 
 
