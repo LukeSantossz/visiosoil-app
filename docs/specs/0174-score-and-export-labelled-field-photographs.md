@@ -40,6 +40,7 @@ With `VISIOSOIL_EXPORT=<dir>` set, every measured photograph is also written as 
 - `the_export_is_at_the_canonical_scale`: an exported region of a photograph measured at 0.0419 mm/px has the measurement square's size times 0.0419 / canonical, rounded as `resampleToCanonical` rounds, and its manifest row carries the disc's centre and diameter scaled by the same ratio.
 - `a_coarse_photograph_is_exported_upsampled`: a photograph measured coarser than the canonical is exported at the canonical scale with `upsampled: true` and its measured mm/px, and is still reported as `photographTooCoarse`.
 - `a_refused_photograph_is_not_exported`: a photograph whose sheet or disc was not measured has no PNG and no manifest row.
+- `exported_files_never_collide`: an exported file is named by the photograph's path under the session's folder, with `__` between its parts, so photographs of the same name in different samples or classes get different files; two paths that still give one name, such as `Media/S1__a.jpg` and `Media/S1/a.jpg`, fail the runner, naming both.
 
 ## Reproducibility
 

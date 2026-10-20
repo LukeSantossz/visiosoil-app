@@ -35,7 +35,7 @@ From `VISIOSOIL_PHOTOS=<labelled copy> flutter test test/field_session/field_ses
 
 Refusals: `photographTooCoarse` 47, `sheetNotFound` 1, `soilRegionTooSmall` 1.
 
-The sheet was found on 52 of the 54 photographs, and the soil discs measured 79 to 88 mm. The small discs of 2026-10-05 are gone. The 47 coarse photographs read at 0.130 to 0.145 mm/px, against the contract's 0.1292.
+The sheet was found on 53 of the 54 photographs, and the soil discs measured 79 to 88 mm. The small discs of 2026-10-05 are gone. The 47 coarse photographs read at 0.130 to 0.145 mm/px, against the contract's 0.1292.
 
 ## What was tried
 

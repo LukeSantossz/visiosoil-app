@@ -26,9 +26,9 @@ A study, `python -m src.field_study --version v1 --field <export>`, fits the rel
 | A2 | A0, plus `k` variants of the field photographs of every soil sample but the held-out one |
 | A3 | A1 and A2's field variants |
 
-Each soil sample is held out in turn. It is scored on its own unaugmented photographs, by the app's aggregation (the mean of the patch probabilities), counting only photographs that were not upsampled, then again counting every photograph. A1 and A0 are also scored on the archive's own grouped folds (repeat 0 of the fold manifest), with augmentation on the training side only, so a loss on the archive is seen.
+Each soil sample is held out in turn. A sample is named by its class and its folder, `<class>/<sample>`, so `Media/S1` and `Arenosa/S1` are two soils. It is scored on its own unaugmented photographs, by the app's aggregation (the mean of the patch probabilities), counting only photographs that were not upsampled, then again counting every photograph. A1 and A0 are also scored on the archive's own grouped folds (repeat 0 of the fold manifest), with augmentation on the training side only, so a loss on the archive is seen.
 
-The report gives, per arm, the field accuracy macro-averaged over the four classes and per sample, the field confusion matrix, and the archive accuracy. It writes `models/<version>/field_study/report.json` and prints a table.
+The report gives, per arm, the field accuracy macro-averaged over the four classes and per sample, the field confusion matrix, and the archive accuracy. It writes `models/<version>/field_study/report.json` and prints a table. A `--version` other than the configuration's `data.dataset_version` is refused, as `small_patch_study` refuses it, so the report is never written under one version from another's archive.
 
 **The adoption rule is fixed before the run.** An arm is adoptable when:
 
@@ -68,6 +68,8 @@ Of the adoptable arms, A1 is preferred over A2 and A3, because only A1 owes noth
 - `the_centre_turns_with_the_region`: a disc centred at (y, x) in an H × W region is at (x, H − 1 − y) after a clockwise quarter turn and at (y, W − 1 − x) after a mirror.
 - `variants_are_entries_of_their_own`: two variants of one photograph have distinct cache keys and both reach the training matrix.
 - `a_variant_does_not_depend_on_where_the_files_sit`: a variant is drawn under its photograph's path relative to the export or the dataset root, so the same export read from two directories, or the archive under two roots, gives the same variants.
+- `a_sample_is_named_with_its_class`: an export with `Media/S1` and `Arenosa/S1` holds two samples, each held out on its own.
+- `the_version_is_the_configurations`: the CLI given a `--version` other than `data.dataset_version` fails before it reads the archive.
 - `the_held_out_soil_never_trains`: for every held-out sample, no training entry of A2 or A3, plain or augmented, comes from that sample.
 - `scoring_uses_unaugmented_photographs`: the held-out side holds the sample's exported photographs once each, unaugmented.
 - `upsampled_photographs_are_reported_apart`: the report gives field accuracy over non-upsampled photographs and over all of them.
