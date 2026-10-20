@@ -20,7 +20,9 @@ const double targetDiameterMm = 90;
 const double sheetWidthMm = 210;
 
 /// Where the guide is drawn on a screen of a given size, between a banner of
-/// `topInset` and a footer of `bottomInset` (SPEC 0165).
+/// `topInset` and a footer of `bottomInset` (SPEC 0165), and inside the
+/// [preview]'s rectangle when one is given, so a sheet filling the outline is
+/// a sheet filling that share of the still (SPEC 0171).
 @immutable
 class CaptureGuideLayout {
   const CaptureGuideLayout._(
@@ -33,13 +35,22 @@ class CaptureGuideLayout {
     Size screen, {
     required double topInset,
     required double bottomInset,
+    Rect? preview,
   }) {
-    final available = math.max(0.0, screen.height - topInset - bottomInset);
-    final width = math.min(
-      guideFill * screen.width,
-      guideFill * available / sheetAspect,
+    final band = Rect.fromLTRB(
+      0,
+      topInset,
+      screen.width,
+      math.max(topInset, screen.height - bottomInset),
     );
-    final centre = Offset(screen.width / 2, topInset + available / 2);
+    final region = preview == null || !preview.overlaps(band)
+        ? band
+        : preview.intersect(band);
+    final width = math.min(
+      guideFill * region.width,
+      guideFill * region.height / sheetAspect,
+    );
+    final centre = region.center;
     final outline = Rect.fromCenter(
       center: centre,
       width: width,
@@ -75,10 +86,15 @@ class CaptureGuideOverlay extends StatelessWidget {
     this.target = GuideState.idle,
     this.glow = const [],
     this.warning,
+    this.preview,
   });
 
   final double topInset;
   final double bottomInset;
+
+  /// The preview's rectangle in the overlay's coordinates; null lays the
+  /// guide out on the whole overlay.
+  final Rect? preview;
 
   /// The smoothed tilt in degrees; null hides the level (`tiltUnavailable`).
   final double? tilt;
@@ -112,6 +128,7 @@ class CaptureGuideOverlay extends StatelessWidget {
         constraints.biggest,
         topInset: topInset,
         bottomInset: bottomInset,
+        preview: preview,
       );
       final tilt = this.tilt;
       final palette = context.palette;

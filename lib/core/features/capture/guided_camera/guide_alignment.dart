@@ -56,11 +56,32 @@ const Map<BracketPosition, GuideState> allIdle = {
   BracketPosition.bottomLeft: GuideState.idle,
 };
 
+/// The preview's rectangle on the overlay: drawn whole, `BoxFit.contain`,
+/// centred on the screen (SPEC 0171), in the coordinates of an overlay laid
+/// out inside [safePadding].
+Rect previewRectOnOverlay({
+  required Size previewSize,
+  required Size screenSize,
+  required EdgeInsets safePadding,
+}) {
+  final scale = math.min(
+    screenSize.width / previewSize.width,
+    screenSize.height / previewSize.height,
+  );
+  final shown = previewSize * scale;
+  return Rect.fromLTWH(
+    (screenSize.width - shown.width) / 2 - safePadding.left,
+    (screenSize.height - shown.height) / 2 - safePadding.top,
+    shown.width,
+    shown.height,
+  );
+}
+
 /// [corners], in the read frame's pixels, on the overlay: through the
-/// preview's `BoxFit.cover` on the screen, less the safe area the overlay is
-/// laid out in. Null unless there are four corners and the read frame has
-/// the preview's aspect within [aspectTolerance]: a frame of another aspect
-/// does not see what the screen shows.
+/// preview's `BoxFit.contain` on the screen (SPEC 0171), less the safe area
+/// the overlay is laid out in. Null unless there are four corners and the
+/// read frame has the preview's aspect within [aspectTolerance]: a frame of
+/// another aspect does not see what the screen shows.
 List<Offset>? mapCornersToOverlay({
   required List<({double x, double y})> corners,
   required Size readSize,
@@ -74,18 +95,14 @@ List<Offset>? mapCornersToOverlay({
   final readAspect = readSize.width / readSize.height;
   final previewAspect = previewSize.width / previewSize.height;
   if ((readAspect / previewAspect - 1).abs() > aspectTolerance) return null;
-  final scale = math.max(
-    screenSize.width / previewSize.width,
-    screenSize.height / previewSize.height,
-  );
-  final shown = previewSize * scale;
-  final origin = Offset(
-    (screenSize.width - shown.width) / 2 - safePadding.left,
-    (screenSize.height - shown.height) / 2 - safePadding.top,
+  final shown = previewRectOnOverlay(
+    previewSize: previewSize,
+    screenSize: screenSize,
+    safePadding: safePadding,
   );
   return [
     for (final c in corners)
-      origin +
+      shown.topLeft +
           Offset(
             c.x / readSize.width * shown.width,
             c.y / readSize.height * shown.height,
@@ -118,7 +135,8 @@ Offset _vertex(Rect outline, BracketPosition position) => switch (position) {
 };
 
 /// The guides' states for a sheet whose [corners] lie on the overlay, with
-/// [screen] the screen's rectangle in the overlay's coordinates.
+/// [screen] what the screen shows of the frame in the overlay's coordinates:
+/// the preview's rectangle, since the preview is drawn whole (SPEC 0171).
 SheetAlignment alignSheet({
   required Map<BracketPosition, Offset> corners,
   required CaptureGuideLayout layout,

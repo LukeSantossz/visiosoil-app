@@ -70,7 +70,7 @@ foto; mude o que a última coluna diz antes de tirá-la.
 |---|---|---|
 | Folha A4 não encontrada · tire outra foto | `sheetNotFound` | Use uma superfície mais escura e mantenha a folha inteira no quadro. A folha não pode ficar minúscula no quadro nem ocupar quase todo ele. |
 | Folha cortada no quadro · tire outra foto | `sheetCropped` | Afaste o celular até os quatro cantos aparecerem, com margem. |
-| Foto sem detalhe suficiente · tire outra foto | `photographTooCoarse` | A folha ocupa menos de 2299 px. Ponha a câmera na maior resolução, alinhe os lados maiores e aproxime. |
+| Aproxime o celular da folha · tire outra foto | `photographTooCoarse` | A folha ocupa menos de 2299 px. Ponha a câmera na maior resolução, alinhe os lados maiores e aproxime. |
 | Pouco solo na folha · espalhe um círculo de 8 a 10 cm e tire outra foto | `soilRegionTooSmall` | Espalhe mais solo, num círculo de 8 a 10 cm. |
 | Amostra fora da área lida · tire outra foto | `soilRegionOutsideFrame` | Centralize o círculo de solo na folha, longe das bordas. |
 | Foto ilegível · tire outra foto | `imageMissing`, `imageUndecodable` | Tire a foto de novo. |
