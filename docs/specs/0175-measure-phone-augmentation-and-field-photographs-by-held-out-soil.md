@@ -67,6 +67,7 @@ Of the adoptable arms, A1 is preferred over A2 and A3, because only A1 owes noth
 - `a_variant_keeps_the_scale`: a variant has the region's size, rotated with a quarter turn, and every photometric draw stays within its range.
 - `the_centre_turns_with_the_region`: a disc centred at (y, x) in an H × W region is at (x, H − 1 − y) after a clockwise quarter turn and at (y, W − 1 − x) after a mirror.
 - `variants_are_entries_of_their_own`: two variants of one photograph have distinct cache keys and both reach the training matrix.
+- `a_variant_does_not_depend_on_where_the_files_sit`: a variant is drawn under its photograph's path relative to the export or the dataset root, so the same export read from two directories, or the archive under two roots, gives the same variants.
 - `the_held_out_soil_never_trains`: for every held-out sample, no training entry of A2 or A3, plain or augmented, comes from that sample.
 - `scoring_uses_unaugmented_photographs`: the held-out side holds the sample's exported photographs once each, unaugmented.
 - `upsampled_photographs_are_reported_apart`: the report gives field accuracy over non-upsampled photographs and over all of them.
