@@ -153,6 +153,8 @@ Future<List<FieldPhotograph>> readFieldSession(
     File('assets/models/spec.json').readAsStringSync(),
   ).contract!;
   final entries = _labelledFiles(folder, contract.classes);
+  String exportName(File file) =>
+      '${p.withoutExtension(p.relative(file.path, from: folder)).split(p.separator).join('__')}.png';
   if (entries.isEmpty) {
     throw StateError('No JPEG photograph in $folder');
   }
@@ -160,7 +162,13 @@ Future<List<FieldPhotograph>> readFieldSession(
   final manifest = <Map<String, Object?>>[];
   final read = [
     for (final entry in entries)
-      await _read(entry, contract, exportDir: exportDir, manifest: manifest),
+      await _read(
+        entry,
+        contract,
+        exportDir: exportDir,
+        exportName: exportName(entry.file),
+        manifest: manifest,
+      ),
   ];
   if (exportDir != null) {
     File(p.join(exportDir, 'manifest.json'))
@@ -218,6 +226,7 @@ Future<FieldPhotograph> _read(
   ({File file, String? expected, String? sample}) entry,
   DescriptorContract contract, {
   String? exportDir,
+  required String exportName,
   required List<Map<String, Object?>> manifest,
 }) async {
   int? width;
@@ -237,7 +246,7 @@ Future<FieldPhotograph> _read(
   final taken = measurement;
   final name = p.basename(entry.file.path);
   if (exportDir != null && taken != null) {
-    manifest.add(_export(name, entry, taken, contract, exportDir));
+    manifest.add(_export(name, exportName, entry, taken, contract, exportDir));
   }
   return (
     name: name,
@@ -253,9 +262,12 @@ Future<FieldPhotograph> _read(
 
 /// Writes [measurement]'s square at the canonical scale as a PNG in
 /// [exportDir] and returns its manifest row. A square coarser than the
-/// canonical is upsampled and flagged, which the app itself never does.
+/// canonical is upsampled and flagged, which the app itself never does. The
+/// file is named by the photograph's path under the session's folder, so two
+/// photographs never share one.
 Map<String, Object?> _export(
   String name,
+  String file,
   ({File file, String? expected, String? sample}) entry,
   PhotographMeasurement measurement,
   DescriptorContract contract,
@@ -279,8 +291,6 @@ Map<String, Object?> _export(
       canonicalMmPerPx: canonical,
     ).frame!;
   }
-  final file = '${entry.sample ?? 'unlabelled'}_'
-      '${p.basenameWithoutExtension(name)}.png';
   File(p.join(exportDir, file))
     ..createSync(recursive: true)
     ..writeAsBytesSync(
