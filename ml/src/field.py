@@ -71,6 +71,7 @@ def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
             {
                 "path": path,
                 "image": path,
+                "key": row["file"],
                 "class": row["class"],
                 "label": cfg["classes"].index(row["class"]),
                 "group": row["sample"],
@@ -98,11 +99,24 @@ def _cut(region: Image.Image, centre, diameter: float, cfg: Mapping) -> np.ndarr
     return np.stack([describe_patch(patch) for patch in patches])
 
 
-def _augmented(region, centre, entry: Mapping, seed: int):
+def variant_key(entry: Mapping, cfg: Mapping) -> str:
+    """The name a variant is drawn under: the photograph's path inside the
+    export, or inside the dataset root, so the draw does not depend on where
+    either sits on this machine or how the command line spelled it."""
+    if "key" in entry:
+        return str(entry["key"])
+    from .dataset import _stored_path
+    from .manifest import dataset_root
+
+    root = dataset_root(cfg["data"]["datasets_dir"], cfg["data"]["dataset_version"])
+    return _stored_path(entry.get("image") or entry["path"], str(root))
+
+
+def _augmented(region, centre, entry: Mapping, cfg: Mapping, seed: int):
     if entry.get("variant") is None:
         return region, centre
     return phone_augment.variant(
-        region, centre, seed=seed, key=str(entry["image"]), k=int(entry["variant"])
+        region, centre, seed=seed, key=variant_key(entry, cfg), k=int(entry["variant"])
     )
 
 
@@ -114,7 +128,7 @@ def field_features(
     with Image.open(entry["image"]) as handle:
         region = handle.convert("RGB")
     centre = (entry["centre_y"], entry["centre_x"])
-    region, centre = _augmented(region, centre, entry, seed)
+    region, centre = _augmented(region, centre, entry, cfg, seed)
     return _cut(region, centre, entry["diameter"], cfg)
 
 
@@ -136,5 +150,5 @@ def archive_features(
         measurement["mm_per_px"],
         cfg["preprocessing"]["canonical_mm_per_px"],
     )
-    region, centre = _augmented(region, (centre_y, centre_x), source, seed)
+    region, centre = _augmented(region, (centre_y, centre_x), source, cfg, seed)
     return _cut(region, centre, diameter, cfg)
