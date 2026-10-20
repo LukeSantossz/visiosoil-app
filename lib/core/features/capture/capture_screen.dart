@@ -24,6 +24,7 @@ import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 
 /// A device location reading: coordinates, the fix's accuracy radius in metres
 /// (null when the device reported no usable one, SPEC 0148) and a
@@ -560,6 +561,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 Expanded(
                   child: CaptureImagePreview(
                     image: image,
+                    // Cut once the classification is done, so the two do not
+                    // compete for the phone (SPEC 0172).
+                    sample: image == null || _state.isClassifying
+                        ? null
+                        : ref.watch(soilSampleProvider(image.path)).value,
                     isLoading: _state.isLocating,
                     isClassifying: _state.isClassifying,
                     classificationPhase: _state.classificationPhase,

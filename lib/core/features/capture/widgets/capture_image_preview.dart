@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
@@ -18,6 +19,7 @@ class CaptureImagePreview extends StatelessWidget {
   const CaptureImagePreview({
     super.key,
     required this.image,
+    this.sample,
     required this.isLoading,
     required this.isClassifying,
     this.classificationPhase,
@@ -31,6 +33,10 @@ class CaptureImagePreview extends StatelessWidget {
   });
 
   final File? image;
+
+  /// The soil sample cut from [image], shown in its place once there is one
+  /// (SPEC 0172).
+  final Uint8List? sample;
   final bool isLoading;
   final bool isClassifying;
 
@@ -90,11 +96,19 @@ class CaptureImagePreview extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.file(
-            image!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-          ),
+          if (sample != null)
+            Image.memory(
+              sample!,
+              key: const ValueKey('soil-sample'),
+              fit: BoxFit.cover,
+              width: double.infinity,
+            )
+          else
+            Image.file(
+              image!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
           // Gradient for chip legibility
           Positioned(
             left: 0,
