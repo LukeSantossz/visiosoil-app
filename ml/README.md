@@ -468,6 +468,25 @@ which arms the pre-registered rule adopts. A disc too small for the patch grid
 is left out, and named. The study writes no contract: adopting an arm is a
 release spec of its own.
 
+## Distance guard study
+
+The study asks whether a distance in the contract's descriptor space tells the
+excluded Siltosa apart from the soils the model was fitted on (SPEC 0176). It
+runs on the machine that holds the archive:
+
+```bash
+python -m src.ood_study --version v1 [--field <export>]
+```
+
+On repeat 0 of the fold manifest, each fold's training side fits one centroid
+per class and a pooled diagonal variance, and its test side is scored. Every
+fold's fit also scores the Siltosa photographs, which never train. The
+threshold is the 0.99 quantile of the held-out soil scores. With `--field`,
+SPEC 0174's export is scored by the fit on the whole archive. It writes
+`models/v1/ood_study/report.json` and prints the refusals and the
+pre-registered rule's verdict. On `v1` the verdict is `fail`; see
+`docs/ml/descriptor-distance-guard.md`. The study writes no contract.
+
 ## Full Pipeline
 
 Cross-validate one arm, then report it:
