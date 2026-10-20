@@ -257,3 +257,29 @@ def test_the_study_runs_end_to_end(tmp_path, cfg):
     assert set(written["arms"]) == set(field_study.ARMS)
     assert set(written["arms"]["A0"]["field"]["per_sample"]) == {"S1", "S2", "S3"}
     assert "adoptable" in written and "preferred" in written
+
+
+def test_a_disc_too_small_for_the_grid_is_left_out(tmp_path, cfg, capsys):
+    export = tmp_path / "export"
+    export.mkdir()
+    rows = [
+        {
+            "file": f"{sample}.png",
+            "class": "Argilosa",
+            "sample": sample,
+            "source": f"{sample}.jpg",
+            "measured_mm_per_px": 0.04,
+            "canonical_mm_per_px": cfg["preprocessing"]["canonical_mm_per_px"],
+            "centre_y": 280.0,
+            "centre_x": 280.0,
+            "diameter": diameter,
+            "upsampled": False,
+        }
+        for sample, diameter in (("S1", 500.0), ("S2", 200.0))
+    ]
+    (export / "manifest.json").write_text(json.dumps(rows))
+
+    entries = field.load_field_export(export, cfg)
+
+    assert [e["sample"] for e in entries] == ["S1"]
+    assert "S2.png" in capsys.readouterr().out
