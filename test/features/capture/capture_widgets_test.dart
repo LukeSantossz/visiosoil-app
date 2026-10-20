@@ -43,6 +43,31 @@ void main() {
       expect(find.text('Selecione uma imagem'), findsOneWidget);
     });
 
+    // The soil sample replaces the photograph once it is cut (SPEC 0172).
+    testWidgets('the_preview_shows_the_sample', (tester) async {
+      final sample = img.encodeJpg(img.Image(width: 4, height: 4));
+      await tester.pumpWidget(host(CaptureImagePreview(
+        image: sampleImage,
+        sample: sample,
+        isLoading: false,
+        isClassifying: false,
+      )));
+      expect(find.byKey(const ValueKey('soil-sample')), findsOneWidget);
+
+      await tester.pumpWidget(host(CaptureImagePreview(
+        image: sampleImage,
+        isLoading: false,
+        isClassifying: false,
+      )));
+      expect(find.byKey(const ValueKey('soil-sample')), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Image && w.image is FileImage,
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('shows loading chips while locating and classifying',
         (tester) async {
       await tester.pumpWidget(host(CaptureImagePreview(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -15,6 +16,7 @@ import 'package:visiosoil_app/providers/management_tips_repository_provider.dart
 import 'package:visiosoil_app/providers/research_service_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
@@ -536,6 +538,43 @@ void main() {
 
   // The photograph at the top is a labelled way into the full-screen viewer
   // (SPEC 0125).
+  // The header shows the soil sample cut from the photograph, and the
+  // photograph itself while there is none (SPEC 0172).
+  for (final (name, sample) in [
+    ('the_details_show_the_sample', true),
+    ('the_details_show_the_photograph_without_a_sample', false),
+  ]) {
+    testWidgets(name, (tester) async {
+      final bytes = img.encodeJpg(img.Image(width: 4, height: 4));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          soilRecordByIdProvider.overrideWith((ref, id) async => tipsRecord()),
+          soilSampleReaderProvider
+              .overrideWithValue((path) async => sample ? bytes : null),
+          managementTipsRepositoryProvider
+              .overrideWithValue(FakeManagementTipsRepository()),
+          researchServiceProvider.overrideWithValue(
+            FakeResearchService(
+              (_) async =>
+                  const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+            ),
+          ),
+          connectivityServiceProvider.overrideWithValue(
+            FakeConnectivityService(ConnectivityStatus.online),
+          ),
+        ],
+        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('soil-sample')),
+        sample ? findsOneWidget : findsNothing,
+      );
+      expect(find.bySemanticsLabel('Ampliar foto'), findsOneWidget);
+    });
+  }
+
   testWidgets('hero_opens_viewer', (tester) async {
     final semantics = tester.ensureSemantics();
     final router = GoRouter(
