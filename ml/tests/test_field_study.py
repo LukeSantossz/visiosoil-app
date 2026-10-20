@@ -259,6 +259,39 @@ def test_the_study_runs_end_to_end(tmp_path, cfg):
     assert "adoptable" in written and "preferred" in written
 
 
+def test_a_field_variant_does_not_depend_on_where_the_export_sits(tmp_path, cfg):
+    blocks = []
+    for root in (tmp_path / "here" / "export", tmp_path / "there"):
+        _write_png(root / "S1_0.png", 100, seed=1)
+        row = {
+            "file": "S1_0.png",
+            "class": "Argilosa",
+            "sample": "S1",
+            "source": "S1_0.jpg",
+            "measured_mm_per_px": 0.1,
+            "canonical_mm_per_px": cfg["preprocessing"]["canonical_mm_per_px"],
+            "centre_y": 280.0,
+            "centre_x": 280.0,
+            "diameter": 500.0,
+            "upsampled": False,
+        }
+        (root / "manifest.json").write_text(json.dumps([row]))
+        (entry,) = field.load_field_export(root, cfg)
+        blocks.append(field.field_features({**entry, "path": "x::aug1", "variant": 1}, cfg))
+
+    assert np.array_equal(blocks[0], blocks[1])
+
+
+def test_an_archive_variant_is_keyed_inside_the_dataset_root(tmp_path, cfg):
+    keys = []
+    for datasets in (tmp_path / "here", tmp_path / "there" / "datasets"):
+        local = {**cfg, "data": {**cfg["data"], "datasets_dir": str(datasets)}}
+        root = datasets / cfg["data"]["dataset_version"]
+        keys.append(field.variant_key({"image": str(root / "images" / "a.jpg")}, local))
+
+    assert keys == ["images/a.jpg", "images/a.jpg"]
+
+
 def test_a_disc_too_small_for_the_grid_is_left_out(tmp_path, cfg, capsys):
     export = tmp_path / "export"
     export.mkdir()
