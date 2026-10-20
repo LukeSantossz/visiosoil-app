@@ -206,7 +206,7 @@ def test_upsampled_photographs_are_reported_apart(tmp_path, cfg):
 def _write_png(path: Path, level: int, seed: int) -> None:
     generator = np.random.default_rng(seed)
     pixels = np.clip(
-        generator.normal(level, 30.0, size=(220, 220, 3)), 0, 255
+        generator.normal(level, 30.0, size=(560, 560, 3)), 0, 255
     ).astype(np.uint8)
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(pixels, mode="RGB").save(path)
@@ -227,9 +227,9 @@ def test_the_study_runs_end_to_end(tmp_path, cfg):
                     "source": f"{sample}_{photo}.jpg",
                     "measured_mm_per_px": 0.1,
                     "canonical_mm_per_px": cfg["preprocessing"]["canonical_mm_per_px"],
-                    "centre_y": 110.0,
-                    "centre_x": 110.0,
-                    "diameter": 200.0,
+                    "centre_y": 280.0,
+                    "centre_x": 280.0,
+                    "diameter": 500.0,
                     "upsampled": photo == 1,
                 }
             )
