@@ -4,7 +4,7 @@ SPEC 0176 asked whether a distance in the contract's descriptor space could tell
 
 ## The answer
 
-**No. The guard does not catch Siltosa, and it should not be wired.** It refuses none of the six Siltosa photographs. The AUROC of Siltosa against held-out soil is 0.145, far below chance: Siltosa sits *closer* to the class centroids than most of the soils the model was fitted on. Four of the six score below the archive's 6th percentile.
+**No. The guard does not catch Siltosa, and it should not be wired.** It refuses none of the six Siltosa photographs. The AUROC of Siltosa against held-out soil is 0.145, far below chance: Siltosa sits *closer* to the class centroids than most held-out soils. Four of the six score below the held-out soil's 6th percentile.
 
 Both conditions SPEC 0176 fixed before the run fail, so the field condition was not measured and does not need to be. `rejectedOod` keeps having no producer.
 
@@ -52,4 +52,4 @@ That points at the space rather than at the guard's form. A full covariance, the
 
 - #194's question is answered for Siltosa: the guard is not worth wiring. A Siltosa sample keeps receiving one of the four classes, and that limitation is stated, not detected.
 - A guard against inputs that are not soil at all remains a separate question. It would need a set of such inputs, and any of them would first have to pass the A4-sheet reader.
-- `models/v1/ood_study/report.json` holds every photograph's score, for a later study that scores the field export (`--field`).
+- `models/v1/ood_study/report.json` holds every photograph's score, for a later study that scores the field export (`--field`). A reading of that run should note a bias: the threshold comes from fold fits scoring photographs they never saw, while the field is scored by the fit on the whole archive. That fit's distances run slightly smaller, which would pull the field refusal rate down.
