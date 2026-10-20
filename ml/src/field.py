@@ -21,7 +21,7 @@ from PIL import Image, ImageOps
 
 from . import phone_augment
 from .descriptors import describe_patch
-from .patches import cut_patches, resample_to_canonical
+from .patches import cut_patches, patch_geometry, resample_to_canonical
 
 #: The seed every variant is drawn under unless the study is given another.
 DEFAULT_SEED = 20261019
@@ -35,7 +35,8 @@ def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
     Each entry's group is its soil sample, so a photograph is never split from
     its sample, and its label indexes the configured classes. A class the
     configuration does not hold, or a scale other than the configured
-    canonical, is a different export from the one this run expects.
+    canonical, is a different export from the one this run expects. A disc too
+    small for the patch grid is left out, and named.
     """
     directory = Path(directory)
     rows = json.loads((directory / MANIFEST_FILENAME).read_text(encoding="utf-8"))
@@ -52,6 +53,19 @@ def load_field_export(directory: Path | str, cfg: Mapping) -> list[dict]:
                 f"{row['file']}: exported at {row['canonical_mm_per_px']} mm/px, "
                 f"and the configured canonical is {canonical}"
             )
+        try:
+            patch_geometry(
+                region_diameter_px=float(row["diameter"]),
+                input_size=cfg["data"]["image_size"],
+                canonical_mm_per_px=canonical,
+                min_patches=cfg["preprocessing"]["min_patches"],
+                stride_fraction=cfg["preprocessing"]["patch_stride_fraction"],
+            )
+        except ValueError as refusal:
+            # The app measured the disc and its grid refused it, so the
+            # classifier never read this photograph either.
+            print(f"left out {row['file']}: {refusal}")
+            continue
         path = str(directory / row["file"])
         entries.append(
             {
