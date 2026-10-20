@@ -48,4 +48,14 @@ void main() {
     );
     expect(chip.retryable, isFalse);
   });
+
+  // A still coarser than the contract is fixed by coming closer (SPEC 0171).
+  test('the_too_coarse_chip_names_the_remedy', () {
+    final chip = classificationFailureChip(
+      ClassificationFailureCause.photographTooCoarse,
+    );
+
+    expect(chip.label, 'Aproxime o celular da folha · tire outra foto');
+    expect(chip.retryable, isFalse);
+  });
 }

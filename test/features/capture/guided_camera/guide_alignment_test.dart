@@ -43,7 +43,8 @@ void main() {
   }
 
   test('corners_map_to_the_overlay', () {
-    const scale = 844 / 1280;
+    // The preview is drawn whole: `BoxFit.contain` (SPEC 0171).
+    const scale = 390 / 720;
     final mapped = mapCornersToOverlay(
       corners: const [
         (x: 0, y: 0),
@@ -56,11 +57,11 @@ void main() {
       screenSize: const Size(390, 844),
       safePadding: const EdgeInsets.only(top: 47),
     )!;
-    const offsetX = (390 - 720 * scale) / 2;
-    expect(mapped[0].dx, closeTo(offsetX, 0.5));
-    expect(mapped[0].dy, closeTo(-47, 0.5));
-    expect(mapped[2].dx, closeTo(offsetX + 720 * scale, 0.5));
-    expect(mapped[2].dy, closeTo(844 - 47, 0.5));
+    const offsetY = (844 - 1280 * scale) / 2 - 47;
+    expect(mapped[0].dx, closeTo(0, 0.5));
+    expect(mapped[0].dy, closeTo(offsetY, 0.5));
+    expect(mapped[2].dx, closeTo(390, 0.5));
+    expect(mapped[2].dy, closeTo(offsetY + 1280 * scale, 0.5));
 
     expect(
       mapCornersToOverlay(
@@ -229,5 +230,56 @@ void main() {
       ),
       GuideState.placed,
     );
+  });
+
+  test('the_preview_is_shown_whole', () {
+    // The Developer's phone: 1220 x 2712 px at 3.25, a 3:4 preview.
+    const screenSize = Size(1220 / 3.25, 2712 / 3.25);
+    const padding = EdgeInsets.only(top: 40, bottom: 16);
+    final preview = previewRectOnOverlay(
+      previewSize: const Size(3072, 4096),
+      screenSize: screenSize,
+      safePadding: padding,
+    );
+    expect(preview.left, closeTo(0, 0.01));
+    expect(preview.width, closeTo(screenSize.width, 0.01));
+    expect(preview.height, closeTo(screenSize.width * 4 / 3, 0.01));
+    expect(preview.top, greaterThanOrEqualTo(-padding.top));
+    expect(
+      preview.bottom,
+      lessThanOrEqualTo(screenSize.height - padding.top),
+    );
+    expect(
+      preview.center.dy,
+      closeTo(screenSize.height / 2 - padding.top, 0.01),
+    );
+  });
+
+  test('a_corner_inside_the_frame_is_on_screen', () {
+    const previewSize = Size(768, 1024);
+    const screenSize = Size(390, 844);
+    const padding = EdgeInsets.only(top: 47);
+    final mapped = mapCornersToOverlay(
+      corners: const [
+        (x: 5, y: 200),
+        (x: 700, y: 200),
+        (x: 700, y: 900),
+        (x: 5, y: 900),
+      ],
+      readSize: previewSize,
+      previewSize: previewSize,
+      screenSize: screenSize,
+      safePadding: padding,
+    )!;
+    final alignment = alignSheet(
+      corners: assignCorners(mapped),
+      layout: layout,
+      screen: previewRectOnOverlay(
+        previewSize: previewSize,
+        screenSize: screenSize,
+        safePadding: padding,
+      ),
+    );
+    expect(alignment.offScreen, isEmpty);
   });
 }
