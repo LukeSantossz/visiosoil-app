@@ -216,3 +216,16 @@ Flutter 3.44.1 and Dart 3.12.1. The "before" column is the same run on `main` at
 `0c33c2f`. For SPEC 0144, `findSheet` ran on all 31 originals on `main` at
 `834a9ab` and on its branch: the verdict and corners are unchanged on 29, and
 160808 and 160808_1 are found.
+
+A later session is reported by a committed runner (SPEC 0170). Copy the
+photographs into one folder and run:
+
+```sh
+VISIOSOIL_PHOTOS=<folder> flutter test test/field_session/field_session_test.dart
+```
+
+It prints this document's per-photograph table for every JPEG in the folder —
+outcome, scale and disc — and closes it with how many were classified.
+Photographs taken in the app come off the phone through the record's share
+action, which sends the stored photograph: its pixels are the capture's, and
+its EXIF is stripped but for the orientation.
