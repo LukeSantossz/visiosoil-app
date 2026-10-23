@@ -12,6 +12,10 @@ import 'app_colors.dart';
 /// The brand roles ([brand], [onBrand], [brandTileEnd], [shadowBrand]) are the
 /// mark rather than a colour role, and hold the same values in both: in dark
 /// mode [primary] is a pale accent, which must not become a large fill.
+///
+/// Extended tokens outside M3 ([primaryText], [textTertiary], [divider],
+/// [selected], [destructive], [surfaceContainer], [surfaceContainerHigh]) are
+/// present in all palettes for the redesign (v11 §1.1).
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -51,11 +55,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.shadowCard,
     required this.shadowControl,
     required this.shadowElevated,
+    required this.primaryText,
+    required this.textTertiary,
+    required this.divider,
+    required this.selected,
+    required this.destructive,
+    required this.surfaceContainer,
+    required this.surfaceContainerHigh,
     this.brand = AppColors.primary,
     this.onBrand = AppColors.onPrimary,
     this.brandTileEnd = AppColors.tertiary,
     this.shadowBrand = AppColors.shadowBrand,
     this.highContrast = false,
+    this.isSun = false,
   });
 
   final Brightness brightness;
@@ -99,9 +111,36 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color brandTileEnd;
   final Color shadowBrand;
 
+  /// Green text/icon on surface background (--priT in mock).
+  final Color primaryText;
+
+  /// Tertiary text colour, lighter than onSurfaceVariant (--on3 in mock).
+  final Color textTertiary;
+
+  /// Divider line colour (--line2 in mock).
+  final Color divider;
+
+  /// Selected row/chip background (--sel in mock).
+  final Color selected;
+
+  /// Destructive action colour (delete button in swipe).
+  final Color destructive;
+
+  /// M3 surfaceContainer (--surf2 in mock).
+  final Color surfaceContainer;
+
+  /// M3 surfaceContainerHigh (--surf3 in mock).
+  final Color surfaceContainerHigh;
+
   /// Whether this palette draws for high contrast (SPEC 0130): the light or
   /// dark one with its structural edges solid instead of hairline.
   final bool highContrast;
+
+  /// Whether this is the Sun (Modo Sol) palette for outdoor field use.
+  /// Use this flag instead of instance identity (`palette == AppPalette.sun`)
+  /// since lerped palettes during animated theme switches need to preserve
+  /// the sun mode behavior.
+  final bool isSun;
 
   /// A card's edge. A hairline by default, which keeps the design system's
   /// flat look; in high contrast the solid [outline], at 3 : 1 or more against
@@ -191,6 +230,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
     shadowCard: AppColors.shadowCard,
     shadowControl: AppColors.shadowControl,
     shadowElevated: AppColors.shadowElevated,
+    primaryText: Color(0xFF3B6A49),
+    textTertiary: Color(0xFF5E6359),
+    divider: Color(0xFFE0E4DA),
+    selected: Color(0xFFE4F0D9),
+    destructive: Color(0xFFB3261E),
+    surfaceContainer: Color(0xFFEEF1E9),
+    surfaceContainerHigh: Color(0xFFE0E4DA),
   );
 
   /// Tones are Material 3's dark mapping over the light tokens' hues: accents
@@ -235,6 +281,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
     shadowCard: Color(0x0A000000),
     shadowControl: Color(0x0F000000),
     shadowElevated: Color(0x33000000),
+    primaryText: Color(0xFFB1D1B9),
+    textTertiary: Color(0xFFA3A89C),
+    divider: Color(0xFF2F312D),
+    selected: Color(0xFF243517),
+    destructive: Color(0xFFB3261E),
+    surfaceContainer: Color(0xFF232521),
+    surfaceContainerHigh: Color(0xFF2F312D),
   );
 
   /// [light] with solid structural edges (SPEC 0130), whose lines all draw
@@ -252,6 +305,57 @@ class AppPalette extends ThemeExtension<AppPalette> {
         outlineVariant: dark.outline,
         background: dark.scrim,
       );
+
+  /// Sun (Modo Sol) palette: high-contrast light theme for outdoor field use.
+  /// Black text on white surfaces, dark green primary (#1F4D2E), no shadows,
+  /// and 2 dp black borders. Text pairs meet AAA (≥7:1) (Redesign v11 §1.1).
+  static const sun = AppPalette(
+    brightness: Brightness.light,
+    highContrast: true,
+    isSun: true,
+    primary: Color(0xFF1F4D2E),
+    onPrimary: Color(0xFFFFFFFF),
+    primaryContainer: Color(0xFFFFFFFF),
+    onPrimaryContainer: Color(0xFF000000),
+    secondary: Color(0xFF4A3417),
+    onSecondary: Color(0xFFFFFFFF),
+    secondaryContainer: Color(0xFFFFFFFF),
+    onSecondaryContainer: Color(0xFF000000),
+    tertiary: Color(0xFF1F4D2E),
+    onTertiary: Color(0xFFFFFFFF),
+    tertiaryContainer: Color(0xFFFFFFFF),
+    onTertiaryContainer: Color(0xFF000000),
+    error: Color(0xFF8C0009),
+    onError: Color(0xFFFFFFFF),
+    errorContainer: Color(0xFFFFFFFF),
+    onErrorContainer: Color(0xFF8C0009),
+    warning: Color(0xFF4A3417),
+    warningContainer: Color(0xFFFFFFFF),
+    onWarningContainer: Color(0xFF000000),
+    background: Color(0xFFFFFFFF),
+    onBackground: Color(0xFF000000),
+    surface: Color(0xFFFFFFFF),
+    onSurface: Color(0xFF000000),
+    surfaceVariant: Color(0xFFE6E6E6),
+    onSurfaceVariant: Color(0xFF000000),
+    outline: Color(0xFF000000),
+    outlineVariant: Color(0xFF000000),
+    inverseSurface: Color(0xFF000000),
+    onInverseSurface: Color(0xFFFFFFFF),
+    inversePrimary: Color(0xFFB1D1B9),
+    shadow: Color(0xFF000000),
+    scrim: Color(0xFF000000),
+    shadowCard: Colors.transparent,
+    shadowControl: Colors.transparent,
+    shadowElevated: Colors.transparent,
+    primaryText: Color(0xFF1F4D2E),
+    textTertiary: Color(0xFF1F1F1F),
+    divider: Color(0xFF000000),
+    selected: Color(0xFFFFFFFF),
+    destructive: Color(0xFFB3261E),
+    surfaceContainer: Color(0xFFF2F2F2),
+    surfaceContainerHigh: Color(0xFFE6E6E6),
+  );
 
   /// The palette of [context]'s theme, or the one matching its brightness when
   /// the theme carries none (a bare `MaterialApp` in a widget test).
@@ -344,11 +448,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
       shadowCard: shadowCard,
       shadowControl: shadowControl,
       shadowElevated: shadowElevated,
+      primaryText: primaryText,
+      textTertiary: textTertiary,
+      divider: divider,
+      selected: selected,
+      destructive: destructive,
+      surfaceContainer: surfaceContainer,
+      surfaceContainerHigh: surfaceContainerHigh,
       brand: brand,
       onBrand: onBrand,
       brandTileEnd: brandTileEnd,
       shadowBrand: shadowBrand,
       highContrast: highContrast ?? this.highContrast,
+      isSun: isSun,
     );
   }
 
@@ -394,11 +506,20 @@ class AppPalette extends ThemeExtension<AppPalette> {
       shadowCard: mix(shadowCard, other.shadowCard),
       shadowControl: mix(shadowControl, other.shadowControl),
       shadowElevated: mix(shadowElevated, other.shadowElevated),
+      primaryText: mix(primaryText, other.primaryText),
+      textTertiary: mix(textTertiary, other.textTertiary),
+      divider: mix(divider, other.divider),
+      selected: mix(selected, other.selected),
+      destructive: mix(destructive, other.destructive),
+      surfaceContainer: mix(surfaceContainer, other.surfaceContainer),
+      surfaceContainerHigh:
+          mix(surfaceContainerHigh, other.surfaceContainerHigh),
       brand: mix(brand, other.brand),
       onBrand: mix(onBrand, other.onBrand),
       brandTileEnd: mix(brandTileEnd, other.brandTileEnd),
       shadowBrand: mix(shadowBrand, other.shadowBrand),
       highContrast: t < 0.5 ? highContrast : other.highContrast,
+      isSun: t < 0.5 ? isSun : other.isSun,
     );
   }
 }
