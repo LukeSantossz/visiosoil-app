@@ -7,11 +7,30 @@ import 'app_palette.dart';
 ///
 /// Fonts are bundled in assets/fonts/ and registered in pubspec.yaml
 /// via the Flutter fonts: section (no runtime fetching).
+///
+/// Redesign v11 introduces Inter font features (cv11, ss01) on body/label
+/// styles, and new additive tokens (`v11*`) for screens to adopt in later PRs.
 abstract final class AppTypography {
   static const _displayFamily = 'Manrope';
   static const _bodyFamily = 'Inter';
 
-  // --- Display (Manrope) ---
+  /// Inter font features: cv11 (alternate 1), ss01 (stylistic set 1).
+  static const _interFeatures = [
+    FontFeature('cv11'),
+    FontFeature('ss01'),
+  ];
+
+  // --- Display ---
+
+  /// 40/44, weight 650 (approximated as w600). For confidence % in result.
+  /// New in Redesign v11.
+  static TextStyle get displaySmall => TextStyle(
+        fontFamily: _bodyFamily,
+        fontSize: 40,
+        fontWeight: FontWeight.w600,
+        height: 44 / 40,
+        fontFeatures: _interFeatures,
+      );
 
   static TextStyle get headlineLarge => TextStyle(
         fontFamily: _displayFamily,
@@ -27,6 +46,16 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w800,
         letterSpacing: -0.4,
         height: 1.2,
+      );
+
+  /// Redesign v11 headlineMedium: 28/36, weight 650 (w700), tracking -0.025em.
+  /// Screens adopt this in later PRs via explicit use.
+  static TextStyle get v11HeadlineMedium => TextStyle(
+        fontFamily: _displayFamily,
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.7, // -0.025em * 28
+        height: 36 / 28,
       );
 
   static TextStyle get headlineSmall => TextStyle(
@@ -53,6 +82,16 @@ abstract final class AppTypography {
         height: 1.4,
       );
 
+  /// Redesign v11 titleMedium: Inter 16/22, weight 600.
+  /// Screens adopt this in later PRs via explicit use.
+  static TextStyle get v11TitleMedium => TextStyle(
+        fontFamily: _bodyFamily,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        height: 22 / 16,
+        fontFeatures: _interFeatures,
+      );
+
   static TextStyle get titleSmall => TextStyle(
         fontFamily: _displayFamily,
         fontSize: 14,
@@ -69,6 +108,7 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
         height: 1.5,
+        fontFeatures: _interFeatures,
       );
 
   static TextStyle get bodyMedium => TextStyle(
@@ -77,6 +117,7 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
         height: 1.45,
+        fontFeatures: _interFeatures,
       );
 
   static TextStyle get bodySmall => TextStyle(
@@ -85,6 +126,7 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
         height: 1.4,
+        fontFeatures: _interFeatures,
       );
 
   // --- Labels (Inter) ---
@@ -95,6 +137,18 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
         height: 1.4,
+        fontFeatures: _interFeatures,
+      );
+
+  /// Redesign v11 labelLarge: 15–16, weight 600.
+  /// Screens adopt this in later PRs via explicit use.
+  static TextStyle get v11LabelLarge => TextStyle(
+        fontFamily: _bodyFamily,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+        height: 1.4,
+        fontFeatures: _interFeatures,
       );
 
   static TextStyle get labelMedium => TextStyle(
@@ -103,6 +157,7 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.4,
         height: 1.33,
+        fontFeatures: _interFeatures,
       );
 
   static TextStyle get labelSmall => TextStyle(
@@ -111,7 +166,16 @@ abstract final class AppTypography {
         fontWeight: FontWeight.w500,
         letterSpacing: 0.4,
         height: 1.45,
+        fontFeatures: _interFeatures,
       );
+
+  /// Add tabular numbers feature (tnum) for %, times and statistics.
+  static TextStyle tabular(TextStyle style) {
+    final existing = style.fontFeatures ?? [];
+    return style.copyWith(
+      fontFeatures: [...existing, const FontFeature('tnum')],
+    );
+  }
 
   /// The text theme for [palette]: text on the page in `onBackground`, and
   /// the small print in `onSurfaceVariant`, so it follows the theme
@@ -123,6 +187,7 @@ abstract final class AppTypography {
     final hc = palette.highContrast;
     final body = hc ? FontWeight.w500 : null;
     return TextTheme(
+      displaySmall: displaySmall.copyWith(color: ink),
       headlineLarge: headlineLarge.copyWith(color: ink),
       headlineMedium: headlineMedium.copyWith(color: ink),
       headlineSmall: headlineSmall.copyWith(color: ink),
