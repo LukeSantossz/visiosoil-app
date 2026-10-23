@@ -31,6 +31,14 @@ def test_a_real_photo_vector_has_twenty_six_features():
     assert all(len(patch) == 26 for patch in golden["patches"])
 
 
+def test_pipeline_golden_records_decoded_rgb_statistics():
+    golden = _golden()
+
+    statistics = golden["decoded_rgb_statistics"]
+    assert statistics["pixel_count"] == golden["decoded_size"][0] * golden["decoded_size"][1]
+    assert len(statistics["mean"]) == len(statistics["std"]) == 3
+
+
 def test_python_pipeline_golden_reproduces_a_real_photograph():
     golden = _golden()
 

@@ -51,6 +51,7 @@ def describe_pipeline() -> dict:
     path = REPO_ROOT / PHOTOGRAPH
     with Image.open(path) as handle:
         photograph = ImageOps.exif_transpose(handle).convert("RGB")
+    decoded_rgb = np.asarray(photograph, dtype=np.float64)
     canonical, _ = resample_to_canonical(
         photograph,
         MEASUREMENT["mm_per_px"],
@@ -73,6 +74,11 @@ def describe_pipeline() -> dict:
         "measurement": MEASUREMENT,
         "geometry": GEOMETRY,
         "decoded_size": list(photograph.size),
+        "decoded_rgb_statistics": {
+            "pixel_count": int(decoded_rgb.shape[0] * decoded_rgb.shape[1]),
+            "mean": [float(value) for value in decoded_rgb.mean(axis=(0, 1))],
+            "std": [float(value) for value in decoded_rgb.std(axis=(0, 1))],
+        },
         "canonical_size": list(canonical.size),
         "patches": [[float(value) for value in row] for row in features],
         "mean_features": [float(value) for value in features.mean(axis=0)],
