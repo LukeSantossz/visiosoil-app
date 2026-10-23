@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Motion tokens mirroring the design system's `tokens/motion.css`.
 ///
@@ -7,6 +7,19 @@ import 'package:flutter/animation.dart';
 /// [slow] for sheet and card entrances, [reveal] for result reveals and
 /// staggered list-ins. Curves follow Material 3 emphasis.
 abstract final class AppMotion {
+  /// User's reduce-motion preference (redesign v11 §3.11). Set by
+  /// [ReduceMotionController] before the first frame.
+  static bool reduceMotion = false;
+
+  /// Returns [duration] unless reduced motion is requested (by the user's
+  /// preference or the platform's `disableAnimations`), in which case returns
+  /// [reducedMotion] (at most 150 ms) — acceptance criterion, redesign v11 §6.5.
+  static Duration durationOf(BuildContext context, Duration duration) {
+    if (reduceMotion || MediaQuery.disableAnimationsOf(context)) {
+      return duration > reducedMotion ? reducedMotion : duration;
+    }
+    return duration;
+  }
   static const Duration instant = Duration(milliseconds: 90);
   static const Duration fast = Duration(milliseconds: 140);
   static const Duration base = Duration(milliseconds: 220);

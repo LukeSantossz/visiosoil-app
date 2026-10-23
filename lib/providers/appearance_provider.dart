@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 
 /// Where the theme choice is persisted. Overridden with a fake in tests.
 final appearanceStoreProvider = Provider<AppearanceStore>(
@@ -89,11 +90,16 @@ final reduceMotionProvider =
 
 class ReduceMotionController extends Notifier<bool> {
   @override
-  bool build() => ref.read(initialReduceMotionProvider);
+  bool build() {
+    final initial = ref.read(initialReduceMotionProvider);
+    AppMotion.reduceMotion = initial;
+    return initial;
+  }
 
-  /// Applies [on] at once, then persists it.
+  /// Applies [on] at once, persists it, and syncs with [AppMotion.reduceMotion].
   Future<void> select(bool on) async {
     state = on;
+    AppMotion.reduceMotion = on;
     await ref.read(appearanceStoreProvider).writeReduceMotion(on);
   }
 }

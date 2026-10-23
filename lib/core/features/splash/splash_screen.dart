@@ -38,9 +38,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
+    // Respect reduce motion preference set before runApp (redesign v11 §6.5).
+    final duration = AppMotion.reduceMotion
+        ? AppMotion.reducedMotion
+        : AppMotion.reveal;
     _animationController = AnimationController(
       vsync: this,
-      duration: AppMotion.reveal,
+      duration: duration,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -50,8 +54,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _animationController.forward();
 
     // Goes on after the reveal. It asks for no permission: capture asks for
-    // the camera and location when it needs them (SPEC 0099).
-    Future.delayed(const Duration(milliseconds: 1200), _start);
+    // the camera and location when it needs them (SPEC 0099). With reduced
+    // motion, proceeds sooner.
+    final delay = AppMotion.reduceMotion
+        ? const Duration(milliseconds: 300)
+        : const Duration(milliseconds: 1200);
+    Future.delayed(delay, _start);
   }
 
   @override
