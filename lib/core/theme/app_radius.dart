@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Border radius constants for visual consistency.
 abstract final class AppRadius {
+  /// 4.0
+  static const double xs = 4.0;
+
   /// 8.0
   static const double sm = 8.0;
 
@@ -18,6 +21,7 @@ abstract final class AppRadius {
   static const double pill = 999.0;
 
   // Pre-built BorderRadius for convenience
+  static final BorderRadius borderRadiusXs = BorderRadius.circular(xs);
   static final BorderRadius borderRadiusSm = BorderRadius.circular(sm);
   static final BorderRadius borderRadiusMd = BorderRadius.circular(md);
   static final BorderRadius borderRadiusLg = BorderRadius.circular(lg);
