@@ -11,9 +11,19 @@ void main() {
     expect(AppMotion.reveal, const Duration(milliseconds: 640));
   });
 
-  test('AppMotion easings mirror the design-system curves', () {
+  test('AppMotion M3 curves per redesign v11 section 6.1', () {
     expect(AppMotion.standard, const Cubic(0.2, 0, 0, 1));
-    expect(AppMotion.emphasized, const Cubic(0.3, 0, 0.1, 1));
+    // emphasized is M3: Cubic(.2, 0, 0, 1) — same as standard (decision 14.4)
+    expect(AppMotion.emphasized, const Cubic(0.2, 0, 0, 1));
+    expect(AppMotion.emphasizedDecelerate, const Cubic(0.05, 0.7, 0.1, 1));
+    expect(AppMotion.emphasizedAccelerate, const Cubic(0.3, 0, 0.8, 0.15));
+    expect(AppMotion.standardDecelerate, const Cubic(0, 0, 0, 1));
+    expect(AppMotion.standardAccelerate, const Cubic(0.3, 0, 1, 1));
+    // legacy out curve remains for compatibility
     expect(AppMotion.out, const Cubic(0, 0, 0.2, 1));
+  });
+
+  test('reduced motion duration is at most 150 ms (acceptance criterion)', () {
+    expect(AppMotion.reducedMotion.inMilliseconds, lessThanOrEqualTo(150));
   });
 }

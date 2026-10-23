@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 
 /// Where the theme choice is persisted. Overridden with a fake in tests.
 final appearanceStoreProvider = Provider<AppearanceStore>(
@@ -48,5 +49,51 @@ class HighContrastController extends Notifier<bool> {
   Future<void> select(bool on) async {
     state = on;
     await ref.read(appearanceStoreProvider).writeHighContrast(on);
+  }
+}
+
+/// The vibration choice read before `runApp` (redesign v11 §3.11). `main`
+/// overrides it with the stored value.
+final initialVibrationProvider = Provider<bool>((ref) => true);
+
+/// Whether vibration is enabled (redesign v11 §3.11). Bound to
+/// [AppHaptics.enabled].
+final vibrationProvider =
+    NotifierProvider<VibrationController, bool>(VibrationController.new);
+
+class VibrationController extends Notifier<bool> {
+  @override
+  bool build() {
+    final initial = ref.read(initialVibrationProvider);
+    AppHaptics.enabled = initial;
+    return initial;
+  }
+
+  /// Applies [on] at once, persists it, and syncs with [AppHaptics.enabled].
+  /// When turning on, fires [AppHaptics.confirm] as a sample (spec §7).
+  Future<void> select(bool on) async {
+    state = on;
+    AppHaptics.enabled = on;
+    await ref.read(appearanceStoreProvider).writeVibration(on);
+    if (on) await AppHaptics.confirm();
+  }
+}
+
+/// The reduce-motion choice read before `runApp` (redesign v11 §3.11). `main`
+/// overrides it with the stored value.
+final initialReduceMotionProvider = Provider<bool>((ref) => false);
+
+/// Whether reduce motion is enabled (redesign v11 §3.11/§6.5).
+final reduceMotionProvider =
+    NotifierProvider<ReduceMotionController, bool>(ReduceMotionController.new);
+
+class ReduceMotionController extends Notifier<bool> {
+  @override
+  bool build() => ref.read(initialReduceMotionProvider);
+
+  /// Applies [on] at once, then persists it.
+  Future<void> select(bool on) async {
+    state = on;
+    await ref.read(appearanceStoreProvider).writeReduceMotion(on);
   }
 }

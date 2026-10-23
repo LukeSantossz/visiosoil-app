@@ -28,6 +28,22 @@ class _MemoryStore implements AppearanceStore {
 
   @override
   Future<void> writeHighContrast(bool on) async => highContrast = on;
+
+  bool vibration = true;
+
+  @override
+  Future<bool> readVibration() async => vibration;
+
+  @override
+  Future<void> writeVibration(bool on) async => vibration = on;
+
+  bool reduceMotion = false;
+
+  @override
+  Future<bool> readReduceMotion() async => reduceMotion;
+
+  @override
+  Future<void> writeReduceMotion(bool on) async => reduceMotion = on;
 }
 
 class _RecordingSync implements NightModeSync {
