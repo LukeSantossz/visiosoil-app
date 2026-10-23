@@ -638,9 +638,13 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }
 
   /// A short white flash over the preview when the automatic shot fires, not
-  /// shown when the system asks for reduced motion.
+  /// shown when the system or user asks for reduced motion.
   void _flash() {
-    if (!mounted || MediaQuery.disableAnimationsOf(context)) return;
+    if (!mounted ||
+        AppMotion.reduceMotion ||
+        MediaQuery.disableAnimationsOf(context)) {
+      return;
+    }
     setState(() => _flashing = true);
     Timer(AppMotion.fast, () {
       if (mounted) setState(() => _flashing = false);
@@ -779,7 +783,26 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                             _pop(const GuidedCaptureResult.cancelled()),
                       ),
                       _Shutter(
-                        onTap: () => unawaited(_shoot()),
+                        onTap: () {
+                          // Block (and fire haptic) only when we have data
+                          // showing conditions are bad. When we have no reading,
+                          // we can't know if conditions are good, so allow the
+                          // shot (redesign v11 §7).
+                          final guidance = _shownReading != null
+                              ? guidanceFor(
+                                  tilt: _tilt,
+                                  reading: _shownReading,
+                                  tooCoarse: _shownTooCoarse,
+                                  alignment: _shownAlignment,
+                                )
+                              : null;
+                          if (guidance != null &&
+                              guidance.row != GuidanceRow.ready) {
+                            unawaited(AppHaptics.blocked());
+                            return;
+                          }
+                          unawaited(_shoot());
+                        },
                         windowOpenedAt: _trigger.windowOpenedAt,
                         clock: _clock,
                       ),

@@ -60,6 +60,14 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: AppSpacing.xl),
 
+          // --- Preferences ---
+          _SectionHeader(title: 'PREFERÊNCIAS'),
+          const SizedBox(height: AppSpacing.sm),
+          const _VibrationSwitch(),
+          const _ReduceMotionSwitch(),
+
+          const SizedBox(height: AppSpacing.xl),
+
           // --- About ---
           _SectionHeader(title: 'SOBRE'),
           const SizedBox(height: AppSpacing.sm),
@@ -354,6 +362,45 @@ class _HighContrastSwitch extends ConsumerWidget {
       onChanged: (on) {
         AppHaptics.selection();
         ref.read(highContrastProvider.notifier).select(on);
+      },
+    );
+  }
+}
+
+/// Vibration toggle: subtle haptic feedback on capture, save, and complete
+/// (redesign v11 §3.11). On by default.
+class _VibrationSwitch extends ConsumerWidget {
+  const _VibrationSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Vibração'),
+      subtitle: const Text('Toques sutis ao capturar, salvar e concluir'),
+      value: ref.watch(vibrationProvider),
+      onChanged: (on) {
+        ref.read(vibrationProvider.notifier).select(on);
+      },
+    );
+  }
+}
+
+/// Reduce motion toggle: swaps animations for short transitions
+/// (redesign v11 §3.11, §6.5). Follows system by default.
+class _ReduceMotionSwitch extends ConsumerWidget {
+  const _ReduceMotionSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Reduzir movimento'),
+      subtitle: const Text('Troca animações por transições curtas'),
+      value: ref.watch(reduceMotionProvider),
+      onChanged: (on) {
+        AppHaptics.selection();
+        ref.read(reduceMotionProvider.notifier).select(on);
       },
     );
   }

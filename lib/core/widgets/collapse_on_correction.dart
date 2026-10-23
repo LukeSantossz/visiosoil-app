@@ -37,7 +37,8 @@ class _CollapseOnCorrectionState extends State<CollapseOnCorrection>
   @override
   void didUpdateWidget(CollapseOnCorrection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final reduce = MediaQuery.disableAnimationsOf(context);
+    final reduce =
+        AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context);
     if (oldWidget.isError && !widget.isError && !reduce) {
       _controller.forward(from: 0);
     }

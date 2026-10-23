@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -21,10 +23,18 @@ Future<void> main() async {
   final appearance = SharedPreferencesAppearanceStore();
   final themeMode = await restoreThemeMode(appearance, defaultNightModeSync());
   final highContrast = await restoreHighContrast(appearance);
+  // Vibration and reduce-motion restored before first frame (redesign v11 §3.11).
+  final vibration = await restoreVibration(appearance);
+  final reduceMotion = await restoreReduceMotion(appearance);
+  // Set static flags before the first frame builds any controllers.
+  AppHaptics.enabled = vibration;
+  AppMotion.reduceMotion = reduceMotion;
   runApp(ProviderScope(
     overrides: [
       initialThemeModeProvider.overrideWithValue(themeMode),
       initialHighContrastProvider.overrideWithValue(highContrast),
+      initialVibrationProvider.overrideWithValue(vibration),
+      initialReduceMotionProvider.overrideWithValue(reduceMotion),
       errorReportStoreProvider.overrideWithValue(errorReport),
     ],
     child: const VisioSoilApp(),

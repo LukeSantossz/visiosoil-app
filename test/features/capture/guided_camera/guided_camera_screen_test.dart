@@ -5,6 +5,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 import '../../../support/guided_camera_harness.dart';
@@ -55,7 +57,9 @@ void main() {
     expect(h.popped, hasLength(1));
   });
 
-  testWidgets('the_shutter_is_never_disabled', (tester) async {
+  // The shutter works when there's no live reading (can't determine readiness).
+  // But when we HAVE a live reading showing not-ready, it's blocked (redesign v11 §7).
+  testWidgets('the_shutter_works_without_live_reading', (tester) async {
     final h = await openGuidedCamera(tester);
     await tiltTo(tester, h, 20);
     await tester.tap(shutter);
@@ -210,5 +214,60 @@ void main() {
       await tiltTo(tester, h, degrees);
       expect((background(), ink()), (container, onContainer), reason: '$degrees');
     }
+  });
+
+  // Blocked haptic fires when shutter is tapped but we have a live reading
+  // showing not-ready conditions (redesign v11 §7, bad-photo path).
+  testWidgets('shutter_when_live_reading_not_ready_fires_blocked_haptic',
+      (tester) async {
+    AppHaptics.enabled = true;
+    final h = await openGuidedCamera(tester);
+    await tiltTo(tester, h, 0); // Level, but live reading will show not ready
+
+    // Two readings needed to pass debouncer; "sheet not found" means not ready
+    await emitFrame(tester, h);
+    await replyWith(tester, h, const LiveSheetNotFound());
+    await emitFrame(tester, h);
+    await replyWith(tester, h, const LiveSheetNotFound());
+    expect(bannerText(tester), contains('Enquadre a folha'));
+    h.cameras.log.clear();
+
+    // runAsync to handle blocked()'s 60ms timer
+    await tester.runAsync(() async {
+      await tester.tap(shutter);
+      await Future.delayed(const Duration(milliseconds: 80));
+    });
+    await tester.pump();
+
+    expect(h.cameras.log, contains('haptic:HapticFeedbackType.heavyImpact'));
+    expect(h.cameras.cameras.single.takePictureCalls, 0,
+        reason: 'should not take photo when live reading shows not ready');
+  });
+
+  testWidgets('shutter_when_live_reading_ready_does_not_fire_blocked',
+      (tester) async {
+    AppHaptics.enabled = true;
+    final h = await openGuidedCamera(tester);
+    await tiltTo(tester, h, 0); // Level
+
+    // Two readings needed; "sheet found with good disc" means ready
+    const goodReading = LiveSheetFound(
+      sheetLongSidePx: 1000,
+      discDiameterMm: 90, // Good size (8-10 cm)
+      holdsMinPatches: true,
+    );
+    await emitFrame(tester, h);
+    await replyWith(tester, h, goodReading);
+    await emitFrame(tester, h);
+    await replyWith(tester, h, goodReading);
+    // With a ready reading, the auto-capture window opens (SPEC 0167)
+    expect(bannerText(tester), contains('Segure firme'));
+    h.cameras.log.clear();
+
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+
+    expect(h.cameras.log, isNot(contains('haptic:HapticFeedbackType.heavyImpact')));
+    expect(h.cameras.cameras.single.takePictureCalls, 1);
   });
 }

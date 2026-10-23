@@ -19,6 +19,20 @@ class _FailingStore implements AppearanceStore {
 
   @override
   Future<void> writeHighContrast(bool on) async {}
+
+  @override
+  Future<bool> readVibration() =>
+      Future.error(StateError('corrupt preferences'));
+
+  @override
+  Future<void> writeVibration(bool on) async {}
+
+  @override
+  Future<bool> readReduceMotion() =>
+      Future.error(StateError('corrupt preferences'));
+
+  @override
+  Future<void> writeReduceMotion(bool on) async {}
 }
 
 class _RecordingSync implements NightModeSync {
@@ -84,5 +98,39 @@ void main() {
 
   test('an_unreadable_store_leaves_high_contrast_off', () async {
     expect(await restoreHighContrast(_FailingStore()), isFalse);
+  });
+
+  // Vibration round-trips, defaults to true, and a failing store keeps it on
+  // (redesign v11 §3.11).
+  test('vibration_round_trips_and_defaults_to_on', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SharedPreferencesAppearanceStore();
+    expect(await store.readVibration(), isTrue);
+
+    await store.writeVibration(false);
+    expect(await store.readVibration(), isFalse);
+    await store.writeVibration(true);
+    expect(await store.readVibration(), isTrue);
+  });
+
+  test('an_unreadable_store_leaves_vibration_on', () async {
+    expect(await restoreVibration(_FailingStore()), isTrue);
+  });
+
+  // Reduce motion round-trips, defaults to false, and a failing store keeps it
+  // off (redesign v11 §3.11).
+  test('reduce_motion_round_trips_and_defaults_to_off', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SharedPreferencesAppearanceStore();
+    expect(await store.readReduceMotion(), isFalse);
+
+    await store.writeReduceMotion(true);
+    expect(await store.readReduceMotion(), isTrue);
+    await store.writeReduceMotion(false);
+    expect(await store.readReduceMotion(), isFalse);
+  });
+
+  test('an_unreadable_store_leaves_reduce_motion_off', () async {
+    expect(await restoreReduceMotion(_FailingStore()), isFalse);
   });
 }
