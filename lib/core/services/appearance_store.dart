@@ -16,12 +16,26 @@ abstract interface class AppearanceStore {
   Future<bool> readHighContrast();
 
   Future<void> writeHighContrast(bool on);
+
+  /// Whether vibration is on (redesign v11 §3.11); `true` when nothing is
+  /// stored (enabled by default).
+  Future<bool> readVibration();
+
+  Future<void> writeVibration(bool on);
+
+  /// Whether reduce motion is on (redesign v11 §3.11); `false` when nothing is
+  /// stored (follows system by default).
+  Future<bool> readReduceMotion();
+
+  Future<void> writeReduceMotion(bool on);
 }
 
 /// [AppearanceStore] backed by `shared_preferences`, storing the mode's name.
 class SharedPreferencesAppearanceStore implements AppearanceStore {
   static const key = 'appearance.themeMode';
   static const highContrastKey = 'appearance.highContrast';
+  static const vibrationKey = 'appearance.vibration';
+  static const reduceMotionKey = 'appearance.reduceMotion';
 
   @override
   Future<ThemeMode> read() async {
@@ -49,6 +63,30 @@ class SharedPreferencesAppearanceStore implements AppearanceStore {
   Future<void> writeHighContrast(bool on) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(highContrastKey, on);
+  }
+
+  @override
+  Future<bool> readVibration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(vibrationKey) ?? true;
+  }
+
+  @override
+  Future<void> writeVibration(bool on) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(vibrationKey, on);
+  }
+
+  @override
+  Future<bool> readReduceMotion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(reduceMotionKey) ?? false;
+  }
+
+  @override
+  Future<void> writeReduceMotion(bool on) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(reduceMotionKey, on);
   }
 }
 
@@ -122,6 +160,28 @@ Future<ThemeMode> restoreThemeMode(
 Future<bool> restoreHighContrast(AppearanceStore store) async {
   try {
     return await store.readHighContrast();
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Reads the stored vibration choice before `runApp` (redesign v11 §3.11). A
+/// store that cannot be read leaves it on rather than keeping the app from
+/// opening.
+Future<bool> restoreVibration(AppearanceStore store) async {
+  try {
+    return await store.readVibration();
+  } catch (_) {
+    return true;
+  }
+}
+
+/// Reads the stored reduce-motion choice before `runApp` (redesign v11 §3.11).
+/// A store that cannot be read leaves it off rather than keeping the app from
+/// opening.
+Future<bool> restoreReduceMotion(AppearanceStore store) async {
+  try {
+    return await store.readReduceMotion();
   } catch (_) {
     return false;
   }

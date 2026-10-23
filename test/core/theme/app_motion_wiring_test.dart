@@ -10,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   // One curve since SPEC 0089: the tile no longer scales in, so the
-  // emphasized curve that drove the scale left with it.
+  // emphasized curve that drove the scale left with it. Duration respects
+  // reduce motion preference (redesign v11 §6.5).
   test('splash intro is wired to AppMotion (duration + curve)', () {
     final src =
         File('lib/core/features/splash/splash_screen.dart').readAsStringSync();
-    expect(src, contains('duration: AppMotion.reveal'));
+    expect(src, contains('AppMotion.reveal'));
+    expect(src, contains('AppMotion.reducedMotion'));
     expect(src, contains('curve: AppMotion.standard'));
     expect(src, isNot(contains('Curves.easeIn')));
     expect(src, isNot(contains('Curves.easeOutBack')));
@@ -27,9 +29,10 @@ void main() {
     expect(src, contains('curve: AppMotion.standard'));
   });
 
+  // Duration respects reduce motion preference (redesign v11 §6.5).
   test('history thumbnail switch duration is wired to AppMotion', () {
     final src = File('lib/core/features/history/widgets/history_grid.dart')
         .readAsStringSync();
-    expect(src, contains('duration: AppMotion.base'));
+    expect(src, contains('AppMotion.durationOf(context, AppMotion.base)'));
   });
 }
