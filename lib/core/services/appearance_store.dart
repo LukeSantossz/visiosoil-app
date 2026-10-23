@@ -3,14 +3,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persists the user's theme choice (SPEC 0107). Behind an interface so it can
-/// be faked in tests.
-abstract interface class AppearanceStore {
-  /// The stored choice, or [ThemeMode.system] when none, or an unknown one, is
-  /// stored.
-  Future<ThemeMode> read();
+/// The user's explicit theme choice (redesign v11 §2, §3.11, SPEC 0182):
+/// Claro, Escuro or Modo Sol. There is no "system" member here because
+/// following the system is the absence of a choice (see [AppearanceStore.
+/// readThemeChoice]), not one of the three the Settings selector offers.
+enum AppThemeChoice { light, dark, sun }
 
-  Future<void> write(ThemeMode mode);
+/// The [ThemeMode] that hands [choice] to the platform's night-mode channel:
+/// light/dark unchanged, and sun forces light since it ignores
+/// `platformBrightness` (redesign v11 §2). `null` (no explicit choice) follows
+/// the system.
+ThemeMode nightModeFor(AppThemeChoice? choice) => switch (choice) {
+      AppThemeChoice.light => ThemeMode.light,
+      AppThemeChoice.dark => ThemeMode.dark,
+      AppThemeChoice.sun => ThemeMode.light,
+      null => ThemeMode.system,
+    };
+
+/// Persists the user's theme choice (SPEC 0107, SPEC 0182). Behind an
+/// interface so it can be faked in tests.
+abstract interface class AppearanceStore {
+  /// The stored explicit choice, or `null` when none was made (or an unknown
+  /// value is stored), meaning the app follows the system brightness
+  /// (redesign v11 §2, decision 23/10/2026).
+  Future<AppThemeChoice?> readThemeChoice();
+
+  Future<void> writeThemeChoice(AppThemeChoice choice);
 
   /// Whether high contrast is on (SPEC 0130); `false` when nothing is stored.
   Future<bool> readHighContrast();
@@ -30,27 +48,44 @@ abstract interface class AppearanceStore {
   Future<void> writeReduceMotion(bool on);
 }
 
-/// [AppearanceStore] backed by `shared_preferences`, storing the mode's name.
+/// [AppearanceStore] backed by `shared_preferences`, storing the choice's name.
 class SharedPreferencesAppearanceStore implements AppearanceStore {
+  /// Legacy key (SPEC 0107): the pre-Sol choice, one of [ThemeMode]'s names.
+  /// Read only to migrate an explicit `light`/`dark` into [choiceKey]
+  /// (SPEC 0182); `system` carried no explicit choice and still does not.
   static const key = 'appearance.themeMode';
+  static const choiceKey = 'appearance.themeChoice';
   static const highContrastKey = 'appearance.highContrast';
   static const vibrationKey = 'appearance.vibration';
   static const reduceMotionKey = 'appearance.reduceMotion';
 
   @override
-  Future<ThemeMode> read() async {
+  Future<AppThemeChoice?> readThemeChoice() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(key);
-    return ThemeMode.values.firstWhere(
-      (mode) => mode.name == stored,
-      orElse: () => ThemeMode.system,
-    );
+    final stored = prefs.getString(choiceKey);
+    if (stored != null) {
+      for (final choice in AppThemeChoice.values) {
+        if (choice.name == stored) return choice;
+      }
+      return null;
+    }
+    // One-time migration (SPEC 0182): an explicit light/dark choice made
+    // before Sol existed carries over; `system` (or nothing stored) still
+    // means no explicit choice.
+    final legacy = prefs.getString(key);
+    final migrated = switch (legacy) {
+      'light' => AppThemeChoice.light,
+      'dark' => AppThemeChoice.dark,
+      _ => null,
+    };
+    if (migrated != null) await writeThemeChoice(migrated);
+    return migrated;
   }
 
   @override
-  Future<void> write(ThemeMode mode) async {
+  Future<void> writeThemeChoice(AppThemeChoice choice) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, mode.name);
+    await prefs.setString(choiceKey, choice.name);
   }
 
   @override
@@ -136,23 +171,25 @@ NightModeSync defaultNightModeSync() =>
         ? const MethodChannelNightModeSync()
         : const NoNightModeSync();
 
-/// Reads the stored choice and hands it to the platform again, so a launch
-/// whose override was lost still follows the choice the next time.
+/// Reads the stored theme choice and hands its [nightModeFor] to the platform
+/// again, so a launch whose override was lost still follows the choice the
+/// next time.
 ///
-/// `main` calls this before `runApp`, so a store that cannot be read falls back
-/// to [ThemeMode.system] rather than keeping the app from opening.
-Future<ThemeMode> restoreThemeMode(
+/// `main` calls this before `runApp`, so a store that cannot be read falls
+/// back to `null` (follow the system) rather than keeping the app from
+/// opening (SPEC 0182).
+Future<AppThemeChoice?> restoreThemeChoice(
   AppearanceStore store,
   NightModeSync sync,
 ) async {
-  ThemeMode mode;
+  AppThemeChoice? choice;
   try {
-    mode = await store.read();
+    choice = await store.readThemeChoice();
   } catch (_) {
-    mode = ThemeMode.system;
+    choice = null;
   }
-  await sync.apply(mode);
-  return mode;
+  await sync.apply(nightModeFor(choice));
+  return choice;
 }
 
 /// Reads the stored high-contrast choice before `runApp` (SPEC 0130). A store

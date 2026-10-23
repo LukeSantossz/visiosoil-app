@@ -9,9 +9,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -55,7 +57,7 @@ class SettingsScreen extends ConsumerWidget {
           // --- Appearance ---
           _SectionHeader(title: 'APARÊNCIA'),
           const SizedBox(height: AppSpacing.sm),
-          const _ThemeModeSelector(),
+          const _ThemeChoiceSelector(),
           const _HighContrastSwitch(),
 
           const SizedBox(height: AppSpacing.xl),
@@ -314,35 +316,63 @@ class _AccountTile extends ConsumerWidget {
   }
 }
 
-// --- Theme Mode ---
+// --- Theme Choice ---
 
-/// The theme choice: follow the system, or keep the app light or dark. It
-/// applies at once and persists (SPEC 0107).
-class _ThemeModeSelector extends ConsumerWidget {
-  const _ThemeModeSelector();
+/// The theme choice: Claro, Escuro or Modo Sol (redesign v11 §3.11,
+/// SPEC 0182). It applies at once and persists. There is no "Sistema" segment:
+/// following the system is only the state before any explicit choice (decision
+/// 23/10/2026) — the selector shows whichever of Claro/Escuro that currently
+/// resolves to until the user picks one.
+class _ThemeChoiceSelector extends ConsumerWidget {
+  const _ThemeChoiceSelector();
 
   static const _labels = {
-    ThemeMode.system: 'Sistema',
-    ThemeMode.light: 'Claro',
-    ThemeMode.dark: 'Escuro',
+    AppThemeChoice.light: AppStrings.themeChoiceLight,
+    AppThemeChoice.dark: AppStrings.themeChoiceDark,
+    AppThemeChoice.sun: AppStrings.themeChoiceSun,
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<ThemeMode>(
-        showSelectedIcon: false,
-        segments: [
-          for (final MapEntry(key: mode, value: label) in _labels.entries)
-            ButtonSegment(value: mode, label: Text(label)),
-        ],
-        selected: {ref.watch(themeModeProvider)},
-        onSelectionChanged: (selection) {
-          AppHaptics.selection();
-          ref.read(themeModeProvider.notifier).select(selection.single);
-        },
-      ),
+    final choice = ref.watch(themeChoiceProvider);
+    final resolved = choice ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? AppThemeChoice.dark
+            : AppThemeChoice.light);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<AppThemeChoice>(
+            showSelectedIcon: false,
+            // Allowed so tapping the segment already shown as selected
+            // (the resolved display value, before any explicit choice) still
+            // fires a change instead of being swallowed by SegmentedButton's
+            // own no-op guard for a re-tap of its current `selected` set.
+            emptySelectionAllowed: true,
+            segments: [
+              for (final MapEntry(key: value, value: label) in _labels.entries)
+                ButtonSegment(value: value, label: Text(label)),
+            ],
+            selected: {resolved},
+            onSelectionChanged: (selection) {
+              AppHaptics.selection();
+              // Empty means the tapped segment was already the one shown
+              // selected: persist that explicit choice rather than nothing.
+              final picked = selection.isEmpty ? resolved : selection.single;
+              ref.read(themeChoiceProvider.notifier).select(picked);
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          AppStrings.themeChoiceCaption,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.palette.onSurfaceVariant,
+              ),
+        ),
+      ],
     );
   }
 }
@@ -557,6 +587,7 @@ class _SettingsTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
+          constraints: BoxConstraints(minHeight: context.density.tap),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,

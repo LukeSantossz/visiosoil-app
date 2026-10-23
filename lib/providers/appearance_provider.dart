@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
@@ -15,22 +14,27 @@ final nightModeSyncProvider = Provider<NightModeSync>(
 );
 
 /// The choice read before `runApp`, so the first frame is already in it.
-/// `main` overrides it with the stored value.
-final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.system);
+/// `main` overrides it with the stored value. `null` means no explicit choice
+/// was ever made, so the app follows the system brightness (redesign v11 §2,
+/// decision 23/10/2026, SPEC 0182).
+final initialThemeChoiceProvider = Provider<AppThemeChoice?>((ref) => null);
 
-/// The app's theme mode, as the user chose it in Settings (SPEC 0107).
-final themeModeProvider =
-    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+/// The app's theme choice, as the user chose it in Settings: Claro, Escuro or
+/// Modo Sol, or `null` to follow the system (SPEC 0107, SPEC 0182). Modo Sol
+/// is reached only through [select]; it is never the default.
+final themeChoiceProvider = NotifierProvider<ThemeChoiceController,
+    AppThemeChoice?>(ThemeChoiceController.new);
 
-class ThemeModeController extends Notifier<ThemeMode> {
+class ThemeChoiceController extends Notifier<AppThemeChoice?> {
   @override
-  ThemeMode build() => ref.read(initialThemeModeProvider);
+  AppThemeChoice? build() => ref.read(initialThemeChoiceProvider);
 
-  /// Applies [mode] at once, then persists it and hands it to the platform.
-  Future<void> select(ThemeMode mode) async {
-    state = mode;
-    await ref.read(appearanceStoreProvider).write(mode);
-    await ref.read(nightModeSyncProvider).apply(mode);
+  /// Applies [choice] at once, then persists it and hands its [nightModeFor]
+  /// to the platform.
+  Future<void> select(AppThemeChoice choice) async {
+    state = choice;
+    await ref.read(appearanceStoreProvider).writeThemeChoice(choice);
+    await ref.read(nightModeSyncProvider).apply(nightModeFor(choice));
   }
 }
 

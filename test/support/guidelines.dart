@@ -17,3 +17,11 @@ Future<void> expectMeetsGuidelines(WidgetTester tester) async {
   await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
   await expectLater(tester, meetsGuideline(textContrastGuideline));
 }
+
+/// Modo Sol's own, stricter tap target: 56 dp instead of the platform's 48
+/// (redesign v11 §1.4, SPEC 0182).
+const AccessibilityGuideline sunTapTargetGuideline = MinimumTapTargetGuideline(
+  size: Size(56, 56),
+  link: 'https://m3.material.io/foundations/accessible-design/'
+      'accessibility-basics',
+);

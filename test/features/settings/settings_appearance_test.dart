@@ -16,6 +16,7 @@ import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 
+import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 
 /// Signed out. Anything else the screen does not reach falls to noSuchMethod.
@@ -31,13 +32,13 @@ class _SignedOut implements AuthService {
 }
 
 class _MemoryStore implements AppearanceStore {
-  ThemeMode stored = ThemeMode.system;
+  AppThemeChoice? stored;
 
   @override
-  Future<ThemeMode> read() async => stored;
+  Future<AppThemeChoice?> readThemeChoice() async => stored;
 
   @override
-  Future<void> write(ThemeMode mode) async => stored = mode;
+  Future<void> writeThemeChoice(AppThemeChoice choice) async => stored = choice;
 
   bool highContrast = false;
 
@@ -81,7 +82,7 @@ Future<void> _pumpSettings(
 
   await tester.pumpWidget(ProviderScope(
     overrides: [
-      initialThemeModeProvider.overrideWithValue(ThemeMode.system),
+      initialThemeChoiceProvider.overrideWithValue(store.stored),
       appearanceStoreProvider.overrideWithValue(store),
       nightModeSyncProvider.overrideWithValue(sync),
       initialVibrationProvider.overrideWithValue(store.vibration),
@@ -113,25 +114,62 @@ void main() {
 
     Brightness brightness() =>
         Theme.of(tester.element(find.byType(SettingsScreen))).brightness;
+    bool isSun() =>
+        tester.element(find.byType(SettingsScreen)).palette.isSun;
 
-    // The test view's platform is light, so "Sistema" reads as light.
+    // No stored choice yet: the test view's platform is light.
     expect(find.text('APARÊNCIA'), findsOneWidget);
     expect(brightness(), Brightness.light);
 
-    for (final (label, mode, expected) in [
-      ('Escuro', ThemeMode.dark, Brightness.dark),
-      ('Claro', ThemeMode.light, Brightness.light),
-      ('Sistema', ThemeMode.system, Brightness.light),
+    for (final (label, choice, expected) in [
+      ('Escuro', AppThemeChoice.dark, Brightness.dark),
+      ('Claro', AppThemeChoice.light, Brightness.light),
+      ('Modo Sol', AppThemeChoice.sun, Brightness.light),
     ]) {
       await tester.ensureVisible(find.text(label));
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
 
       expect(brightness(), expected, reason: label);
-      expect(store.stored, mode, reason: label);
-      expect(sync.applied.last, mode, reason: label);
+      expect(store.stored, choice, reason: label);
+      expect(sync.applied.last, nightModeFor(choice), reason: label);
     }
-    expect(sync.applied, [ThemeMode.dark, ThemeMode.light, ThemeMode.system]);
+    expect(isSun(), isTrue);
+    expect(sync.applied, [ThemeMode.dark, ThemeMode.light, ThemeMode.light]);
+  });
+
+  // Before any explicit choice, the selector shows whichever of Claro/Escuro
+  // the system brightness resolves to, purely for display (SPEC 0182). That
+  // segment already reads as selected, so SegmentedButton's own guard against
+  // a no-op re-tap would otherwise swallow the tap; it must still persist the
+  // choice explicitly.
+  testWidgets('tapping_the_resolved_segment_persists_it_when_no_choice_was_made',
+      (tester) async {
+    final store = _MemoryStore();
+    final sync = _RecordingSync();
+    await _pumpSettings(tester, store, sync);
+
+    expect(store.stored, isNull);
+    // The test view's platform brightness is light, so "Claro" is the one
+    // shown selected without any explicit choice.
+    await tester.ensureVisible(find.text('Claro'));
+    await tester.tap(find.text('Claro'));
+    await tester.pumpAndSettle();
+
+    expect(store.stored, AppThemeChoice.light);
+    expect(sync.applied.last, ThemeMode.light);
+  });
+
+  // There is no "Sistema" segment to tap back to: Sol and the explicit
+  // choices are reached only by picking one of the three shown (redesign v11
+  // §3.11, decision 23/10/2026).
+  testWidgets('theme_selector_offers_only_three_options', (tester) async {
+    await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
+
+    expect(find.text('Claro'), findsOneWidget);
+    expect(find.text('Escuro'), findsOneWidget);
+    expect(find.text('Modo Sol'), findsOneWidget);
+    expect(find.text('Sistema'), findsNothing);
   });
 
   // Choosing a theme is a selection, confirmed by one click (SPEC 0126).
@@ -248,5 +286,19 @@ void main() {
 
     // Last haptic should be the confirm() sample
     expect(haptics.last, 'HapticFeedbackType.lightImpact');
+  });
+
+  // Modo Sol's own 56 dp minimum (redesign v11 §1.4, SPEC 0182), stricter
+  // than the platform's 48 dp androidTapTargetGuideline.
+  testWidgets('sol_meets_the_56dp_tap_target_guideline', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpSettings(
+      tester,
+      _MemoryStore()..stored = AppThemeChoice.sun,
+      _RecordingSync(),
+    );
+
+    await expectLater(tester, meetsGuideline(sunTapTargetGuideline));
+    semantics.dispose();
   });
 }

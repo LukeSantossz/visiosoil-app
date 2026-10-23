@@ -39,15 +39,16 @@ import '../../support/large_text.dart';
 
 /// In-memory [AppearanceStore] for tests.
 class _MemoryAppearanceStore implements AppearanceStore {
-  ThemeMode themeMode = ThemeMode.system;
+  AppThemeChoice? themeChoice;
   bool highContrast = false;
   bool vibration = true;
   bool reduceMotion = false;
 
   @override
-  Future<ThemeMode> read() async => themeMode;
+  Future<AppThemeChoice?> readThemeChoice() async => themeChoice;
   @override
-  Future<void> write(ThemeMode mode) async => themeMode = mode;
+  Future<void> writeThemeChoice(AppThemeChoice choice) async =>
+      themeChoice = choice;
   @override
   Future<bool> readHighContrast() async => highContrast;
   @override
@@ -240,7 +241,7 @@ Widget _app(
       if (captureGuide != null)
         captureGuideStoreProvider.overrideWithValue(captureGuide),
       // Appearance providers needed for settings switches (redesign v11).
-      initialThemeModeProvider.overrideWithValue(ThemeMode.system),
+      initialThemeChoiceProvider.overrideWithValue(null),
       initialHighContrastProvider.overrideWithValue(false),
       initialVibrationProvider.overrideWithValue(true),
       initialReduceMotionProvider.overrideWithValue(false),

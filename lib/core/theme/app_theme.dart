@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_density.dart';
 import 'app_palette.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
@@ -16,6 +17,111 @@ abstract final class AppTheme {
 
   /// [dark] with solid structural edges (SPEC 0130).
   static ThemeData get darkHighContrast => _build(AppPalette.darkHighContrast);
+
+  /// Modo Sol: a fixed high-contrast light theme for outdoor field use
+  /// (redesign v11 §2, SPEC 0182), built over [AppPalette.sun] with 56 dp
+  /// minimum tap targets and 2 dp black borders (§1.4) instead of shadows
+  /// (§1.5).
+  static ThemeData get sun {
+    final base = _build(AppPalette.sun);
+    const blackBorder = BorderSide(color: Colors.black, width: 2);
+    const minSize = WidgetStatePropertyAll(Size(64, 56));
+    const blackSide = WidgetStatePropertyAll(blackBorder);
+    const flat = WidgetStatePropertyAll(0.0);
+    // The same scaled sizes `textThemeFor(AppPalette.sun)` gives `labelLarge`
+    // and `labelMedium` (§1.2), so the button and navigation themes below —
+    // which carry an explicit `textStyle` the ambient `TextTheme` cannot
+    // reach — read the sun sizes too, not the base (unscaled) ones.
+    final sunLabelLarge = WidgetStatePropertyAll(
+      AppTypography.labelLarge.copyWith(fontSize: 17),
+    );
+    final sunLabelMedium = AppTypography.labelMedium.copyWith(fontSize: 14);
+    return base.copyWith(
+      extensions: [AppPalette.sun, AppDensity.sun],
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          minimumSize: minSize,
+          textStyle: sunLabelLarge,
+          elevation: flat,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: base.outlinedButtonTheme.style?.copyWith(
+          minimumSize: minSize,
+          side: blackSide,
+          textStyle: sunLabelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: base.textButtonTheme.style?.copyWith(
+          minimumSize: minSize,
+          textStyle: sunLabelLarge,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(minimumSize: const Size(56, 56)),
+      ),
+      // SegmentedButton never forwards `minimumSize` to its segments (only
+      // `padding` reaches their height calculation), so 56 dp comes from
+      // padding sized against the 17 sp label this theme already scales to.
+      // FilledButton and SegmentedButton carry no explicit `textStyle` theme
+      // override here (unlike Elevated/Outlined/Text below): both already
+      // fall back to `Theme.textTheme.labelLarge`, which `_build` already
+      // scales for `AppPalette.sun`; adding an explicit one would instead
+      // break `AnimatedTheme`'s interpolation against the other themes'
+      // unset (null) style, which asserts on mismatched TextStyle.inherit.
+      segmentedButtonTheme: const SegmentedButtonThemeData(
+        style: ButtonStyle(
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          ),
+        ),
+      ),
+      cardTheme: base.cardTheme.copyWith(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.borderRadiusLg,
+          side: blackBorder,
+        ),
+      ),
+      chipTheme: const ChipThemeData(side: blackBorder),
+      switchTheme: const SwitchThemeData(
+        trackOutlineColor: WidgetStatePropertyAll(Colors.black),
+      ),
+      navigationBarTheme: base.navigationBarTheme.copyWith(
+        height: 88,
+        indicatorColor: Colors.black,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return sunLabelMedium.copyWith(
+              color: AppPalette.sun.primary,
+              fontWeight: FontWeight.w700,
+            );
+          }
+          return sunLabelMedium.copyWith(color: AppPalette.sun.onSurfaceVariant);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: Colors.white);
+          }
+          return const IconThemeData(color: Colors.black);
+        }),
+      ),
+      // Modo Sol never draws a shadow (§1.5): flat buttons, FAB, snackbar and
+      // dialog, matching the card above.
+      floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        disabledElevation: 0,
+      ),
+      snackBarTheme: base.snackBarTheme.copyWith(elevation: 0),
+      dialogTheme: base.dialogTheme.copyWith(elevation: 0),
+    );
+  }
 
   static ThemeData _build(AppPalette p) => ThemeData(
         useMaterial3: true,
