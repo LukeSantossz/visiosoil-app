@@ -5,6 +5,36 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 
 void main() {
+  // Thresholds per redesign v11 §3.14/§14.8: high >= 75%, moderate 50-74%,
+  // low < 50%.
+  test('boundary just below 50% is low', () {
+    expect(ConfidenceLevel.fromScore(0.499), ConfidenceLevel.low);
+  });
+
+  test('boundary at 50% is moderate', () {
+    expect(ConfidenceLevel.fromScore(0.50), ConfidenceLevel.moderate);
+  });
+
+  test('boundary just below 75% is moderate', () {
+    expect(ConfidenceLevel.fromScore(0.749), ConfidenceLevel.moderate);
+  });
+
+  test('boundary at 75% is high', () {
+    expect(ConfidenceLevel.fromScore(0.75), ConfidenceLevel.high);
+  });
+
+  test('moderate label reads Média, not Moderada (decision 23/10)', () {
+    expect(ConfidenceLevel.moderate.label, 'Média');
+  });
+
+  test('each level exposes a solid accent color distinct from its container',
+      () {
+    final p = AppPalette.light;
+    expect(ConfidenceLevel.high.accentColor(p), p.primary);
+    expect(ConfidenceLevel.moderate.accentColor(p), p.warning);
+    expect(ConfidenceLevel.low.accentColor(p), p.error);
+  });
+
   test('moderate confidence foreground uses the onWarningContainer token', () {
     // The design system's --vs-on-warning-container; must be a named token,
     // not a raw literal, mirroring the high/low branches.
