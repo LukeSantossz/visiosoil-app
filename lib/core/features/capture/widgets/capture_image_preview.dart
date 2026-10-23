@@ -155,9 +155,11 @@ class CaptureImagePreview extends StatelessWidget {
   // A chip crossfades into the next over AppMotion.base, since each chip is
   // keyed by its label. The outgoing one is drawn but neither announced nor
   // tappable, so the live region reads only the new label and a fading retry
-  // chip takes no tap (SPEC 0134).
+  // chip takes no tap (SPEC 0134). Reduced motion skips the fade.
   Widget _crossfade(BuildContext context, Widget chip) {
-    if (MediaQuery.disableAnimationsOf(context)) return chip;
+    if (AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context)) {
+      return chip;
+    }
     return AnimatedSwitcher(
       duration: AppMotion.base,
       transitionBuilder: _fade,

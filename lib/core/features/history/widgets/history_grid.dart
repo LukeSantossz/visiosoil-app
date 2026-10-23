@@ -257,7 +257,7 @@ class _ThumbnailImage extends StatelessWidget {
         if (wasSynchronouslyLoaded) return child;
 
         return AnimatedSwitcher(
-          duration: AppMotion.base,
+          duration: AppMotion.durationOf(context, AppMotion.base),
           child: frame != null
               ? child
               : Container(

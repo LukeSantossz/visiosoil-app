@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 import 'package:visiosoil_app/core/constants/app_links.dart';
@@ -15,6 +16,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/settings/settings_screen.dart';
+import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/capture_guide_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
@@ -23,6 +25,7 @@ import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
+import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -34,6 +37,31 @@ import '../../support/fake_capture_guide_store.dart';
 import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/large_text.dart';
+
+/// In-memory [AppearanceStore] for tests.
+class _MemoryAppearanceStore implements AppearanceStore {
+  ThemeMode themeMode = ThemeMode.system;
+  bool highContrast = false;
+  bool vibration = true;
+  bool reduceMotion = false;
+
+  @override
+  Future<ThemeMode> read() async => themeMode;
+  @override
+  Future<void> write(ThemeMode mode) async => themeMode = mode;
+  @override
+  Future<bool> readHighContrast() async => highContrast;
+  @override
+  Future<void> writeHighContrast(bool on) async => highContrast = on;
+  @override
+  Future<bool> readVibration() async => vibration;
+  @override
+  Future<void> writeVibration(bool on) async => vibration = on;
+  @override
+  Future<bool> readReduceMotion() async => reduceMotion;
+  @override
+  Future<void> writeReduceMotion(bool on) async => reduceMotion = on;
+}
 
 class _FakeAuthService implements AuthService {
   _FakeAuthService(
@@ -212,6 +240,12 @@ Widget _app(
         shareServiceProvider.overrideWithValue(shareService),
       if (captureGuide != null)
         captureGuideStoreProvider.overrideWithValue(captureGuide),
+      // Appearance providers needed for settings switches (redesign v11).
+      initialThemeModeProvider.overrideWithValue(ThemeMode.system),
+      initialHighContrastProvider.overrideWithValue(false),
+      initialVibrationProvider.overrideWithValue(true),
+      initialReduceMotionProvider.overrideWithValue(false),
+      appearanceStoreProvider.overrideWithValue(_MemoryAppearanceStore()),
     ],
     child: router == null
         ? MaterialApp(theme: theme, home: const SettingsScreen())
@@ -514,13 +548,16 @@ void main() {
       final share = _RecordingShareService();
       await tester.pumpWidget(_app(
         null,
+        repository: FakeSoilRecordRepository(),
         errorReport: _FakeErrorReportStore(empty: false),
         shareService: share,
       ));
       await tester.pumpAndSettle();
 
+      // Below the fold since SPEC 0130's appearance switches.
+      await tester.scrollUntilVisible(
+          find.text(AppStrings.errorReportTitle), 200);
       expect(find.text(AppStrings.errorReportPrivacy), findsOneWidget);
-      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
       await tester.tap(find.text(AppStrings.errorReportTitle));
       await tester.pumpAndSettle();
 
@@ -532,13 +569,16 @@ void main() {
       final share = _RecordingShareService();
       await tester.pumpWidget(_app(
         null,
+        repository: FakeSoilRecordRepository(),
         errorReport: _FakeErrorReportStore(),
         shareService: share,
       ));
       await tester.pumpAndSettle();
 
+      // Below the fold since SPEC 0130's appearance switches.
+      await tester.scrollUntilVisible(
+          find.text(AppStrings.errorReportTitle), 200);
       expect(find.text(AppStrings.errorReportNothingToSend), findsOneWidget);
-      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
       await tester.tap(find.text(AppStrings.errorReportTitle));
       await tester.pumpAndSettle();
 
@@ -552,12 +592,15 @@ void main() {
         ..failure = Exception('platform share failed');
       await tester.pumpWidget(_app(
         null,
+        repository: FakeSoilRecordRepository(),
         errorReport: _FakeErrorReportStore(empty: false),
         shareService: share,
       ));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text(AppStrings.errorReportTitle));
+      // Below the fold since SPEC 0130's appearance switches.
+      await tester.scrollUntilVisible(
+          find.text(AppStrings.errorReportTitle), 200);
       await tester.tap(find.text(AppStrings.errorReportTitle));
       await tester.pumpAndSettle();
 
