@@ -20,7 +20,7 @@ abstract final class AppColors {
   static const Color onSecondaryContainer = Color(0xFF2D1F0E);
 
   // Tertiary - Olive green
-  static const Color tertiary = Color(0xFF6B7F5A);
+  static const Color tertiary = Color(0xFF677A57);
   static const Color onTertiary = Color(0xFFFFFFFF);
   static const Color tertiaryContainer = Color(0xFFE4F0D9);
   static const Color onTertiaryContainer = Color(0xFF1A2610);
@@ -32,9 +32,14 @@ abstract final class AppColors {
   static const Color onErrorContainer = Color(0xFF410002);
 
   // Warning - Earthy amber
-  static const Color warning = Color(0xFFC88A3D);
+  static const Color warning = Color(0xFFB07A35);
   static const Color warningContainer = Color(0xFFFBEBD2);
   static const Color onWarningContainer = Color(0xFF6D4C1D);
+
+  /// Warning tint for text, darker than [warning] so it meets 4.5 : 1 against
+  /// white (no caller yet — `warning`/`AppColors.warning` is never drawn as
+  /// text today, SPEC 0180).
+  static const Color warningText = Color(0xFF9E6B2C);
 
   // Background & Surface
   static const Color background = Color(0xFFF8FAF5);

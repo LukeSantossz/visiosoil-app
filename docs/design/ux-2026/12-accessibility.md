@@ -28,6 +28,7 @@ in the implementing spec rather than trusted from this document.
 | White on `primary` #4A7C59 | 4.86 : 1 | 4.5 : 1 | Pass |
 | `outline` #73796D on `surface` | 4.39 : 1 | 3 : 1 (non-text) | Pass |
 | White `labelSmall` on black-at-55 % over the brightest possible photograph | 4.74 : 1 | 4.5 : 1 | Pass, narrowly |
+| `warning` #B07A35 icon on `warningContainer` #FBEBD2 | 3.15 : 1 | 3 : 1 (meaningful icon) | Pass (SPEC 0180; was #C88A3D, 2.51 : 1, failing) |
 
 The last row corrects a suspicion raised during the audit. The capture screen's
 overlay chips were flagged as unverified; computed against the worst case — a
@@ -42,7 +43,6 @@ a test, not a magic number in a widget.
 | --- | --- | --- | --- |
 | `outlineVariant` #C3C8BB **at 50 % alpha** on `surface` | **1.28 : 1** | 3 : 1 (component boundary) | **Fail** |
 | `surface` #FCFDF8 against `background` #F8FAF5 | **1.03 : 1** | — | See below |
-| `warning` #C88A3D icon on `warningContainer` #FBEBD2 | **2.51 : 1** | 3 : 1 (meaningful icon) | **Fail** |
 
 The first two compound into the most serious visual finding in the audit. Cards
 are separated from the page by a fill difference of 1.03 : 1 and a hairline
@@ -58,10 +58,14 @@ still short. Meeting 3 : 1 requires `outline` #73796D as the border, at
 4.39 : 1 — a visible change to the product's texture, and the reason this is
 routed through the high-contrast theme in spec 11 rather than applied globally.
 
-The third failure is also an inconsistency: `_ConfidenceBanner` tints its icon
-with `level.foregroundColor` (`onWarningContainer`, 6.63 : 1) while
-`_DisclaimerBanner` tints its icon with `AppColors.warning` (2.51 : 1). Two
-banners, same container, different icon colour, one of them failing.
+A third finding from the original audit was also an inconsistency:
+`_ConfidenceBanner` tinted its icon with `level.foregroundColor`
+(`onWarningContainer`, 6.63 : 1) while `_DisclaimerBanner` tinted its icon with
+`AppColors.warning` (then #C88A3D, 2.51 : 1) — two banners, same container,
+different icon colour, one of them failing. `_DisclaimerBanner` has since moved
+to `onWarningContainer` as well, and SPEC 0180 raised the bare `warning` token
+itself to #B07A35 so any future caller clears 3 : 1 against `warningContainer`
+too (see §2.1).
 
 ## 3. Criteria by category
 

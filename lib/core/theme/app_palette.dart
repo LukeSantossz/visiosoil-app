@@ -39,6 +39,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.warning,
     required this.warningContainer,
     required this.onWarningContainer,
+    this.warningText = AppColors.warningText,
     required this.background,
     required this.onBackground,
     required this.surface,
@@ -90,6 +91,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color warning;
   final Color warningContainer;
   final Color onWarningContainer;
+
+  /// Warning tint for text, darker than [warning] so it meets 4.5 : 1 against
+  /// white; holds the same value in every palette unless overridden, as
+  /// [brand] and its siblings do (SPEC 0180).
+  final Color warningText;
+
   final Color background;
   final Color onBackground;
   final Color surface;
@@ -432,6 +439,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       warning: warning,
       warningContainer: warningContainer,
       onWarningContainer: onWarningContainer,
+      warningText: warningText,
       background: background ?? this.background,
       onBackground: onBackground,
       surface: surface,
@@ -490,6 +498,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       warning: mix(warning, other.warning),
       warningContainer: mix(warningContainer, other.warningContainer),
       onWarningContainer: mix(onWarningContainer, other.onWarningContainer),
+      warningText: mix(warningText, other.warningText),
       background: mix(background, other.background),
       onBackground: mix(onBackground, other.onBackground),
       surface: mix(surface, other.surface),
