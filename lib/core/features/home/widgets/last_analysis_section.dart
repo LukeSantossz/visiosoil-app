@@ -7,7 +7,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
-import 'package:visiosoil_app/models/confidence_level.dart';
+import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// The home's last-analysis section per the design system: a title with a
@@ -197,50 +197,9 @@ class _RecordInfo extends StatelessWidget {
         ),
         if (record.confidenceScore != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          _ConfidenceChip(score: record.confidenceScore!),
+          ConfidenceBadge(score: record.confidenceScore),
         ],
       ],
-    );
-  }
-}
-
-class _ConfidenceChip extends StatelessWidget {
-  const _ConfidenceChip({required this.score});
-
-  final double score;
-
-  @override
-  Widget build(BuildContext context) {
-    final level = ConfidenceLevel.fromScore(score);
-    // A corrupt/non-finite persisted score must not crash the home: `.round()`
-    // throws on NaN/infinity, so drop the percentage and show only the level.
-    final label = score.isFinite
-        ? '${(score * 100).round()}% · ${level.label}'
-        : level.label;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: level.backgroundColor(context.palette),
-        borderRadius: AppRadius.borderRadiusPill,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(level.icon, size: 12, color: level.foregroundColor(context.palette)),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: level.foregroundColor(context.palette),
-                ),
-          ),
-        ],
-      ),
     );
   }
 }

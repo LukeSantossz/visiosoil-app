@@ -35,10 +35,11 @@ void main() {
       ),
     ],
     'lib/core/features/details/widgets/classification_header.dart': [
-      ('Confianca baixa', 'Confiança baixa'),
-      ('iluminacao e enquadramento', 'iluminação e enquadramento'),
-      ('Confianca moderada', 'Confiança moderada'),
-      ('pode nao refletir', 'pode não refletir'),
+      // Approved copy (redesign v11 §3.14, decision 14.2).
+      ('nao esta seguro', 'não está seguro'),
+      ('Refaca a foto na sombra', 'Refaça a foto na sombra'),
+      ('Resultado provavel', 'Resultado provável'),
+      ('refaca a foto para confirmar', 'refaça a foto para confirmar'),
     ],
     'lib/core/features/home/widgets/stats_grid.dart': [
       ('Analises', 'Análises'),

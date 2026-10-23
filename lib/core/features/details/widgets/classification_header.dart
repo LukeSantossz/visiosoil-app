@@ -4,6 +4,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
@@ -35,10 +36,11 @@ class ClassificationHeader extends StatelessWidget {
     );
   }
 
+  // Approved copy (redesign v11 §3.14, decision 14.2).
   String _bannerMessage(ConfidenceLevel level) => level == ConfidenceLevel.low
-      ? 'Confiança baixa. Considere refazer a captura com melhor '
-          'iluminação e enquadramento.'
-      : 'Confiança moderada. O resultado pode não refletir a textura real.';
+      ? 'O modelo não está seguro. Refaça a foto na sombra, com a amostra '
+          'preenchendo a moldura.'
+      : 'Resultado provável. Se puder, refaça a foto para confirmar.';
 }
 
 class _TextureNameRow extends StatelessWidget {
@@ -99,7 +101,7 @@ class _BadgeTimestampRow extends StatelessWidget {
     return Row(
       children: [
         if (record.hasClassification) ...[
-          _ConfidenceBadge(score: record.confidenceScore),
+          ConfidenceBadge(score: record.confidenceScore),
           const SizedBox(width: AppSpacing.md),
         ],
         Icon(Icons.access_time, size: 14, color: context.palette.onSurfaceVariant),
@@ -112,45 +114,6 @@ class _BadgeTimestampRow extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: context.palette.onSurfaceVariant,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ConfidenceBadge extends StatelessWidget {
-  const _ConfidenceBadge({required this.score});
-
-  final double? score;
-
-  @override
-  Widget build(BuildContext context) {
-    if (score == null) return const SizedBox.shrink();
-
-    final level = ConfidenceLevel.fromScore(score);
-    final pct = (score! * 100).round();
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(level.icon, size: 14, color: level.foregroundColor(context.palette)),
-        const SizedBox(width: AppSpacing.xs),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: level.backgroundColor(context.palette),
-            borderRadius: AppRadius.borderRadiusPill,
-          ),
-          child: Text(
-            '$pct% · ${level.label}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: level.foregroundColor(context.palette),
-                ),
           ),
         ),
       ],
@@ -171,8 +134,7 @@ class _ConfidenceBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent =
-        level == ConfidenceLevel.low ? context.palette.error : context.palette.warning;
+    final accent = level.accentColor(context.palette);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),

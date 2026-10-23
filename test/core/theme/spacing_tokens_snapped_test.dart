@@ -85,11 +85,20 @@ void main() {
       );
     });
 
-    test('classification_header snaps its badge padding to sm/xs', () {
-      final src = _packed(
-          'lib/core/features/details/widgets/classification_header.dart');
+    test('confidence_badge snaps its badge padding to sm/xs', () {
+      // Lives in the shared ConfidenceBadge (redesign v11 §3.14/§4) since
+      // classification_header.dart and last_analysis_section.dart no longer
+      // carry their own ad-hoc badge. The horizontal padding picks between
+      // sm (full) and xs (compact, denser per the trello acceptance
+      // criterion), so the token reference sits in that ternary rather than
+      // directly on `horizontal:`.
+      final src = _packed('lib/core/widgets/confidence_badge.dart');
       expect(src, isNot(contains('horizontal:10')));
-      expect(src, contains('horizontal:AppSpacing.sm'));
+      expect(src, contains('horizontal:horizontalPadding'));
+      expect(
+        src,
+        contains('horizontalPadding=compact?AppSpacing.xs:AppSpacing.sm'),
+      );
     });
 
     test('management_tips_section snaps its citation chip padding to sm/xs', () {

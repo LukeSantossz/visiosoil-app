@@ -3,17 +3,18 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 /// Confidence ranges for texture classification.
 ///
-/// Centralized thresholds: high >= 80%, moderate 60-79%, low < 60%.
+/// Centralized thresholds (redesign v11 §3.14, decision 14.8): high >= 75%,
+/// moderate 50-74%, low < 50%.
 enum ConfidenceLevel {
   high,
   moderate,
   low;
 
-  /// Lower threshold of the high range (0.80).
-  static const double highThreshold = 0.80;
+  /// Lower threshold of the high range (0.75).
+  static const double highThreshold = 0.75;
 
-  /// Lower threshold of the moderate range (0.60).
-  static const double moderateThreshold = 0.60;
+  /// Lower threshold of the moderate range (0.50).
+  static const double moderateThreshold = 0.50;
 
   /// Determines the confidence level from the score (0.0 to 1.0).
   /// Returns [low] for null or NaN values.
@@ -25,9 +26,11 @@ enum ConfidenceLevel {
   }
 
   /// Localized label for display.
+  ///
+  /// Moderate reads "Média", not "Moderada" (decision 23/10/2026, §14.8).
   String get label => switch (this) {
         ConfidenceLevel.high => 'Alta',
-        ConfidenceLevel.moderate => 'Moderada',
+        ConfidenceLevel.moderate => 'Média',
         ConfidenceLevel.low => 'Baixa',
       };
 
@@ -50,5 +53,13 @@ enum ConfidenceLevel {
         ConfidenceLevel.high => Icons.verified,
         ConfidenceLevel.moderate => Icons.info_outline,
         ConfidenceLevel.low => Icons.warning_amber_rounded,
+      };
+
+  /// Solid semantic accent — not a container color — for progress fills and
+  /// banner border accents (redesign v11 §3.14, §4 `ConfidenceBar`).
+  Color accentColor(AppPalette palette) => switch (this) {
+        ConfidenceLevel.high => palette.primary,
+        ConfidenceLevel.moderate => palette.warning,
+        ConfidenceLevel.low => palette.error,
       };
 }

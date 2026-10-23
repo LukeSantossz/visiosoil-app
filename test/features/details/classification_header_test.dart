@@ -27,26 +27,33 @@ Future<void> pumpHeader(WidgetTester tester, double score) {
 }
 
 void main() {
-  testWidgets('shows the low-confidence banner below 60%', (tester) async {
+  // Approved copy (redesign v11 §3.14, decision 14.2).
+  const lowText =
+      'O modelo não está seguro. Refaça a foto na sombra, com a amostra '
+      'preenchendo a moldura.';
+  const moderateText =
+      'Resultado provável. Se puder, refaça a foto para confirmar.';
+
+  testWidgets('shows the low-confidence banner below 50%', (tester) async {
     await pumpHeader(tester, 0.4);
 
-    expect(find.textContaining('Confiança baixa'), findsOneWidget);
-    expect(find.textContaining('Confiança moderada'), findsNothing);
+    expect(find.text(lowText), findsOneWidget);
+    expect(find.text(moderateText), findsNothing);
   });
 
-  testWidgets('shows the moderate-confidence banner in the 60-79% range',
+  testWidgets('shows the moderate-confidence banner in the 50-74% range',
       (tester) async {
     await pumpHeader(tester, 0.7);
 
-    expect(find.textContaining('Confiança moderada'), findsOneWidget);
-    expect(find.textContaining('Confiança baixa'), findsNothing);
+    expect(find.text(moderateText), findsOneWidget);
+    expect(find.text(lowText), findsNothing);
   });
 
   testWidgets('shows no advisory banner at high confidence', (tester) async {
     await pumpHeader(tester, 0.95);
 
-    expect(find.textContaining('Confiança baixa'), findsNothing);
-    expect(find.textContaining('Confiança moderada'), findsNothing);
+    expect(find.text(lowText), findsNothing);
+    expect(find.text(moderateText), findsNothing);
   });
 
   testWidgets('renders the texture class name and the confidence badge',
