@@ -24,7 +24,10 @@ class ConfidenceBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = ConfidenceLevel.fromScore(score);
     final fraction = score.isFinite ? score.clamp(0.0, 1.0) : 0.0;
-    final fillColor = level.accentColor(context.palette);
+    // The icon amber fails 3:1 against the light track (SPEC 0187).
+    final fillColor = level == ConfidenceLevel.moderate
+        ? context.palette.warningText
+        : level.accentColor(context.palette);
     final track = context.palette.surfaceContainerHigh;
 
     // Childless, so it has no intrinsic size: heightFactor: 1 below gives it
