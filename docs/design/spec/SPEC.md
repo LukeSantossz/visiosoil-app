@@ -43,7 +43,7 @@ Leitura do repo feita em 22/10/2026 (somente leitura). Os nomes de arquivo abaix
 | secondary | --sec | #8B6F47 | #E4C192 | #4A3417 |
 | secondaryContainer | --sc | #F5E6D3 | #5A431E | #FFFFFF |
 | onSecondaryContainer | --onsc | #2D1F0E | #FFDDB1 | #000000 |
-| warning (ext) | --warn | #6D4C1D | #FEB968 | #4A3417 |
+| warning (ext, texto sobre warningContainer = onWarningContainer) | --warn | #6D4C1D | #FEB968 | #4A3417 |
 | warningContainer (ext) | --wc | #FBEBD2 | #604012 | #FFFFFF |
 | error | --err | #BA1A1A | #FFB4AB | #8C0009 |
 | errorContainer | --ec | #FFDAD6 | #93000A | #FFFFFF |
@@ -96,7 +96,7 @@ Estender `AppTheme._build(AppPalette p)` (já é `useMaterial3: true`):
   - `ButtonStyle.minimumSize: Size(64,56)`;
   - `side` 2 px preto em Outlined, cards, chips e Switch (track outline);
   - `NavigationBarTheme`: height 88, indicador preto e ícone branco quando selecionado.
-- Seleção do tema: `appearance_provider` passa a ter 3 valores (claro | escuro | sol). O padrão inicial segue o sistema (claro/escuro); o Modo Sol só liga manualmente. O Modo Sol força o tema claro de alto contraste e ignora o `platformBrightness`.
+- Seleção do tema: segmentado "Tema" com Sistema | Claro | Escuro (padrão Sistema) + switch separado "Modo Sol". Ligar o Sol sobrepõe o tema; desligar volta ao tema escolhido. O switch "Alto contraste" legado sai (o Sol o substitui). O padrão inicial segue o sistema (claro/escuro); o Modo Sol só liga manualmente. O Modo Sol força o tema claro de alto contraste e ignora o `platformBrightness`.
 - `SnackBar` flutuante, raio 8, `inverseSurface`. `NavigationBar` com `indicatorColor = primaryContainer` (já existe).
 
 ---
@@ -283,7 +283,7 @@ Sempre mostrar o rótulo **e** o percentual (nunca só a cor).
 
 ## 5. Princípios de layout
 - A grade é uma coluna única com margem de 20 e largura máxima de conteúdo de 560 (tablet, §10).
-- Ícones Lucide (`lucide_icons_flutter`, ou exportar os SVG usados), com stroke de 1,75 (2,25 no Sol). O logo vem de `visio_soil_logo.dart` (fonte: `logo/visiosoil-logo.svg`).
+- Ícones Lucide (`lucide_icons_flutter`, ou exportar os SVG usados), com stroke de 1,75 (2,25 no Sol). O logo vem de `visio_soil_logo.dart` (fonte: `/workspace/logo/visiosoil-logo.svg`).
 - Nada de gradiente chamativo, glow forte ou emoji. Um CTA primário por tela.
 
 ## 6. Motion
@@ -425,3 +425,15 @@ abstract final class AppHaptics {
 6. **Perfil:** tela nova, 4ª aba da barra (Início · Histórico · Dicas · Perfil). Configurações é acessada pelo Perfil.
 7. **Haptic heavy:** `heavyImpact` ×2 (60 ms de intervalo) só na foto ruim. Supera a regra "sem tier heavy" do repo.
 8. **Confiança:** alta ≥ 75, média 50–74, baixa < 50, com o rótulo "Média" (substitui "Moderada").
+
+## 15. Ajuste de contraste (23/10/2026)
+
+- tertiary #6B7F5A virou #677A57 (4,67:1 com texto branco).
+- warning #C88A3D virou #B07A35 (3,7:1 no branco, para ícone). Para texto de aviso, use #9E6B2C (4,57:1).
+- Card: https://trello.com/c/Q4FBNyiY
+
+## 16. Decisões do QA v11 (24/10/2026)
+
+- Tema: segmentado Sistema | Claro | Escuro (padrão Sistema) + switch "Modo Sol" separado, como na tela 23. Vale sobre o texto antigo de 3 opções. Ao desligar o Sol, volta ao tema escolhido.
+- "Alto contraste" sai das Configurações; o Modo Sol cobre esse caso.
+- Âmbar, papéis distintos: `onWarningContainer` #6D4C1D é o texto do aviso sobre `warningContainer` #FBEBD2 (6,63:1); `warning` #B07A35 é só ícone/barra sobre branco; `warningText` #9E6B2C é texto âmbar sobre branco. No Sol, texto âmbar usa #4A3417.

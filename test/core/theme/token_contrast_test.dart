@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 double _contrast(Color a, Color b) {
   final la = a.computeLuminance();
@@ -14,6 +15,31 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
+  for (final entry in {
+    'light': AppPalette.light,
+    'dark': AppPalette.dark,
+    'sun': AppPalette.sun,
+  }.entries) {
+    final palette = entry.value;
+    test('${entry.key}_warning_text_meets_surface_threshold', () {
+      expect(
+        _contrast(
+          palette.warningText,
+          palette.brightness == Brightness.dark
+              ? palette.surface
+              : Colors.white,
+        ),
+        greaterThanOrEqualTo(palette.isSun ? 7 : 4.5),
+      );
+    });
+    test('${entry.key}_warning_container_text_meets_threshold', () {
+      expect(
+        _contrast(palette.onWarningContainer, palette.warningContainer),
+        greaterThanOrEqualTo(palette.isSun ? 7 : 4.5),
+      );
+    });
+  }
+
   test('tertiary_carries_white_text_at_aa', () {
     expect(
       _contrast(Colors.white, AppColors.tertiary),

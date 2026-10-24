@@ -39,6 +39,32 @@ Size fillSize(WidgetTester tester) => tester.getSize(
     );
 
 void main() {
+  for (final entry in {
+    'light': AppTheme.light,
+    'dark': AppTheme.dark,
+    'sun': AppTheme.sun,
+  }.entries) {
+    testWidgets('${entry.key}_moderate_fill_contrasts_with_track', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          const ConfidenceBar(score: 0.6, animate: false),
+          theme: entry.value,
+        ),
+      );
+      final fill = (fillBox(tester).decoration as BoxDecoration).color!;
+      final track = entry.value.extension<AppPalette>()!.surfaceContainerHigh;
+      final first = fill.computeLuminance();
+      final second = track.computeLuminance();
+      final ratio = first > second
+          ? (first + 0.05) / (second + 0.05)
+          : (second + 0.05) / (first + 0.05);
+      expect(ratio, greaterThanOrEqualTo(3));
+    });
+  }
+
+
   testWidgets('animates the fill from 0 to the score over AppMotion.reveal',
       (tester) async {
     await tester.pumpWidget(host(const ConfidenceBar(score: 0.75)));
@@ -111,22 +137,22 @@ void main() {
       expect(decoration.color, AppPalette.dark.primary);
     });
 
-    testWidgets('moderate: palette.warning, light theme', (tester) async {
+    testWidgets('moderate: palette.warningText, light theme', (tester) async {
       await tester.pumpWidget(
         host(const ConfidenceBar(score: 0.6, animate: false),
             theme: AppTheme.light),
       );
       final decoration = fillBox(tester).decoration as BoxDecoration;
-      expect(decoration.color, AppPalette.light.warning);
+      expect(decoration.color, AppPalette.light.warningText);
     });
 
-    testWidgets('moderate: palette.warning, dark theme', (tester) async {
+    testWidgets('moderate: palette.warningText, dark theme', (tester) async {
       await tester.pumpWidget(
         host(const ConfidenceBar(score: 0.6, animate: false),
             theme: AppTheme.dark),
       );
       final decoration = fillBox(tester).decoration as BoxDecoration;
-      expect(decoration.color, AppPalette.dark.warning);
+      expect(decoration.color, AppPalette.dark.warningText);
     });
 
     testWidgets('low: palette.error, light theme', (tester) async {
