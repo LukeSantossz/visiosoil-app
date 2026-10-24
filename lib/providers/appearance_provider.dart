@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
@@ -13,47 +14,52 @@ final nightModeSyncProvider = Provider<NightModeSync>(
   (ref) => defaultNightModeSync(),
 );
 
-/// The choice read before `runApp`, so the first frame is already in it.
-/// `main` overrides it with the stored value. `null` means no explicit choice
-/// was ever made, so the app follows the system brightness (redesign v11 §2,
-/// decision 23/10/2026, SPEC 0182).
-final initialThemeChoiceProvider = Provider<AppThemeChoice?>((ref) => null);
+/// The base theme read before `runApp`, so the first frame is already in it.
+/// `main` overrides it with the stored value: Sistema, Claro or Escuro,
+/// applied unless Modo Sol overrides it (redesign v11 §2, §3.11, SPEC 0186).
+final initialBaseThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.system);
 
-/// The app's theme choice, as the user chose it in Settings: Claro, Escuro or
-/// Modo Sol, or `null` to follow the system (SPEC 0107, SPEC 0182). Modo Sol
-/// is reached only through [select]; it is never the default.
-final themeChoiceProvider = NotifierProvider<ThemeChoiceController,
-    AppThemeChoice?>(ThemeChoiceController.new);
+/// The app's base theme choice, as the user chose it in Settings: Sistema,
+/// Claro or Escuro (SPEC 0107, SPEC 0186). Independent of [sunModeProvider]:
+/// turning Modo Sol off returns to whichever base is held here.
+final baseThemeModeProvider = NotifierProvider<BaseThemeModeController,
+    ThemeMode>(BaseThemeModeController.new);
 
-class ThemeChoiceController extends Notifier<AppThemeChoice?> {
+class BaseThemeModeController extends Notifier<ThemeMode> {
   @override
-  AppThemeChoice? build() => ref.read(initialThemeChoiceProvider);
+  ThemeMode build() => ref.read(initialBaseThemeModeProvider);
 
-  /// Applies [choice] at once, then persists it and hands its [nightModeFor]
-  /// to the platform.
-  Future<void> select(AppThemeChoice choice) async {
-    state = choice;
-    await ref.read(appearanceStoreProvider).writeThemeChoice(choice);
-    await ref.read(nightModeSyncProvider).apply(nightModeFor(choice));
+  /// Applies [mode] at once, then persists it and hands the combined
+  /// [nightModeFor] (with the current Sol state) to the platform.
+  Future<void> select(ThemeMode mode) async {
+    state = mode;
+    await ref.read(appearanceStoreProvider).writeBaseThemeMode(mode);
+    final sun = ref.read(sunModeProvider);
+    await ref.read(nightModeSyncProvider).apply(nightModeFor(mode, sun: sun));
   }
 }
 
-/// The high-contrast choice read before `runApp`, so the first frame is already
-/// in it. `main` overrides it with the stored value (SPEC 0130).
-final initialHighContrastProvider = Provider<bool>((ref) => false);
+/// The Modo Sol override read before `runApp`, so the first frame is already
+/// in it. `main` overrides it with the stored value (redesign v11 §2,
+/// SPEC 0186). `false` by default: Sol is reached only through [select].
+final initialSunModeProvider = Provider<bool>((ref) => false);
 
-/// Whether the user turned on high contrast in Settings (SPEC 0130).
-final highContrastProvider =
-    NotifierProvider<HighContrastController, bool>(HighContrastController.new);
+/// Whether Modo Sol overrides [baseThemeModeProvider] with its own fixed
+/// high-contrast light theme (redesign v11 §2, §3.11, SPEC 0186).
+final sunModeProvider =
+    NotifierProvider<SunModeController, bool>(SunModeController.new);
 
-class HighContrastController extends Notifier<bool> {
+class SunModeController extends Notifier<bool> {
   @override
-  bool build() => ref.read(initialHighContrastProvider);
+  bool build() => ref.read(initialSunModeProvider);
 
-  /// Applies [on] at once, then persists it.
+  /// Applies [on] at once, then persists it and hands the combined
+  /// [nightModeFor] (with the current base theme) to the platform.
   Future<void> select(bool on) async {
     state = on;
-    await ref.read(appearanceStoreProvider).writeHighContrast(on);
+    await ref.read(appearanceStoreProvider).writeSunMode(on);
+    final base = ref.read(baseThemeModeProvider);
+    await ref.read(nightModeSyncProvider).apply(nightModeFor(base, sun: on));
   }
 }
 

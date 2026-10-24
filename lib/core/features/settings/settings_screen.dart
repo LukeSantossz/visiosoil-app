@@ -9,7 +9,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
-import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -58,7 +57,7 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(title: 'APARÊNCIA'),
           const SizedBox(height: AppSpacing.sm),
           const _ThemeChoiceSelector(),
-          const _HighContrastSwitch(),
+          const _SunModeSwitch(),
 
           const SizedBox(height: AppSpacing.xl),
 
@@ -318,80 +317,56 @@ class _AccountTile extends ConsumerWidget {
 
 // --- Theme Choice ---
 
-/// The theme choice: Claro, Escuro or Modo Sol (redesign v11 §3.11,
-/// SPEC 0182). It applies at once and persists. There is no "Sistema" segment:
-/// following the system is only the state before any explicit choice (decision
-/// 23/10/2026) — the selector shows whichever of Claro/Escuro that currently
-/// resolves to until the user picks one.
+/// The base theme choice: Sistema, Claro or Escuro (redesign v11 §3.11,
+/// SPEC 0186). It applies at once and persists. Modo Sol is a separate
+/// override, below ([_SunModeSwitch]), not a fourth segment here.
 class _ThemeChoiceSelector extends ConsumerWidget {
   const _ThemeChoiceSelector();
 
   static const _labels = {
-    AppThemeChoice.light: AppStrings.themeChoiceLight,
-    AppThemeChoice.dark: AppStrings.themeChoiceDark,
-    AppThemeChoice.sun: AppStrings.themeChoiceSun,
+    ThemeMode.system: AppStrings.themeChoiceSystem,
+    ThemeMode.light: AppStrings.themeChoiceLight,
+    ThemeMode.dark: AppStrings.themeChoiceDark,
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final choice = ref.watch(themeChoiceProvider);
-    final resolved = choice ??
-        (Theme.of(context).brightness == Brightness.dark
-            ? AppThemeChoice.dark
-            : AppThemeChoice.light);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<AppThemeChoice>(
-            showSelectedIcon: false,
-            // Allowed so tapping the segment already shown as selected
-            // (the resolved display value, before any explicit choice) still
-            // fires a change instead of being swallowed by SegmentedButton's
-            // own no-op guard for a re-tap of its current `selected` set.
-            emptySelectionAllowed: true,
-            segments: [
-              for (final MapEntry(key: value, value: label) in _labels.entries)
-                ButtonSegment(value: value, label: Text(label)),
-            ],
-            selected: {resolved},
-            onSelectionChanged: (selection) {
-              AppHaptics.selection();
-              // Empty means the tapped segment was already the one shown
-              // selected: persist that explicit choice rather than nothing.
-              final picked = selection.isEmpty ? resolved : selection.single;
-              ref.read(themeChoiceProvider.notifier).select(picked);
-            },
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          AppStrings.themeChoiceCaption,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.palette.onSurfaceVariant,
-              ),
-        ),
-      ],
+    final mode = ref.watch(baseThemeModeProvider);
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        segments: [
+          for (final MapEntry(key: value, value: label) in _labels.entries)
+            ButtonSegment(value: value, label: Text(label)),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) {
+          AppHaptics.selection();
+          ref.read(baseThemeModeProvider.notifier).select(selection.single);
+        },
+      ),
     );
   }
 }
 
-/// Turns on high contrast: solid card edges for reading in sunlight
-/// (SPEC 0130).
-class _HighContrastSwitch extends ConsumerWidget {
-  const _HighContrastSwitch();
+/// Turns on Modo Sol: a fixed high-contrast light theme with 56 dp tap
+/// targets and larger type for outdoor field use, overriding whichever base
+/// theme is chosen above until turned off again (redesign v11 §2, §3.11,
+/// SPEC 0186).
+class _SunModeSwitch extends ConsumerWidget {
+  const _SunModeSwitch();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Alto contraste'),
-      subtitle: const Text('Bordas mais fortes, para ler sob o sol'),
-      value: ref.watch(highContrastProvider),
+      title: const Text(AppStrings.themeChoiceSun),
+      subtitle: const Text(AppStrings.themeChoiceCaption),
+      value: ref.watch(sunModeProvider),
       onChanged: (on) {
         AppHaptics.selection();
-        ref.read(highContrastProvider.notifier).select(on);
+        ref.read(sunModeProvider.notifier).select(on);
       },
     );
   }

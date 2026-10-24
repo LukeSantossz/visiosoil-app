@@ -3,37 +3,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// The user's explicit theme choice (redesign v11 §2, §3.11, SPEC 0182):
-/// Claro, Escuro or Modo Sol. There is no "system" member here because
-/// following the system is the absence of a choice (see [AppearanceStore.
-/// readThemeChoice]), not one of the three the Settings selector offers.
-enum AppThemeChoice { light, dark, sun }
+/// The night mode the platform's launch channel understands, combining the
+/// base theme with whether Modo Sol overrides it (redesign v11 §2, §3.11,
+/// SPEC 0186): [base] unchanged when Sol is off, and `light` when it is on,
+/// since Sol ignores `platformBrightness`.
+ThemeMode nightModeFor(ThemeMode base, {required bool sun}) =>
+    sun ? ThemeMode.light : base;
 
-/// The [ThemeMode] that hands [choice] to the platform's night-mode channel:
-/// light/dark unchanged, and sun forces light since it ignores
-/// `platformBrightness` (redesign v11 §2). `null` (no explicit choice) follows
-/// the system.
-ThemeMode nightModeFor(AppThemeChoice? choice) => switch (choice) {
-      AppThemeChoice.light => ThemeMode.light,
-      AppThemeChoice.dark => ThemeMode.dark,
-      AppThemeChoice.sun => ThemeMode.light,
-      null => ThemeMode.system,
-    };
-
-/// Persists the user's theme choice (SPEC 0107, SPEC 0182). Behind an
-/// interface so it can be faked in tests.
+/// Persists the user's appearance choices (SPEC 0107, SPEC 0182, SPEC 0186).
+/// Behind an interface so it can be faked in tests.
 abstract interface class AppearanceStore {
-  /// The stored explicit choice, or `null` when none was made (or an unknown
-  /// value is stored), meaning the app follows the system brightness
-  /// (redesign v11 §2, decision 23/10/2026).
-  Future<AppThemeChoice?> readThemeChoice();
+  /// The base theme — Sistema, Claro or Escuro — applied unless Modo Sol
+  /// overrides it. [ThemeMode.system] when nothing was ever chosen.
+  Future<ThemeMode> readBaseThemeMode();
 
-  Future<void> writeThemeChoice(AppThemeChoice choice);
+  Future<void> writeBaseThemeMode(ThemeMode mode);
 
-  /// Whether high contrast is on (SPEC 0130); `false` when nothing is stored.
-  Future<bool> readHighContrast();
+  /// Whether Modo Sol overrides [readBaseThemeMode] with its own fixed
+  /// high-contrast light theme (redesign v11 §2). `false` when nothing is
+  /// stored.
+  Future<bool> readSunMode();
 
-  Future<void> writeHighContrast(bool on);
+  Future<void> writeSunMode(bool on);
 
   /// Whether vibration is on (redesign v11 §3.11); `true` when nothing is
   /// stored (enabled by default).
@@ -48,56 +39,82 @@ abstract interface class AppearanceStore {
   Future<void> writeReduceMotion(bool on);
 }
 
-/// [AppearanceStore] backed by `shared_preferences`, storing the choice's name.
+/// [AppearanceStore] backed by `shared_preferences`.
 class SharedPreferencesAppearanceStore implements AppearanceStore {
-  /// Legacy key (SPEC 0107): the pre-Sol choice, one of [ThemeMode]'s names.
-  /// Read only to migrate an explicit `light`/`dark` into [choiceKey]
-  /// (SPEC 0182); `system` carried no explicit choice and still does not.
+  /// Oldest legacy key (SPEC 0107): one of [ThemeMode]'s names, including
+  /// `system`. Read only to migrate into [baseModeKey] once that key and
+  /// [choiceKey] are both empty.
   static const key = 'appearance.themeMode';
+
+  /// SPEC 0182's key: `light` | `dark` | `sun`, with no separate Sol flag.
+  /// Read only to migrate into [baseModeKey] and [sunModeKey] (SPEC 0186): a
+  /// legacy `sun` choice becomes `sunMode=true` with the base left at
+  /// `system`, since Sol used to replace the base choice rather than
+  /// overriding it.
   static const choiceKey = 'appearance.themeChoice';
-  static const highContrastKey = 'appearance.highContrast';
+  static const baseModeKey = 'appearance.baseThemeMode';
+  static const sunModeKey = 'appearance.sunMode';
   static const vibrationKey = 'appearance.vibration';
   static const reduceMotionKey = 'appearance.reduceMotion';
 
   @override
-  Future<AppThemeChoice?> readThemeChoice() async {
+  Future<ThemeMode> readBaseThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(choiceKey);
+    final stored = prefs.getString(baseModeKey);
     if (stored != null) {
-      for (final choice in AppThemeChoice.values) {
-        if (choice.name == stored) return choice;
+      for (final mode in ThemeMode.values) {
+        if (mode.name == stored) return mode;
       }
-      return null;
+      return ThemeMode.system;
     }
-    // One-time migration (SPEC 0182): an explicit light/dark choice made
-    // before Sol existed carries over; `system` (or nothing stored) still
-    // means no explicit choice.
-    final legacy = prefs.getString(key);
-    final migrated = switch (legacy) {
-      'light' => AppThemeChoice.light,
-      'dark' => AppThemeChoice.dark,
+    final legacyChoice = prefs.getString(choiceKey);
+    final migratedFromChoice = switch (legacyChoice) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      // Sol used to be a base choice of its own; it is now an override on
+      // top of `system` (SPEC 0186).
+      'sun' => ThemeMode.system,
       _ => null,
     };
-    if (migrated != null) await writeThemeChoice(migrated);
-    return migrated;
+    if (migratedFromChoice != null) {
+      await writeBaseThemeMode(migratedFromChoice);
+      return migratedFromChoice;
+    }
+    final legacyMode = prefs.getString(key);
+    final migratedFromMode = switch (legacyMode) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => null,
+    };
+    if (migratedFromMode != null) {
+      await writeBaseThemeMode(migratedFromMode);
+      return migratedFromMode;
+    }
+    return ThemeMode.system;
   }
 
   @override
-  Future<void> writeThemeChoice(AppThemeChoice choice) async {
+  Future<void> writeBaseThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(choiceKey, choice.name);
+    await prefs.setString(baseModeKey, mode.name);
   }
 
   @override
-  Future<bool> readHighContrast() async {
+  Future<bool> readSunMode() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(highContrastKey) ?? false;
+    final stored = prefs.getBool(sunModeKey);
+    if (stored != null) return stored;
+    if (prefs.getString(choiceKey) == 'sun') {
+      await writeSunMode(true);
+      return true;
+    }
+    return false;
   }
 
   @override
-  Future<void> writeHighContrast(bool on) async {
+  Future<void> writeSunMode(bool on) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(highContrastKey, on);
+    await prefs.setBool(sunModeKey, on);
   }
 
   @override
@@ -171,35 +188,31 @@ NightModeSync defaultNightModeSync() =>
         ? const MethodChannelNightModeSync()
         : const NoNightModeSync();
 
-/// Reads the stored theme choice and hands its [nightModeFor] to the platform
-/// again, so a launch whose override was lost still follows the choice the
-/// next time.
+/// Reads the stored base theme and Modo Sol override, and hands their
+/// combined [nightModeFor] to the platform again, so a launch whose override
+/// was lost still follows the choice the next time.
 ///
 /// `main` calls this before `runApp`, so a store that cannot be read falls
-/// back to `null` (follow the system) rather than keeping the app from
-/// opening (SPEC 0182).
-Future<AppThemeChoice?> restoreThemeChoice(
+/// back to following the system with Sol off, rather than keeping the app
+/// from opening (SPEC 0182, SPEC 0186).
+Future<(ThemeMode base, bool sun)> restoreAppearance(
   AppearanceStore store,
   NightModeSync sync,
 ) async {
-  AppThemeChoice? choice;
+  ThemeMode base;
   try {
-    choice = await store.readThemeChoice();
+    base = await store.readBaseThemeMode();
   } catch (_) {
-    choice = null;
+    base = ThemeMode.system;
   }
-  await sync.apply(nightModeFor(choice));
-  return choice;
-}
-
-/// Reads the stored high-contrast choice before `runApp` (SPEC 0130). A store
-/// that cannot be read leaves it off rather than keeping the app from opening.
-Future<bool> restoreHighContrast(AppearanceStore store) async {
+  bool sun;
   try {
-    return await store.readHighContrast();
+    sun = await store.readSunMode();
   } catch (_) {
-    return false;
+    sun = false;
   }
+  await sync.apply(nightModeFor(base, sun: sun));
+  return (base, sun);
 }
 
 /// Reads the stored vibration choice before `runApp` (redesign v11 §3.11). A

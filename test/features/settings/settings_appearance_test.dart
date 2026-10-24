@@ -1,5 +1,5 @@
 // Settings' theme choice applies at once, persists, and reaches the platform so
-// the next native launch follows it (SPEC 0107).
+// the next native launch follows it (SPEC 0107, SPEC 0186).
 // Vibration and reduce motion preferences also apply and persist (redesign v11 PR4).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,21 +32,21 @@ class _SignedOut implements AuthService {
 }
 
 class _MemoryStore implements AppearanceStore {
-  AppThemeChoice? stored;
+  ThemeMode base = ThemeMode.system;
 
   @override
-  Future<AppThemeChoice?> readThemeChoice() async => stored;
+  Future<ThemeMode> readBaseThemeMode() async => base;
 
   @override
-  Future<void> writeThemeChoice(AppThemeChoice choice) async => stored = choice;
+  Future<void> writeBaseThemeMode(ThemeMode mode) async => base = mode;
 
-  bool highContrast = false;
-
-  @override
-  Future<bool> readHighContrast() async => highContrast;
+  bool sun = false;
 
   @override
-  Future<void> writeHighContrast(bool on) async => highContrast = on;
+  Future<bool> readSunMode() async => sun;
+
+  @override
+  Future<void> writeSunMode(bool on) async => sun = on;
 
   bool vibration = true;
 
@@ -82,7 +82,8 @@ Future<void> _pumpSettings(
 
   await tester.pumpWidget(ProviderScope(
     overrides: [
-      initialThemeChoiceProvider.overrideWithValue(store.stored),
+      initialBaseThemeModeProvider.overrideWithValue(store.base),
+      initialSunModeProvider.overrideWithValue(store.sun),
       appearanceStoreProvider.overrideWithValue(store),
       nightModeSyncProvider.overrideWithValue(sync),
       initialVibrationProvider.overrideWithValue(store.vibration),
@@ -107,69 +108,88 @@ Future<void> _pumpSettings(
 }
 
 void main() {
-  testWidgets('settings_switches_the_theme', (tester) async {
+  testWidgets('settings_switches_the_base_theme', (tester) async {
     final store = _MemoryStore();
     final sync = _RecordingSync();
     await _pumpSettings(tester, store, sync);
 
     Brightness brightness() =>
         Theme.of(tester.element(find.byType(SettingsScreen))).brightness;
-    bool isSun() =>
-        tester.element(find.byType(SettingsScreen)).palette.isSun;
 
-    // No stored choice yet: the test view's platform is light.
+    // No stored choice yet: Sistema is selected and the test view's platform
+    // is light.
     expect(find.text('APARÊNCIA'), findsOneWidget);
     expect(brightness(), Brightness.light);
 
-    for (final (label, choice, expected) in [
-      ('Escuro', AppThemeChoice.dark, Brightness.dark),
-      ('Claro', AppThemeChoice.light, Brightness.light),
-      ('Modo Sol', AppThemeChoice.sun, Brightness.light),
+    for (final (label, mode, expected) in [
+      ('Escuro', ThemeMode.dark, Brightness.dark),
+      ('Claro', ThemeMode.light, Brightness.light),
+      ('Sistema', ThemeMode.system, Brightness.light),
     ]) {
       await tester.ensureVisible(find.text(label));
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
 
       expect(brightness(), expected, reason: label);
-      expect(store.stored, choice, reason: label);
-      expect(sync.applied.last, nightModeFor(choice), reason: label);
+      expect(store.base, mode, reason: label);
+      expect(sync.applied.last, nightModeFor(mode, sun: false), reason: label);
     }
-    expect(isSun(), isTrue);
-    expect(sync.applied, [ThemeMode.dark, ThemeMode.light, ThemeMode.light]);
+    expect(sync.applied, [ThemeMode.dark, ThemeMode.light, ThemeMode.system]);
   });
 
-  // Before any explicit choice, the selector shows whichever of Claro/Escuro
-  // the system brightness resolves to, purely for display (SPEC 0182). That
-  // segment already reads as selected, so SegmentedButton's own guard against
-  // a no-op re-tap would otherwise swallow the tap; it must still persist the
-  // choice explicitly.
-  testWidgets('tapping_the_resolved_segment_persists_it_when_no_choice_was_made',
+  // Modo Sol is a separate switch that overrides whichever base theme is
+  // chosen, and turning it off returns to that base (SPEC 0186).
+  testWidgets('modo_sol_overrides_the_base_theme_and_turning_it_off_restores_it',
       (tester) async {
     final store = _MemoryStore();
     final sync = _RecordingSync();
     await _pumpSettings(tester, store, sync);
 
-    expect(store.stored, isNull);
-    // The test view's platform brightness is light, so "Claro" is the one
-    // shown selected without any explicit choice.
-    await tester.ensureVisible(find.text('Claro'));
-    await tester.tap(find.text('Claro'));
+    bool isSun() => tester.element(find.byType(SettingsScreen)).palette.isSun;
+    Brightness brightness() =>
+        Theme.of(tester.element(find.byType(SettingsScreen))).brightness;
+
+    await tester.ensureVisible(find.text('Escuro'));
+    await tester.tap(find.text('Escuro'));
+    await tester.pumpAndSettle();
+    expect(brightness(), Brightness.dark);
+
+    final sunSwitch = find.widgetWithText(SwitchListTile, 'Modo Sol');
+    await tester.ensureVisible(sunSwitch);
+    await tester.tap(sunSwitch);
     await tester.pumpAndSettle();
 
-    expect(store.stored, AppThemeChoice.light);
+    expect(isSun(), isTrue);
+    expect(store.sun, isTrue);
+    expect(store.base, ThemeMode.dark);
     expect(sync.applied.last, ThemeMode.light);
+
+    await tester.tap(sunSwitch);
+    await tester.pumpAndSettle();
+
+    expect(isSun(), isFalse);
+    expect(store.sun, isFalse);
+    expect(brightness(), Brightness.dark);
+    expect(sync.applied.last, ThemeMode.dark);
   });
 
-  // There is no "Sistema" segment to tap back to: Sol and the explicit
-  // choices are reached only by picking one of the three shown (redesign v11
-  // §3.11, decision 23/10/2026).
-  testWidgets('theme_selector_offers_only_three_options', (tester) async {
+  // There is no "Modo Sol" segment in the base selector: it is reached only
+  // through its own switch (redesign v11 §3.11, SPEC 0186).
+  testWidgets('theme_selector_offers_only_three_base_options', (tester) async {
     await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
 
+    expect(find.text('Sistema'), findsOneWidget);
     expect(find.text('Claro'), findsOneWidget);
     expect(find.text('Escuro'), findsOneWidget);
-    expect(find.text('Modo Sol'), findsOneWidget);
-    expect(find.text('Sistema'), findsNothing);
+    expect(find.widgetWithText(SwitchListTile, 'Modo Sol'), findsOneWidget);
+  });
+
+  // The legacy "Alto contraste" switch is gone (SPEC 0186); the platform's
+  // own high-contrast signal still works, unrelated to any manual switch.
+  testWidgets('there_is_no_alto_contraste_switch', (tester) async {
+    await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
+
+    expect(find.widgetWithText(SwitchListTile, 'Alto contraste'), findsNothing);
   });
 
   // Choosing a theme is a selection, confirmed by one click (SPEC 0126).
@@ -182,28 +202,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(haptics, ['HapticFeedbackType.selectionClick']);
-  });
-
-  // The switch applies high contrast at once and persists it (SPEC 0130).
-  testWidgets('high_contrast_is_a_setting', (tester) async {
-    final store = _MemoryStore();
-    await _pumpSettings(tester, store, _RecordingSync());
-
-    bool highContrast() =>
-        tester.element(find.byType(SettingsScreen)).palette.highContrast;
-    final toggle = find.widgetWithText(SwitchListTile, 'Alto contraste');
-    expect(highContrast(), isFalse);
-
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(highContrast(), isTrue);
-    expect(store.highContrast, isTrue);
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(highContrast(), isFalse);
-    expect(store.highContrast, isFalse);
   });
 
   // Vibration toggle: off silences all haptics, persists (redesign v11 §3.11/§7).
@@ -294,7 +292,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     await _pumpSettings(
       tester,
-      _MemoryStore()..stored = AppThemeChoice.sun,
+      _MemoryStore()..sun = true,
       _RecordingSync(),
     );
 

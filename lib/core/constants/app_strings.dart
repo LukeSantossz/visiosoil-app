@@ -43,14 +43,15 @@ abstract final class AppStrings {
   static const String errorReportShareFailed =
       'Não foi possível compartilhar o relatório. Tente novamente.';
 
-  /// Settings' theme selector (redesign v11 §3.11, SPEC 0182): segmented
-  /// Claro | Escuro | Modo Sol.
+  /// Settings' base theme selector (redesign v11 §3.11, SPEC 0186): segmented
+  /// Sistema | Claro | Escuro. Modo Sol is a separate switch, below.
+  static const String themeChoiceSystem = 'Sistema';
   static const String themeChoiceLight = 'Claro';
   static const String themeChoiceDark = 'Escuro';
   static const String themeChoiceSun = 'Modo Sol';
 
-  /// Caption under the theme selector, describing what Modo Sol does
-  /// (redesign v11 §3.11).
+  /// Caption under the Modo Sol switch, describing what it does
+  /// (redesign v11 §3.11, SPEC 0186).
   static const String themeChoiceCaption =
       'Alto contraste e letras maiores para o campo';
 }

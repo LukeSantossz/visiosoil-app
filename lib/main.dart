@@ -21,9 +21,8 @@ Future<void> main() async {
   // Read before the first frame, so it is already in the chosen theme
   // (SPEC 0107).
   final appearance = SharedPreferencesAppearanceStore();
-  final themeChoice =
-      await restoreThemeChoice(appearance, defaultNightModeSync());
-  final highContrast = await restoreHighContrast(appearance);
+  final (baseThemeMode, sunMode) =
+      await restoreAppearance(appearance, defaultNightModeSync());
   // Vibration and reduce-motion restored before first frame (redesign v11 §3.11).
   final vibration = await restoreVibration(appearance);
   final reduceMotion = await restoreReduceMotion(appearance);
@@ -32,8 +31,8 @@ Future<void> main() async {
   AppMotion.reduceMotion = reduceMotion;
   runApp(ProviderScope(
     overrides: [
-      initialThemeChoiceProvider.overrideWithValue(themeChoice),
-      initialHighContrastProvider.overrideWithValue(highContrast),
+      initialBaseThemeModeProvider.overrideWithValue(baseThemeMode),
+      initialSunModeProvider.overrideWithValue(sunMode),
       initialVibrationProvider.overrideWithValue(vibration),
       initialReduceMotionProvider.overrideWithValue(reduceMotion),
       errorReportStoreProvider.overrideWithValue(errorReport),
@@ -50,28 +49,18 @@ class VisioSoilApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final highContrast = ref.watch(highContrastProvider);
-    final themeChoice = ref.watch(themeChoiceProvider);
-    // Modo Sol forces its own high-contrast light theme and ignores both the
-    // "Alto contraste" setting and the platform's brightness (redesign v11 §2,
-    // decision 23/10/2026). Otherwise the setting turns high contrast on; so
-    // does the platform's own signal, through the two high-contrast themes
-    // (SPEC 0130).
-    final light = themeChoice == AppThemeChoice.sun
-        ? AppTheme.sun
-        : (highContrast ? AppTheme.lightHighContrast : AppTheme.light);
-    final dark = themeChoice == AppThemeChoice.sun
-        ? AppTheme.sun
-        : (highContrast ? AppTheme.darkHighContrast : AppTheme.dark);
-    // Sol is its own fixed high-contrast theme (redesign v11 §2,
-    // decision 23/10/2026, SPEC 0182): while it's the explicit choice, the
-    // platform's own high-contrast signal must not swap it for the legacy
-    // high-contrast pair (SPEC 0130), at startup or when the signal changes
-    // during use.
-    final highContrastLight =
-        themeChoice == AppThemeChoice.sun ? AppTheme.sun : AppTheme.lightHighContrast;
-    final highContrastDark =
-        themeChoice == AppThemeChoice.sun ? AppTheme.sun : AppTheme.darkHighContrast;
+    final sunMode = ref.watch(sunModeProvider);
+    final baseThemeMode = ref.watch(baseThemeModeProvider);
+    // Modo Sol forces its own fixed high-contrast light theme and ignores
+    // both the base choice and the platform's brightness (redesign v11 §2,
+    // SPEC 0186). The platform's own high-contrast signal still turns high
+    // contrast on through the two `highContrastTheme`/`highContrastDarkTheme`
+    // params below (SPEC 0130) — unrelated to Modo Sol, which must not be
+    // knocked out by that signal while it is the explicit override.
+    final light = sunMode ? AppTheme.sun : AppTheme.light;
+    final dark = sunMode ? AppTheme.sun : AppTheme.dark;
+    final highContrastLight = sunMode ? AppTheme.sun : AppTheme.lightHighContrast;
+    final highContrastDark = sunMode ? AppTheme.sun : AppTheme.darkHighContrast;
     return MaterialApp.router(
       title: 'VisioSoil',
       debugShowCheckedModeBanner: false,
@@ -79,7 +68,7 @@ class VisioSoilApp extends ConsumerWidget {
       darkTheme: dark,
       highContrastTheme: highContrastLight,
       highContrastDarkTheme: highContrastDark,
-      themeMode: nightModeFor(themeChoice),
+      themeMode: nightModeFor(baseThemeMode, sun: sunMode),
       routerConfig: routerConfig ?? appRouter,
       // Fixed, not the device's: the app's own copy is pt-BR only, so Flutter's
       // widgets speak it too (SPEC 0119).

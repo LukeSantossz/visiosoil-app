@@ -6,9 +6,21 @@
 // threshold check.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 
-Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
+Widget host(Widget child, {ThemeData? theme}) =>
+    MaterialApp(theme: theme, home: Scaffold(body: child));
+
+/// The pill's own [Container], carrying the level's background/border.
+Container pill(WidgetTester tester) => tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(ConfidenceBadge),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
 
 void main() {
   testWidgets('null score renders nothing', (tester) async {
@@ -146,5 +158,30 @@ void main() {
       );
       semantics.dispose();
     });
+  });
+
+  // In Sol every container (primary/warning/error) is white, so the pill
+  // needs its own 2 dp black border to read against the white page behind it
+  // (redesign v11 §1.1, SPEC 0186).
+  group('in Sol, the pill carries a 2dp black border', () {
+    for (final score in [0.95, 0.6, 0.3]) {
+      testWidgets('score $score', (tester) async {
+        await tester.pumpWidget(
+          host(ConfidenceBadge(score: score), theme: AppTheme.sun),
+        );
+
+        final decoration = pill(tester).decoration as BoxDecoration;
+        expect(decoration.border, Border.all(color: Colors.black, width: 2));
+      });
+    }
+  });
+
+  testWidgets('outside Sol, the pill carries no border', (tester) async {
+    await tester.pumpWidget(
+      host(const ConfidenceBadge(score: 0.95), theme: AppTheme.light),
+    );
+
+    final decoration = pill(tester).decoration as BoxDecoration;
+    expect(decoration.border, isNull);
   });
 }

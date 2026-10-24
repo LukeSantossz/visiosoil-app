@@ -1,6 +1,6 @@
 // The app starts in the stored theme and keeps the status-bar icons readable
-// on it (SPEC 0107). Vibration and reduce motion are restored before first frame
-// (redesign v11 §3.11).
+// on it (SPEC 0107, SPEC 0186). Vibration and reduce motion are restored
+// before first frame (redesign v11 §3.11).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,23 +14,22 @@ import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 
 class _MemoryStore implements AppearanceStore {
-  _MemoryStore(this.stored);
+  _MemoryStore({this.base = ThemeMode.system, this.sun = false});
 
-  AppThemeChoice? stored;
-
-  @override
-  Future<AppThemeChoice?> readThemeChoice() async => stored;
+  ThemeMode base;
+  bool sun;
 
   @override
-  Future<void> writeThemeChoice(AppThemeChoice choice) async => stored = choice;
-
-  bool highContrast = false;
+  Future<ThemeMode> readBaseThemeMode() async => base;
 
   @override
-  Future<bool> readHighContrast() async => highContrast;
+  Future<void> writeBaseThemeMode(ThemeMode mode) async => base = mode;
 
   @override
-  Future<void> writeHighContrast(bool on) async => highContrast = on;
+  Future<bool> readSunMode() async => sun;
+
+  @override
+  Future<void> writeSunMode(bool on) async => sun = on;
 
   bool vibration = true;
 
@@ -55,19 +54,20 @@ class _RecordingSync implements NightModeSync {
 }
 
 Widget _app(
-  AppThemeChoice? stored,
+  ThemeMode base,
   void Function(BuildContext) onBuild, {
-  bool highContrast = false,
+  bool sun = false,
   bool vibration = true,
   bool reduceMotion = false,
 }) =>
     ProviderScope(
       overrides: [
-        initialThemeChoiceProvider.overrideWithValue(stored),
-        initialHighContrastProvider.overrideWithValue(highContrast),
+        initialBaseThemeModeProvider.overrideWithValue(base),
+        initialSunModeProvider.overrideWithValue(sun),
         initialVibrationProvider.overrideWithValue(vibration),
         initialReduceMotionProvider.overrideWithValue(reduceMotion),
-        appearanceStoreProvider.overrideWithValue(_MemoryStore(stored)),
+        appearanceStoreProvider
+            .overrideWithValue(_MemoryStore(base: base, sun: sun)),
         nightModeSyncProvider.overrideWithValue(_RecordingSync()),
       ],
       child: _AppWithControllersInitialized(
@@ -107,8 +107,7 @@ void main() {
   testWidgets('the_first_frame_is_in_the_stored_theme', (tester) async {
     final seen = <Brightness>[];
     await tester.pumpWidget(
-      _app(AppThemeChoice.dark,
-          (context) => seen.add(Theme.of(context).brightness)),
+      _app(ThemeMode.dark, (context) => seen.add(Theme.of(context).brightness)),
     );
 
     expect(seen, isNotEmpty);
@@ -116,13 +115,12 @@ void main() {
   });
 
   // No explicit choice ever made: the first boot follows the system, which
-  // the test view reports as light (redesign v11 §2, decision 23/10/2026,
-  // SPEC 0182).
+  // the test view reports as light (redesign v11 §2, SPEC 0186).
   testWidgets('first_boot_with_no_stored_choice_follows_the_system',
       (tester) async {
     final seen = <Brightness>[];
     await tester.pumpWidget(
-      _app(null, (context) => seen.add(Theme.of(context).brightness)),
+      _app(ThemeMode.system, (context) => seen.add(Theme.of(context).brightness)),
     );
 
     expect(seen.first, Brightness.light);
@@ -137,7 +135,7 @@ void main() {
     final seen = <Brightness>[];
 
     await tester.pumpWidget(
-      _app(null, (context) => seen.add(Theme.of(context).brightness)),
+      _app(ThemeMode.system, (context) => seen.add(Theme.of(context).brightness)),
     );
 
     expect(seen.first, Brightness.dark);
@@ -149,7 +147,7 @@ void main() {
       (tester) async {
     final seen = <Brightness>[];
     await tester.pumpWidget(
-      _app(null, (context) => seen.add(Theme.of(context).brightness)),
+      _app(ThemeMode.system, (context) => seen.add(Theme.of(context).brightness)),
     );
     expect(seen.last, Brightness.light);
 
@@ -164,11 +162,11 @@ void main() {
   });
 
   // Sol is reached only by an explicit choice; it is never where a fresh
-  // install or a plain light/dark choice lands (SPEC 0182).
+  // install or a plain light/dark base lands (SPEC 0186).
   testWidgets('sol_never_turns_on_by_itself', (tester) async {
     final seen = <bool>[];
     await tester.pumpWidget(_app(
-      null,
+      ThemeMode.system,
       (context) => seen.add(context.palette.isSun),
     ));
     expect(seen.first, isFalse);
@@ -176,23 +174,25 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     seen.clear();
     await tester.pumpWidget(_app(
-      AppThemeChoice.dark,
+      ThemeMode.dark,
       (context) => seen.add(context.palette.isSun),
     ));
     expect(seen.first, isFalse);
   });
 
-  // Sol forces its own light theme and ignores the platform's brightness
-  // (redesign v11 §2).
-  testWidgets('sol_ignores_the_platform_brightness', (tester) async {
+  // Sol forces its own light theme and ignores the platform's brightness, and
+  // the base underneath it (redesign v11 §2).
+  testWidgets('sol_ignores_the_platform_brightness_and_the_base',
+      (tester) async {
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
     final seen = <(Brightness, bool)>[];
 
     await tester.pumpWidget(_app(
-      AppThemeChoice.sun,
+      ThemeMode.dark,
       (context) =>
           seen.add((Theme.of(context).brightness, context.palette.isSun)),
+      sun: true,
     ));
 
     expect(seen.first, (Brightness.light, true));
@@ -207,29 +207,19 @@ void main() {
         )
         .value;
 
-    await tester.pumpWidget(_app(AppThemeChoice.dark, (_) {}));
+    await tester.pumpWidget(_app(ThemeMode.dark, (_) {}));
     expect(overlay().statusBarIconBrightness, Brightness.light);
     expect(overlay().statusBarBrightness, Brightness.dark);
 
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(_app(AppThemeChoice.light, (_) {}));
+    await tester.pumpWidget(_app(ThemeMode.light, (_) {}));
     expect(overlay().statusBarIconBrightness, Brightness.dark);
     expect(overlay().statusBarBrightness, Brightness.light);
   });
 
-  // High contrast is restored before the first frame, and the platform's own
-  // signal turns it on too (SPEC 0130).
-  testWidgets('high_contrast_survives_a_restart', (tester) async {
-    final seen = <bool>[];
-    await tester.pumpWidget(_app(
-      AppThemeChoice.light,
-      (context) => seen.add(context.palette.highContrast),
-      highContrast: true,
-    ));
-
-    expect(seen.first, isTrue);
-  });
-
+  // The platform's own high-contrast accessibility signal turns high
+  // contrast on through `highContrastTheme`/`highContrastDarkTheme`
+  // (SPEC 0130) — independent of Modo Sol and of any manual switch.
   testWidgets('platform_signal_is_honoured', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(highContrast: true);
@@ -237,7 +227,7 @@ void main() {
     final seen = <bool>[];
 
     await tester.pumpWidget(
-      _app(AppThemeChoice.light,
+      _app(ThemeMode.light,
           (context) => seen.add(context.palette.highContrast)),
     );
 
@@ -255,21 +245,23 @@ void main() {
     final seen = <bool>[];
 
     await tester.pumpWidget(_app(
-      AppThemeChoice.sun,
+      ThemeMode.system,
       (context) => seen.add(context.palette.isSun),
+      sun: true,
     ));
 
     expect(seen.last, isTrue);
   });
 
   // Toggling the platform's high-contrast signal while Sol is already chosen
-  // must not knock the app out of Sol (SPEC 0182).
+  // must not knock the app out of Sol (SPEC 0182, SPEC 0186).
   testWidgets('sol_overrides_platform_high_contrast_when_toggled_during_use',
       (tester) async {
     final seen = <bool>[];
     await tester.pumpWidget(_app(
-      AppThemeChoice.sun,
+      ThemeMode.system,
       (context) => seen.add(context.palette.isSun),
+      sun: true,
     ));
     expect(seen.last, isTrue);
 
@@ -286,7 +278,7 @@ void main() {
   testWidgets('vibration_off_survives_a_restart', (tester) async {
     AppHaptics.enabled = true;
     await tester.pumpWidget(_app(
-      AppThemeChoice.light,
+      ThemeMode.light,
       (_) {},
       vibration: false,
     ));
@@ -299,7 +291,7 @@ void main() {
   testWidgets('reduce_motion_survives_a_restart', (tester) async {
     AppMotion.reduceMotion = false;
     await tester.pumpWidget(_app(
-      AppThemeChoice.light,
+      ThemeMode.light,
       (_) {},
       reduceMotion: true,
     ));
