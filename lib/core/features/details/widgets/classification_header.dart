@@ -98,23 +98,30 @@ class _BadgeTimestampRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (record.hasClassification) ...[
-          ConfidenceBadge(score: record.confidenceScore),
-          const SizedBox(width: AppSpacing.md),
-        ],
-        Icon(Icons.access_time, size: 14, color: context.palette.onSurfaceVariant),
-        const SizedBox(width: AppSpacing.xs),
-        Flexible(
-          child: Text(
-            record.formattedTimestampCompact,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: context.palette.onSurfaceVariant,
+        if (record.hasClassification)
+          ConfidenceBadge(score: record.confidenceScore, fullLabel: true),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.access_time,
+                size: 14, color: context.palette.onSurfaceVariant),
+            const SizedBox(width: AppSpacing.xs),
+            Flexible(
+              child: Text(
+                record.formattedTimestampCompact,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.palette.onSurfaceVariant,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );

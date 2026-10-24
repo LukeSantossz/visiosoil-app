@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
-import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 
@@ -11,7 +11,15 @@ import 'package:visiosoil_app/models/confidence_level.dart';
 /// trello acceptance criterion overrides §4's "só %" compact variant.
 /// Renders nothing when [score] is null.
 class ConfidenceBadge extends StatelessWidget {
-  const ConfidenceBadge({super.key, required this.score, this.compact = false});
+  const ConfidenceBadge({
+    super.key,
+    required this.score,
+    this.compact = false,
+    this.fullLabel = false,
+  });
+
+  static const double _pillRadius = 6;
+  static const double _sunBorderWidth = 2;
 
   /// Confidence score (0.0 to 1.0).
   final double? score;
@@ -19,6 +27,9 @@ class ConfidenceBadge extends StatelessWidget {
   /// When true, renders a denser pill (smaller icon and padding); the label
   /// and percentage still both show.
   final bool compact;
+
+  /// Shows the full confidence phrase on result surfaces.
+  final bool fullLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +40,18 @@ class ConfidenceBadge extends StatelessWidget {
     // A corrupt/non-finite persisted score must not crash: `_floorPercent`
     // throws on NaN/infinity, so drop the percentage and show only the level.
     final pct = score.isFinite ? _floorPercent(score) : null;
-    final text = pct != null ? '$pct% · ${level.label}' : level.label;
+    final label = fullLabel
+        ? switch (level) {
+            ConfidenceLevel.high => AppStrings.confidenceHigh,
+            ConfidenceLevel.moderate => AppStrings.confidenceModerate,
+            ConfidenceLevel.low => AppStrings.confidenceLow,
+          }
+        : level.label;
+    final text = pct == null
+        ? label
+        : fullLabel
+        ? '$label · $pct%'
+        : '$pct% · $label';
     final iconSize = compact ? 12.0 : 14.0;
     final horizontalPadding = compact ? AppSpacing.xs : AppSpacing.sm;
 
@@ -38,29 +60,41 @@ class ConfidenceBadge extends StatelessWidget {
           ? 'Confiança ${level.label.toLowerCase()}, $pct por cento'
           : 'Confiança ${level.label.toLowerCase()}',
       child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(level.icon, size: iconSize, color: level.foregroundColor(context.palette)),
-            const SizedBox(width: AppSpacing.xs),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: AppSpacing.xs,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: level.backgroundColor(context.palette),
+            borderRadius: BorderRadius.circular(_pillRadius),
+            border: context.palette.isSun
+                ? Border.all(
+                    color: context.palette.onSurface,
+                    width: _sunBorderWidth,
+                  )
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                level.icon,
+                size: iconSize,
+                color: level.foregroundColor(context.palette),
               ),
-              decoration: BoxDecoration(
-                color: level.backgroundColor(context.palette),
-                borderRadius: AppRadius.borderRadiusPill,
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  text,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: level.foregroundColor(context.palette),
+                  ),
+                ),
               ),
-              child: Text(
-                text,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: level.foregroundColor(context.palette),
-                    ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

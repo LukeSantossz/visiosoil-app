@@ -1,5 +1,10 @@
 /// Shared string constants used across more than one layer.
 abstract final class AppStrings {
+  /// Full confidence labels for the result badge (redesign v11 §3.14).
+  static const String confidenceHigh = 'Confiança alta';
+  static const String confidenceModerate = 'Confiança média';
+  static const String confidenceLow = 'Confiança baixa';
+
   /// Stored when a record has no usable address. Shared by the writers that
   /// persist it and by `SoilRecord.hasValidAddress` so the stored value and the
   /// validity check can never drift apart (the cause of the prior sentinel bug).
