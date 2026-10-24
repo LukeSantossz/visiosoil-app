@@ -157,5 +157,42 @@ void main() {
       expect(AppTheme.darkHighContrast.extension<AppPalette>()?.isSun, isFalse);
       expect(AppTheme.light.extension<AppDensity>(), isNull);
     });
+
+    // The selected segment is black with white text/icon, not the sun
+    // palette's own `selected` token (white, same as unselected), so it is
+    // visible against the all-white theme at >=7:1 contrast (redesign v11
+    // §1.1, §8, SPEC 0184).
+    test('the selected segment is black with white text', () {
+      final style = AppTheme.sun.segmentedButtonTheme.style;
+      const selected = {WidgetState.selected};
+      expect(style?.backgroundColor?.resolve(selected), Colors.black);
+      expect(style?.foregroundColor?.resolve(selected), Colors.white);
+      expect(style?.backgroundColor?.resolve({}), isNot(Colors.black));
+      expect(style?.foregroundColor?.resolve({}), isNot(Colors.white));
+    });
+  });
+
+  group('AppTheme.light/dark segmentedButtonTheme', () {
+    // The selected segment uses the mock's green `selected` token, not M3's
+    // default secondaryContainer, which is brown in this palette (redesign
+    // v11 §1.1, SPEC 0184).
+    test('the selected segment uses the palette selected token', () {
+      for (final (palette, theme) in [
+        (AppPalette.light, AppTheme.light),
+        (AppPalette.dark, AppTheme.dark),
+      ]) {
+        final style = theme.segmentedButtonTheme.style;
+        expect(
+          style?.backgroundColor?.resolve({WidgetState.selected}),
+          palette.selected,
+          reason: palette.brightness.name,
+        );
+        expect(
+          style?.backgroundColor?.resolve({WidgetState.selected}),
+          isNot(palette.secondaryContainer),
+          reason: palette.brightness.name,
+        );
+      }
+    });
   });
 }

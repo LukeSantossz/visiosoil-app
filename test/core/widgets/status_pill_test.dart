@@ -11,6 +11,21 @@ import '../../support/guidelines.dart';
 Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
+  testWidgets('Sun gives every status a 2dp black border', (tester) async {
+    for (final status in StatusPillStatus.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.sun,
+          home: Scaffold(body: StatusPill(status: status)),
+        ),
+      );
+      final decoration =
+          tester.widget<Container>(find.byType(Container)).decoration
+              as BoxDecoration;
+      expect(decoration.border, Border.all(color: Colors.black, width: 2));
+    }
+  });
+
   for (final (name, theme, fontSize, minHeight) in [
     ('light', AppTheme.light, 12.0, 24.0),
     ('dark', AppTheme.dark, 12.0, 24.0),

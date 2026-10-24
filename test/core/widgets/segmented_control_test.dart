@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 
 import '../../support/guidelines.dart';
@@ -16,6 +17,52 @@ const options = [
 ];
 
 void main() {
+  testWidgets('Sun selected segment has black fill and white label and icon', (
+    tester,
+  ) async {
+    for (final value in ['list', 'coll']) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.sun,
+          home: Scaffold(
+            body: SegmentedControl<String>(
+              options: options,
+              value: value,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final indicator = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AnimatedPositioned),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(indicator.color, Colors.black);
+      final selected = options.firstWhere((option) => option.value == value);
+      final labelColor = tester
+          .widget<Text>(find.text(selected.label))
+          .style!
+          .color!;
+      expect(labelColor, Colors.white);
+      expect(
+        tester.widget<Icon>(find.byIcon(selected.icon!)).color,
+        Colors.white,
+      );
+      final contrast =
+          (labelColor.computeLuminance() + 0.05) /
+          (indicator.color!.computeLuminance() + 0.05);
+      expect(contrast, greaterThanOrEqualTo(7));
+      final unselected = options.firstWhere((option) => option.value != value);
+      expect(
+        tester.widget<Text>(find.text(unselected.label)).style!.color,
+        isNot(Colors.white),
+      );
+    }
+  });
+
   testWidgets('shows every option label', (tester) async {
     await tester.pumpWidget(host(SegmentedControl<String>(
       options: options,
