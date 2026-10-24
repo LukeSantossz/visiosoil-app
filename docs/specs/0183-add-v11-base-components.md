@@ -79,6 +79,7 @@ Add the six v11 §4 components as standalone widgets under `lib/core/widgets/`, 
 - `settings_switch_tile_exposes_toggled_and_enabled_semantics_merging_title_and_subtitle_into_one_label`.
 - `settings_switch_tile_meets_the_accessibility_guidelines_in_both_themes`.
 - `status_pill_shows_the_right_label_and_icon_for_each_of_the_three_statuses_with_three_distinct_colors`.
+- StatusPill uses a 12 dp label (14 in Sun via `context.palette.isSun`), weight w600, a 6 dp border radius, and a minimum height of 24 dp (28 in Sun), verified for all three statuses.
 - `status_pill_exposes_the_status_as_its_semantics_label`; `status_pill_meets_the_text_contrast_guideline_in_both_themes`.
 - `swipe_to_delete_closed_shows_only_the_child`; `swipe_to_delete_dragging_past_the_threshold_reveals_excluir`.
 - `swipe_to_delete_tapping_excluir_collapses_the_row_calls_ondelete_and_shows_a_snackbar_with_desfazer_only_when_onundo_is_given`.
