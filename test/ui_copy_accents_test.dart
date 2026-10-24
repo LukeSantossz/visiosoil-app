@@ -42,8 +42,8 @@ void main() {
       ('refaca a foto para confirmar', 'refaça a foto para confirmar'),
     ],
     'lib/core/features/home/widgets/stats_grid.dart': [
-      ('Analises', 'Análises'),
-      ('Confianca', 'Confiança'),
+      ('analises', 'análises'),
+      ('confianca', 'confiança'),
     ],
     'lib/core/features/history/widgets/history_filter_bar.dart': [
       ('Buscar por endereco', 'Buscar por endereço'),
