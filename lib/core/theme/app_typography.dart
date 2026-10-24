@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'app_palette.dart';
 
 /// VisioSoil typographic scale.
-/// Display/titles: Manrope (bold, tight tracking)
-/// Body/labels: Inter (legible in the field)
+/// Display: Manrope (bold, tight tracking) for headlineLarge/Small and
+/// titleLarge/Small.
+/// headlineMedium, titleMedium, body and labels: Inter (legible in the
+/// field; headlineMedium and titleMedium moved from Manrope to Inter in
+/// SPEC 0186, per the redesign's §1.2).
 ///
 /// Fonts are bundled in assets/fonts/ and registered in pubspec.yaml
-/// via the Flutter fonts: section (no runtime fetching).
+/// via the Flutter fonts: section (no runtime fetching). headlineMedium uses
+/// InterVariable for exact weight 650; other Inter styles use static instances.
 ///
 /// Redesign v11 introduces Inter font features (cv11, ss01) on body/label
-/// styles, and new additive tokens (`v11*`) for screens to adopt in later PRs.
+/// styles.
 abstract final class AppTypography {
   static const _displayFamily = 'Manrope';
   static const _bodyFamily = 'Inter';
@@ -40,22 +44,16 @@ abstract final class AppTypography {
         height: 1.2,
       );
 
+  /// Inter 28/36, variable weight 650, tracking -0.025em
+  /// (SPEC 0186; redesign v11 §1.2).
   static TextStyle get headlineMedium => TextStyle(
-        fontFamily: _displayFamily,
+        fontFamily: 'InterVariable',
+        fontVariations: const [FontVariation('wght', 650)],
         fontSize: 28,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.4,
-        height: 1.2,
-      );
-
-  /// Redesign v11 headlineMedium: 28/36, weight 650 (w700), tracking -0.025em.
-  /// Screens adopt this in later PRs via explicit use.
-  static TextStyle get v11HeadlineMedium => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.7, // -0.025em * 28
         height: 36 / 28,
+        fontFeatures: _interFeatures,
       );
 
   static TextStyle get headlineSmall => TextStyle(
@@ -74,17 +72,8 @@ abstract final class AppTypography {
         height: 1.3,
       );
 
+  /// Inter 16/22, weight 600 (SPEC 0186; redesign v11 §1.2).
   static TextStyle get titleMedium => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-        height: 1.4,
-      );
-
-  /// Redesign v11 titleMedium: Inter 16/22, weight 600.
-  /// Screens adopt this in later PRs via explicit use.
-  static TextStyle get v11TitleMedium => TextStyle(
         fontFamily: _bodyFamily,
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -116,7 +105,7 @@ abstract final class AppTypography {
         fontSize: 14,
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
-        height: 1.45,
+        height: 20 / 14, // SPEC 0186; redesign v11 §1.2
         fontFeatures: _interFeatures,
       );
 
@@ -125,7 +114,7 @@ abstract final class AppTypography {
         fontSize: 12,
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
-        height: 1.4,
+        height: 16 / 12, // SPEC 0186; redesign v11 §1.2
         fontFeatures: _interFeatures,
       );
 
