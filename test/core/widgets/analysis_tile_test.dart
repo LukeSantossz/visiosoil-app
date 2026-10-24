@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
@@ -33,6 +34,29 @@ SoilRecord classifiedRecord({
     );
 
 void main() {
+  testWidgets('Sun pending tile carries a 2dp black pill border', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.sun,
+        home: Scaffold(
+          body: AnalysisTile(record: classifiedRecord(syncStatus: 'pending')),
+        ),
+      ),
+    );
+    final container = tester.widget<Container>(
+      find.descendant(
+        of: find.byType(StatusPill),
+        matching: find.byType(Container),
+      ),
+    );
+    expect(
+      (container.decoration as BoxDecoration).border,
+      Border.all(color: Colors.black, width: 2),
+    );
+  });
+
   group('normal state', () {
     testWidgets('shows the texture class, time and a compact confidence badge',
         (tester) async {

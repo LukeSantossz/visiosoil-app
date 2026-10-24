@@ -165,14 +165,19 @@ void main() {
   // (redesign v11 §1.1, SPEC 0186).
   group('in Sol, the pill carries a 2dp black border', () {
     for (final score in [0.95, 0.6, 0.3]) {
-      testWidgets('score $score', (tester) async {
-        await tester.pumpWidget(
-          host(ConfidenceBadge(score: score), theme: AppTheme.sun),
-        );
+      for (final compact in [false, true]) {
+        testWidgets('score $score, compact $compact', (tester) async {
+          await tester.pumpWidget(
+            host(
+              ConfidenceBadge(score: score, compact: compact),
+              theme: AppTheme.sun,
+            ),
+          );
 
-        final decoration = pill(tester).decoration as BoxDecoration;
-        expect(decoration.border, Border.all(color: Colors.black, width: 2));
-      });
+          final decoration = pill(tester).decoration as BoxDecoration;
+          expect(decoration.border, Border.all(color: Colors.black, width: 2));
+        });
+      }
     }
   });
 

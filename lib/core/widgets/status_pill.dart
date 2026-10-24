@@ -60,6 +60,9 @@ class StatusPill extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: status.backgroundColor(palette),
+            border: context.palette.isSun
+                ? Border.all(color: Colors.black, width: 2)
+                : null,
             borderRadius: AppRadius.borderRadiusSm,
           ),
           child: Row(

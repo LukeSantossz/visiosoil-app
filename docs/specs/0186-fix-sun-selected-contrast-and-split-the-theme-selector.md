@@ -238,3 +238,13 @@ Flutter 3.44.1, Dart 3.12.1, `mf` v0.8.0.
   guidelines passing, which would point to a provider/store wiring gap this
   spec's guideline and round-trip tests do not reach (e.g. a platform restart
   path that skips `restoreAppearance`).
+
+## PR 416 QA follow-up: Sun base components
+
+QA items 1–3 extend the Sun contrast fixes to the merged base components.
+Using `context.palette.isSun`, `SegmentedControl` paints its selected indicator
+black and its selected label and icon white (21:1 contrast, above the 7:1 floor).
+`StatusPill` draws a 2 dp black border for every status, including the pending
+pill reused by `AnalysisTile`. `ConfidenceBadge` retains the same border in
+both full and compact variants at every confidence level. Widget tests cover
+these Sun states. Light and dark rendering and QA items 4–8 are outside scope.
