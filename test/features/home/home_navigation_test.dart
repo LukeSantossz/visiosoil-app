@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/guidelines.dart';
@@ -62,6 +64,9 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        connectivityStatusProvider.overrideWithValue(
+          const AsyncData(ConnectivityStatus.online),
+        ),
         soilRecordsStreamProvider.overrideWith((ref) => Stream.value([shown])),
         // MainScreen's IndexedStack eagerly builds the History tab, whose grid
         // watches filteredRecordsProvider — which reads the real Drift

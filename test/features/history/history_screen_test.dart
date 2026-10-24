@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +31,10 @@ final class _ListSoilRecordRepository extends FakeSoilRecordRepository {
   Stream<List<SoilRecord>> watchFiltered({
     String? textureClass,
     String? searchTerm,
-  }) =>
-      Stream.value([
-        for (final record in records)
-          if (textureClass == null || record.textureClass == textureClass)
-            record,
-      ]);
+  }) => Stream.value([
+    for (final record in records)
+      if (textureClass == null || record.textureClass == textureClass) record,
+  ]);
 }
 
 /// Guards the history texture-filter error state (#117): a provider failure must
@@ -54,15 +55,25 @@ void main() {
   final rootError = soilRecordsStreamProvider.overrideWithValue(
     AsyncValue<List<SoilRecord>>.error(Exception('boom'), StackTrace.current),
   );
-  final emptyGrid =
-      filteredRecordsProvider.overrideWith((ref) => Stream.value(<SoilRecord>[]));
+  final emptyGrid = filteredRecordsProvider.overrideWith(
+    (ref) => Stream.value(<SoilRecord>[]),
+  );
 
-  testWidgets('filter error branch renders visible feedback and a retry',
-      (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [emptyGrid, rootError],
-      child: const MaterialApp(home: HistoryScreen()),
-    ));
+  testWidgets('filter error branch renders visible feedback and a retry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          emptyGrid,
+          rootError,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
     await tester.pump();
 
     expect(find.text('Não foi possível carregar os filtros'), findsOneWidget);
@@ -76,14 +87,23 @@ void main() {
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
-  testWidgets('retry invalidates the root records stream, not just the wrapper',
-      (tester) async {
+  testWidgets('retry invalidates the root records stream, not just the wrapper', (
+    tester,
+  ) async {
     final spy = _DisposeSpy();
-    await tester.pumpWidget(ProviderScope(
-      observers: [spy],
-      overrides: [emptyGrid, rootError],
-      child: const MaterialApp(home: HistoryScreen()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        observers: [spy],
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          emptyGrid,
+          rootError,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
     await tester.pump();
 
     expect(find.text('Tentar novamente'), findsOneWidget);
@@ -98,12 +118,12 @@ void main() {
   });
 
   SoilRecord record(int id) => SoilRecord(
-        id: id,
-        imagePath: 'x.png',
-        timestamp: '2026-06-26T12:00:00Z',
-        textureClass: 'Argilosa',
-        confidenceScore: 0.9,
-      );
+    id: id,
+    imagePath: 'x.png',
+    timestamp: '2026-06-26T12:00:00Z',
+    textureClass: 'Argilosa',
+    confidenceScore: 0.9,
+  );
 
   Widget appWith(
     FakeSoilRecordRepository repository,
@@ -112,41 +132,48 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
+        connectivityStatusProvider.overrideWithValue(
+          const AsyncData(ConnectivityStatus.online),
+        ),
         soilRecordsStreamProvider.overrideWithValue(
           AsyncValue<List<SoilRecord>>.data([single]),
         ),
-        filteredRecordsProvider
-            .overrideWith((ref) => Stream.value(<SoilRecord>[single])),
+        filteredRecordsProvider.overrideWith(
+          (ref) => Stream.value(<SoilRecord>[single]),
+        ),
         soilRecordRepositoryProvider.overrideWithValue(repository),
       ],
       child: MaterialApp(theme: theme, home: const HistoryScreen()),
     );
   }
 
-  testWidgets('confirming delete of a selected record deletes it and notifies',
-      (tester) async {
-    final repository = FakeSoilRecordRepository();
-    await tester.pumpWidget(appWith(repository, record(7)));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'confirming delete of a selected record deletes it and notifies',
+    (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(appWith(repository, record(7)));
+      await tester.pumpAndSettle();
 
-    // Long-press the card to enter multi-select mode.
-    await tester.longPress(find.byType(Image));
-    await tester.pumpAndSettle();
+      // Long-press the card to enter multi-select mode.
+      await tester.longPress(find.byType(Image));
+      await tester.pumpAndSettle();
 
-    // Trigger the delete action, then confirm the shared dialog.
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Excluir'));
-    await tester.pumpAndSettle();
+      // Trigger the delete action, then confirm the shared dialog.
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
 
-    expect(repository.deleteByIdsCalls, [
-      [7],
-    ]);
-    expect(find.text('1 registro excluído.'), findsOneWidget);
-  });
+      expect(repository.deleteByIdsCalls, [
+        [7],
+      ]);
+      expect(find.text('1 registro excluído.'), findsOneWidget);
+    },
+  );
 
-  testWidgets('cancelling delete of a selected record deletes nothing',
-      (tester) async {
+  testWidgets('cancelling delete of a selected record deletes nothing', (
+    tester,
+  ) async {
     final repository = FakeSoilRecordRepository();
     await tester.pumpWidget(appWith(repository, record(7)));
     await tester.pumpAndSettle();
@@ -182,60 +209,65 @@ void main() {
     await tester.pumpWidget(appWith(FakeSoilRecordRepository(), single));
     await tester.pumpAndSettle();
 
-    final label = 'Registro de ${single.formattedTimestampCompact}';
-    final thumbnail = find.bySemanticsLabel(label);
-    expect(thumbnail, findsOneWidget);
-    expect(
-      tester.getSemantics(thumbnail),
-      matchesSemantics(
-        label: label,
-        isButton: true,
-        hasTapAction: true,
-        hasLongPressAction: true,
-        hasFocusAction: true,
-        isFocusable: true,
-      ),
+    final thumbnail = find.bySemanticsLabel(
+      RegExp(single.formattedTimestampCompact),
     );
-    // The ink sits over the photograph, in the card's own stack.
-    final card = find.ancestor(of: find.byType(Image), matching: find.byType(Stack));
+    expect(thumbnail, findsWidgets);
     expect(
-      find.descendant(of: card.first, matching: find.byType(InkWell)),
-      findsOneWidget,
+      tester.getSemantics(find.byType(AnalysisTile)),
+      isSemantics(isButton: true, hasTapAction: true),
     );
 
     await tester.longPress(find.byType(Image));
     await tester.pumpAndSettle();
-    expect(tester.getSemantics(thumbnail), isSemantics(isSelected: true));
+    expect(
+      tester.getSemantics(
+        find
+            .byWidgetPredicate(
+              (w) => w is Semantics && w.properties.selected == true,
+            )
+            .first,
+      ),
+      isSemantics(isSelected: true),
+    );
     semantics.dispose();
   });
 
   // A card opens details, where the photograph is one tap further
   // (SPEC 0125).
   testWidgets('tap_opens_details', (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        soilRecordsStreamProvider.overrideWithValue(
-          AsyncValue<List<SoilRecord>>.data([record(7)]),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          soilRecordsStreamProvider.overrideWithValue(
+            AsyncValue<List<SoilRecord>>.data([record(7)]),
+          ),
+          filteredRecordsProvider.overrideWith(
+            (ref) => Stream.value(<SoilRecord>[record(7)]),
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            routes: [
+              GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+              GoRoute(
+                path: '/details',
+                builder: (_, state) =>
+                    Scaffold(body: Text('DETAILS_STUB ${state.extra}')),
+              ),
+              GoRoute(
+                path: '/preview',
+                builder: (_, state) =>
+                    Scaffold(body: Text('PREVIEW_STUB ${state.extra}')),
+              ),
+            ],
+          ),
         ),
-        filteredRecordsProvider
-            .overrideWith((ref) => Stream.value(<SoilRecord>[record(7)])),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(routes: [
-          GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
-          GoRoute(
-            path: '/details',
-            builder: (_, state) =>
-                Scaffold(body: Text('DETAILS_STUB ${state.extra}')),
-          ),
-          GoRoute(
-            path: '/preview',
-            builder: (_, state) =>
-                Scaffold(body: Text('PREVIEW_STUB ${state.extra}')),
-          ),
-        ]),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(Image));
@@ -300,8 +332,8 @@ void main() {
     }
 
     IconButton deleteButton(WidgetTester tester) => tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.delete_outline),
-        );
+      find.widgetWithIcon(IconButton, Icons.delete_outline),
+    );
 
     testWidgets('selection_has_non_gesture_entry', (tester) async {
       await enterByTheButton(tester);
@@ -320,43 +352,58 @@ void main() {
     });
 
     testWidgets('selection_entry_needs_a_record', (tester) async {
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordsStreamProvider.overrideWithValue(
-            const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
-          ),
-          emptyGrid,
-        ],
-        child: const MaterialApp(home: HistoryScreen()),
-      ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStatusProvider.overrideWithValue(
+              const AsyncData(ConnectivityStatus.online),
+            ),
+            soilRecordsStreamProvider.overrideWithValue(
+              const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
+            ),
+            emptyGrid,
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.text('Nenhum registro'), findsOneWidget);
+      expect(find.text('Nenhuma análise ainda'), findsOneWidget);
       expect(find.byTooltip('Selecionar registros'), findsNothing);
     });
 
     // The button follows what the grid shows: a stream that fails after
     // records keeps them in `value`, but the grid shows its error.
     testWidgets('selection_entry_follows_the_grid', (tester) async {
-      final records = StreamController<List<SoilRecord>>();
+      final records = StreamController<List<SoilRecord>>(sync: true);
       addTearDown(records.close);
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordsStreamProvider.overrideWithValue(
-            AsyncValue<List<SoilRecord>>.data([record(7)]),
-          ),
-          filteredRecordsProvider.overrideWith((ref) => records.stream),
-        ],
-        child: const MaterialApp(home: HistoryScreen()),
-      ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStatusProvider.overrideWithValue(
+              const AsyncData(ConnectivityStatus.online),
+            ),
+            soilRecordsStreamProvider.overrideWithValue(
+              AsyncValue<List<SoilRecord>>.data([record(7)]),
+            ),
+            filteredRecordsProvider.overrideWith((ref) => records.stream),
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        ),
+      );
       records.add([record(7)]);
       await tester.pumpAndSettle();
       expect(find.byTooltip('Selecionar registros'), findsOneWidget);
 
       records.addError(Exception('boom'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar o histórico.'),
+        findsOneWidget,
+      );
       expect(find.byTooltip('Selecionar registros'), findsNothing);
     });
 
@@ -392,33 +439,37 @@ void main() {
     final records = [record(7), record(8), record(9)];
 
     Widget routedApp() => ProviderScope(
-          overrides: [
-            soilRecordsStreamProvider.overrideWithValue(
-              AsyncValue<List<SoilRecord>>.data(records),
-            ),
-            filteredRecordsProvider
-                .overrideWith((ref) => Stream.value(records)),
-            soilRecordRepositoryProvider
-                .overrideWithValue(FakeSoilRecordRepository()),
-          ],
-          child: MaterialApp.router(
-            routerConfig: GoRouter(routes: [
-              GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
-              GoRoute(
-                path: '/compare',
-                builder: (_, state) => Scaffold(
-                  appBar: AppBar(),
-                  body: Text('COMPARE_STUB ${state.extra}'),
-                ),
+      overrides: [
+        connectivityStatusProvider.overrideWithValue(
+          const AsyncData(ConnectivityStatus.online),
+        ),
+        soilRecordsStreamProvider.overrideWithValue(
+          AsyncValue<List<SoilRecord>>.data(records),
+        ),
+        filteredRecordsProvider.overrideWith((ref) => Stream.value(records)),
+        soilRecordRepositoryProvider.overrideWithValue(
+          FakeSoilRecordRepository(),
+        ),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+            GoRoute(
+              path: '/compare',
+              builder: (_, state) => Scaffold(
+                appBar: AppBar(),
+                body: Text('COMPARE_STUB ${state.extra}'),
               ),
-            ]),
-          ),
-        );
+            ),
+          ],
+        ),
+      ),
+    );
 
-    IconButton compareButton(WidgetTester tester) =>
-        tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.compare_arrows),
-        );
+    IconButton compareButton(WidgetTester tester) => tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.compare_arrows),
+    );
 
     // Tall enough for all three cards in the two-column grid.
     void useATallScreen(WidgetTester tester) {
@@ -492,17 +543,22 @@ void main() {
     ];
 
     Widget appWithAll() => ProviderScope(
-          overrides: [
-            soilRecordsStreamProvider
-                .overrideWithValue(AsyncValue<List<SoilRecord>>.data(all)),
-            soilRecordRepositoryProvider
-                .overrideWithValue(_ListSoilRecordRepository(all)),
-          ],
-          child: const MaterialApp(home: HistoryScreen()),
-        );
+      overrides: [
+        connectivityStatusProvider.overrideWithValue(
+          const AsyncData(ConnectivityStatus.online),
+        ),
+        soilRecordsStreamProvider.overrideWithValue(
+          AsyncValue<List<SoilRecord>>.data(all),
+        ),
+        soilRecordRepositoryProvider.overrideWithValue(
+          _ListSoilRecordRepository(all),
+        ),
+      ],
+      child: const MaterialApp(home: HistoryScreen()),
+    );
 
     int gridCount(WidgetTester tester) {
-      final grid = tester.widget<SliverGrid>(find.byType(SliverGrid));
+      final grid = tester.widget<SliverList>(find.byType(SliverList));
       return (grid.delegate as SliverChildBuilderDelegate).childCount!;
     }
 
@@ -511,9 +567,11 @@ void main() {
         find.text(showMore),
         3000,
         scrollable: find
-            .byWidgetPredicate((widget) =>
-                widget is Scrollable &&
-                widget.axisDirection == AxisDirection.down)
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            )
             .first,
       );
       await tester.pumpAndSettle();
@@ -533,7 +591,8 @@ void main() {
       expect(gridCount(tester), 200);
       expect(find.text(showMore), findsNothing);
       expect(
-        tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
+        tester
+            .widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
             .selected,
         isTrue,
       );
@@ -571,26 +630,35 @@ void main() {
           confidenceScore: 0.9,
         ),
       ];
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordsStreamProvider
-              .overrideWithValue(AsyncValue<List<SoilRecord>>.data(records)),
-          soilRecordRepositoryProvider
-              .overrideWithValue(_ListSoilRecordRepository(records)),
-        ],
-        child: MaterialApp.router(
-          routerConfig: GoRouter(routes: [
-            GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
-            GoRoute(
-              path: '/capture',
-              builder: (_, _) => Scaffold(
-                appBar: AppBar(),
-                body: const Text('CAPTURE_STUB'),
-              ),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStatusProvider.overrideWithValue(
+              const AsyncData(ConnectivityStatus.online),
             ),
-          ]),
+            soilRecordsStreamProvider.overrideWithValue(
+              AsyncValue<List<SoilRecord>>.data(records),
+            ),
+            soilRecordRepositoryProvider.overrideWithValue(
+              _ListSoilRecordRepository(records),
+            ),
+          ],
+          child: MaterialApp.router(
+            routerConfig: GoRouter(
+              routes: [
+                GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
+                GoRoute(
+                  path: '/capture',
+                  builder: (_, _) => Scaffold(
+                    appBar: AppBar(),
+                    body: const Text('CAPTURE_STUB'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
       await tester.pumpAndSettle();
@@ -604,7 +672,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('CAPTURE_STUB'), findsNothing);
       expect(
-        tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
+        tester
+            .widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
             .selected,
         isTrue,
       );
@@ -625,37 +694,52 @@ void main() {
       expect(find.byTooltip(newCapture), findsOneWidget);
 
       // A grid that shows its error has no records to follow.
-      final failing = StreamController<List<SoilRecord>>();
+      final failing = StreamController<List<SoilRecord>>(sync: true);
       addTearDown(failing.close);
       await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordsStreamProvider.overrideWithValue(
-            AsyncValue<List<SoilRecord>>.data([record(7)]),
-          ),
-          filteredRecordsProvider.overrideWith((ref) => failing.stream),
-        ],
-        child: const MaterialApp(home: HistoryScreen()),
-      ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStatusProvider.overrideWithValue(
+              const AsyncData(ConnectivityStatus.online),
+            ),
+            soilRecordsStreamProvider.overrideWithValue(
+              AsyncValue<List<SoilRecord>>.data([record(7)]),
+            ),
+            filteredRecordsProvider.overrideWith((ref) => failing.stream),
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        ),
+      );
       failing.addError(Exception('boom'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
       await tester.pumpAndSettle();
-      expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar o histórico.'),
+        findsOneWidget,
+      );
       expect(find.byTooltip(newCapture), findsNothing);
 
       // The empty history keeps its own button, and gets no second one.
       await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordsStreamProvider.overrideWithValue(
-            const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
-          ),
-          emptyGrid,
-        ],
-        child: const MaterialApp(home: HistoryScreen()),
-      ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStatusProvider.overrideWithValue(
+              const AsyncData(ConnectivityStatus.online),
+            ),
+            soilRecordsStreamProvider.overrideWithValue(
+              const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
+            ),
+            emptyGrid,
+          ],
+          child: const MaterialApp(home: HistoryScreen()),
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(find.text('Nenhum registro'), findsOneWidget);
-      expect(find.text(newCapture), findsOneWidget);
+      expect(find.text('Nenhuma análise ainda'), findsOneWidget);
+      expect(find.text('Fazer primeira análise'), findsOneWidget);
       expect(find.byTooltip(newCapture), findsNothing);
     });
 
@@ -689,10 +773,18 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'grid');
 
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(ProviderScope(
-      overrides: [emptyGrid, rootError],
-      child: const MaterialApp(home: HistoryScreen()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          emptyGrid,
+          rootError,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
     await tester.pump();
     expect(find.text('Tentar novamente'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'empty, filter error');

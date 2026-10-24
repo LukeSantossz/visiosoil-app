@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
@@ -21,16 +22,15 @@ import 'package:visiosoil_app/models/soil_record.dart';
 /// non-gesture equivalent to the swipe a [SwipeToDelete] wrapping this tile
 /// offers, for a screen-reader or switch-control user (redesign v11 §8).
 /// [dense] shrinks the thumbnail and padding, for a tighter list.
-///
-/// There is no caller yet: the history screen still renders a thumbnail grid
-/// (redesign v11 PR 10 migrates it to this tile).
 class AnalysisTile extends StatelessWidget {
   const AnalysisTile({
     super.key,
     required this.record,
     this.onTap,
     this.onDelete,
+    this.onLongPress,
     this.dense = false,
+    this.history = false,
   });
 
   // QA saw truncation at 320 dp; the trailing content fit at 360 dp.
@@ -39,7 +39,11 @@ class AnalysisTile extends StatelessWidget {
   final SoilRecord record;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onLongPress;
   final bool dense;
+
+  /// History uses time/confidence metadata and a chevron for sent records.
+  final bool history;
 
   @override
   Widget build(BuildContext context) {
@@ -61,72 +65,107 @@ class AnalysisTile extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: dense ? AppSpacing.xs : AppSpacing.sm,
               ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 56),
+                constraints: BoxConstraints(
+                  minHeight: context.density.tap + AppSpacing.sm,
+                ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final textScaler = MediaQuery.textScalerOf(context);
                     final stackTrailing =
-                        constraints.maxWidth < _stackedTrailingWidth ||
-                        MediaQuery.textScalerOf(context).scale(14) > 14;
-                    final trailing = _Trailing(
-                      record: record,
-                      isPending: isPending,
-                      failed: failure != null,
-                    );
-                    return Row(
+                        !history &&
+                        (constraints.maxWidth < _stackedTrailingWidth ||
+                            textScaler.scale(14) > 14);
+                    final stacked =
+                        history &&
+                        (constraints.maxWidth < 300 ||
+                            textScaler.scale(1) >= 1.3 ||
+                            (isPending &&
+                                failure == null &&
+                                constraints.maxWidth < _stackedTrailingWidth));
+                    final wrapText = stackTrailing || stacked;
+                    final trailing = history && !isPending && failure == null
+                        ? Icon(
+                            Icons.chevron_right,
+                            color: palette.onSurfaceVariant,
+                          )
+                        : _Trailing(
+                            record: record,
+                            isPending: isPending,
+                            failed: failure != null,
+                          );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _Thumbnail(
-                          record: record,
-                          size: thumbSize,
-                          failed: failure != null,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                failure != null
-                                    ? 'Não classificada'
-                                    : record.displayTextureClass,
-                                style: theme.textTheme.titleMedium,
-                                maxLines: stackTrailing ? null : 1,
-                                overflow: stackTrailing
-                                    ? null
-                                    : TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            _Thumbnail(
+                              record: record,
+                              size: thumbSize,
+                              failed: failure != null,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    failure != null
+                                        ? 'Não classificada'
+                                        : record.displayTextureClass,
+                                    style: theme.textTheme.titleMedium,
+                                    maxLines: wrapText ? null : 1,
+                                    overflow: wrapText
+                                        ? null
+                                        : TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    failure != null
+                                        ? classificationFailureChip(
+                                            failure,
+                                          ).label
+                                        : history
+                                        ? _historyMetadata(record)
+                                        : record.formattedTimestampCompact,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: failure != null
+                                          ? palette.error
+                                          : palette.onSurfaceVariant,
+                                    ),
+                                    maxLines: wrapText ? null : 1,
+                                    overflow: wrapText
+                                        ? null
+                                        : TextOverflow.ellipsis,
+                                  ),
+                                  if (stackTrailing) ...[
+                                    const SizedBox(height: AppSpacing.xs),
+                                    trailing,
+                                  ],
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                failure != null
-                                    ? classificationFailureChip(failure).label
-                                    : record.formattedTimestampCompact,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: failure != null
-                                      ? palette.error
-                                      : palette.onSurfaceVariant,
-                                ),
-                                maxLines: stackTrailing ? null : 1,
-                                overflow: stackTrailing
-                                    ? null
-                                    : TextOverflow.ellipsis,
-                              ),
-                              if (stackTrailing) ...[
-                                const SizedBox(height: AppSpacing.xs),
-                                trailing,
-                              ],
+                            ),
+                            if (!stacked && !stackTrailing) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              trailing,
                             ],
-                          ),
+                          ],
                         ),
-                        if (!stackTrailing) ...[
-                          const SizedBox(width: AppSpacing.sm),
-                          trailing,
-                        ],
+                        if (stacked)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: trailing,
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -294,4 +333,15 @@ class _Trailing extends StatelessWidget {
     }
     return Icon(Icons.chevron_right, color: context.palette.outline);
   }
+}
+
+String _historyMetadata(SoilRecord record) {
+  final date = DateTime.tryParse(record.timestamp)?.toLocal();
+  final time = date == null
+      ? record.formattedTimestampCompact
+      : '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  final score = record.confidenceScore;
+  return score != null && score.isFinite
+      ? '$time · ${floorConfidencePercent(score)}% de confiança'
+      : time;
 }
