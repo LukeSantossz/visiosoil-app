@@ -116,6 +116,9 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-ExtraBold.ttf
           weight: 800
+    - family: InterVariable
+      fonts:
+        - asset: assets/fonts/InterVariable.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Regular.ttf
