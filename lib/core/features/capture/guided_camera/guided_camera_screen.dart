@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/live_quality.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_alert.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/auto_capture_trigger.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
@@ -22,6 +26,8 @@ import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
@@ -29,7 +35,7 @@ import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 
 /// The in-app camera: the preview, the sheet outline, the soil target and the
-/// level, a banner and an always-enabled shutter (SPEC 0165, ADR 0028). Pops
+/// level, live quality chips and guarded shutter feedback (SPEC 0192). Pops
 /// a [GuidedCaptureResult]; a back gesture pops null, read as cancelled.
 class GuidedCameraScreen extends ConsumerStatefulWidget {
   const GuidedCameraScreen({super.key});
@@ -38,12 +44,20 @@ class GuidedCameraScreen extends ConsumerStatefulWidget {
   static const double footerHeight = 140;
 
   @override
-  ConsumerState<GuidedCameraScreen> createState() =>
-      _GuidedCameraScreenState();
+  ConsumerState<GuidedCameraScreen> createState() => _GuidedCameraScreenState();
 }
 
 class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  LiveQuality? _quality;
+  Map<String, String>? _failures;
+  Set<String> _failedChips = {};
+  Timer? _alertTimer;
+  Timer? _flashTimer;
+  late final AnimationController _shake = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+  );
   CaptureCamera? _camera;
 
   /// Bumped by every release, so an initialisation that completes after one
@@ -52,8 +66,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   bool _initializing = false;
 
   /// The app-wide queue of releases; the next camera opens only after it.
-  late final CameraReleaseQueue _releases =
-      ref.read(cameraReleaseQueueProvider);
+  late final CameraReleaseQueue _releases = ref.read(
+    cameraReleaseQueueProvider,
+  );
 
   /// The initialisation in flight, if any; dispose waits for it.
   Future<void>? _opening;
@@ -119,35 +134,38 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     WidgetsBinding.instance.addObserver(this);
     _errors = ref.read(errorReportStoreProvider);
     _clock = ref.read(autoCaptureClockProvider);
-    _tiltSubscription = ref.read(tiltSourceProvider).samples.listen(
-      (sample) {
-        final tilt = _smoother.add(sample.x, sample.y, sample.z);
-        if (!mounted) return;
-        if (tilt != _tilt) {
-          setState(() => _tilt = tilt);
-          _tickIfGreen();
-        }
-        // Every sample is an event: a still phone repeats the same tilt, and
-        // that sample may be the first past the window's second.
-        _feedTrigger(isReading: false);
-      },
-      onError: (Object error, StackTrace stack) {
-        // No accelerometer: the level hides and nothing is blocked.
-        developer.log(
-          'Tilt unavailable: $error',
-          name: 'GuidedCameraScreen',
-          error: error,
-          stackTrace: stack,
+    _tiltSubscription = ref
+        .read(tiltSourceProvider)
+        .samples
+        .listen(
+          (sample) {
+            final tilt = _smoother.add(sample.x, sample.y, sample.z);
+            if (!mounted) return;
+            if (tilt != _tilt) {
+              setState(() => _tilt = tilt);
+              _tickIfGreen();
+            }
+            // Every sample is an event: a still phone repeats the same tilt, and
+            // that sample may be the first past the window's second.
+            _feedTrigger(isReading: false);
+          },
+          onError: (Object error, StackTrace stack) {
+            // No accelerometer: the level hides and nothing is blocked.
+            developer.log(
+              'Tilt unavailable: $error',
+              name: 'GuidedCameraScreen',
+              error: error,
+              stackTrace: stack,
+            );
+            unawaited(_tiltSubscription?.cancel());
+            if (mounted) {
+              setState(() {
+                _tilt = null;
+                _trigger.close();
+              });
+            }
+          },
         );
-        unawaited(_tiltSubscription?.cancel());
-        if (mounted) {
-          setState(() {
-            _tilt = null;
-            _trigger.close();
-          });
-        }
-      },
-    );
     unawaited(_start());
   }
 
@@ -201,9 +219,11 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       );
       // A permission revoked while the app was away closes the screen; the
       // capture screen's own permission check explains it on the next tap.
-      _pop(e is CameraPermissionRevokedException && _everInitialized
-          ? const GuidedCaptureResult.cancelled()
-          : const GuidedCaptureResult.unavailable());
+      _pop(
+        e is CameraPermissionRevokedException && _everInitialized
+            ? const GuidedCaptureResult.cancelled()
+            : const GuidedCaptureResult.unavailable(),
+      );
       return;
     }
     _initializing = false;
@@ -245,11 +265,11 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// which waits on it, never opens while any earlier one is still closing.
   /// A shot still using it finishes first, then its frames stop.
   Future<void> _queueRelease(CaptureCamera? camera) => _releases.add(() async {
-        if (camera == null) return;
-        await _shotInFlight;
-        await _stopFrames(camera);
-        await _release(camera);
-      });
+    if (camera == null) return;
+    await _shotInFlight;
+    await _stopFrames(camera);
+    await _release(camera);
+  });
 
   /// Stops [camera]'s preview frames. A failure is recorded: a stream left
   /// running wastes the camera's work and can make the next shot fail, which
@@ -261,7 +281,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       if (starting != null) await starting;
       await camera.stopFrames();
     } on Exception catch (e, stack) {
-      unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));
+      unawaited(
+        _errors.record(source: 'guided_camera', error: e, stack: stack),
+      );
     }
   }
 
@@ -332,20 +354,23 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _frameInFlight = true;
     final RgbFrame read;
     try {
-      read = reduceForReading(rotateClockwise(
-        greyFrameFromPlane(
-          bytes: frame.bytes,
-          width: frame.width,
-          height: frame.height,
-          bytesPerRow: frame.bytesPerRow,
-          format: frame.format,
+      read = reduceForReading(
+        rotateClockwise(
+          greyFrameFromPlane(
+            bytes: frame.bytes,
+            width: frame.width,
+            height: frame.height,
+            bytesPerRow: frame.bytesPerRow,
+            format: frame.format,
+          ),
+          camera.frameRotationDegrees,
         ),
-        camera.frameRotationDegrees,
-      ));
+      );
     } on ArgumentError catch (e, stack) {
       _onReaderFailed(e, stack);
       return;
     }
+    setState(() => _quality = LiveQuality.measure(read));
     _readSize = Size(read.width.toDouble(), read.height.toDouble());
     final generation = ++_readGeneration;
     _readTimer = Timer(_readTimeout, () {
@@ -393,7 +418,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   void _feedTrigger({required bool isReading, LiveReading? reading}) {
     if (_shooting || _closed || _camera == null || !mounted) return;
     final shown = _shownReading;
-    if (shown == null || _reader == null) {
+    if (shown == null ||
+        _reader == null ||
+        (_quality != null && (!_quality!.lightOk || !_quality!.focusOk))) {
       if (_trigger.windowOpenedAt != null) setState(_trigger.close);
       return;
     }
@@ -408,8 +435,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final fire = isReading
         ? _trigger.onReading(
             row: row,
-            discDiameterMm:
-                reading is LiveSheetFound ? reading.discDiameterMm : null,
+            discDiameterMm: reading is LiveSheetFound
+                ? reading.discDiameterMm
+                : null,
             tilt: _tilt,
             at: now,
           )
@@ -479,7 +507,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   /// A selection tick on entering green, once per entry.
   void _tickIfGreen() {
-    final ready = _shownReading != null &&
+    final ready =
+        _shownReading != null &&
         guidanceFor(
               tilt: _tilt,
               reading: _shownReading,
@@ -496,11 +525,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   void _onReaderFailed(Object error, StackTrace stack) {
     if (_liveFailed) return;
     _liveFailed = true;
-    unawaited(_errors.record(
-      source: 'live_sheet_reader',
-      error: error,
-      stack: stack,
-    ));
+    unawaited(
+      _errors.record(source: 'live_sheet_reader', error: error, stack: stack),
+    );
     final camera = _camera;
     _stopLive();
     if (camera != null) unawaited(_stopFrames(camera));
@@ -523,6 +550,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _reader = null;
     _debouncer = ReadingDebouncer();
     _shownReading = null;
+    _quality = null;
     _shownAlignment = null;
     _shownTooCoarse = false;
     _wasReady = false;
@@ -595,7 +623,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final camera = _camera;
     if (_shooting || _closed || camera == null) return;
     _shooting = true;
-    if (automatic) _flash();
+    unawaited(AppHaptics.result());
+    _flash();
     // Read now: the screen may be closed by the time the shot returns.
     final stillSizes = ref.read(stillSizeStoreProvider);
     // The reader stops before the shot, and nothing waits on its last frame.
@@ -628,11 +657,16 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       // Only a window opened after this failure, lasting its full second,
       // fires again.
       _trigger.failedAt(_clock());
-      unawaited(_errors.record(source: 'guided_camera', error: e, stack: stack));
+      unawaited(
+        _errors.record(source: 'guided_camera', error: e, stack: stack),
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Não foi possível tirar a foto. Tente de novo.'),
-      ));
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível tirar a foto. Tente de novo.'),
+        ),
+      );
       if (identical(_camera, camera)) unawaited(_startLive(camera));
     }
   }
@@ -641,12 +675,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// shown when the system or user asks for reduced motion.
   void _flash() {
     if (!mounted ||
+        context.palette.isSun ||
         AppMotion.reduceMotion ||
         MediaQuery.disableAnimationsOf(context)) {
       return;
     }
     setState(() => _flashing = true);
-    Timer(AppMotion.fast, () {
+    _flashTimer?.cancel();
+    _flashTimer = Timer(AppMotion.fast, () {
       if (mounted) setState(() => _flashing = false);
     });
   }
@@ -672,6 +708,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   @override
   void dispose() {
+    _alertTimer?.cancel();
+    _flashTimer?.cancel();
+    _shake.dispose();
     _closed = true;
     _wantCamera = false;
     WidgetsBinding.instance.removeObserver(this);
@@ -681,11 +720,127 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     // Queued after the live camera's release. An initialisation still in
     // flight releases its own camera when it completes stale; the reset waits
     // for that too, and a camera screen opened meanwhile waits for the reset.
-    unawaited(_releases.add(() async {
-      await opening;
-      await _resetOrientation();
-    }));
+    unawaited(
+      _releases.add(() async {
+        await opening;
+        await _resetOrientation();
+      }),
+    );
     super.dispose();
+  }
+
+  bool _canCapture(GuidanceRow row) =>
+      (_shownReading == null || row == GuidanceRow.ready) &&
+      (_quality == null || (_quality!.lightOk && _quality!.focusOk));
+
+  QualityStatus _status(bool? ok) => ok == null
+      ? QualityStatus.adjusting
+      : ok
+      ? QualityStatus.ready
+      : QualityStatus.failed;
+
+  Widget _qualityChips(GuidanceRow row) {
+    final distance = _shownReading == null ? null : row == GuidanceRow.ready;
+    final chips = [
+      QualityChip(
+        label: 'Luz',
+        value: _quality == null
+            ? 'Ajustando…'
+            : _quality!.lightOk
+            ? 'Boa'
+            : _quality!.tooBright
+            ? 'Excessiva'
+            : 'Baixa',
+        status: _status(_quality?.lightOk),
+        highlight: _failedChips.contains('Luz'),
+      ),
+      QualityChip(
+        label: 'Foco',
+        value: _quality == null
+            ? 'Ajustando…'
+            : _quality!.focusOk
+            ? 'Nítido'
+            : 'Desfocado',
+        status: _status(_quality?.focusOk),
+        highlight: _failedChips.contains('Foco'),
+      ),
+      QualityChip(
+        label: 'Distância',
+        value: distance == null
+            ? 'Ajustando…'
+            : distance
+            ? 'Enquadrada'
+            : 'Ajuste a moldura',
+        status: _status(distance),
+        highlight: _failedChips.contains('Distância'),
+      ),
+    ];
+    if (MediaQuery.textScalerOf(context).scale(1) >= 1.3) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final chip in chips)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: chip,
+            ),
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(child: chips[i]),
+        ],
+      ],
+    );
+  }
+
+  void _onShutter(GuidanceRow row) {
+    if (_camera == null || _shooting) return;
+    if (_canCapture(row)) {
+      unawaited(_shoot());
+      return;
+    }
+    final failures = <String, String>{};
+    final chips = <String>{};
+    if (_quality != null && !_quality!.lightOk) {
+      failures[_quality!.tooBright ? 'Luz excessiva' : 'Pouca luz'] =
+          'Procure sombra clara';
+      chips.add('Luz');
+    }
+    if (_quality != null && !_quality!.focusOk) {
+      failures['fora de foco'] = 'segure firme';
+      chips.add('Foco');
+    }
+    if (_shownReading != null && row != GuidanceRow.ready) {
+      final close =
+          row == GuidanceRow.sheetCropped ||
+          _shownAlignment?.fix == MisalignmentFix.farther;
+      failures[close ? 'perto demais' : 'longe demais'] = close
+          ? 'afaste até a folha caber na moldura'
+          : 'aproxime até a amostra preencher a moldura';
+      chips.add('Distância');
+    }
+    setState(() {
+      _failures = failures;
+      _failedChips = chips;
+    });
+    _alertTimer?.cancel();
+    _alertTimer = Timer(CaptureAlert.visibleDuration, () {
+      if (mounted) {
+        setState(() {
+          _failures = null;
+          _failedChips = {};
+        });
+      }
+    });
+    if (!AppMotion.reduceMotion && !MediaQuery.disableAnimationsOf(context)) {
+      _shake.forward(from: 0);
+    }
+    unawaited(AppHaptics.blocked());
   }
 
   @override
@@ -732,7 +887,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             const IgnorePointer(
               child: ColoredBox(
                 key: ValueKey('guided-camera-flash'),
-                color: Colors.white,
+                color: Color(0x8CFFFFFF),
               ),
             ),
           SafeArea(
@@ -766,49 +921,89 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
           SafeArea(
             child: Column(
               children: [
-                _GuidanceBanner(guidance: guidance),
-                const Spacer(),
-                SizedBox(
-                  height: GuidedCameraScreen.footerHeight,
+                ColoredBox(
+                  color: Colors.black54,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       VisioIconButton(
                         key: const ValueKey('guided-camera-close'),
                         label: 'Fechar câmera',
-                        icon: Icons.close,
-                        iconSize: 32,
+                        icon: Icons.arrow_back,
                         overPhoto: true,
                         onPressed: () =>
                             _pop(const GuidedCaptureResult.cancelled()),
                       ),
-                      _Shutter(
-                        onTap: () {
-                          // Block (and fire haptic) only when we have data
-                          // showing conditions are bad. When we have no reading,
-                          // we can't know if conditions are good, so allow the
-                          // shot (redesign v11 §7).
-                          final guidance = _shownReading != null
-                              ? guidanceFor(
-                                  tilt: _tilt,
-                                  reading: _shownReading,
-                                  tooCoarse: _shownTooCoarse,
-                                  alignment: _shownAlignment,
-                                )
-                              : null;
-                          if (guidance != null &&
-                              guidance.row != GuidanceRow.ready) {
-                            unawaited(AppHaptics.blocked());
-                            return;
-                          }
-                          unawaited(_shoot());
-                        },
-                        windowOpenedAt: _trigger.windowOpenedAt,
-                        clock: _clock,
+                      const Expanded(
+                        child: Text(
+                          'Nova análise',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      // Balances the close button, so the shutter is centred.
-                      const SizedBox(width: 48),
                     ],
+                  ),
+                ),
+                _GuidanceBanner(guidance: guidance),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SingleChildScrollView(
+                      child: Container(
+                        color: Colors.black,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 560),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_failures != null) ...[
+                                  CaptureAlert(failures: _failures!),
+                                  const SizedBox(height: AppSpacing.sm),
+                                ],
+                                _qualityChips(shown.row),
+                                const SizedBox(height: AppSpacing.lg),
+                                AnimatedBuilder(
+                                  animation: _shake,
+                                  builder: (context, child) =>
+                                      Transform.translate(
+                                        key: const ValueKey(
+                                          'guided-camera-shake',
+                                        ),
+                                        offset: Offset(
+                                          math.sin(_shake.value * math.pi * 6) *
+                                              8 *
+                                              (1 - _shake.value),
+                                          0,
+                                        ),
+                                        child: child,
+                                      ),
+                                  child: _Shutter(
+                                    enabled:
+                                        _camera != null &&
+                                        !_shooting &&
+                                        _canCapture(shown.row),
+                                    shooting: _shooting,
+                                    onTap: () => _onShutter(shown.row),
+                                    windowOpenedAt: _trigger.windowOpenedAt,
+                                    clock: _clock,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                const Text(
+                                  'Captura liberada quando os 3 itens estiverem ok',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -855,11 +1050,15 @@ class _GuidanceBanner extends StatelessWidget {
 class _Shutter extends StatelessWidget {
   const _Shutter({
     required this.onTap,
+    required this.enabled,
+    required this.shooting,
     required this.windowOpenedAt,
     required this.clock,
   });
 
   final VoidCallback onTap;
+  final bool enabled;
+  final bool shooting;
 
   /// When the automatic capture's window opened, or null when none is open:
   /// the ring around the shutter fills across the window's second.
@@ -873,12 +1072,13 @@ class _Shutter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final openedAt = windowOpenedAt;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion =
+        AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context);
     const window = AutoCaptureTrigger.window;
     final elapsed = openedAt == null
         ? 0.0
         : (clock().difference(openedAt).inMicroseconds / window.inMicroseconds)
-            .clamp(0.0, 1.0);
+              .clamp(0.0, 1.0);
     return SizedBox(
       width: 92,
       height: 92,
@@ -908,17 +1108,33 @@ class _Shutter extends StatelessWidget {
             ),
           Semantics(
             button: true,
-            label: 'Tirar foto',
+            label: 'Fotografar',
+            enabled: enabled,
+            hint: enabled ? null : 'Aguardando luz, foco e distância',
+            excludeSemantics: true,
+            onTap: enabled ? onTap : null,
             child: GestureDetector(
               key: const ValueKey('guided-camera-shutter'),
               onTap: onTap,
-              child: Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.white70, width: 4),
+              child: AnimatedScale(
+                scale:
+                    shooting &&
+                        !AppMotion.reduceMotion &&
+                        !MediaQuery.disableAnimationsOf(context)
+                    ? .86
+                    : 1,
+                duration: AppMotion.durationOf(context, AppMotion.instant),
+                child: Container(
+                  width: context.density.shutter,
+                  height: context.density.shutter,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: enabled || shooting ? Colors.white : Colors.grey,
+                    border: Border.all(
+                      color: enabled ? context.palette.primary : Colors.white70,
+                      width: 4,
+                    ),
+                  ),
                 ),
               ),
             ),

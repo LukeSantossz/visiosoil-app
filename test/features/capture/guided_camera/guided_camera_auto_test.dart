@@ -66,7 +66,8 @@ void main() {
     expect(bannerText(tester), 'Segure firme…');
     expect(_ring, findsOneWidget);
     await tester.pump(const Duration(milliseconds: 500));
-    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    final ring =
+        tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
     expect(ring.progress, closeTo(0.5, 0.05));
 
     // Leaving green closes the window and empties the ring at once.
@@ -150,8 +151,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a_tap_and_a_firing_in_the_same_frame_take_one_photograph',
-      (tester) async {
+  testWidgets('a_tap_and_a_firing_in_the_same_frame_take_one_photograph', (
+    tester,
+  ) async {
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
     h.advance(500);
@@ -270,7 +272,9 @@ void main() {
       final h = GuidedCameraHarness();
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           FakeAccessibilityFeatures(disableAnimations: reduce);
-      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       await openGuidedCamera(tester, harness: h);
       final gate = Completer<void>();
       h.cameras.cameras.single.pictureGate = gate;
@@ -279,7 +283,11 @@ void main() {
       await _read(tester, h, _sound);
       h.advance(600);
       await _read(tester, h, _sound);
-      expect(_flash, reduce ? findsNothing : findsOneWidget, reason: 'reduce $reduce');
+      expect(
+        _flash,
+        reduce ? findsNothing : findsOneWidget,
+        reason: 'reduce $reduce',
+      );
       gate.complete();
       await tester.pumpAndSettle();
       expect(_shots(h), 1, reason: 'reduce $reduce');
@@ -305,8 +313,9 @@ void main() {
     expect(_ring, findsNothing);
   });
 
-  testWidgets('reduce_motion_turned_on_mid_window_stills_the_ring',
-      (tester) async {
+  testWidgets('reduce_motion_turned_on_mid_window_stills_the_ring', (
+    tester,
+  ) async {
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
@@ -314,14 +323,16 @@ void main() {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
     await tester.pump();
-    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    final ring =
+        tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
     expect(ring.progress, 1);
   });
 
   // R2 round 1: turning reduced motion off resumes the ring where the window
   // is, not from empty.
-  testWidgets('reduce_motion_turned_off_mid_window_resumes_the_ring',
-      (tester) async {
+  testWidgets('reduce_motion_turned_off_mid_window_resumes_the_ring', (
+    tester,
+  ) async {
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
@@ -331,11 +342,12 @@ void main() {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures();
     await tester.pump();
-    final ring = tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
+    final ring =
+        tester.widget<CustomPaint>(_ring).painter! as CountdownRingPainter;
     expect(ring.progress, closeTo(0.4, 0.05));
   });
 
-  testWidgets('the_trigger_adds_no_haptic', (tester) async {
+  testWidgets('the_trigger_plays_the_capture_haptic', (tester) async {
     final h = await openGuidedCamera(tester);
     await _openWindow(tester, h);
     h.advance(500);
@@ -344,8 +356,10 @@ void main() {
     await _read(tester, h, _sound);
     await tester.pumpAndSettle();
     final haptics = h.cameras.log.where((e) => e.startsWith('haptic:'));
-    expect(haptics, ['haptic:HapticFeedbackType.selectionClick'],
-        reason: 'only the green tick of SPEC 0166');
+    expect(haptics, [
+      'haptic:HapticFeedbackType.selectionClick',
+      'haptic:HapticFeedbackType.mediumImpact',
+    ], reason: 'readiness followed by v11 capture feedback');
   });
 
   testWidgets('a_release_closes_the_window', (tester) async {
@@ -375,5 +389,4 @@ void main() {
 
 class _CaptureFailed implements Exception {
   const _CaptureFailed();
-
 }
