@@ -14,21 +14,22 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 /// v11 §8). [onUndo], when given, is offered as a "Desfazer" action on the
 /// snackbar this widget shows right after deleting — restoring the
 /// underlying data is the caller's job; this widget only asks for it.
-///
-/// There is no caller yet: the history screen still renders a thumbnail grid
-/// (redesign v11 PR 10 wires this in).
 class SwipeToDelete extends StatefulWidget {
   const SwipeToDelete({
     super.key,
     required this.child,
     required this.onDelete,
     this.onUndo,
+    this.onSnackbarClosed,
     this.threshold = 50,
   });
 
   final Widget child;
   final VoidCallback onDelete;
   final VoidCallback? onUndo;
+
+  /// Lets a caller defer destructive persistence until undo is no longer offered.
+  final ValueChanged<SnackBarClosedReason>? onSnackbarClosed;
 
   /// Drag distance (dp) past which the delete action is considered revealed.
   final double threshold;
@@ -92,25 +93,45 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
     await AppHaptics.result();
     if (!mounted) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
+    final onUndo = widget.onUndo;
+    final onClosed = widget.onSnackbarClosed;
     widget.onDelete();
-    messenger?.showSnackBar(SnackBar(
-      content: const Text('Análise excluída'),
-      action: widget.onUndo == null
-          ? null
-          : SnackBarAction(
-              label: 'Desfazer',
-              onPressed: () {
-                AppHaptics.confirm();
-                widget.onUndo!();
-              },
-            ),
-    ));
+    final controller = messenger?.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 5),
+        persist: MediaQuery.accessibleNavigationOf(context),
+        content: const Text('Análise excluída'),
+        action: onUndo == null
+            ? null
+            : SnackBarAction(
+                label: 'Desfazer',
+                onPressed: () {
+                  AppHaptics.confirm();
+                  if (mounted) {
+                    setState(() {
+                      _exiting = false;
+                      _dragExtent = 0;
+                      _revealed = false;
+                    });
+                  }
+                  onUndo();
+                },
+              ),
+      ),
+    );
+    if (controller != null && onClosed != null) {
+      controller.closed.then(onClosed);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final transform = Matrix4.translationValues(-_dragExtent, 0, 0);
+    final transform = Matrix4.translationValues(
+      -(_dragExtent / _actionWidth) * AppSpacing.md,
+      0,
+      0,
+    );
 
     return Semantics(
       customSemanticsActions: {
@@ -130,6 +151,19 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
                   child: Stack(
                     alignment: Alignment.centerRight,
                     children: [
+                      AnimatedContainer(
+                        duration: _dragging
+                            ? Duration.zero
+                            : AppMotion.durationOf(context, AppMotion.fast),
+                        curve: AppMotion.standard,
+                        transform: transform,
+                        margin: EdgeInsets.only(right: _dragExtent),
+                        decoration: BoxDecoration(color: palette.background),
+                        child: GestureDetector(
+                          onTap: _revealed ? _close : null,
+                          child: widget.child,
+                        ),
+                      ),
                       if (_dragExtent > 0)
                         Positioned.fill(
                           child: Align(
@@ -177,17 +211,6 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
                             ),
                           ),
                         ),
-                      AnimatedContainer(
-                        duration: _dragging
-                            ? Duration.zero
-                            : AppMotion.durationOf(context, AppMotion.fast),
-                        curve: AppMotion.standard,
-                        transform: transform,
-                        child: GestureDetector(
-                          onTap: _revealed ? _close : null,
-                          child: widget.child,
-                        ),
-                      ),
                     ],
                   ),
                 ),

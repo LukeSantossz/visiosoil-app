@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
@@ -21,22 +22,25 @@ import 'package:visiosoil_app/models/soil_record.dart';
 /// non-gesture equivalent to the swipe a [SwipeToDelete] wrapping this tile
 /// offers, for a screen-reader or switch-control user (redesign v11 §8).
 /// [dense] shrinks the thumbnail and padding, for a tighter list.
-///
-/// There is no caller yet: the history screen still renders a thumbnail grid
-/// (redesign v11 PR 10 migrates it to this tile).
 class AnalysisTile extends StatelessWidget {
   const AnalysisTile({
     super.key,
     required this.record,
     this.onTap,
     this.onDelete,
+    this.onLongPress,
     this.dense = false,
+    this.history = false,
   });
 
   final SoilRecord record;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onLongPress;
   final bool dense;
+
+  /// History uses time/confidence metadata and a chevron for sent records.
+  final bool history;
 
   @override
   Widget build(BuildContext context) {
@@ -58,53 +62,93 @@ class AnalysisTile extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: dense ? AppSpacing.xs : AppSpacing.sm,
               ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 56),
-                child: Row(
-                  children: [
-                    _Thumbnail(
-                      record: record,
-                      size: thumbSize,
-                      failed: failure != null,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            failure != null
-                                ? 'Não classificada'
-                                : record.displayTextureClass,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            failure != null
-                                ? classificationFailureChip(failure).label
-                                : record.formattedTimestampCompact,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: failure != null
-                                  ? palette.error
-                                  : palette.onSurfaceVariant,
+                constraints: BoxConstraints(
+                  minHeight: context.density.tap + AppSpacing.sm,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked =
+                        history &&
+                        (constraints.maxWidth < 300 ||
+                            MediaQuery.textScalerOf(context).scale(1) >= 1.3);
+                    final trailing = history && !isPending && failure == null
+                        ? Icon(
+                            Icons.chevron_right,
+                            color: palette.onSurfaceVariant,
+                          )
+                        : _Trailing(
+                            record: record,
+                            isPending: isPending,
+                            failed: failure != null,
+                          );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            _Thumbnail(
+                              record: record,
+                              size: thumbSize,
+                              failed: failure != null,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    failure != null
+                                        ? 'Não classificada'
+                                        : record.displayTextureClass,
+                                    style: theme.textTheme.titleMedium,
+                                    maxLines: stacked ? null : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    failure != null
+                                        ? classificationFailureChip(
+                                            failure,
+                                          ).label
+                                        : history
+                                        ? _historyMetadata(record)
+                                        : record.formattedTimestampCompact,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: failure != null
+                                          ? palette.error
+                                          : palette.onSurfaceVariant,
+                                    ),
+                                    maxLines: stacked ? null : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!stacked) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              trailing,
+                            ],
+                          ],
+                        ),
+                        if (stacked)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: trailing,
+                            ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _Trailing(record: record, isPending: isPending, failed: failure != null),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -128,13 +172,13 @@ class AnalysisTileSkeleton extends StatelessWidget {
     final thumbSize = dense ? 48.0 : 56.0;
 
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: palette.surfaceContainerHigh,
-            borderRadius: AppRadius.borderRadiusXs,
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: palette.surfaceContainerHigh,
+        borderRadius: AppRadius.borderRadiusXs,
+      ),
+    );
 
     return ExcludeSemantics(
       child: Padding(
@@ -177,13 +221,14 @@ String _semanticsLabel(
 ) {
   String base;
   if (failure != null) {
-    base = '${record.formattedTimestampCompact}, '
+    base =
+        '${record.formattedTimestampCompact}, '
         '${classificationFailureChip(failure).label}';
   } else {
     final score = record.confidenceScore;
     base = score != null && score.isFinite
         ? '${record.displayTextureClass}, ${record.formattedTimestampCompact}, '
-            '${floorConfidencePercent(score)}% de confiança'
+              '${floorConfidencePercent(score)}% de confiança'
         : '${record.displayTextureClass}, ${record.formattedTimestampCompact}';
   }
 
@@ -191,7 +236,11 @@ String _semanticsLabel(
 }
 
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.record, required this.size, required this.failed});
+  const _Thumbnail({
+    required this.record,
+    required this.size,
+    required this.failed,
+  });
 
   final SoilRecord record;
   final double size;
@@ -233,9 +282,11 @@ class _Thumbnail extends StatelessWidget {
   }
 
   Widget _fallback(Color color, IconData icon) => Container(
-        color: color.withValues(alpha: 0.3),
-        child: Center(child: Icon(icon, color: color, size: size * 0.45)),
-      );
+    color: color.withValues(alpha: 0.3),
+    child: Center(
+      child: Icon(icon, color: color, size: size * 0.45),
+    ),
+  );
 }
 
 class _Trailing extends StatelessWidget {
@@ -262,4 +313,15 @@ class _Trailing extends StatelessWidget {
     }
     return Icon(Icons.chevron_right, color: context.palette.outline);
   }
+}
+
+String _historyMetadata(SoilRecord record) {
+  final date = DateTime.tryParse(record.timestamp)?.toLocal();
+  final time = date == null
+      ? record.formattedTimestampCompact
+      : '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  final score = record.confidenceScore;
+  return score != null && score.isFinite
+      ? '$time · ${floorConfidencePercent(score)}% de confiança'
+      : time;
 }
