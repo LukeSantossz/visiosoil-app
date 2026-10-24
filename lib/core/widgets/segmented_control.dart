@@ -74,7 +74,7 @@ class SegmentedControl<T> extends StatelessWidget {
                     top: 0,
                     bottom: 0,
                     width: segmentWidth,
-                    child: Container(color: palette.selected),
+                    child: Container(color: palette.isSun ? Colors.black : palette.selected),
                   ),
                 Positioned.fill(
                   child: Row(
@@ -96,6 +96,7 @@ class SegmentedControl<T> extends StatelessWidget {
   Widget _buildSegment(BuildContext context, int index) {
     final option = options[index];
     final isSelected = option.value == value;
+    final foreground = context.palette.isSun && isSelected ? Colors.white : null;
 
     void select() {
       if (!isSelected) {
@@ -119,12 +120,13 @@ class SegmentedControl<T> extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (option.icon != null) ...[
-                  Icon(option.icon, size: 16),
+                  Icon(option.icon, size: 16, color: foreground),
                   const SizedBox(width: AppSpacing.xs),
                 ],
                 Text(
                   option.label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: foreground,
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       ),
                 ),

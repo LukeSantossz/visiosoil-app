@@ -39,20 +39,19 @@ import '../../support/large_text.dart';
 
 /// In-memory [AppearanceStore] for tests.
 class _MemoryAppearanceStore implements AppearanceStore {
-  AppThemeChoice? themeChoice;
-  bool highContrast = false;
+  ThemeMode base = ThemeMode.system;
+  bool sun = false;
   bool vibration = true;
   bool reduceMotion = false;
 
   @override
-  Future<AppThemeChoice?> readThemeChoice() async => themeChoice;
+  Future<ThemeMode> readBaseThemeMode() async => base;
   @override
-  Future<void> writeThemeChoice(AppThemeChoice choice) async =>
-      themeChoice = choice;
+  Future<void> writeBaseThemeMode(ThemeMode mode) async => base = mode;
   @override
-  Future<bool> readHighContrast() async => highContrast;
+  Future<bool> readSunMode() async => sun;
   @override
-  Future<void> writeHighContrast(bool on) async => highContrast = on;
+  Future<void> writeSunMode(bool on) async => sun = on;
   @override
   Future<bool> readVibration() async => vibration;
   @override
@@ -241,8 +240,8 @@ Widget _app(
       if (captureGuide != null)
         captureGuideStoreProvider.overrideWithValue(captureGuide),
       // Appearance providers needed for settings switches (redesign v11).
-      initialThemeChoiceProvider.overrideWithValue(null),
-      initialHighContrastProvider.overrideWithValue(false),
+      initialBaseThemeModeProvider.overrideWithValue(ThemeMode.system),
+      initialSunModeProvider.overrideWithValue(false),
       initialVibrationProvider.overrideWithValue(true),
       initialReduceMotionProvider.overrideWithValue(false),
       appearanceStoreProvider.overrideWithValue(_MemoryAppearanceStore()),

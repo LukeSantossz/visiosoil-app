@@ -19,7 +19,10 @@ const _adrDir = 'docs/adr';
 
 /// Numbers deliberately retired, mapped to the reason. A retirement must leave a
 /// trace, so an entry without a reason is itself a failure.
-const retiredSpecNumbers = <String, String>{};
+const retiredSpecNumbers = <String, String>{
+  '0186':
+      'renumbered to 0184 before merge to close the gap after 0183 (PR #417)',
+};
 const retiredAdrNumbers = <String, String>{};
 
 /// Numbers whose slug changed in a commit that also rewrote the record enough for
@@ -85,17 +88,18 @@ List<String> allowlistEntriesWithoutReason(Map<String, String> allowlist) =>
 Object contiguitySkipReason(String branch) => branch == 'main'
     ? false
     : 'contiguity is enforced on main only; on "$branch" a missing number is '
-        'normally one reserved by a concurrent pull request';
+          'normally one reserved by a concurrent pull request';
 
 /// One change to one record, in commit order.
 class RecordEvent {
   const RecordEvent.added(this.number, this.slug)
-      : status = 'A',
-        newSlug = null;
+    : status = 'A',
+      newSlug = null;
   const RecordEvent.deleted(this.number, this.slug)
-      : status = 'D',
-        newSlug = null;
-  const RecordEvent.renamed(this.number, this.slug, this.newSlug) : status = 'R';
+    : status = 'D',
+      newSlug = null;
+  const RecordEvent.renamed(this.number, this.slug, this.newSlug)
+    : status = 'R';
 
   final String status;
   final String number;
@@ -159,10 +163,7 @@ HistoryVerdict replayRecordHistory(List<RecordEvent> events) {
     final distinctRecords = identityOf[number]!.values.toSet();
     if (distinctRecords.length > 1) reused.add(number);
   });
-  return HistoryVerdict(
-    vanished: vanished..sort(),
-    reused: reused..sort(),
-  );
+  return HistoryVerdict(vanished: vanished..sort(), reused: reused..sort());
 }
 
 String _slug(String path) => path.replaceAll(r'\', '/').split('/').last;
@@ -206,9 +207,11 @@ List<RecordEvent> parseHistory(String gitOutput, String dirPrefix) {
       if (!_inDir(path, dirPrefix)) continue;
       final number = _numberOf(path);
       if (number == null) continue;
-      events.add(status == 'A'
-          ? RecordEvent.added(number, _slug(path))
-          : RecordEvent.deleted(number, _slug(path)));
+      events.add(
+        status == 'A'
+            ? RecordEvent.added(number, _slug(path))
+            : RecordEvent.deleted(number, _slug(path)),
+      );
     }
   }
   return events;
@@ -240,7 +243,8 @@ String _historyOutput() {
   expect(
     (shallow.stdout as String).trim(),
     'false',
-    reason: 'the repository is a shallow clone, so deletions before the '
+    reason:
+        'the repository is a shallow clone, so deletions before the '
         'boundary cannot be seen; CI must check out with fetch-depth: 0',
   );
 
@@ -258,7 +262,8 @@ String _historyOutput() {
   expect(
     result.exitCode,
     0,
-    reason: 'git log failed, so the history guards cannot run: ${result.stderr}',
+    reason:
+        'git log failed, so the history guards cannot run: ${result.stderr}',
   );
   final output = result.stdout as String;
   // Secondary sanity check, now that shallowness is ruled out above: a full
@@ -266,7 +271,8 @@ String _historyOutput() {
   expect(
     output.trim(),
     isNotEmpty,
-    reason: 'git history shows no spec or ADR files ever committed, which '
+    reason:
+        'git history shows no spec or ADR files ever committed, which '
         'cannot be true of a full clone of this repository',
   );
   return output;
@@ -365,28 +371,32 @@ void main() {
       expect(replayRecordHistory(events).vanished, ['0009']);
     });
 
-    test('a_record_renamed_out_of_the_governed_directory_reads_as_a_deletion',
-        () {
-      final events = parseHistory(
-        'A\tdocs/specs/0009-one.md\n'
-        'R100\tdocs/specs/0009-one.md\tdocs/archive/0009-one.md\n',
-        _specsDir,
-      );
+    test(
+      'a_record_renamed_out_of_the_governed_directory_reads_as_a_deletion',
+      () {
+        final events = parseHistory(
+          'A\tdocs/specs/0009-one.md\n'
+          'R100\tdocs/specs/0009-one.md\tdocs/archive/0009-one.md\n',
+          _specsDir,
+        );
 
-      expect(events.map((e) => e.status).toList(), ['A', 'D']);
-      expect(replayRecordHistory(events).vanished, ['0009']);
-    });
+        expect(events.map((e) => e.status).toList(), ['A', 'D']);
+        expect(replayRecordHistory(events).vanished, ['0009']);
+      },
+    );
 
-    test('a_record_renamed_into_the_governed_directory_reads_as_an_addition',
-        () {
-      final events = parseHistory(
-        'R100\tdocs/drafts/0009-one.md\tdocs/specs/0009-one.md\n',
-        _specsDir,
-      );
+    test(
+      'a_record_renamed_into_the_governed_directory_reads_as_an_addition',
+      () {
+        final events = parseHistory(
+          'R100\tdocs/drafts/0009-one.md\tdocs/specs/0009-one.md\n',
+          _specsDir,
+        );
 
-      expect(events.map((e) => e.status).toList(), ['A']);
-      expect(replayRecordHistory(events).vanished, isEmpty);
-    });
+        expect(events.map((e) => e.status).toList(), ['A']);
+        expect(replayRecordHistory(events).vanished, isEmpty);
+      },
+    );
 
     test('a_rename_that_changes_the_number_vacates_the_old_one', () {
       final events = parseHistory(
@@ -405,10 +415,10 @@ void main() {
         allowlistEntriesWithoutReason(const {'0002': 'superseded by 0007'}),
         isEmpty,
       );
-      expect(
-        allowlistEntriesWithoutReason(const {'0002': '   ', '0003': ''}),
-        ['0002', '0003'],
-      );
+      expect(allowlistEntriesWithoutReason(const {'0002': '   ', '0003': ''}), [
+        '0002',
+        '0003',
+      ]);
     });
 
     test('duplicate_numbers_are_reported', () {
@@ -452,16 +462,16 @@ void main() {
       final history = _historyOutput();
 
       expect(
-        replayRecordHistory(parseHistory(history, _specsDir))
-            .vanished
-            .where((n) => !retiredSpecNumbers.containsKey(n)),
+        replayRecordHistory(
+          parseHistory(history, _specsDir),
+        ).vanished.where((n) => !retiredSpecNumbers.containsKey(n)),
         isEmpty,
         reason: 'a spec number was deleted rather than retired in place',
       );
       expect(
-        replayRecordHistory(parseHistory(history, _adrDir))
-            .vanished
-            .where((n) => !retiredAdrNumbers.containsKey(n)),
+        replayRecordHistory(
+          parseHistory(history, _adrDir),
+        ).vanished.where((n) => !retiredAdrNumbers.containsKey(n)),
         isEmpty,
         reason: 'an ADR number was deleted rather than retired in place',
       );
@@ -471,18 +481,19 @@ void main() {
       final history = _historyOutput();
 
       expect(
-        replayRecordHistory(parseHistory(history, _specsDir))
-            .reused
-            .where((n) => !renamedWithRewriteSpecNumbers.containsKey(n)),
+        replayRecordHistory(
+          parseHistory(history, _specsDir),
+        ).reused.where((n) => !renamedWithRewriteSpecNumbers.containsKey(n)),
         isEmpty,
-        reason: 'a spec number was reassigned to a different record; if this is '
+        reason:
+            'a spec number was reassigned to a different record; if this is '
             'a rename whose rewrite defeated git similarity detection, add it '
             'to renamedWithRewriteSpecNumbers with a reason',
       );
       expect(
-        replayRecordHistory(parseHistory(history, _adrDir))
-            .reused
-            .where((n) => !renamedWithRewriteAdrNumbers.containsKey(n)),
+        replayRecordHistory(
+          parseHistory(history, _adrDir),
+        ).reused.where((n) => !renamedWithRewriteAdrNumbers.containsKey(n)),
         isEmpty,
         reason: 'an ADR number was reassigned to a different record',
       );
@@ -501,23 +512,15 @@ void main() {
       );
     });
 
-    test(
-      'spec_numbers_are_contiguous_from_0001_on_main',
-      () {
-        expect(
-          gapsIn(numbersUnder(_presentRecords(_specsDir), _specsDir)),
-          isEmpty,
-        );
-      },
-      skip: skipContiguity,
-    );
+    test('spec_numbers_are_contiguous_from_0001_on_main', () {
+      expect(
+        gapsIn(numbersUnder(_presentRecords(_specsDir), _specsDir)),
+        isEmpty,
+      );
+    }, skip: skipContiguity);
 
-    test(
-      'adr_numbers_are_contiguous_from_0001_on_main',
-      () {
-        expect(gapsIn(numbersUnder(_presentRecords(_adrDir), _adrDir)), isEmpty);
-      },
-      skip: skipContiguity,
-    );
+    test('adr_numbers_are_contiguous_from_0001_on_main', () {
+      expect(gapsIn(numbersUnder(_presentRecords(_adrDir), _adrDir)), isEmpty);
+    }, skip: skipContiguity);
   });
 }
