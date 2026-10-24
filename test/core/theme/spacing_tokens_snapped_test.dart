@@ -51,15 +51,21 @@ void main() {
       expect(src, isNot(contains('fromLTRB(20,')));
     });
 
-    test('stats_grid snaps its outer and card paddings', () {
+    test('stats_grid snaps its outer padding', () {
       final src = _packed('lib/core/features/home/widgets/stats_grid.dart');
       expect(src, isNot(contains('fromLTRB(20,')));
-      expect(src, isNot(contains('EdgeInsets.all(10)')));
-      expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
       expect(
         src,
         contains('fromLTRB(AppSpacing.lg,AppSpacing.md,AppSpacing.lg,0)'),
       );
+    });
+
+    // The card padding moved into the shared StatCell (redesign v11 §4, PR 5):
+    // stats_grid no longer duplicates it.
+    test('stat_cell snaps its card padding', () {
+      final src = _packed('lib/core/widgets/stat_cell.dart');
+      expect(src, isNot(contains('EdgeInsets.all(10)')));
+      expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
     });
 
     test('last_analysis_section references tokens and no off-scale spacing', () {

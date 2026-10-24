@@ -17,6 +17,55 @@ void main() {
     expect(find.byType(ElevatedButton), findsOneWidget);
   });
 
+  // redesign v11 §4: a 4th variant, plain and neutral-colored, distinct from
+  // destructive's error-colored text button.
+  testWidgets('text variant renders a TextButton with the default foreground',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      VisioButton(
+        label: 'Pular',
+        onPressed: () {},
+        variant: VisioButtonVariant.text,
+      ),
+    ));
+
+    expect(find.byType(TextButton), findsOneWidget);
+    final button = tester.widget<TextButton>(find.byType(TextButton));
+    final foreground = button.style?.foregroundColor?.resolve(<WidgetState>{});
+    expect(foreground, isNot(AppTheme.light.colorScheme.error));
+  });
+
+  // redesign v11 §4: loading (spinner + label alternativo).
+  testWidgets('loadingLabel shows the spinner next to an alternate label',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      VisioButton(
+        label: 'Salvar',
+        onPressed: () {},
+        isLoading: true,
+        loadingLabel: 'Salvando...',
+      ),
+    ));
+
+    expect(find.text('Salvando...'), findsOneWidget);
+    expect(find.text('Salvar'), findsNothing);
+    expect(find.byType(LoadingIndicator), findsOneWidget);
+  });
+
+  testWidgets('without loadingLabel the spinner alone keeps its own size',
+      (tester) async {
+    await tester.pumpWidget(_host(Center(
+      child: VisioButton(
+        label: 'Salvar',
+        onPressed: () {},
+        isLoading: true,
+      ),
+    )));
+
+    expect(find.text('Salvar'), findsNothing);
+    expect(tester.getSize(find.byType(LoadingIndicator)), const Size(20, 20));
+  });
+
   testWidgets('secondary variant renders an OutlinedButton', (tester) async {
     await tester.pumpWidget(_host(
       VisioButton(
