@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
+import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';

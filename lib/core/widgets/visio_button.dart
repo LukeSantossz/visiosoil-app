@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/press_scale.dart';
 
-/// VisioButton variants.
-enum VisioButtonVariant { primary, secondary, destructive }
+/// VisioButton variants (redesign v11 §4: primary/outlined/text/destructive).
+/// [secondary] is this repo's existing name for the outlined variant; [text]
+/// is the plain, neutral-colored text button added for the redesign, distinct
+/// from [destructive]'s error-colored one.
+enum VisioButtonVariant { primary, secondary, text, destructive }
 
 /// Standardized VisioSoil button.
 class VisioButton extends StatelessWidget {
@@ -13,6 +16,7 @@ class VisioButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.isLoading = false,
+    this.loadingLabel,
     this.variant = VisioButtonVariant.primary,
     this.expanded = false,
   });
@@ -29,8 +33,14 @@ class VisioButton extends StatelessWidget {
   /// If true, shows a loading indicator instead of the content.
   final bool isLoading;
 
-  /// Visual variant: primary (filled), secondary (outlined), or destructive
-  /// (text button with the error color, for irreversible actions).
+  /// Text shown next to the spinner while [isLoading] (redesign v11 §4:
+  /// "spinner + label alternativo"). Null keeps the spinner alone, matching
+  /// this button's behavior before the redesign.
+  final String? loadingLabel;
+
+  /// Visual variant: primary (filled), secondary (outlined), text (plain,
+  /// neutral-colored), or destructive (text button with the error color, for
+  /// irreversible actions).
   final VisioButtonVariant variant;
 
   /// If true, expands to fill all available width.
@@ -51,6 +61,11 @@ class VisioButton extends StatelessWidget {
             child: child,
           ),
         VisioButtonVariant.secondary => OutlinedButton(
+            onPressed: onPressedOrNull,
+            statesController: states,
+            child: child,
+          ),
+        VisioButtonVariant.text => TextButton(
             onPressed: onPressedOrNull,
             statesController: states,
             child: child,
@@ -78,23 +93,40 @@ class VisioButton extends StatelessWidget {
 
   Widget _buildChild(BuildContext context) {
     if (isLoading) {
+      final spinnerColor = switch (variant) {
+        VisioButtonVariant.primary => Theme.of(context).colorScheme.onPrimary,
+        VisioButtonVariant.secondary ||
+        VisioButtonVariant.text =>
+          Theme.of(context).colorScheme.primary,
+        VisioButtonVariant.destructive => Theme.of(context).colorScheme.error,
+      };
+
+      final loadingLabel = this.loadingLabel;
+      if (loadingLabel != null) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 16,
+              width: 16,
+              child: LoadingIndicator(
+                size: 16,
+                strokeWidth: 2,
+                color: spinnerColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loadingLabel, textAlign: TextAlign.center)),
+          ],
+        );
+      }
+
       // The box keeps the button at the spinner's size: the indicator's own
       // Center would otherwise fill the button's width (SPEC 0123).
       return SizedBox(
         height: 20,
         width: 20,
-        child: LoadingIndicator(
-          size: 20,
-          strokeWidth: 2,
-          color: switch (variant) {
-            VisioButtonVariant.primary =>
-              Theme.of(context).colorScheme.onPrimary,
-            VisioButtonVariant.secondary =>
-              Theme.of(context).colorScheme.primary,
-            VisioButtonVariant.destructive =>
-              Theme.of(context).colorScheme.error,
-          },
-        ),
+        child: LoadingIndicator(size: 20, strokeWidth: 2, color: spinnerColor),
       );
     }
 

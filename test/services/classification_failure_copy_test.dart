@@ -2,7 +2,7 @@
 // (SPEC 0105). Only a cause a second run of the same file can fix offers that
 // run; a photograph-dependent cause asks for another photograph.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
+import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 
 void main() {
