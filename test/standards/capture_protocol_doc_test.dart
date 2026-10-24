@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
+import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';

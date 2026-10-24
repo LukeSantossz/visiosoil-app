@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
-import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/models/home_stats.dart';
 
 /// The three-up summary row on the home screen: total analyses, distinct
@@ -23,90 +23,27 @@ class StatsGrid extends StatelessWidget {
         AppSpacing.lg,
         0,
       ),
-      child: Row(
-        children: [
-          _StatCard(
+      child: StatsRow(
+        cells: [
+          StatCell(
             value: stats != null ? '${stats.totalRecords}' : '-',
             label: 'Análises',
             icon: Icons.layers,
             color: context.palette.primary,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _StatCard(
+          StatCell(
             value: stats != null ? '${stats.distinctLocations}' : '-',
             label: 'Locais',
             icon: Icons.map_outlined,
             color: context.palette.secondary,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _StatCard(
+          StatCell(
             value: stats?.formattedConfidence ?? '-',
             label: 'Confiança',
             icon: Icons.track_changes,
             color: context.palette.tertiary,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String value;
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: context.palette.surface,
-          borderRadius: AppRadius.borderRadiusLg,
-          boxShadow: [
-            BoxShadow(
-              color: context.palette.shadowCard,
-              blurRadius: 3,
-              offset: Offset(0, 1),
-            ),
-          ],
-          border: Border.all(
-            color: context.palette.cardBorder,
-            width: context.palette.edgeWidth,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: context.palette.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

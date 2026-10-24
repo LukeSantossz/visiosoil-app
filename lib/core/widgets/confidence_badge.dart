@@ -26,9 +26,9 @@ class ConfidenceBadge extends StatelessWidget {
     if (score == null) return const SizedBox.shrink();
 
     final level = ConfidenceLevel.fromScore(score);
-    // A corrupt/non-finite persisted score must not crash: `_floorPercent`
+    // A corrupt/non-finite persisted score must not crash: `floorConfidencePercent`
     // throws on NaN/infinity, so drop the percentage and show only the level.
-    final pct = score.isFinite ? _floorPercent(score) : null;
+    final pct = score.isFinite ? floorConfidencePercent(score) : null;
     final text = pct != null ? '$pct% · ${level.label}' : level.label;
     final iconSize = compact ? 12.0 : 14.0;
     final horizontalPadding = compact ? AppSpacing.xs : AppSpacing.sm;
@@ -71,4 +71,8 @@ class ConfidenceBadge extends StatelessWidget {
 /// band above its own threshold check (0.749 reads 74%, not 75%). Rounds to
 /// 6 decimal places first to absorb double-arithmetic noise — `0.29 * 100`
 /// is `28.999999999999996`, which a bare `.floor()` would misread as 28.
-int _floorPercent(double score) => ((score * 100 * 1e6).round() / 1e6).floor();
+///
+/// Shared with `AnalysisTile`'s semantics label, so both state the same
+/// percentage for the same score.
+int floorConfidencePercent(double score) =>
+    ((score * 100 * 1e6).round() / 1e6).floor();

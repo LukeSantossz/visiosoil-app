@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/classification_failure_chip.dart';
+import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
