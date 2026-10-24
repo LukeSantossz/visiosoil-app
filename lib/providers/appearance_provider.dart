@@ -16,11 +16,11 @@ final nightModeSyncProvider = Provider<NightModeSync>(
 
 /// The base theme read before `runApp`, so the first frame is already in it.
 /// `main` overrides it with the stored value: Sistema, Claro or Escuro,
-/// applied unless Modo Sol overrides it (redesign v11 §2, §3.11, SPEC 0186).
+/// applied unless Modo Sol overrides it (redesign v11 §2, §3.11, SPEC 0184).
 final initialBaseThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.system);
 
 /// The app's base theme choice, as the user chose it in Settings: Sistema,
-/// Claro or Escuro (SPEC 0107, SPEC 0186). Independent of [sunModeProvider]:
+/// Claro or Escuro (SPEC 0107, SPEC 0184). Independent of [sunModeProvider]:
 /// turning Modo Sol off returns to whichever base is held here.
 final baseThemeModeProvider = NotifierProvider<BaseThemeModeController,
     ThemeMode>(BaseThemeModeController.new);
@@ -41,11 +41,11 @@ class BaseThemeModeController extends Notifier<ThemeMode> {
 
 /// The Modo Sol override read before `runApp`, so the first frame is already
 /// in it. `main` overrides it with the stored value (redesign v11 §2,
-/// SPEC 0186). `false` by default: Sol is reached only through [select].
+/// SPEC 0184). `false` by default: Sol is reached only through [select].
 final initialSunModeProvider = Provider<bool>((ref) => false);
 
 /// Whether Modo Sol overrides [baseThemeModeProvider] with its own fixed
-/// high-contrast light theme (redesign v11 §2, §3.11, SPEC 0186).
+/// high-contrast light theme (redesign v11 §2, §3.11, SPEC 0184).
 final sunModeProvider =
     NotifierProvider<SunModeController, bool>(SunModeController.new);
 

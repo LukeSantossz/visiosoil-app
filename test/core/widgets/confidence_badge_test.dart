@@ -162,7 +162,7 @@ void main() {
 
   // In Sol every container (primary/warning/error) is white, so the pill
   // needs its own 2 dp black border to read against the white page behind it
-  // (redesign v11 §1.1, SPEC 0186).
+  // (redesign v11 §1.1, SPEC 0184).
   group('in Sol, the pill carries a 2dp black border', () {
     for (final score in [0.95, 0.6, 0.3]) {
       for (final compact in [false, true]) {

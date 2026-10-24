@@ -53,7 +53,7 @@ class VisioSoilApp extends ConsumerWidget {
     final baseThemeMode = ref.watch(baseThemeModeProvider);
     // Modo Sol forces its own fixed high-contrast light theme and ignores
     // both the base choice and the platform's brightness (redesign v11 §2,
-    // SPEC 0186). The platform's own high-contrast signal still turns high
+    // SPEC 0184). The platform's own high-contrast signal still turns high
     // contrast on through the two `highContrastTheme`/`highContrastDarkTheme`
     // params below (SPEC 0130) — unrelated to Modo Sol, which must not be
     // knocked out by that signal while it is the explicit override.

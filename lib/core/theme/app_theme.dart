@@ -76,7 +76,7 @@ abstract final class AppTheme {
       // The selected segment is black with white text, not the base theme's
       // `selected` token above: `AppPalette.sun.selected` is white, the same
       // as the unselected fill, so the chosen segment needs its own explicit
-      // >=7:1 pair instead (redesign v11 §1.1, §8, SPEC 0186).
+      // >=7:1 pair instead (redesign v11 §1.1, §8, SPEC 0184).
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           padding: const WidgetStatePropertyAll(
@@ -253,7 +253,7 @@ abstract final class AppTheme {
         // The selected segment uses the mock's green `selected` token, not
         // M3's default secondaryContainer, which is brown in this palette and
         // reads the same as every other control's accent (redesign v11 §1.1,
-        // SPEC 0186). Every other state (disabled, unselected) replicates the
+        // SPEC 0184). Every other state (disabled, unselected) replicates the
         // M3 default, since setting any state on this property replaces the
         // default `WidgetStateProperty` wholesale rather than layering over it.
         segmentedButtonTheme: SegmentedButtonThemeData(

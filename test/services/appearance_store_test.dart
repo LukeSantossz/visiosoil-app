@@ -1,4 +1,4 @@
-// The stored appearance (SPEC 0107, SPEC 0182, SPEC 0186): absent or unknown
+// The stored appearance (SPEC 0107, SPEC 0182, SPEC 0184): absent or unknown
 // reads as the system base with Sol off, every choice round-trips, a legacy
 // choice migrates, and the stored one is handed to the platform at start so
 // the next native launch follows it.
@@ -75,7 +75,7 @@ void main() {
   });
 
   // An explicit pre-Sol ThemeMode choice (SPEC 0107) carries over as the base
-  // theme (SPEC 0186).
+  // theme (SPEC 0184).
   test('an_oldest_legacy_light_or_dark_choice_migrates', () async {
     for (final (legacy, migrated) in [
       ('light', ThemeMode.light),
@@ -105,7 +105,7 @@ void main() {
   // SPEC 0182's choice key: an explicit light/dark choice carries over as the
   // base theme, with Sol left off; a `sun` choice carries over as Sol being on,
   // with the base left at system — Sol used to replace the base choice, and
-  // now overrides it instead (SPEC 0186).
+  // now overrides it instead (SPEC 0184).
   test('a_spec_0182_light_or_dark_choice_migrates_to_the_base', () async {
     for (final (legacy, migrated) in [
       ('light', ThemeMode.light),

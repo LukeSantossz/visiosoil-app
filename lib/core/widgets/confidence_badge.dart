@@ -53,7 +53,7 @@ class ConfidenceBadge extends StatelessWidget {
                 borderRadius: AppRadius.borderRadiusPill,
                 // In Sol every container (primary/warning/error) is white, so
                 // the pill needs its own 2 dp black border to read against the
-                // white page behind it (redesign v11 §1.1, SPEC 0186).
+                // white page behind it (redesign v11 §1.1, SPEC 0184).
                 border: context.palette.isSun
                     ? Border.all(color: Colors.black, width: 2)
                     : null,

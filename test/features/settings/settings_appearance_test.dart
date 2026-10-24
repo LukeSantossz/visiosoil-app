@@ -1,5 +1,5 @@
 // Settings' theme choice applies at once, persists, and reaches the platform so
-// the next native launch follows it (SPEC 0107, SPEC 0186).
+// the next native launch follows it (SPEC 0107, SPEC 0184).
 // Vibration and reduce motion preferences also apply and persist (redesign v11 PR4).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -138,7 +138,7 @@ void main() {
   });
 
   // Modo Sol is a separate switch that overrides whichever base theme is
-  // chosen, and turning it off returns to that base (SPEC 0186).
+  // chosen, and turning it off returns to that base (SPEC 0184).
   testWidgets('modo_sol_overrides_the_base_theme_and_turning_it_off_restores_it',
       (tester) async {
     final store = _MemoryStore();
@@ -174,7 +174,7 @@ void main() {
   });
 
   // There is no "Modo Sol" segment in the base selector: it is reached only
-  // through its own switch (redesign v11 §3.11, SPEC 0186).
+  // through its own switch (redesign v11 §3.11, SPEC 0184).
   testWidgets('theme_selector_offers_only_three_base_options', (tester) async {
     await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
 
@@ -184,7 +184,7 @@ void main() {
     expect(find.widgetWithText(SwitchListTile, 'Modo Sol'), findsOneWidget);
   });
 
-  // The legacy "Alto contraste" switch is gone (SPEC 0186); the platform's
+  // The legacy "Alto contraste" switch is gone (SPEC 0184); the platform's
   // own high-contrast signal still works, unrelated to any manual switch.
   testWidgets('there_is_no_alto_contraste_switch', (tester) async {
     await _pumpSettings(tester, _MemoryStore(), _RecordingSync());

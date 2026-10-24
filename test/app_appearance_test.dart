@@ -1,5 +1,5 @@
 // The app starts in the stored theme and keeps the status-bar icons readable
-// on it (SPEC 0107, SPEC 0186). Vibration and reduce motion are restored
+// on it (SPEC 0107, SPEC 0184). Vibration and reduce motion are restored
 // before first frame (redesign v11 §3.11).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,7 +115,7 @@ void main() {
   });
 
   // No explicit choice ever made: the first boot follows the system, which
-  // the test view reports as light (redesign v11 §2, SPEC 0186).
+  // the test view reports as light (redesign v11 §2, SPEC 0184).
   testWidgets('first_boot_with_no_stored_choice_follows_the_system',
       (tester) async {
     final seen = <Brightness>[];
@@ -162,7 +162,7 @@ void main() {
   });
 
   // Sol is reached only by an explicit choice; it is never where a fresh
-  // install or a plain light/dark base lands (SPEC 0186).
+  // install or a plain light/dark base lands (SPEC 0184).
   testWidgets('sol_never_turns_on_by_itself', (tester) async {
     final seen = <bool>[];
     await tester.pumpWidget(_app(
@@ -254,7 +254,7 @@ void main() {
   });
 
   // Toggling the platform's high-contrast signal while Sol is already chosen
-  // must not knock the app out of Sol (SPEC 0182, SPEC 0186).
+  // must not knock the app out of Sol (SPEC 0182, SPEC 0184).
   testWidgets('sol_overrides_platform_high_contrast_when_toggled_during_use',
       (tester) async {
     final seen = <bool>[];

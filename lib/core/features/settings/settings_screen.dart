@@ -318,7 +318,7 @@ class _AccountTile extends ConsumerWidget {
 // --- Theme Choice ---
 
 /// The base theme choice: Sistema, Claro or Escuro (redesign v11 §3.11,
-/// SPEC 0186). It applies at once and persists. Modo Sol is a separate
+/// SPEC 0184). It applies at once and persists. Modo Sol is a separate
 /// override, below ([_SunModeSwitch]), not a fourth segment here.
 class _ThemeChoiceSelector extends ConsumerWidget {
   const _ThemeChoiceSelector();
@@ -353,7 +353,7 @@ class _ThemeChoiceSelector extends ConsumerWidget {
 /// Turns on Modo Sol: a fixed high-contrast light theme with 56 dp tap
 /// targets and larger type for outdoor field use, overriding whichever base
 /// theme is chosen above until turned off again (redesign v11 §2, §3.11,
-/// SPEC 0186).
+/// SPEC 0184).
 class _SunModeSwitch extends ConsumerWidget {
   const _SunModeSwitch();
 

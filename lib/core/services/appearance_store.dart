@@ -5,12 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// The night mode the platform's launch channel understands, combining the
 /// base theme with whether Modo Sol overrides it (redesign v11 §2, §3.11,
-/// SPEC 0186): [base] unchanged when Sol is off, and `light` when it is on,
+/// SPEC 0184): [base] unchanged when Sol is off, and `light` when it is on,
 /// since Sol ignores `platformBrightness`.
 ThemeMode nightModeFor(ThemeMode base, {required bool sun}) =>
     sun ? ThemeMode.light : base;
 
-/// Persists the user's appearance choices (SPEC 0107, SPEC 0182, SPEC 0186).
+/// Persists the user's appearance choices (SPEC 0107, SPEC 0182, SPEC 0184).
 /// Behind an interface so it can be faked in tests.
 abstract interface class AppearanceStore {
   /// The base theme — Sistema, Claro or Escuro — applied unless Modo Sol
@@ -47,7 +47,7 @@ class SharedPreferencesAppearanceStore implements AppearanceStore {
   static const key = 'appearance.themeMode';
 
   /// SPEC 0182's key: `light` | `dark` | `sun`, with no separate Sol flag.
-  /// Read only to migrate into [baseModeKey] and [sunModeKey] (SPEC 0186): a
+  /// Read only to migrate into [baseModeKey] and [sunModeKey] (SPEC 0184): a
   /// legacy `sun` choice becomes `sunMode=true` with the base left at
   /// `system`, since Sol used to replace the base choice rather than
   /// overriding it.
@@ -72,7 +72,7 @@ class SharedPreferencesAppearanceStore implements AppearanceStore {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
       // Sol used to be a base choice of its own; it is now an override on
-      // top of `system` (SPEC 0186).
+      // top of `system` (SPEC 0184).
       'sun' => ThemeMode.system,
       _ => null,
     };
@@ -194,7 +194,7 @@ NightModeSync defaultNightModeSync() =>
 ///
 /// `main` calls this before `runApp`, so a store that cannot be read falls
 /// back to following the system with Sol off, rather than keeping the app
-/// from opening (SPEC 0182, SPEC 0186).
+/// from opening (SPEC 0182, SPEC 0184).
 Future<(ThemeMode base, bool sun)> restoreAppearance(
   AppearanceStore store,
   NightModeSync sync,
