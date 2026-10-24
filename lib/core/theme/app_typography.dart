@@ -180,11 +180,15 @@ abstract final class AppTypography {
   /// The text theme for [palette]: text on the page in `onBackground`, and
   /// the small print in `onSurfaceVariant`, so it follows the theme
   /// (SPEC 0107). In high contrast the body styles and [labelSmall] are one
-  /// bundled weight heavier (SPEC 0135).
+  /// bundled weight heavier (SPEC 0135). In Modo Sol, [titleMedium],
+  /// [bodyLarge], [bodyMedium], [bodySmall], [labelLarge] and [labelMedium]
+  /// also scale up to the parenthetical sizes in the redesign's §1.2 table
+  /// (SPEC 0182).
   static TextTheme textThemeFor(AppPalette palette) {
     final ink = palette.onBackground;
     final mute = palette.onSurfaceVariant;
     final hc = palette.highContrast;
+    final sun = palette.isSun;
     final body = hc ? FontWeight.w500 : null;
     return TextTheme(
       displaySmall: displaySmall.copyWith(color: ink),
@@ -192,13 +196,27 @@ abstract final class AppTypography {
       headlineMedium: headlineMedium.copyWith(color: ink),
       headlineSmall: headlineSmall.copyWith(color: ink),
       titleLarge: titleLarge.copyWith(color: ink),
-      titleMedium: titleMedium.copyWith(color: ink),
+      titleMedium: (sun
+              ? titleMedium.copyWith(fontSize: 17, height: 24 / 17)
+              : titleMedium)
+          .copyWith(color: ink),
       titleSmall: titleSmall.copyWith(color: ink),
-      bodyLarge: bodyLarge.copyWith(color: ink, fontWeight: body),
-      bodyMedium: bodyMedium.copyWith(color: ink, fontWeight: body),
-      bodySmall: bodySmall.copyWith(color: mute, fontWeight: body),
-      labelLarge: labelLarge.copyWith(color: ink),
-      labelMedium: labelMedium.copyWith(color: mute),
+      bodyLarge: (sun
+              ? bodyLarge.copyWith(fontSize: 18, height: 27 / 18)
+              : bodyLarge)
+          .copyWith(color: ink, fontWeight: body),
+      bodyMedium: (sun
+              ? bodyMedium.copyWith(fontSize: 16, height: 24 / 16)
+              : bodyMedium)
+          .copyWith(color: ink, fontWeight: body),
+      bodySmall: (sun
+              ? bodySmall.copyWith(fontSize: 14, height: 20 / 14)
+              : bodySmall)
+          .copyWith(color: mute, fontWeight: body),
+      labelLarge: (sun ? labelLarge.copyWith(fontSize: 17) : labelLarge)
+          .copyWith(color: ink),
+      labelMedium: (sun ? labelMedium.copyWith(fontSize: 14) : labelMedium)
+          .copyWith(color: mute),
       labelSmall: labelSmall.copyWith(
         color: mute,
         fontWeight: hc ? FontWeight.w600 : null,

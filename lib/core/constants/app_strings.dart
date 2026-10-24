@@ -42,4 +42,15 @@ abstract final class AppStrings {
   /// exception's text is not for the screen.
   static const String errorReportShareFailed =
       'Não foi possível compartilhar o relatório. Tente novamente.';
+
+  /// Settings' theme selector (redesign v11 §3.11, SPEC 0182): segmented
+  /// Claro | Escuro | Modo Sol.
+  static const String themeChoiceLight = 'Claro';
+  static const String themeChoiceDark = 'Escuro';
+  static const String themeChoiceSun = 'Modo Sol';
+
+  /// Caption under the theme selector, describing what Modo Sol does
+  /// (redesign v11 §3.11).
+  static const String themeChoiceCaption =
+      'Alto contraste e letras maiores para o campo';
 }
