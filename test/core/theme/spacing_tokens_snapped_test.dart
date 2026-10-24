@@ -39,25 +39,20 @@ void main() {
       );
     });
 
-    test('hero_capture_card uses token radius/spacing and the brand glow', () {
+    test('hero_capture_card uses compact v11 token radius and spacing', () {
       final src =
           _packed('lib/core/features/home/widgets/hero_capture_card.dart');
-      expect(src, contains('palette.shadowBrand'));
-      expect(src, contains('EdgeInsets.all(AppSpacing.lg)'));
-      expect(src, contains('AppRadius.borderRadiusXl'));
+      expect(src, contains('context.density.buttonHeight'));
+      expect(src, contains('horizontal:AppSpacing.xl,vertical:AppSpacing.md'));
       expect(src, contains('AppRadius.borderRadiusPill'));
       expect(src, isNot(contains('circular(20)')));
       expect(src, isNot(contains('circular(32)')));
       expect(src, isNot(contains('fromLTRB(20,')));
     });
 
-    test('stats_grid snaps its outer padding', () {
-      final src = _packed('lib/core/features/home/widgets/stats_grid.dart');
-      expect(src, isNot(contains('fromLTRB(20,')));
-      expect(
-        src,
-        contains('fromLTRB(AppSpacing.lg,AppSpacing.md,AppSpacing.lg,0)'),
-      );
+    test('home owns the shared page padding', () {
+      final src = _packed('lib/core/features/home/home_screen.dart');
+      expect(src, contains('EdgeInsets.all(AppSpacing.lg+AppSpacing.xs)'));
     });
 
     // The card padding moved into the shared StatCell (redesign v11 §4, PR 5):
