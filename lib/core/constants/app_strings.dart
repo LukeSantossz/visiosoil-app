@@ -6,7 +6,7 @@ abstract final class AppStrings {
   static const String confidenceLow = 'Confiança baixa';
   static const processingTitle = 'Analisando a amostra';
   static const processingModel = 'Comparando com o modelo no aparelho';
-  static const processingEstimate = 'cerca de 5 s';
+  static const processingEstimate = 'cerca de 5\u00A0s';
   static const textureDiagramDisclaimer =
       'Diagrama ilustrativo, com regiões aproximadas (USDA/SBCS). '
       'Mostra a classe, não a posição da amostra.';
