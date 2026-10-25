@@ -24,7 +24,7 @@ void main() {
       ('Esta acao nao pode ser desfeita.', 'Esta ação não pode ser desfeita.'),
     ],
     'lib/core/features/capture/widgets/camera_permission_denied_view.dart': [
-      ('Nova Captura', 'Nova captura'),
+      ('Nova Analise', 'Nova análise'),
       ('Camera restrita', 'Câmera restrita'),
       ('Acesso a camera necessario', 'Acesso à câmera necessário'),
       ('acesso a camera esta restrito', 'acesso à câmera está restrito'),
