@@ -7,6 +7,7 @@ import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_quality.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_alert.dart';
@@ -79,10 +80,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   bool _wantCamera = true;
   bool _everInitialized = false;
   bool _shooting = false;
+  bool _controlsBusy = false;
+  bool _showingGuide = false;
   bool _closed = false;
 
-  /// Completes once the last shot is done with the camera: a release waits
-  /// for it, so the controller is never disposed under `takePicture`.
+  /// Completes once the last shot or control operation is done: a release
+  /// waits for it so the controller is never disposed while in use.
   Future<void> _shotInFlight = Future.value();
 
   final TiltSmoother _smoother = TiltSmoother();
@@ -426,7 +429,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// [isReading] is false for a tilt sample and for a reading that is not
   /// green itself. With no live reading shown, the trigger is disarmed.
   void _feedTrigger({required bool isReading, LiveReading? reading}) {
-    if (_shooting || _closed || _camera == null || !mounted) return;
+    if (_controlsBusy || _shooting || _closed || _camera == null || !mounted) {
+      return;
+    }
     final shown = _shownReading;
     if (shown == null ||
         _reader == null ||
@@ -619,7 +624,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     // The plugin no longer manages its lifecycle; the app does (SPEC 0165).
     switch (state) {
       case AppLifecycleState.resumed:
-        _wantCamera = true;
+        _wantCamera = !_showingGuide;
         unawaited(_openCamera());
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
@@ -632,7 +637,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
 
   Future<void> _shoot({bool automatic = false}) async {
     final camera = _camera;
-    if (_shooting || _closed || camera == null) return;
+    if (_controlsBusy || _shooting || _closed || camera == null) return;
     _shooting = true;
     unawaited(AppHaptics.result());
     _flash();
@@ -740,6 +745,62 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     super.dispose();
   }
 
+  Widget _control({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+  }) => VisioIconButton(
+    label: label,
+    icon: icon,
+    overPhoto: true,
+    onPressed: _shooting || _controlsBusy ? null : onPressed,
+  );
+
+  Future<void> _changeCamera() async {
+    final camera = _camera;
+    if (camera == null || _controlsBusy || _shooting || _closed) return;
+    setState(() => _controlsBusy = true);
+    _stopLive();
+    final operation = Completer<void>();
+    _shotInFlight = operation.future;
+    try {
+      await _stopFrames(camera);
+      if (!identical(_camera, camera) || _closed) return;
+      await camera.switchCamera();
+    } on Exception catch (error, stack) {
+      unawaited(
+        _errors.record(source: 'guided_camera', error: error, stack: stack),
+      );
+      if (mounted && !_closed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível ajustar a câmera.')),
+        );
+      }
+    } finally {
+      operation.complete();
+      _controlsBusy = false;
+      if (mounted && !_closed) {
+        setState(() {});
+        if (identical(_camera, camera)) unawaited(_startLive(camera));
+      }
+    }
+  }
+
+  Future<void> _openGuide() async {
+    if (_shooting || _controlsBusy || _closed || _showingGuide) return;
+    _showingGuide = true;
+    _wantCamera = false;
+    _releaseCamera();
+    await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const CaptureGuideScreen()));
+    _showingGuide = false;
+    if (!mounted || _closed) return;
+    _wantCamera =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (_wantCamera) unawaited(_openCamera());
+  }
+
   bool _canCapture(GuidanceRow row) =>
       (_shownReading == null || row == GuidanceRow.ready) &&
       (_quality == null || (_quality!.lightOk && _quality!.focusOk));
@@ -810,7 +871,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }
 
   void _onShutter(GuidanceRow row) {
-    if (_camera == null || _shooting) return;
+    if (_camera == null || _shooting || _controlsBusy) return;
     if (_canCapture(row)) {
       unawaited(_shoot());
       return;
@@ -938,8 +999,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                     children: [
                       VisioIconButton(
                         key: const ValueKey('guided-camera-close'),
-                        label: 'Voltar',
-                        icon: Icons.arrow_back,
+                        label: 'Fechar',
+                        icon: Icons.close,
                         overPhoto: true,
                         onPressed: () =>
                             _pop(const GuidedCaptureResult.cancelled()),
@@ -953,6 +1014,11 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
+                      _control(
+                        label: 'Como fotografar',
+                        icon: Icons.info_outline,
+                        onPressed: _openGuide,
                       ),
                     ],
                   ),
@@ -977,31 +1043,47 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                                 ],
                                 _qualityChips(shown.row),
                                 const SizedBox(height: AppSpacing.lg),
-                                AnimatedBuilder(
-                                  animation: _shake,
-                                  builder: (context, child) =>
-                                      Transform.translate(
-                                        key: const ValueKey(
-                                          'guided-camera-shake',
-                                        ),
-                                        offset: Offset(
-                                          math.sin(_shake.value * math.pi * 6) *
-                                              8 *
-                                              (1 - _shake.value),
-                                          0,
-                                        ),
-                                        child: child,
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    AnimatedBuilder(
+                                      animation: _shake,
+                                      builder: (context, child) =>
+                                          Transform.translate(
+                                            key: const ValueKey(
+                                              'guided-camera-shake',
+                                            ),
+                                            offset: Offset(
+                                              math.sin(
+                                                    _shake.value * math.pi * 6,
+                                                  ) *
+                                                  8 *
+                                                  (1 - _shake.value),
+                                              0,
+                                            ),
+                                            child: child,
+                                          ),
+                                      child: _Shutter(
+                                        enabled:
+                                            _camera != null &&
+                                            !_shooting &&
+                                            !_controlsBusy &&
+                                            _canCapture(shown.row),
+                                        shooting: _shooting,
+                                        onTap: () => _onShutter(shown.row),
+                                        windowOpenedAt: _trigger.windowOpenedAt,
+                                        clock: _clock,
                                       ),
-                                  child: _Shutter(
-                                    enabled:
-                                        _camera != null &&
-                                        !_shooting &&
-                                        _canCapture(shown.row),
-                                    shooting: _shooting,
-                                    onTap: () => _onShutter(shown.row),
-                                    windowOpenedAt: _trigger.windowOpenedAt,
-                                    clock: _clock,
-                                  ),
+                                    ),
+                                    _control(
+                                      label: 'Trocar câmera',
+                                      icon: Icons.flip_camera_ios_outlined,
+                                      onPressed: camera?.canSwitchCamera == true
+                                          ? () => _changeCamera()
+                                          : null,
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 const Text(

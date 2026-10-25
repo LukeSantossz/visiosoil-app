@@ -127,6 +127,50 @@ void main() {
     expect(platform.calls.where((call) => call == 'dispose'), hasLength(1));
   });
 
+  test('switch_cycles_available_cameras_with_flash_off', () async {
+    final platform = _RecordingCameraPlatform([_front, _back]);
+    CameraPlatform.instance = platform;
+    final camera = PluginCaptureCamera();
+    await camera.initialize();
+    expect(camera.canSwitchCamera, isTrue);
+    await camera.switchCamera();
+    expect(platform.created, _front);
+    expect(
+      platform.calls.where((call) => call.startsWith('flash:')),
+      everyElement('flash:off'),
+    );
+    await camera.switchCamera();
+    expect(platform.created, _back);
+    await camera.dispose();
+  });
+
+  test('switch_rejects_a_controller_missing_from_available_cameras', () async {
+    final cameras = [_front, _back];
+    final platform = _RecordingCameraPlatform(cameras);
+    CameraPlatform.instance = platform;
+    final camera = PluginCaptureCamera();
+    await camera.initialize();
+    cameras[1] = _secondBack;
+    final callsBeforeSwitch = List<String>.of(platform.calls);
+    await expectLater(
+      camera.switchCamera(),
+      throwsA(isA<CameraUnavailableException>()),
+    );
+    expect(platform.calls, callsBeforeSwitch);
+    await camera.dispose();
+  });
+
+  test('single_camera_cannot_switch', () async {
+    final platform = _RecordingCameraPlatform([_back]);
+    CameraPlatform.instance = platform;
+    final camera = PluginCaptureCamera();
+    await camera.initialize();
+    expect(camera.canSwitchCamera, isFalse);
+    await camera.switchCamera();
+    expect(platform.calls.where((call) => call == 'create'), hasLength(1));
+    await camera.dispose();
+  });
+
   test('no_back_camera_is_unavailable', () async {
     CameraPlatform.instance = _RecordingCameraPlatform([_front]);
     await expectLater(

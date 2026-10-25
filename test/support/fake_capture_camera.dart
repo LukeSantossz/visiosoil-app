@@ -15,6 +15,7 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/tilt_source.da
 class FakeCaptureCameras {
   /// Thrown by every camera's initialize, when set.
   Object? initializeError;
+  bool canSwitchCamera = true;
 
   /// Thrown by takePicture, when set.
   Object? takePictureError;
@@ -53,6 +54,13 @@ class FakeCaptureCamera implements CaptureCamera {
 
   final FakeCaptureCameras _owner;
   final int index;
+  @override
+  bool get canSwitchCamera => _owner.canSwitchCamera;
+  @override
+  Future<void> switchCamera() async {
+    _owner.log.add('switchCamera:$index');
+  }
+
   int takePictureCalls = 0;
   bool disposed = false;
 
