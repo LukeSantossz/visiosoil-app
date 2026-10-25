@@ -72,11 +72,28 @@ abstract final class AppTheme {
       // scales for `AppPalette.sun`; adding an explicit one would instead
       // break `AnimatedTheme`'s interpolation against the other themes'
       // unset (null) style, which asserts on mismatched TextStyle.inherit.
-      segmentedButtonTheme: const SegmentedButtonThemeData(
+      //
+      // The selected segment is black with white text, not the base theme's
+      // `selected` token above: `AppPalette.sun.selected` is white, the same
+      // as the unselected fill, so the chosen segment needs its own explicit
+      // >=7:1 pair instead (redesign v11 §1.1, §8, SPEC 0184).
+      segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: WidgetStatePropertyAll(
+          padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return null;
+            if (states.contains(WidgetState.selected)) return Colors.black;
+            return null;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return Colors.black.withValues(alpha: 0.38);
+            }
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return Colors.black;
+          }),
         ),
       ),
       cardTheme: base.cardTheme.copyWith(
@@ -232,6 +249,30 @@ abstract final class AppTheme {
         dividerTheme: DividerThemeData(
           color: p.outlineVariant,
           thickness: 1,
+        ),
+        // The selected segment uses the mock's green `selected` token, not
+        // M3's default secondaryContainer, which is brown in this palette and
+        // reads the same as every other control's accent (redesign v11 §1.1,
+        // SPEC 0184). Every other state (disabled, unselected) replicates the
+        // M3 default, since setting any state on this property replaces the
+        // default `WidgetStateProperty` wholesale rather than layering over it.
+        segmentedButtonTheme: SegmentedButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) return null;
+              if (states.contains(WidgetState.selected)) return p.selected;
+              return null;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return p.onSurface.withValues(alpha: 0.38);
+              }
+              if (states.contains(WidgetState.selected)) {
+                return p.onPrimaryContainer;
+              }
+              return p.onSurface;
+            }),
+          ),
         ),
         progressIndicatorTheme: ProgressIndicatorThemeData(
           color: p.primary,

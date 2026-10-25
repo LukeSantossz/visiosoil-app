@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 
@@ -13,7 +12,7 @@ import 'package:visiosoil_app/providers/appearance_provider.dart';
 Future<BuildContext> _pumpApp(WidgetTester tester) async {
   late BuildContext page;
   await tester.pumpWidget(ProviderScope(
-    overrides: [initialThemeChoiceProvider.overrideWithValue(AppThemeChoice.light)],
+    overrides: [initialBaseThemeModeProvider.overrideWithValue(ThemeMode.light)],
     child: VisioSoilApp(
       routerConfig: GoRouter(routes: [
         GoRoute(
