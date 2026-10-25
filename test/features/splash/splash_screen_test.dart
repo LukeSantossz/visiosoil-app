@@ -52,6 +52,19 @@ void main() {
           .boxShadow ??
       const [];
 
+  testWidgets('splash_title_uses_variable_weight_800', (tester) async {
+    for (final (_, theme) in appThemes) {
+      await pumpSplash(tester, theme: theme);
+
+      final title = tester.widget<Text>(find.text('VisioSoil'));
+      expect(title.style?.fontFamily, 'InterVariable');
+      expect(title.style?.fontWeight, FontWeight.w800);
+      expect(title.style?.fontVariations, [const FontVariation('wght', 800)]);
+
+      await unmount(tester);
+    }
+  });
+
   testWidgets('splash_first_frame_shows_the_tile_in_place', (tester) async {
     await pumpSplash(tester);
 

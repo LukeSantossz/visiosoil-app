@@ -155,6 +155,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         'VisioSoil',
                         style: theme.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w800,
+                          fontVariations: [FontVariation('wght', 800)],
                           letterSpacing: -0.5,
                         ),
                       ),
