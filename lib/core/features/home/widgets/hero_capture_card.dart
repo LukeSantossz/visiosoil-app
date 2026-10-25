@@ -14,10 +14,8 @@ class HeroCaptureCard extends StatelessWidget {
     hint: 'Fotografe o solo sobre uma folha A4',
     child: SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: onCapture,
-        icon: const Icon(Icons.camera_alt_outlined),
-        label: const Text('Analisar solo'),
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
           minimumSize: Size(0, context.density.buttonHeight),
@@ -36,6 +34,26 @@ class HeroCaptureCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.borderRadiusPill,
           ),
+        ),
+        child: Row(
+          children: [
+            const ExcludeSemantics(
+              child: Icon(Icons.center_focus_strong_outlined),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Analisar solo',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: context.palette.onSurface,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const ExcludeSemantics(child: Icon(Icons.photo_library_outlined)),
+          ],
         ),
       ),
     ),
