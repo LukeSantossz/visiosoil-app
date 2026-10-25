@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/core/widgets/status_pill.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/models/confidence_level.dart';
 
 /// A record row (redesign v11 §4 `AnalysisTile`): thumbnail, texture class
 /// (or the failure reason, when the photograph was not classified), place and
@@ -35,8 +36,10 @@ class AnalysisTile extends StatelessWidget {
     this.offline = false,
   });
 
-  // QA saw truncation at 320 dp; the trailing content fit at 360 dp.
-  static const double _stackedTrailingWidth = 360;
+  // Below this inner width (a ~344 dp screen) the row stacks even when the
+  // measured text would squeeze in: QA saw truncation at 320 dp, and long
+  // localized labels leave no margin there. Wider rows rely on the fit check.
+  static const double _compactRowWidth = 320;
 
   final SoilRecord record;
   final VoidCallback? onTap;
@@ -95,14 +98,87 @@ class AnalysisTile extends StatelessWidget {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final stackStatus =
-                        showSyncStatus &&
-                        (constraints.maxWidth < _stackedTrailingWidth ||
-                            MediaQuery.textScalerOf(context).scale(1) >= 1.3);
-                    final stackTrailing =
-                        !showSyncStatus &&
-                        (constraints.maxWidth < _stackedTrailingWidth ||
-                            MediaQuery.textScalerOf(context).scale(14) > 14);
+                    final textScaler = MediaQuery.textScalerOf(context);
+                    double textWidth(String text, TextStyle? style) {
+                      final painter = TextPainter(
+                        text: TextSpan(
+                          text: text,
+                          style: DefaultTextStyle.of(
+                            context,
+                          ).style.merge(style),
+                        ),
+                        textDirection: Directionality.of(context),
+                        textScaler: textScaler,
+                      )..layout();
+                      final width = painter.width;
+                      painter.dispose();
+                      return width;
+                    }
+
+                    final title = failure != null
+                        ? 'Não classificada'
+                        : record.displayTextureClass;
+                    final metadata = failure != null
+                        ? classificationFailureChip(failure).label
+                        : showSyncStatus
+                        ? _homeMetadata(record)
+                        : record.formattedTimestampCompact;
+                    final titleWidth = textWidth(
+                      title,
+                      theme.textTheme.titleMedium,
+                    );
+                    final dateWidth = textWidth(
+                      metadata,
+                      theme.textTheme.bodySmall,
+                    );
+                    final columnWidth = titleWidth > dateWidth
+                        ? titleWidth
+                        : dateWidth;
+                    final pillStyle = theme.textTheme.labelSmall?.copyWith(
+                      fontSize: palette.isSun ? 14 : 12,
+                      fontWeight: FontWeight.w600,
+                    );
+                    double statusWidth(StatusPillStatus status) =>
+                        textWidth(status.label, pillStyle) +
+                        12 +
+                        AppSpacing.xs +
+                        2 * AppSpacing.sm +
+                        (palette.isSun ? 4 : 0);
+                    final score = record.confidenceScore;
+                    final double trailingWidth;
+                    if (showSyncStatus) {
+                      trailingWidth = offline && !isPending
+                          ? 0
+                          : statusWidth(status.status);
+                    } else if (failure != null) {
+                      trailingWidth = 20;
+                    } else if (isPending) {
+                      trailingWidth = statusWidth(StatusPillStatus.pending);
+                    } else if (score != null) {
+                      final label = ConfidenceLevel.fromScore(score).label;
+                      final text = score.isFinite
+                          ? '${floorConfidencePercent(score)}% · $label'
+                          : label;
+                      trailingWidth =
+                          textWidth(text, pillStyle?.copyWith(height: 1)) +
+                          12 +
+                          AppSpacing.xs +
+                          2 * AppSpacing.xs +
+                          (palette.isSun ? 4 : 0);
+                    } else {
+                      trailingWidth = IconTheme.of(context).size ?? 24;
+                    }
+                    final needsStack =
+                        textScaler.scale(1) >= 1.3 ||
+                        constraints.maxWidth < _compactRowWidth ||
+                        thumbSize +
+                                AppSpacing.md +
+                                columnWidth +
+                                AppSpacing.sm +
+                                trailingWidth >
+                            constraints.maxWidth;
+                    final stackStatus = showSyncStatus && needsStack;
+                    final stackTrailing = !showSyncStatus && needsStack;
                     final trailing = _Trailing(
                       record: record,
                       isPending: isPending,
@@ -140,7 +216,9 @@ class AnalysisTile extends StatelessWidget {
                                   const SizedBox(height: 2),
                                   Text(
                                     failure != null
-                                        ? classificationFailureChip(failure).label
+                                        ? classificationFailureChip(
+                                            failure,
+                                          ).label
                                         : showSyncStatus
                                         ? _homeMetadata(record)
                                         : record.formattedTimestampCompact,

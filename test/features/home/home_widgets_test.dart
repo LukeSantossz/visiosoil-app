@@ -65,11 +65,16 @@ void main() {
       );
       final value = tester.widget<Text>(find.text('90%'));
       final label = tester.widget<Text>(find.text('última confiança'));
-      expect(value.style?.fontSize, 28);
-      expect(value.style?.fontWeight, FontWeight.w700);
+      expect(value.style?.fontSize, entry.key == 'sun' ? 22 : 20);
+      expect(value.style?.height, 1.4);
+      expect(
+        value.style?.fontFeatures,
+        contains(const FontFeature.tabularFigures()),
+      );
+      expect(value.style?.fontWeight, FontWeight.w600);
       expect(
         value.style?.fontVariations,
-        contains(const FontVariation('wght', 700)),
+        contains(const FontVariation('wght', 600)),
       );
       expect(label.style?.fontSize, 14);
       expect(
