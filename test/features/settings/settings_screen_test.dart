@@ -260,7 +260,11 @@ void main() {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
 
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('settings_shows_account_when_signed_in', (tester) async {
@@ -281,14 +285,18 @@ void main() {
     await tester.pumpWidget(_app(null, signInError: Exception('oauth failed')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pump(); // start sign-in (loading)
     await tester.pump(); // async throws -> error state -> listener fires
     await tester.pump(); // build the SnackBar
 
     expect(find.text(_failureMessage), findsOneWidget);
     // The tile stays on the sign-in affordance, so the user can retry.
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   // Signing in cannot reach Google without a connection, so the tap says so
@@ -308,7 +316,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pump();
     await tester.pump();
 
@@ -329,7 +337,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pumpAndSettle();
 
     expect(find.text(_failureMessage), findsOneWidget);
@@ -352,7 +360,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pumpAndSettle();
 
     expect(auth.signInCalls, 1);
@@ -381,7 +389,7 @@ void main() {
     // tile keeps showing the account, not the sign-in affordance.
     expect(find.text('Agro'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
-    expect(find.text('Entrar com Google'), findsNothing);
+    expect(find.text('Conta'), findsNothing);
   });
 
   testWidgets(
@@ -404,7 +412,11 @@ void main() {
 
       expect(find.text(_failureMessage), findsOneWidget);
       // Local credentials were cleared, so the tile reflects signed-out.
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
       expect(find.text('Sair'), findsNothing);
     },
   );
@@ -422,7 +434,11 @@ void main() {
     await tester.pump();
 
     expect(find.text(_failureMessage), findsNothing);
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   group('account deletion (SPEC 0113)', () {
@@ -464,7 +480,11 @@ void main() {
 
       expect(auth.deleteAccountCalls, 1);
       expect(find.text('Conta excluída do VisioSoil.'), findsOneWidget);
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('cancelling excluir conta deletes nothing', (tester) async {
@@ -500,7 +520,11 @@ void main() {
       );
       expect(find.text(_failureMessage), findsNothing);
       expect(find.text('Conta excluída do VisioSoil.'), findsNothing);
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('any other failure keeps the account and the generic message', (
@@ -770,7 +794,11 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_app(null, theme: theme));
       await tester.pumpAndSettle();
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     });

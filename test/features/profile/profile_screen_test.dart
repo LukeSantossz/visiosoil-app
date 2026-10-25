@@ -7,6 +7,7 @@ import 'package:visiosoil_app/core/features/profile/profile_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/widgets/google_g_logo.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -82,6 +83,20 @@ void main() {
           );
           expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
         }
+        final label = find.text('Continuar com o Google');
+        final logo = find.byType(GoogleGLogo);
+        expect(logo, findsOneWidget);
+        expect(tester.getSize(logo), const Size(18, 18));
+        expect(tester.getTopLeft(label).dx - tester.getTopRight(logo).dx, 10);
+        final text = tester.widget<RichText>(
+          find.descendant(of: label, matching: find.byType(RichText)),
+        );
+        expect(text.text.style?.fontSize, 14);
+        expect(text.text.style?.fontWeight, FontWeight.w500);
+        expect(
+          find.descendant(of: logo, matching: find.byType(ExcludeSemantics)),
+          findsOneWidget,
+        );
         if (state == 'records') {
           expect(
             find.text('1 análises e 1 classes guardadas neste aparelho'),

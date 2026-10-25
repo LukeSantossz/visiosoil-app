@@ -6,6 +6,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
+import 'package:visiosoil_app/core/widgets/google_g_logo.dart';
 import 'package:visiosoil_app/core/widgets/account_card.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -74,6 +75,11 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.lg),
                         VisioButton(
                           label: 'Continuar com o Google',
+                          leading: const GoogleGLogo(),
+                          labelStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                           variant: VisioButtonVariant.secondary,
                           expanded: true,
                           isLoading: auth.isLoading,

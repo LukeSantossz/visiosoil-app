@@ -377,7 +377,8 @@ class _AccountTile extends ConsumerWidget {
 
   Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
     icon: Icons.login,
-    title: 'Entrar com Google',
+    title: 'Conta',
+    subtitle: 'Não vinculada · dados só neste aparelho',
     onTap: () => _signIn(context, ref),
     trailing: Icon(
       Icons.arrow_forward_ios,
