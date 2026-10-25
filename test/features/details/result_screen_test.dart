@@ -132,6 +132,20 @@ void main() {
     expect(find.byType(ManagementTipsSection), findsNothing);
   });
 
+  // A tab change keeps each tab's state, so tips generating in Manejo still
+  // land when the user returns to it (Codex review on #427).
+  testWidgets('tabs_keep_their_state_across_changes', (tester) async {
+    await _pump(tester, _classified());
+    await _selectTab(tester, 'Manejo');
+    final tips = tester.state(find.byType(ManagementTipsSection));
+
+    await _selectTab(tester, 'Detalhes');
+    expect(find.byType(ManagementTipsSection), findsNothing);
+    await _selectTab(tester, 'Manejo');
+
+    expect(tester.state(find.byType(ManagementTipsSection)), same(tips));
+  });
+
   group('about_class_copy_per_model_class', () {
     for (final (textureClass, fragment) in [
       ('Arenosa', 'menos de 15% de argila'),

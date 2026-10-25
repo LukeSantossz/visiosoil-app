@@ -201,11 +201,23 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
                 ),
               ],
             ),
-            switch (_tab) {
-              ResultTab.overview => ResultOverview(record: record),
-              ResultTab.management => ManagementTipsSection(record: record),
-              ResultTab.details => details,
-            },
+            // Every tab stays mounted, so a tab change cannot drop state such
+            // as tips still generating; a hidden tab takes no space.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (tab, content) in [
+                  (ResultTab.overview, ResultOverview(record: record)),
+                  (ResultTab.management, ManagementTipsSection(record: record)),
+                  (ResultTab.details, details),
+                ])
+                  Visibility(
+                    visible: _tab == tab,
+                    maintainState: true,
+                    child: content,
+                  ),
+              ],
+            ),
           ]
         // Unclassified: why, then the record itself, so it can still be
         // shared and deleted (SPEC 0194).

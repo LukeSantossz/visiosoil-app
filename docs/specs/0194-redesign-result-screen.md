@@ -14,7 +14,7 @@ Restructure `DetailsScreen` around a plain `VisioAppBar` titled "Resultado", kee
   - the class name in `headlineMedium`;
   - a row with the full-label `ConfidenceBadge`, which carries the floored percent (SPEC 0187), beside an animated `ConfidenceBar`;
   - the existing advisory banner for a média or baixa confidence.
-- **Tabs.** A `SegmentedControl` with Visão geral, Manejo and Detalhes. The selected tab is local widget state and starts on Visão geral.
+- **Tabs.** A `SegmentedControl` with Visão geral, Manejo and Detalhes. The selected tab is local widget state and starts on Visão geral. Every tab stays mounted and a hidden one takes no space, so a tab change never drops state such as tips still generating.
 - **Visão geral** holds four parts:
   - the intro sentence from §3.6;
   - a "Sobre a classe" card labelled "Referência geral";
