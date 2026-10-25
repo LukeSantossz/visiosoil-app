@@ -67,6 +67,10 @@ void main() {
       final label = tester.widget<Text>(find.text('última confiança'));
       expect(value.style?.fontSize, 28);
       expect(value.style?.fontWeight, FontWeight.w700);
+      expect(
+        value.style?.fontVariations,
+        contains(const FontVariation('wght', 700)),
+      );
       expect(label.style?.fontSize, 14);
       expect(
         value.style?.fontFamily,

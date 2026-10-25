@@ -17,6 +17,7 @@ class StatsGrid extends StatelessWidget {
     final valueStyle = textTheme.headlineMedium?.copyWith(
       fontSize: 28,
       fontWeight: FontWeight.w700,
+      fontVariations: const [FontVariation('wght', 700)],
     );
     final labelStyle = textTheme.bodyMedium?.copyWith(
       fontSize: 14,
