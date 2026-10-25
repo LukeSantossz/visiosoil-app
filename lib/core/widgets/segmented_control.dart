@@ -8,7 +8,11 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// One choice in a [SegmentedControl].
 class SegmentedControlOption<T> {
-  const SegmentedControlOption({required this.value, required this.label, this.icon});
+  const SegmentedControlOption({
+    required this.value,
+    required this.label,
+    this.icon,
+  });
 
   final T value;
   final String label;
@@ -49,43 +53,48 @@ class SegmentedControl<T> extends StatelessWidget {
         builder: (context, constraints) {
           final segmentWidth = constraints.maxWidth / options.length;
 
-          return Container(
-            height: height,
-            // The clip shape comes from a borderless `decoration` (clipping
-            // needs one); the border itself is a `foregroundDecoration`. A
-            // *background* decoration's border would otherwise reserve
-            // padding equal to its width, shrinking every segment's tap
-            // target below the 48 dp floor (redesign v11 §8).
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.borderRadiusPill,
-            ),
-            foregroundDecoration: BoxDecoration(
-              borderRadius: AppRadius.borderRadiusPill,
-              border: Border.all(color: palette.outline, width: palette.edgeWidth),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: [
-                if (selectedIndex >= 0)
-                  AnimatedPositioned(
-                    duration: AppMotion.durationOf(context, AppMotion.base),
-                    curve: AppMotion.standard,
-                    left: segmentWidth * selectedIndex,
-                    top: 0,
-                    bottom: 0,
-                    width: segmentWidth,
-                    child: Container(color: palette.isSun ? Colors.black : palette.selected),
-                  ),
-                Positioned.fill(
-                  child: Row(
+          return IntrinsicHeight(
+            child: Container(
+              constraints: BoxConstraints(minHeight: height),
+              // The clip shape comes from a borderless `decoration` (clipping
+              // needs one); the border itself is a `foregroundDecoration`. A
+              // *background* decoration's border would otherwise reserve
+              // padding equal to its width, shrinking every segment's tap
+              // target below the 48 dp floor (redesign v11 §8).
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.borderRadiusPill,
+              ),
+              foregroundDecoration: BoxDecoration(
+                borderRadius: AppRadius.borderRadiusPill,
+                border: Border.all(
+                  color: palette.outline,
+                  width: palette.edgeWidth,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  if (selectedIndex >= 0)
+                    AnimatedPositioned(
+                      duration: AppMotion.durationOf(context, AppMotion.base),
+                      curve: AppMotion.standard,
+                      left: segmentWidth * selectedIndex,
+                      top: 0,
+                      bottom: 0,
+                      width: segmentWidth,
+                      child: Container(
+                        color: palette.isSun ? Colors.black : palette.selected,
+                      ),
+                    ),
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (var i = 0; i < options.length; i++)
                         Expanded(child: _buildSegment(context, i)),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -96,7 +105,9 @@ class SegmentedControl<T> extends StatelessWidget {
   Widget _buildSegment(BuildContext context, int index) {
     final option = options[index];
     final isSelected = option.value == value;
-    final foreground = context.palette.isSun && isSelected ? Colors.white : null;
+    final foreground = context.palette.isSun && isSelected
+        ? Colors.white
+        : null;
 
     void select() {
       if (!isSelected) {
@@ -115,22 +126,30 @@ class SegmentedControl<T> extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkWell(
             onTap: select,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (option.icon != null) ...[
-                  Icon(option.icon, size: 16, color: foreground),
-                  const SizedBox(width: AppSpacing.xs),
-                ],
-                Text(
-                  option.label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (option.icon != null) ...[
+                    Icon(option.icon, size: 16, color: foreground),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  Flexible(
+                    child: Text(
+                      option.label,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: foreground,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

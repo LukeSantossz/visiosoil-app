@@ -2,16 +2,22 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/classification_header.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
@@ -80,21 +86,79 @@ class _RecordNotFoundView extends StatelessWidget {
 
 // --- Main Content ---
 
-class _DetailsContent extends ConsumerWidget {
+/// The result screen's tabs (redesign v11 §3.6, SPEC 0194).
+enum ResultTab { overview, management, details }
+
+class _DetailsContent extends ConsumerStatefulWidget {
   const _DetailsContent({required this.record, required this.recordId});
 
   final SoilRecord record;
   final int recordId;
 
+  @override
+  ConsumerState<_DetailsContent> createState() => _DetailsContentState();
+}
+
+class _DetailsContentState extends ConsumerState<_DetailsContent>
+    with SingleTickerProviderStateMixin {
+  /// The blocks that rise in: the header, the tab control and the tab, or
+  /// the error block and the details below it.
+  static const int _risingBlocks = 3;
+  static const Duration _blockStagger = Duration(milliseconds: 30);
+
+  ResultTab _tab = ResultTab.overview;
+  late final AnimationController _entrance = AnimationController(vsync: this);
+  late final List<CurvedAnimation> _blockEntrances = [
+    for (var i = 0; i < _risingBlocks; i++)
+      CurvedAnimation(
+        parent: _entrance,
+        curve: Interval(
+          _fractionOfEntrance(_blockStagger * i),
+          _fractionOfEntrance(_blockStagger * i + AppMotion.base),
+          curve: AppMotion.standardDecelerate,
+        ),
+      ),
+  ];
+  bool _entranceStarted = false;
+
+  static Duration get _entranceLength =>
+      AppMotion.base + _blockStagger * (_risingBlocks - 1);
+
+  static double _fractionOfEntrance(Duration at) =>
+      at.inMicroseconds / _entranceLength.inMicroseconds;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Each block rises over `base`, 30 ms after the one above it
+    // (redesign v11 §6.4); reduced motion caps the whole entrance.
+    _entrance.duration = AppMotion.durationOf(context, _entranceLength);
+    _entrance.forward();
+  }
+
+  @override
+  void dispose() {
+    for (final animation in _blockEntrances) {
+      animation.dispose();
+    }
+    _entrance.dispose();
+    super.dispose();
+  }
+
   /// Asks for the labels and writes them, then re-reads the record; a failed
   /// write says so and leaves the labels as they were (SPEC 0149).
-  Future<void> _editLabels(BuildContext context, WidgetRef ref) async {
+  Future<void> _editLabels() async {
+    final record = widget.record;
     final labels = await showLabelsDialog(context, record);
-    if (labels == null || !context.mounted) return;
+    if (labels == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(soilRecordRepositoryProvider).updateLabels(
-            recordId,
+      await ref
+          .read(soilRecordRepositoryProvider)
+          .updateLabels(
+            widget.recordId,
             fieldName: labels.fieldName,
             sampleLabel: labels.sampleLabel,
           );
@@ -106,17 +170,79 @@ class _DetailsContent extends ConsumerWidget {
       );
       return;
     }
-    if (context.mounted) ref.invalidate(soilRecordByIdProvider(recordId));
+    if (mounted) ref.invalidate(soilRecordByIdProvider(widget.recordId));
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final record = widget.record;
+    final details = _DetailsTab(record: record, onEditLabels: _editLabels);
+    final classified = record.hasClassification;
+
+    final List<Widget> blocks = classified
+        ? [
+            ClassificationHeader(record: record),
+            SegmentedControl<ResultTab>(
+              semanticLabel: 'Seções do resultado',
+              value: _tab,
+              onChanged: (tab) => setState(() => _tab = tab),
+              options: const [
+                SegmentedControlOption(
+                  value: ResultTab.overview,
+                  label: AppStrings.resultTabOverview,
+                ),
+                SegmentedControlOption(
+                  value: ResultTab.management,
+                  label: AppStrings.resultTabManagement,
+                ),
+                SegmentedControlOption(
+                  value: ResultTab.details,
+                  label: AppStrings.resultTabDetails,
+                ),
+              ],
+            ),
+            switch (_tab) {
+              ResultTab.overview => ResultOverview(record: record),
+              ResultTab.management => ManagementTipsSection(record: record),
+              ResultTab.details => details,
+            },
+          ]
+        // Unclassified: why, then the record itself, so it can still be
+        // shared and deleted (SPEC 0194).
+        : [ResultErrorBlock(cause: record.classificationFailure), details];
+
     return Scaffold(
+      appBar: VisioAppBar(
+        title: AppStrings.resultTitle,
+        // Reads "Voltar" whatever the locale (SPEC 0118).
+        leading: Navigator.canPop(context)
+            ? VisioIconButton(
+                label: 'Voltar',
+                icon: Icons.arrow_back,
+                onPressed: () => Navigator.maybePop(context),
+              )
+            : null,
+        // The next sample starts here, in view on the page a save opens
+        // (SPEC 0146).
+        actions: [
+          VisioIconButton(
+            label: 'Nova captura',
+            icon: Icons.add_a_photo_outlined,
+            onPressed: () => context.push('/capture'),
+          ),
+        ],
+      ),
+      bottomNavigationBar: classified
+          ? _ResultFooter(
+              onCorrect: _editLabels,
+              onManagementTips: () =>
+                  setState(() => _tab = ResultTab.management),
+            )
+          : null,
       body: CustomScrollView(
         slivers: [
-          _HeroImageAppBar(record: record),
-          // The page scrolls under the navigation bar on Android 12 and later
-          // (SPEC 0109), so the last action ends above it.
+          // The page scrolls under the navigation bar on Android 12 and
+          // later (SPEC 0109), so the last action ends above it.
           SliverSafeArea(
             top: false,
             sliver: SliverToBoxAdapter(
@@ -128,18 +254,15 @@ class _DetailsContent extends ConsumerWidget {
                   AppSpacing.xxl,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ClassificationHeader(record: record),
-                    const SizedBox(height: AppSpacing.xl),
-                    InfoSection(
-                      record: record,
-                      onEditLabels: () => _editLabels(context, ref),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    ManagementTipsSection(record: record),
-                    const SizedBox(height: AppSpacing.xl),
-                    _ActionButtons(record: record),
+                    for (var i = 0; i < blocks.length; i++) ...[
+                      if (i > 0) const SizedBox(height: AppSpacing.lg),
+                      _RiseIn(
+                        animation: _blockEntrances[i],
+                        child: blocks[i],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -151,104 +274,184 @@ class _DetailsContent extends ConsumerWidget {
   }
 }
 
-// --- Hero Image with SliverAppBar ---
+/// A block of the result's entrance: it fades in and rises 8 px, or only
+/// fades under reduced motion (redesign v11 §6.4, §6.5).
+class _RiseIn extends StatelessWidget {
+  const _RiseIn({required this.animation, required this.child});
 
-class _HeroImageAppBar extends StatelessWidget {
-  const _HeroImageAppBar({required this.record});
-
-  final SoilRecord record;
+  final Animation<double> animation;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final imageFile = File(record.imagePath);
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheH = (280 * dpr).round();
-
-    return SliverAppBar(
-      expandedHeight: 280,
-      pinned: true,
-      backgroundColor: context.palette.surface,
-      foregroundColor: context.palette.onSurface,
-      // The back button sits over the photograph, whose top is the white A4
-      // sheet (ADR 0017), so it cannot take the theme's text colour. It takes
-      // the photo viewer's scrim instead, which reads in both themes
-      // (SPEC 0107).
-      leading: Navigator.canPop(context)
-          ? Padding(
-              padding: const EdgeInsets.all(AppSpacing.xs),
-              child: VisioIconButton(
-                label: 'Voltar',
-                icon: Icons.arrow_back,
-                overPhoto: true,
-                onPressed: () => Navigator.maybePop(context),
+    final reduce =
+        AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context);
+    return FadeTransition(
+      key: const ValueKey('result-rise'),
+      opacity: animation,
+      child: reduce
+          ? child
+          : AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) => Transform.translate(
+                offset: Offset(0, 8 * (1 - animation.value)),
+                child: child,
               ),
-            )
-          : null,
-      // The next sample starts here, in view on the page a save opens
-      // (SPEC 0146).
-      actions: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          child: VisioIconButton(
-            label: 'Nova captura',
-            icon: Icons.add_a_photo_outlined,
-            overPhoto: true,
-            onPressed: () => context.push('/capture'),
+              child: child,
+            ),
+    );
+  }
+}
+
+/// [Corrigir] and [Dicas de manejo], side by side, stacked where they no
+/// longer fit (redesign v11 §3.6, §8, §10).
+class _ResultFooter extends StatelessWidget {
+  const _ResultFooter({
+    required this.onCorrect,
+    required this.onManagementTips,
+  });
+
+  final VoidCallback onCorrect;
+  final VoidCallback onManagementTips;
+
+  @override
+  Widget build(BuildContext context) {
+    final stacked = resultStacks(context);
+    final correct = VisioButton(
+      label: AppStrings.resultCorrect,
+      icon: Icons.edit_outlined,
+      variant: VisioButtonVariant.secondary,
+      onPressed: onCorrect,
+    );
+    final tips = VisioButton(
+      label: AppStrings.resultManagementTips,
+      onPressed: onManagementTips,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        border: Border(
+          top: BorderSide(
+            color: context.palette.cardBorder,
+            width: context.palette.edgeWidth,
           ),
         ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: stacked
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    correct,
+                    const SizedBox(height: AppSpacing.sm),
+                    tips,
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: correct),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(flex: 2, child: tips),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Detalhes tab ---
+
+/// The record itself: its photograph, its information and its actions
+/// (redesign v11 §3.8 restyles it as v11 item 11).
+class _DetailsTab extends StatelessWidget {
+  const _DetailsTab({required this.record, required this.onEditLabels});
+
+  final SoilRecord record;
+  final VoidCallback onEditLabels;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SamplePhoto(record: record),
+        const SizedBox(height: AppSpacing.lg),
+        InfoSection(record: record, onEditLabels: onEditLabels),
+        const SizedBox(height: AppSpacing.xl),
+        _ActionButtons(record: record),
       ],
-      flexibleSpace: FlexibleSpaceBar(
-        // Below the status bar, so its icons sit on the theme's surface rather
-        // than on the photograph.
-        background: Padding(
-          padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
-          // A labelled button that opens the full-screen viewer, its ink on a
-          // transparent Material over the photograph (SPEC 0125).
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // The soil sample once it is cut, the photograph until then
-              // and when there is none (SPEC 0172).
-              Consumer(
-                builder: (context, ref, photo) {
-                  final sample =
-                      ref.watch(soilSampleProvider(record.imagePath)).value;
-                  if (sample == null) return photo!;
-                  return Image.memory(
-                    sample,
-                    key: const ValueKey('soil-sample'),
-                    fit: BoxFit.cover,
-                    cacheHeight: cacheH,
-                  );
-                },
-                child: Image.file(
-                  imageFile,
+    );
+  }
+}
+
+class _SamplePhoto extends StatelessWidget {
+  const _SamplePhoto({required this.record});
+
+  final SoilRecord record;
+
+  static const double _height = 240;
+
+  @override
+  Widget build(BuildContext context) {
+    final cacheH = (_height * MediaQuery.devicePixelRatioOf(context)).round();
+
+    return ClipRRect(
+      borderRadius: AppRadius.borderRadiusLg,
+      child: SizedBox(
+        height: _height,
+        // A labelled button that opens the full-screen viewer, its ink on a
+        // transparent Material over the photograph (SPEC 0125).
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // The soil sample once it is cut, the photograph until then and
+            // when there is none (SPEC 0172).
+            Consumer(
+              builder: (context, ref, photo) {
+                final sample = ref
+                    .watch(soilSampleProvider(record.imagePath))
+                    .value;
+                if (sample == null) return photo!;
+                return Image.memory(
+                  sample,
+                  key: const ValueKey('soil-sample'),
                   fit: BoxFit.cover,
                   cacheHeight: cacheH,
-                  errorBuilder: (_, _, _) => Container(
-                    color: context.palette.surfaceVariant,
-                    child: Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        size: 48,
-                        color: context.palette.onSurfaceVariant,
-                      ),
+                );
+              },
+              child: Image.file(
+                File(record.imagePath),
+                fit: BoxFit.cover,
+                cacheHeight: cacheH,
+                errorBuilder: (_, _, _) => Container(
+                  color: context.palette.surfaceVariant,
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: context.palette.onSurfaceVariant,
                     ),
                   ),
                 ),
               ),
-              Semantics(
-                button: true,
-                label: 'Ampliar foto',
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: InkWell(
-                    onTap: () => context.push('/preview', extra: record.id),
-                  ),
+            ),
+            Semantics(
+              button: true,
+              label: 'Ampliar foto',
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: () => context.push('/preview', extra: record.id),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
