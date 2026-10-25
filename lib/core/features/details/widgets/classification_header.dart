@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
+import 'package:visiosoil_app/core/widgets/confidence_bar.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// The details screen's classification header: texture class + color dot, a
-/// confidence badge with the timestamp, and (for low/moderate confidence) an
-/// advisory banner.
+/// The result screen's header (redesign v11 §3.6, SPEC 0194): the date chip,
+/// the overline, the texture class, the full confidence badge beside the
+/// confidence bar and, for low or moderate confidence, an advisory banner.
+/// It describes a classified record; an unclassified one shows
+/// `ResultErrorBlock` instead.
 class ClassificationHeader extends StatelessWidget {
   const ClassificationHeader({super.key, required this.record});
 
@@ -18,16 +22,48 @@ class ClassificationHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final level = ConfidenceLevel.fromScore(record.confidenceScore);
-    final showBanner = record.hasClassification &&
+    final hasScore = record.confidenceScore != null;
+    final showBanner = hasScore &&
         (level == ConfidenceLevel.low || level == ConfidenceLevel.moderate);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _TextureNameRow(record: record),
-        const SizedBox(height: AppSpacing.sm),
-        _BadgeTimestampRow(record: record),
+        _DateChip(text: Formatters.timestampDotted(record.timestamp)),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          AppStrings.resultOverline,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: context.palette.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        // The class's colour, as history and compare mark it.
+        Row(
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: SoilTextureColors.forClass(record.textureClass!),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                record.displayTextureClass,
+                style: theme.textTheme.headlineMedium,
+              ),
+            ),
+          ],
+        ),
+        if (hasScore) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _ConfidenceRow(score: record.confidenceScore!),
+        ],
         if (showBanner) ...[
           const SizedBox(height: AppSpacing.md),
           _ConfidenceBanner(level: level, message: _bannerMessage(level)),
@@ -39,94 +75,80 @@ class ClassificationHeader extends StatelessWidget {
   // Approved copy (redesign v11 §3.14, decision 14.2).
   String _bannerMessage(ConfidenceLevel level) => level == ConfidenceLevel.low
       ? 'O modelo não está seguro. Refaça a foto na sombra, com a amostra '
-          'preenchendo a moldura.'
+            'preenchendo a moldura.'
       : 'Resultado provável. Se puder, refaça a foto para confirmar.';
 }
 
-class _TextureNameRow extends StatelessWidget {
-  const _TextureNameRow({required this.record});
+class _DateChip extends StatelessWidget {
+  const _DateChip({required this.text});
 
-  final SoilRecord record;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final failure = record.classificationFailure;
-    final textureColor = record.hasClassification
-        ? SoilTextureColors.forClass(record.textureClass!)
-        : context.palette.outline;
-
-    return Row(
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(color: textureColor, shape: BoxShape.circle),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: context.palette.inverseSurface,
+        borderRadius: AppRadius.borderRadiusSm,
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: context.palette.onInverseSurface,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                record.displayTextureClass,
-                style: theme.textTheme.headlineMedium,
-              ),
-              // Why it was not classified, in the capture chip's words
-              // (SPEC 0173).
-              if (!record.hasClassification && failure != null)
-                Text(
-                  classificationFailureChip(failure).label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: context.palette.onSurfaceVariant,
-                  ),
-                ),
-            ],
+      ),
+    );
+  }
+}
+
+/// The badge beside the bar, stacked where the footer stacks too, so a wide
+/// badge never squeezes the bar out.
+class _ConfidenceRow extends StatelessWidget {
+  const _ConfidenceRow({required this.score});
+
+  final double score;
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = ConfidenceBadge(score: score, fullLabel: true);
+    final bar = ConfidenceBar(score: score);
+    if (resultStacks(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          badge,
+          const SizedBox(height: AppSpacing.sm),
+          bar,
+        ],
+      );
+    }
+    // The badge takes what it needs up to 60 % and wraps beyond it
+    // (SPEC 0187); the bar takes the rest.
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
+            child: badge,
           ),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: bar),
+        ],
+      ),
     );
   }
 }
 
-class _BadgeTimestampRow extends StatelessWidget {
-  const _BadgeTimestampRow({required this.record});
-
-  final SoilRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (record.hasClassification)
-          ConfidenceBadge(score: record.confidenceScore, fullLabel: true),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.access_time,
-                size: 14, color: context.palette.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                record.formattedTimestampCompact,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: context.palette.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+/// Whether the result's side-by-side pieces stack: from a 1.3× text scale
+/// (redesign v11 §8) and on a screen 360 dp wide or less (§10).
+bool resultStacks(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(1) >= 1.3 ||
+    MediaQuery.sizeOf(context).width <= 360;
 
 /// Shared advisory banner for low/moderate confidence. Colors come from [level];
 /// the border tint is the level's semantic color (error for low, warning for

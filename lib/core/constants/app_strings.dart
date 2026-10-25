@@ -59,4 +59,32 @@ abstract final class AppStrings {
   /// (redesign v11 §3.11, SPEC 0184).
   static const String themeChoiceCaption =
       'Alto contraste e letras maiores para o campo';
+
+  /// The saved record laid out as the result screen (redesign v11 §3.6,
+  /// SPEC 0194).
+  static const String resultTitle = 'Resultado';
+  static const String resultOverline = 'Classe textural';
+  static const String resultTabOverview = 'Visão geral';
+  static const String resultTabManagement = 'Manejo';
+  static const String resultTabDetails = 'Detalhes';
+  static const String resultIntro =
+      'O modelo estima a classe textural pela foto. A confiança indica o '
+      'quanto ele está seguro dessa classe.';
+  static const String resultAboutClassTitle = 'Sobre a classe';
+  static const String resultAboutClassCaption = 'Referência geral';
+  static const String resultAboutClassNote =
+      'Faixa típica da classe, não medição desta amostra.';
+  static const String resultSampleTitle = 'Amostra';
+  static const String resultSampleUnlocated = 'Sem localização registrada';
+  static const String resultLabNotice =
+      'Estimativa por imagem. Para laudo, confirme com análise '
+      'granulométrica em laboratório.';
+  static const String resultCorrect = 'Corrigir';
+  static const String resultManagementTips = 'Dicas de manejo';
+  static const String resultErrorTitle = 'Não deu para classificar';
+  static const String resultErrorWithoutCause =
+      'Não foi possível analisar esta foto. Fotografe a amostra de novo, '
+      'seguindo as dicas de captura.';
+  static const String resultRetake = 'Fotografar de novo';
+  static const String resultCaptureTips = 'Ver dicas de captura';
 }

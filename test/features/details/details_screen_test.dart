@@ -7,7 +7,6 @@ import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
-import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
@@ -117,6 +116,13 @@ Widget _detailsUnderTest({
   );
 }
 
+/// Opens the result's Detalhes tab, which holds the record's photograph,
+/// its information and its actions (SPEC 0194).
+Future<void> _openDetailsTab(WidgetTester tester) async {
+  await tester.tap(find.text('Detalhes'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final (score, label, percent) in [
     (0.82, 'alta', 82),
@@ -135,36 +141,6 @@ void main() {
     });
   }
 
-  testWidgets('tips section sits between the info section and the actions',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 2400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        soilRecordByIdProvider.overrideWith((ref, id) async => tipsRecord()),
-        managementTipsRepositoryProvider
-            .overrideWithValue(FakeManagementTipsRepository()),
-        researchServiceProvider.overrideWithValue(
-          FakeResearchService(
-            (_) async => const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
-          ),
-        ),
-        connectivityServiceProvider
-            .overrideWithValue(FakeConnectivityService(ConnectivityStatus.online)),
-      ],
-      child: const MaterialApp(home: DetailsScreen(recordId: 1)),
-    ));
-    await tester.pumpAndSettle();
-
-    final infoDy = tester.getTopLeft(find.text('Localização')).dy;
-    final tipsDy = tester.getTopLeft(find.text('Dicas de manejo')).dy;
-    final actionsDy = tester.getTopLeft(find.text('Compartilhar')).dy;
-
-    expect(infoDy < tipsDy, isTrue);
-    expect(tipsDy < actionsDy, isTrue);
-  });
-
   testWidgets('sharing a located record omits location by default',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 2400));
@@ -175,6 +151,7 @@ void main() {
       _detailsUnderTest(share: share, record: _locatedRecord()),
     );
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     await tester.tap(find.text('Compartilhar'));
     await tester.pumpAndSettle();
@@ -197,6 +174,7 @@ void main() {
       _detailsUnderTest(share: share, record: _locatedRecord()),
     );
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     await tester.tap(find.text('Compartilhar'));
     await tester.pumpAndSettle();
@@ -216,6 +194,7 @@ void main() {
       _detailsUnderTest(share: share, record: _unlocatedRecord()),
     );
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     await tester.tap(find.text('Compartilhar'));
     await tester.pumpAndSettle();
@@ -263,6 +242,7 @@ void main() {
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     // Open the shared destructive dialog from the delete action, then confirm.
     await tester.tap(find.text('Excluir registro'));
@@ -317,6 +297,7 @@ void main() {
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     await tester.tap(find.text('Excluir registro'));
     await tester.pumpAndSettle();
@@ -410,65 +391,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tentar novamente'), findsNothing);
-    expect(find.text('Compartilhar'), findsOneWidget);
+    expect(find.text('Argilosa'), findsOneWidget);
   });
 
-  // ADR 0017's protocol puts a white sheet at the top of every photograph, so
-  // the header's controls cannot take the theme's text colour (SPEC 0107).
-  testWidgets('the_details_header_reads_over_any_photo', (tester) async {
-    tester.view.padding = const FakeViewPadding(top: 72);
-    addTearDown(tester.view.resetPadding);
-    final statusBar = 72 / tester.view.devicePixelRatio;
+  // The photograph moved from the header into Detalhes (SPEC 0194), so it
+  // sits below the app bar and nothing is drawn over it.
+  testWidgets('the_photograph_sits_below_the_app_bar', (tester) async {
+    await tester.pumpWidget(_detailsUnderTest(
+      share: _RecordingShareService(),
+      record: _unlocatedRecord(),
+      pushed: true,
+    ));
+    await tester.tap(find.text('open details'));
+    await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
-    for (final theme in [AppTheme.light, AppTheme.dark]) {
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          soilRecordByIdProvider
-              .overrideWith((ref, id) async => _unlocatedRecord()),
-          managementTipsRepositoryProvider
-              .overrideWithValue(FakeManagementTipsRepository()),
-          researchServiceProvider.overrideWithValue(
-            FakeResearchService(
-              (_) async => const ResearchFailure(
-                ResearchFailureKind.upstreamUnavailable,
-              ),
-            ),
-          ),
-          connectivityServiceProvider.overrideWithValue(
-            FakeConnectivityService(ConnectivityStatus.online),
-          ),
-        ],
-        child: MaterialApp(
-          theme: theme,
-          home: const Scaffold(body: Text('HOST')),
-        ),
-      ));
-      // Pushed, as the app reaches it, so the header has a back button.
-      Navigator.of(tester.element(find.text('HOST'))).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const DetailsScreen(recordId: 1),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final reason = '${theme.brightness}';
-
-      final back = tester.widget<IconButton>(find.ancestor(
-        of: find.byIcon(Icons.arrow_back),
-        matching: find.byType(IconButton),
-      ));
-      expect(back.style?.backgroundColor?.resolve({}), Colors.black45,
-          reason: reason);
-      expect(back.color, Colors.white, reason: reason);
-
-      final photo = find.descendant(
-        of: find.byType(FlexibleSpaceBar),
-        matching: find.byType(Image),
-      );
-      expect(tester.getRect(photo).top, greaterThanOrEqualTo(statusBar),
-          reason: reason);
-
-      await tester.pumpWidget(const SizedBox());
-    }
+    final appBar = tester.getRect(find.byType(AppBar));
+    final photo = tester.getRect(find.bySemanticsLabel('Ampliar foto'));
+    expect(photo.top, greaterThanOrEqualTo(appBar.bottom));
+    expect(find.byTooltip('Voltar'), findsOneWidget);
   });
 
   // Android 12 to 14 now draw edge to edge, as 15+ already did, so the page
@@ -485,6 +426,7 @@ void main() {
       _detailsUnderTest(share: _RecordingShareService(), record: _locatedRecord()),
     );
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -5000));
     await tester.pumpAndSettle();
@@ -524,6 +466,7 @@ void main() {
       _detailsUnderTest(share: _RecordingShareService(), record: _locatedRecord()),
     );
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     final share = find.ancestor(
       of: find.text('Compartilhar'),
@@ -549,6 +492,15 @@ void main() {
       record: _locatedRecord(),
     ));
     await tester.pumpAndSettle();
+    // Each tab, and the stacked footer, lays out (SPEC 0194).
+    for (final tab in ['Manejo', 'Detalhes', 'Visão geral']) {
+      await scrollToTheEnd(tester);
+      expect(tester.takeException(), isNull, reason: tab);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 5000));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+    }
     await scrollToTheEnd(tester);
 
     expect(tester.takeException(), isNull);
@@ -584,6 +536,7 @@ void main() {
         child: const MaterialApp(home: DetailsScreen(recordId: 1)),
       ));
       await tester.pumpAndSettle();
+      await _openDetailsTab(tester);
 
       expect(
         find.byKey(const ValueKey('soil-sample')),
@@ -593,8 +546,8 @@ void main() {
     });
   }
 
-  // An unclassified record names why, in the header and where the tips
-  // would be, with the capture chip's words (SPEC 0173).
+  // An unclassified record names why in the result's error block, with the
+  // capture chip's words (SPEC 0173, SPEC 0194).
   for (final (name, cause) in [
     ('the_details_name_the_cause', ClassificationFailureCause.sheetCropped),
     ('the_details_without_a_cause_keep_todays_text', null),
@@ -615,15 +568,11 @@ void main() {
       await tester.pumpAndSettle();
 
       const label = 'Folha cortada no quadro · tire outra foto';
-      expect(find.text('Não classificado'), findsOneWidget);
+      expect(find.text('Não deu para classificar'), findsOneWidget);
       expect(find.text(label), cause == null ? findsNothing : findsOneWidget);
       expect(
-        find.textContaining('$label\n\nEste registro'),
-        cause == null ? findsNothing : findsOneWidget,
-      );
-      expect(
-        find.textContaining('foi salvo sem a classe de textura'),
-        findsOneWidget,
+        find.textContaining('Não foi possível analisar esta foto.'),
+        cause == null ? findsOneWidget : findsNothing,
       );
     });
   }
@@ -661,6 +610,7 @@ void main() {
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
+    await _openDetailsTab(tester);
 
     final hero = find.bySemanticsLabel('Ampliar foto');
     expect(hero, findsOneWidget);
@@ -730,7 +680,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('CAPTURE_STUB'), findsNothing);
     expect(find.byType(DetailsScreen), findsOneWidget);
-    expect(find.text('São Paulo, SP'), findsOneWidget);
+    expect(find.textContaining('São Paulo, SP'), findsOneWidget);
     expect(find.byTooltip('Voltar'), findsOneWidget);
   });
 
@@ -788,6 +738,7 @@ void main() {
         child: const MaterialApp(home: DetailsScreen(recordId: 1)),
       ));
       await tester.pumpAndSettle();
+      await _openDetailsTab(tester);
       await tester.tap(find.text('Editar'));
       await tester.pumpAndSettle();
     }
@@ -866,6 +817,7 @@ void main() {
       await tester.pumpAndSettle();
       await expectMeetsGuidelines(tester);
 
+      await _openDetailsTab(tester);
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
       await tester.pumpAndSettle();
       expect(find.text('Excluir registro').hitTestable(), findsOneWidget);

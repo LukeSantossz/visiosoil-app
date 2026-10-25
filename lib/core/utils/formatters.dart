@@ -18,6 +18,14 @@ class Formatters {
     return _formatTimestamp(isoTimestamp, ' ');
   }
 
+  /// Formats an ISO 8601 timestamp for the result screen's date chip
+  /// (redesign v11 §3.6).
+  ///
+  /// Example: "2026-10-22T10:42:00" -> "22/10/2026 · 10:42"
+  static String timestampDotted(String isoTimestamp) {
+    return _formatTimestamp(isoTimestamp, ' · ');
+  }
+
   /// Parses an ISO 8601 timestamp and formats it as `dd/MM/yyyy` and `HH:mm`
   /// joined by [connector].
   ///
