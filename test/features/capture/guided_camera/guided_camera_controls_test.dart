@@ -16,7 +16,7 @@ void main() {
       (tester) async {
         final semantics = tester.ensureSemantics();
         final h = await openGuidedCamera(tester, theme: entry.value);
-        for (final label in ['Trocar câmera', 'Como fotografar', 'Fechar']) {
+        for (final label in ['Trocar câmera', 'Como fotografar', 'Voltar']) {
           final button = find.byWidgetPredicate(
             (widget) => widget is IconButton && widget.tooltip == label,
           );
@@ -40,7 +40,7 @@ void main() {
         expect(find.byIcon(Icons.close), findsOneWidget);
         expect(find.byTooltip('Galeria'), findsNothing);
         expect(find.byTooltip('Flash'), findsNothing);
-        await tester.tap(find.byTooltip('Fechar'));
+        await tester.tap(find.byTooltip('Voltar'));
         await tester.pumpAndSettle();
         expect(h.popped.single, isA<GuidedCaptureCancelled>());
         semantics.dispose();
