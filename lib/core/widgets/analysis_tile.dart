@@ -54,8 +54,6 @@ class AnalysisTile extends StatelessWidget {
     final failure = record.classificationFailure;
     final isPending = record.syncStatus == 'pending';
     final thumbSize = dense ? 48.0 : 56.0;
-    final stackStatus =
-        showSyncStatus && MediaQuery.textScalerOf(context).scale(1) >= 1.3;
     final status = StatusPill(
       status: isPending
           ? StatusPillStatus.pending
@@ -97,6 +95,10 @@ class AnalysisTile extends StatelessWidget {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final stackStatus =
+                        showSyncStatus &&
+                        (constraints.maxWidth < _stackedTrailingWidth ||
+                            MediaQuery.textScalerOf(context).scale(1) >= 1.3);
                     final stackTrailing =
                         !showSyncStatus &&
                         (constraints.maxWidth < _stackedTrailingWidth ||

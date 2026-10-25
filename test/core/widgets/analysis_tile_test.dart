@@ -34,6 +34,24 @@ SoilRecord classifiedRecord({
 );
 
 void main() {
+  testWidgets('320dp sync tile renders status below the text without overflow', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      host(AnalysisTile(record: classifiedRecord(), showSyncStatus: true)),
+    );
+
+    final metadata = find.textContaining(' · 90%');
+    expect(find.byType(StatusPill), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(StatusPill)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(metadata).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final scale in [1.0, 1.3]) {
     testWidgets('320dp Sun tile preserves class and date at scale $scale', (
       tester,
