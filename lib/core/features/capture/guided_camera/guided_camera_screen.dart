@@ -36,7 +36,7 @@ import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 
 /// The in-app camera: the preview, the sheet outline, the soil target and the
-/// level, live quality chips and guarded shutter feedback (SPEC 0189). Pops
+/// level, live quality chips and guarded shutter feedback (SPEC 0191). Pops
 /// a [GuidedCaptureResult]; a back gesture pops null, read as cancelled.
 class GuidedCameraScreen extends ConsumerStatefulWidget {
   const GuidedCameraScreen({super.key});
