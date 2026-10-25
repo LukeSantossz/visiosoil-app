@@ -275,7 +275,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Agro Nomo'), findsOneWidget);
+    expect(find.text('Conta Google'), findsOneWidget);
+    expect(find.text('agro@example.com'), findsOneWidget);
+    expect(find.text('Agro Nomo'), findsNothing);
     expect(find.text('Sair'), findsOneWidget);
   });
 
@@ -387,7 +389,7 @@ void main() {
     expect(find.text(_failureMessage), findsOneWidget);
     // A failed sign-out that leaves credentials must not claim signed-out: the
     // tile keeps showing the account, not the sign-in affordance.
-    expect(find.text('Agro'), findsOneWidget);
+    expect(find.text('agro@example.com'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
     expect(find.text('Conta'), findsNothing);
   });
@@ -471,8 +473,11 @@ void main() {
       await tester.tap(find.text('Excluir conta'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Apagar todos os dados'),
-        findsWidgets,
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.textContaining('use "Limpar dados do aparelho"'),
+        ),
+        findsOneWidget,
         reason: 'the confirmation names where the records are erased',
       );
       await tester.tap(confirmDeletion());
@@ -498,7 +503,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(auth.deleteAccountCalls, 0);
-      expect(find.text('Agro'), findsOneWidget);
+      expect(find.text('agro@example.com'), findsOneWidget);
     });
 
     testWidgets('a_failed_revoke_says_where_to_revoke', (tester) async {
@@ -543,7 +548,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(_failureMessage), findsOneWidget);
-      expect(find.text('Agro'), findsOneWidget);
+      expect(find.text('agro@example.com'), findsOneWidget);
     });
   });
 

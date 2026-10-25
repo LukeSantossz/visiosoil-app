@@ -328,7 +328,8 @@ class _AccountTile extends ConsumerWidget {
       children: [
         _SettingsTile(
           icon: Icons.account_circle_outlined,
-          title: account.displayName ?? account.email,
+          title: 'Conta Google',
+          subtitle: account.email,
           trailing: TextButton(
             onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
             child: const Text('Sair'),
@@ -359,7 +360,7 @@ class _AccountTile extends ConsumerWidget {
       message:
           'Sua conta Google será desconectada do VisioSoil e o acesso '
           'concedido ao app será revogado. Seus registros de solo continuam '
-          'neste aparelho; para apagá-los, use "Apagar todos os dados".',
+          'neste aparelho; para apagá-los, use "Limpar dados do aparelho".',
       confirmLabel: 'Excluir conta',
     );
     if (!confirmed || !context.mounted) return;
@@ -379,6 +380,7 @@ class _AccountTile extends ConsumerWidget {
     icon: Icons.login,
     title: 'Conta',
     subtitle: 'Não vinculada · dados só neste aparelho',
+    subtitleMaxLines: 2,
     onTap: () => _signIn(context, ref),
     trailing: Icon(
       Icons.arrow_forward_ios,
@@ -605,6 +607,7 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.title,
     this.subtitle,
+    this.subtitleMaxLines,
     this.trailing,
     this.onTap,
     this.destructive = false,
@@ -613,6 +616,7 @@ class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+  final int? subtitleMaxLines;
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool destructive;
@@ -656,6 +660,10 @@ class _SettingsTile extends StatelessWidget {
                     if (subtitle != null)
                       Text(
                         subtitle!,
+                        maxLines: subtitleMaxLines,
+                        overflow: subtitleMaxLines == null
+                            ? null
+                            : TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: context.palette.onSurfaceVariant,
                         ),
@@ -663,7 +671,10 @@ class _SettingsTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null)
+              if (trailing is Icon) ...[
+                const SizedBox(width: AppSpacing.sm),
+                trailing!,
+              ] else if (trailing != null)
                 Flexible(child: trailing!)
               else if (onTap != null)
                 Icon(
