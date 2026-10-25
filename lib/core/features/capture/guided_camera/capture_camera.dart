@@ -68,6 +68,9 @@ abstract interface class CaptureCamera {
   /// The live preview. Valid after [initialize].
   Widget buildPreview();
 
+  bool get canSwitchCamera;
+  Future<void> switchCamera();
+
   /// Takes a still at the camera's largest resolution.
   Future<XFile> takePicture();
 
@@ -107,13 +110,15 @@ class PluginCaptureCamera implements CaptureCamera {
   };
 
   CameraController? _controller;
+  List<CameraDescription> _cameras = [];
 
   @override
   Future<void> initialize() async {
     try {
-      final cameras = await availableCameras();
-      final back = cameras
-          .where((camera) => camera.lensDirection == CameraLensDirection.back);
+      final cameras = _cameras = await availableCameras();
+      final back = cameras.where(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+      );
       if (back.isEmpty) {
         throw const CameraUnavailableException('no back-facing camera');
       }
@@ -138,6 +143,24 @@ class PluginCaptureCamera implements CaptureCamera {
       }
       throw CameraUnavailableException(e.toString());
     }
+  }
+
+  @override
+  bool get canSwitchCamera => _cameras.length > 1;
+
+  @override
+  Future<void> switchCamera() async {
+    if (!canSwitchCamera) return;
+    final controller = _controller!;
+    final index = _cameras.indexOf(controller.description);
+    if (index == -1) {
+      throw const CameraUnavailableException(
+        'current camera is missing from available cameras',
+      );
+    }
+    await controller.setDescription(_cameras[(index + 1) % _cameras.length]);
+    await controller.setFlashMode(FlashMode.off);
+    await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
   }
 
   @override

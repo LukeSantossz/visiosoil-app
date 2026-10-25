@@ -67,7 +67,15 @@ final CameraFrame _sizedFrame = (
   format: LivePixelFormat.yuv420,
   width: _readWidth,
   height: _readHeight,
-  bytes: Uint8List(_readWidth * _readHeight),
+  // A well-lit, textured preview keeps these tests about guide geometry.
+  bytes: Uint8List.fromList(
+    List.generate(
+      _readWidth * _readHeight,
+      (index) => ((index % _readWidth) ~/ 8 + (index ~/ _readWidth) ~/ 8).isEven
+          ? 80
+          : 180,
+    ),
+  ),
   bytesPerRow: _readWidth,
 );
 
@@ -128,8 +136,9 @@ void main() {
   });
 
   // R2 round 1: an arrow only ever says what the banner says.
-  testWidgets('no_arrow_while_the_banner_asks_for_something_else',
-      (tester) async {
+  testWidgets('no_arrow_while_the_banner_asks_for_something_else', (
+    tester,
+  ) async {
     _phone(tester);
     // A still this small makes every reading too coarse.
     final h = GuidedCameraHarness()..stillSizes.size = const Size(300, 400);
