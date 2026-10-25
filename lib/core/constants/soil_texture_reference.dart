@@ -24,4 +24,16 @@ abstract final class SoilTextureReference {
 
   /// The reference text for [textureClass], or null for a class without one.
   static String? forClass(String? textureClass) => _about[textureClass];
+
+  /// The contract names whose display label differs from the name: pt-BR
+  /// copy needs the accent and sentence case (SPEC 0195).
+  static const Map<String, String> _labels = {
+    'Media': 'Média',
+    'Muito Argilosa': 'Muito argilosa',
+  };
+
+  /// How [textureClass] reads on screen and in shared text. Stored and sent
+  /// values keep the contract's name; a name without a label reads as is.
+  static String labelFor(String textureClass) =>
+      _labels[textureClass] ?? textureClass;
 }

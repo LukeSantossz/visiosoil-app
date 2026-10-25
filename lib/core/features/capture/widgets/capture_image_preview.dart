@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
@@ -227,7 +228,8 @@ class CaptureImagePreview extends StatelessWidget {
           (classificationResult!.confidenceScore * 100).toStringAsFixed(0);
       return _InfoChip(
         icon: Icons.eco,
-        label: '${classificationResult!.textureClass} · $confidence%',
+        label: '${SoilTextureReference.labelFor(classificationResult!.textureClass)}'
+            ' · $confidence%',
       );
     }
     if (classificationFailed) {
