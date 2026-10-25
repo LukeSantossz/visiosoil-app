@@ -186,6 +186,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get selectionWash =>
       highContrast ? Colors.transparent : primary.withValues(alpha: 0.3);
 
+  /// The boot "Peneira" screen's full-bleed fill (redesign v11 §3.1, SPEC
+  /// 0193): #4A7C59 in light, #1B3625 in dark, #1F4D2E in Sol. Not a flat
+  /// "primary" read because dark's boot colour is the dark palette's
+  /// [onPrimary] (a near-black green meant to sit *on* a pale primary fill),
+  /// re-used here as the fill itself — [primary] in dark mode is instead a
+  /// pale accent (M3's tone mapping, see the class doc), too light for a
+  /// full-screen green with white text/icons on top.
+  Color get bootBackground => brightness == Brightness.dark ? onPrimary : primary;
+
   Color? _discContainer(Color accent) {
     if (accent == primary) return primaryContainer;
     if (accent == secondary) return secondaryContainer;

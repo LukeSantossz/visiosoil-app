@@ -6,6 +6,9 @@ import 'package:visiosoil_app/core/features/home/widgets/home_data_error.dart';
 import 'package:visiosoil_app/core/features/home/widgets/home_greeting.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -31,6 +34,22 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Where the boot's logo Hero lands (redesign v11 §6.2/§6.4,
+              // SPEC 0193). Kept out of HomeGreeting on purpose: that widget
+              // is tested to carry no wordmark (SPEC 0029), and this is a
+              // small badge beside it, not a repeat of the splash's wordmark.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  0,
+                ),
+                child: Hero(
+                  tag: visioSoilLogoHeroTag,
+                  child: VisioSoilLogo(size: 32, color: context.palette.primary),
+                ),
+              ),
               const HomeGreeting(),
               HeroCaptureCard(onCapture: () => context.push('/capture')),
               if (hasError)

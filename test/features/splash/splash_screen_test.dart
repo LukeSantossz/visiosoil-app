@@ -1,168 +1,292 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/splash/splash_screen.dart';
-import 'package:visiosoil_app/core/theme/app_colors.dart';
+import 'package:visiosoil_app/core/services/onboarding_store.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
+import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
 import '../../support/guidelines.dart';
+import '../../support/haptics_recorder.dart';
 
-/// Guards the Dart side of the launch hand-over (#288, SPEC 0089): the tile the
-/// native launch window draws is already in place, whole and still, on the
-/// splash's first frame, and only what the native window cannot show animates
-/// in.
+/// Guards the boot "Peneira" redesign (v11 §3.1, §6.2, §7, PR 14, SPEC 0193):
+/// the ≤1.6 s entrance, "Pular", reduced motion, the Hero hand-off to Home,
+/// and that boot never vibrates.
 void main() {
-  Future<void> pumpSplash(WidgetTester tester, {ThemeData? theme}) =>
-      tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(theme: theme, home: const SplashScreen()),
+  GoRouter router(bool completed) => GoRouter(
+    initialLocation: '/splash',
+    routes: [
+      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Hero(
+                  tag: visioSoilLogoHeroTag,
+                  child: VisioSoilLogo(size: 32, color: Colors.black),
+                ),
+                Text('HOME_STUB'),
+              ],
+            ),
+          ),
         ),
-      );
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, _) => const Scaffold(body: Text('ONBOARDING_STUB')),
+      ),
+    ],
+  );
 
-  // The splash schedules its hand-off 1.2 s after it mounts.
-  // Unmounting first makes that callback stop at its `mounted` check, and
-  // advancing the clock lets it run, so no timer outlives the test.
+  Future<void> pumpSplash(
+    WidgetTester tester, {
+    bool completed = true,
+    ThemeData? theme,
+  }) {
+    return tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingStoreProvider.overrideWithValue(_FakeStore(completed)),
+        ],
+        child: MaterialApp.router(
+          theme: theme,
+          routerConfig: router(completed),
+        ),
+      ),
+    );
+  }
+
+  // Mirrors the splash's own timeline: unmounting first makes any pending
+  // callback stop at its `mounted` check, then advancing the clock lets a
+  // disposed controller's ticker finish, so no timer outlives the test.
   Future<void> unmount(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
   }
 
-  Finder tile() => find
-      .ancestor(
-        of: find.byType(VisioSoilLogo),
-        matching: find.byType(Container),
+  bool hasBootPainter(WidgetTester tester) => find
+      .byWidgetPredicate(
+        (w) =>
+            w is CustomPaint &&
+            w.painter != null &&
+            w.painter.runtimeType.toString() == '_BootSievePainter',
       )
-      .first;
+      .evaluate()
+      .isNotEmpty;
 
-  /// Where the native window draws the tile: centred in the view.
-  Rect nativeTile(WidgetTester tester) {
-    final view = tester.view.physicalSize / tester.view.devicePixelRatio;
-    return Rect.fromCenter(
-      center: Offset(view.width / 2, view.height / 2),
-      width: SplashScreen.logoTileSize,
-      height: SplashScreen.logoTileSize,
+  Finder heroLogo() => find.byWidgetPredicate(
+    (w) =>
+        w is Hero && w.tag == visioSoilLogoHeroTag && w.child is VisioSoilLogo,
+  );
+
+  // SplashScreen.heroDelay is the controller's own duration, so the
+  // entrance commits to navigating at exactly this mark — comfortably inside
+  // the ≤1.6 s budget. (The route's own push/Hero transition runs after this,
+  // the same chrome every navigation in the app pays — see `_settle` in
+  // `home_navigation_test.dart` for the precedent of not bounding that part.)
+  test('the_entrance_commits_to_navigating_well_within_the_1_6s_budget', () {
+    expect(
+      SplashScreen.heroDelay,
+      lessThanOrEqualTo(const Duration(milliseconds: 1600)),
     );
-  }
+  });
 
-  List<BoxShadow> shadows(WidgetTester tester) =>
-      (tester.widget<Container>(tile()).decoration! as BoxDecoration)
-          .boxShadow ??
-      const [];
-
-  testWidgets('splash_first_frame_shows_the_tile_in_place', (tester) async {
+  testWidgets('boot_navigates_home_within_the_1_6s_budget', (tester) async {
     await pumpSplash(tester);
 
-    // getRect goes through every paint transform, so a scale shows here too.
-    expect(tester.getRect(tile()), nativeTile(tester));
-    expect(
-      shadows(tester).every((shadow) => shadow.color.a == 0),
-      isTrue,
-      reason: 'the native window draws no shadow',
-    );
-    for (final opacity in tester.widgetList<Opacity>(
-      find.ancestor(of: tile(), matching: find.byType(Opacity)),
-    )) {
-      expect(opacity.opacity, 1);
-    }
-    for (final fade in tester.widgetList<FadeTransition>(
-      find.ancestor(of: tile(), matching: find.byType(FadeTransition)),
-    )) {
-      expect(fade.opacity.value, 1);
-    }
+    await tester.pump(SplashScreen.heroDelay);
+    await tester.pumpAndSettle();
 
-    final nameFade = tester.widget<FadeTransition>(
-      find
-          .ancestor(
-            of: find.text('VisioSoil'),
-            matching: find.byType(FadeTransition),
-          )
-          .first,
-    );
-    expect(nameFade.opacity.value, 0);
+    expect(find.text('HOME_STUB'), findsOneWidget);
+    expect(find.text('ONBOARDING_STUB'), findsNothing);
+  });
+
+  testWidgets('first_launch_routes_to_onboarding_instead_of_home', (
+    tester,
+  ) async {
+    await pumpSplash(tester, completed: false);
+
+    await tester.pump(SplashScreen.heroDelay);
+    await tester.pumpAndSettle();
+
+    expect(find.text('ONBOARDING_STUB'), findsOneWidget);
+  });
+
+  testWidgets('pular_navigates_immediately_without_waiting_for_the_entrance', (
+    tester,
+  ) async {
+    await pumpSplash(tester);
+
+    await tester.tap(find.text('Pular'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('HOME_STUB'), findsOneWidget);
+  });
+
+  testWidgets('pular_causes_no_double_navigation_once_the_entrance_would_end', (
+    tester,
+  ) async {
+    await pumpSplash(tester);
+
+    await tester.tap(find.text('Pular'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // The entrance's own 1.2 s mark, had Pular not already left: must not
+    // throw or navigate a second time (the splash is gone, undisposed timer
+    // would also fail the test on its own).
+    await tester.pump(SplashScreen.heroDelay);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the_logo_carries_the_shared_hero_tag_during_the_entrance', (
+    tester,
+  ) async {
+    await pumpSplash(tester);
+
+    expect(heroLogo(), findsOneWidget);
 
     await unmount(tester);
   });
 
-  testWidgets('splash_tile_holds_still_through_the_reveal', (tester) async {
+  testWidgets(
+    'reduce_motion_shows_only_the_logo_with_a_150ms_fade_and_no_painter',
+    (tester) async {
+      // The stored "Reduzir movimento" preference, not the platform's own
+      // `disableAnimations` signal: that signal makes the framework additionally
+      // scale any normal `AnimationController` to ~5 % of its duration (SPEC
+      // 0120), which would make the 150 ms this test measures unobservable.
+      AppMotion.reduceMotion = true;
+      addTearDown(() => AppMotion.reduceMotion = false);
+
+      await pumpSplash(tester);
+      await tester.pump(const Duration(milliseconds: 60));
+
+      expect(hasBootPainter(tester), isFalse);
+      expect(heroLogo(), findsOneWidget);
+      expect(find.text('VisioSoil'), findsNothing);
+      expect(find.text('Análise de textura do solo'), findsNothing);
+      // "Pular" is a control, not motion: it stays even with motion reduced.
+      expect(find.text('Pular'), findsOneWidget);
+
+      final fade = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.byType(VisioSoilLogo),
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      expect(fade.opacity.value, closeTo(60 / 150, 0.05));
+
+      // The fade — and the boot — finish at 150 ms, well under the full
+      // entrance's 1.2 s.
+      await tester.pump(const Duration(milliseconds: 90));
+      await tester.pumpAndSettle();
+      expect(find.byType(SplashScreen), findsNothing);
+    },
+  );
+
+  testWidgets('reduce_motion_disables_the_hero_flight_for_the_boot_logo', (
+    tester,
+  ) async {
+    AppMotion.reduceMotion = true;
+    addTearDown(() => AppMotion.reduceMotion = false);
+
     await pumpSplash(tester);
-    final first = tester.getRect(tile());
+    await tester.pump(const Duration(milliseconds: 60));
 
-    await tester.pump(AppMotion.reveal ~/ 2);
-    expect(tester.getRect(tile()), first);
-
-    await tester.pump(AppMotion.reveal);
-    expect(tester.getRect(tile()), first);
-    expect(
-      shadows(tester).map((shadow) => shadow.color),
-      contains(AppColors.shadowBrand),
+    final heroMode = tester.widget<HeroMode>(
+      find.ancestor(of: heroLogo(), matching: find.byType(HeroMode)).first,
     );
+    expect(heroMode.enabled, isFalse);
 
     await unmount(tester);
   });
 
-  // The splash opens on the theme's background, and its tile is the brand mark
-  // in both themes, as the native launch draws it (SPEC 0107).
-  testWidgets('brand_surfaces_hold_in_both_themes', (tester) async {
-    for (final (theme, palette) in [
-      (AppTheme.light, AppPalette.light),
-      (AppTheme.dark, AppPalette.dark),
+  testWidgets('full_motion_renders_the_sieve_mesh_and_grains_painter', (
+    tester,
+  ) async {
+    await pumpSplash(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(hasBootPainter(tester), isTrue);
+
+    await unmount(tester);
+  });
+
+  testWidgets('boot_never_vibrates_through_a_full_entrance_and_hand_off', (
+    tester,
+  ) async {
+    final haptics = recordHaptics(tester);
+    await pumpSplash(tester);
+
+    await tester.pump(SplashScreen.heroDelay);
+    await tester.pumpAndSettle();
+
+    expect(haptics, isEmpty);
+  });
+
+  testWidgets('boot_never_vibrates_when_skipped', (tester) async {
+    final haptics = recordHaptics(tester);
+    await pumpSplash(tester);
+
+    await tester.tap(find.text('Pular'));
+    await tester.pumpAndSettle();
+
+    expect(haptics, isEmpty);
+  });
+
+  testWidgets('boot_background_matches_each_theme', (tester) async {
+    for (final (name, theme, expected) in [
+      ('light', AppTheme.light, AppPalette.light.primary),
+      ('dark', AppTheme.dark, AppPalette.dark.onPrimary),
+      ('sun', AppTheme.sun, AppPalette.sun.primary),
     ]) {
-      await tester.pumpWidget(ProviderScope(
-        child: MaterialApp(theme: theme, home: const SplashScreen()),
-      ));
-      final reason = '${theme.brightness}';
+      await pumpSplash(tester, theme: theme);
 
       expect(
         tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-        palette.background,
-        reason: reason,
+        expected,
+        reason: name,
       );
-      final gradient = (tester.widget<Container>(tile()).decoration!
-              as BoxDecoration)
-          .gradient! as LinearGradient;
-      expect(gradient.colors, [AppPalette.light.brand, AppPalette.light.brandTileEnd],
-          reason: reason);
 
       await unmount(tester);
     }
   });
 
-  // The name fade is the one splash content an animation hides. It runs on a
-  // normal AnimationController, which the framework collapses when the
-  // platform asks for no animations (SPEC 0120).
-  testWidgets('splash_reveal_collapses_without_motion', (tester) async {
-    tester.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(disableAnimations: true);
-    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-
-    await pumpSplash(tester);
-    await tester.pump(const Duration(milliseconds: 50));
-
-    final nameFade = tester.widget<FadeTransition>(
-      find
-          .ancestor(
-            of: find.text('VisioSoil'),
-            matching: find.byType(FadeTransition),
-          )
-          .first,
-    );
-    expect(nameFade.opacity.value, 1);
-
-    await unmount(tester);
-  });
-
-  // The splash passes Flutter's four accessibility guidelines (SPEC 0133).
+  // The boot passes Flutter's four accessibility guidelines (SPEC 0133), with
+  // the entrance's fade settled so the logo and name are in the render tree
+  // at full opacity, not transparent.
   for (final (name, theme) in appThemes) {
     testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
       final semantics = tester.ensureSemantics();
       await pumpSplash(tester, theme: theme);
-      await tester.pump(const Duration(milliseconds: 900));
+      await tester.pump(const Duration(milliseconds: 600));
+
       await expectMeetsGuidelines(tester);
+
       await unmount(tester);
       semantics.dispose();
     });
   }
+}
+
+class _FakeStore implements OnboardingStore {
+  _FakeStore(this.completed);
+
+  final bool completed;
+
+  @override
+  Future<bool> hasCompletedOnboarding() async => completed;
+
+  @override
+  Future<void> markOnboardingCompleted() async {}
 }

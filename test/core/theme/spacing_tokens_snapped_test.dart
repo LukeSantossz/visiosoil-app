@@ -131,16 +131,16 @@ void main() {
   });
 
   group('splash and history reference the token scale', () {
-    test('splash snaps its logo radius to xl and tokenizes its brand shadow',
-        () {
+    // The boot "Peneira" redesign (v11 §3.1/§6.2, SPEC 0193) replaced the
+    // tile-and-shadow splash SPEC 0089 pinned here; its own layout spacing
+    // (around the "Pular" button, between the logo and the name) is what
+    // stays on the token scale now.
+    test('splash snaps its skip-button and name spacing to tokens', () {
       final src = _packed('lib/core/features/splash/splash_screen.dart');
-      expect(src, isNot(contains('circular(32)')));
-      expect(src, isNot(contains('primary.withValues(alpha:0.3)')));
-      // The radius is named for the native launch drawables (SPEC 0089), and
-      // the name is the xl token.
-      expect(src, contains('logoTileRadius=AppRadius.xl'));
-      expect(src, contains('circular(SplashScreen.logoTileRadius)'));
-      expect(src, contains('palette.shadowBrand'));
+      expect(src, isNot(contains('EdgeInsets.all(10)')));
+      expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
+      expect(src, contains('SizedBox(height:AppSpacing.lg)'));
+      expect(src, contains('SizedBox(height:AppSpacing.sm)'));
     });
 
     test('history_grid tokenizes its thumbnail radius to md', () {
