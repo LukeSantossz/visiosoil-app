@@ -92,9 +92,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color warningContainer;
   final Color onWarningContainer;
 
-  /// Warning tint for text, darker than [warning] so it meets 4.5 : 1 against
-  /// white; holds the same value in every palette unless overridden, as
-  /// [brand] and its siblings do (SPEC 0180).
+  /// Amber text on white (light/Sol) or the dark surface (SPEC 0185).
+  /// Container text uses [onWarningContainer] instead.
   final Color warningText;
 
   final Color background;
@@ -268,6 +267,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     errorContainer: Color(0xFF93000A),
     onErrorContainer: Color(0xFFFFDAD6),
     warning: Color(0xFFFEB968),
+    warningText: Color(0xFFFEB968),
     warningContainer: Color(0xFF604012),
     onWarningContainer: Color(0xFFFFDDB6),
     background: Color(0xFF121411),
@@ -337,8 +337,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     errorContainer: Color(0xFFFFFFFF),
     onErrorContainer: Color(0xFF8C0009),
     warning: Color(0xFF4A3417),
+    warningText: Color(0xFF4A3417),
     warningContainer: Color(0xFFFFFFFF),
-    onWarningContainer: Color(0xFF000000),
+    onWarningContainer: Color(0xFF4A3417),
     background: Color(0xFFFFFFFF),
     onBackground: Color(0xFF000000),
     surface: Color(0xFFFFFFFF),
