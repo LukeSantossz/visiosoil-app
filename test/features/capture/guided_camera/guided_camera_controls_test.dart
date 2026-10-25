@@ -37,7 +37,7 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(48));
           expect(size.height, greaterThanOrEqualTo(48));
         }
-        expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(find.byIcon(Icons.arrow_back), findsOneWidget);
         expect(find.byTooltip('Galeria'), findsNothing);
         expect(find.byTooltip('Flash'), findsNothing);
         await tester.tap(find.byTooltip('Voltar'));

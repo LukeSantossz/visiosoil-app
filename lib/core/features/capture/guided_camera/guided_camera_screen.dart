@@ -1000,7 +1000,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                       VisioIconButton(
                         key: const ValueKey('guided-camera-close'),
                         label: 'Voltar',
-                        icon: Icons.close,
+                        icon: Icons.arrow_back,
                         overPhoto: true,
                         onPressed: () =>
                             _pop(const GuidedCaptureResult.cancelled()),
