@@ -88,7 +88,8 @@ class ConfidenceBadge extends StatelessWidget {
                 child: Text(
                   text,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontSize: context.palette.isSun ? 14 : 12,
+                    fontWeight: FontWeight.w600,
                     color: level.foregroundColor(context.palette),
                   ),
                 ),

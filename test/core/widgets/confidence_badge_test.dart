@@ -58,6 +58,9 @@ void main() {
           final text = find.descendant(of: pill, matching: find.byType(Text));
           expect(text, findsOneWidget);
           final palette = tester.element(pill).palette;
+          final labelStyle = tester.widget<Text>(text).style!;
+          expect(labelStyle.fontSize, palette.isSun ? 14 : 12);
+          expect(labelStyle.fontWeight, FontWeight.w600);
           if (palette.isSun) {
             expect(decoration.color, Colors.white);
             expect(
