@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -18,6 +19,7 @@ Future<void> main() async {
   // (SPEC 0110).
   final errorReport = ErrorReportStore();
   installErrorReporting(errorReport);
+  registerFontLicenses();
   // Read before the first frame, so it is already in the chosen theme
   // (SPEC 0107).
   final appearance = SharedPreferencesAppearanceStore();
@@ -39,6 +41,13 @@ Future<void> main() async {
     ],
     child: const VisioSoilApp(),
   ));
+}
+
+void registerFontLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/fonts/Inter-OFL.txt');
+    yield LicenseEntryWithLineBreaks(['Inter'], license);
+  });
 }
 
 class VisioSoilApp extends ConsumerWidget {

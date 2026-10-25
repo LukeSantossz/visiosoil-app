@@ -76,22 +76,6 @@ void main() {
   });
 
   group('existing styles unchanged', () {
-    test('headlineMedium_unchanged', () {
-      expect(AppTypography.headlineMedium.fontFamily, 'Manrope');
-      expect(AppTypography.headlineMedium.fontSize, 28);
-      expect(AppTypography.headlineMedium.fontWeight, FontWeight.w800);
-      expect(AppTypography.headlineMedium.letterSpacing, -0.4);
-      expect(AppTypography.headlineMedium.height, 1.2);
-    });
-
-    test('titleMedium_unchanged', () {
-      expect(AppTypography.titleMedium.fontFamily, 'Manrope');
-      expect(AppTypography.titleMedium.fontSize, 16);
-      expect(AppTypography.titleMedium.fontWeight, FontWeight.w700);
-      expect(AppTypography.titleMedium.letterSpacing, -0.2);
-      expect(AppTypography.titleMedium.height, 1.4);
-    });
-
     test('labelLarge_unchanged', () {
       expect(AppTypography.labelLarge.fontFamily, 'Inter');
       expect(AppTypography.labelLarge.fontSize, 14);
@@ -107,34 +91,44 @@ void main() {
     test('bodyLarge_height_unchanged', () {
       expect(AppTypography.bodyLarge.height, 1.5);
     });
+  });
 
-    test('bodyMedium_height_unchanged', () {
-      expect(AppTypography.bodyMedium.height, 1.45);
+  group('headlineMedium and titleMedium are Inter (SPEC 0186)', () {
+    test('headlineMedium_has_spec_values', () {
+      expect(AppTypography.headlineMedium.fontFamily, 'InterVariable');
+      expect(AppTypography.headlineMedium.fontVariations,
+          [const FontVariation('wght', 650)]);
+      expect(AppTypography.headlineMedium.fontSize, 28);
+      expect(AppTypography.headlineMedium.fontWeight, FontWeight.w600);
+      expect(AppTypography.headlineMedium.letterSpacing, closeTo(-0.7, 0.01));
+      expect(AppTypography.headlineMedium.height, closeTo(36 / 28, 0.01));
+      final features = AppTypography.headlineMedium.fontFeatures ?? [];
+      expect(features.any((f) => f.feature == 'cv11'), isTrue);
+      expect(features.any((f) => f.feature == 'ss01'), isTrue);
     });
 
-    test('bodySmall_height_unchanged', () {
-      expect(AppTypography.bodySmall.height, 1.4);
+    test('titleMedium_has_spec_values', () {
+      expect(AppTypography.titleMedium.fontFamily, 'Inter');
+      expect(AppTypography.titleMedium.fontSize, 16);
+      expect(AppTypography.titleMedium.fontWeight, FontWeight.w600);
+      expect(AppTypography.titleMedium.height, closeTo(22 / 16, 0.01));
+      final features = AppTypography.titleMedium.fontFeatures ?? [];
+      expect(features.any((f) => f.feature == 'cv11'), isTrue);
+      expect(features.any((f) => f.feature == 'ss01'), isTrue);
+    });
+  });
+
+  group('bodySmall and bodyMedium line heights (SPEC 0186)', () {
+    test('bodyMedium_height_is_20_over_14', () {
+      expect(AppTypography.bodyMedium.height, closeTo(20 / 14, 0.001));
+    });
+
+    test('bodySmall_height_is_16_over_12', () {
+      expect(AppTypography.bodySmall.height, closeTo(16 / 12, 0.001));
     });
   });
 
   group('v11 additive tokens', () {
-    test('v11HeadlineMedium_has_spec_values', () {
-      expect(AppTypography.v11HeadlineMedium.fontFamily, 'Manrope');
-      expect(AppTypography.v11HeadlineMedium.fontSize, 28);
-      expect(AppTypography.v11HeadlineMedium.fontWeight, FontWeight.w700);
-      expect(AppTypography.v11HeadlineMedium.letterSpacing, closeTo(-0.7, 0.01));
-      expect(AppTypography.v11HeadlineMedium.height, closeTo(36 / 28, 0.01));
-    });
-
-    test('v11TitleMedium_has_spec_values', () {
-      expect(AppTypography.v11TitleMedium.fontFamily, 'Inter');
-      expect(AppTypography.v11TitleMedium.fontSize, 16);
-      expect(AppTypography.v11TitleMedium.fontWeight, FontWeight.w600);
-      expect(AppTypography.v11TitleMedium.height, closeTo(22 / 16, 0.01));
-      final features = AppTypography.v11TitleMedium.fontFeatures ?? [];
-      expect(features.any((f) => f.feature == 'cv11'), isTrue);
-    });
-
     test('v11LabelLarge_has_spec_values', () {
       expect(AppTypography.v11LabelLarge.fontFamily, 'Inter');
       expect(AppTypography.v11LabelLarge.fontSize, 15);
