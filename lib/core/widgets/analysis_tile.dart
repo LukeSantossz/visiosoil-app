@@ -24,17 +24,25 @@ import 'package:visiosoil_app/models/confidence_level.dart';
 /// offers, for a screen-reader or switch-control user (redesign v11 §8).
 /// [dense] shrinks the thumbnail and padding, for a tighter list.
 ///
-/// Home uses the optional sync presentation; other callers keep the default.
+/// Home uses the optional sync presentation, and history its own time and
+/// confidence metadata with a chevron for sent records; other callers keep
+/// the default.
 class AnalysisTile extends StatelessWidget {
   const AnalysisTile({
     super.key,
     required this.record,
     this.onTap,
     this.onDelete,
+    this.onLongPress,
     this.dense = false,
     this.showSyncStatus = false,
     this.offline = false,
+    this.history = false,
   });
+
+  // History stacks its trailing content below the row on a phone narrower
+  // than this, when the row holds a pending pill.
+  static const double _historyPendingWidth = 360;
 
   // Below this inner width (a ~344 dp screen) the row stacks even when the
   // measured text would squeeze in: QA saw truncation at 320 dp, and long
@@ -44,11 +52,15 @@ class AnalysisTile extends StatelessWidget {
   final SoilRecord record;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onLongPress;
   final bool dense;
 
   /// Home keeps confidence in metadata and reserves the trailing edge for sync.
   final bool showSyncStatus;
   final bool offline;
+
+  /// History uses time/confidence metadata and a chevron for sent records.
+  final bool history;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +97,7 @@ class AnalysisTile extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
@@ -92,7 +105,9 @@ class AnalysisTile extends StatelessWidget {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: showSyncStatus && context.density.tap == 56
+                  minHeight: history
+                      ? context.density.tap + AppSpacing.sm
+                      : showSyncStatus && context.density.tap == 56
                       ? 64
                       : 56,
                 ),
@@ -122,6 +137,8 @@ class AnalysisTile extends StatelessWidget {
                         ? classificationFailureChip(failure).label
                         : showSyncStatus
                         ? _homeMetadata(record)
+                        : history
+                        ? _historyMetadata(record)
                         : record.formattedTimestampCompact;
                     final titleWidth = textWidth(
                       title,
@@ -178,12 +195,28 @@ class AnalysisTile extends StatelessWidget {
                                 trailingWidth >
                             constraints.maxWidth;
                     final stackStatus = showSyncStatus && needsStack;
-                    final stackTrailing = !showSyncStatus && needsStack;
-                    final trailing = _Trailing(
-                      record: record,
-                      isPending: isPending,
-                      failed: failure != null,
-                    );
+                    final stackTrailing =
+                        !showSyncStatus && !history && needsStack;
+                    // History moves its trailing content below the row,
+                    // aligned to the end, instead of into the text column.
+                    final stackBelow =
+                        history &&
+                        (constraints.maxWidth < 300 ||
+                            textScaler.scale(1) >= 1.3 ||
+                            (isPending &&
+                                failure == null &&
+                                constraints.maxWidth < _historyPendingWidth));
+                    final wrapText = stackTrailing || stackBelow;
+                    final trailing = history && !isPending && failure == null
+                        ? Icon(
+                            Icons.chevron_right,
+                            color: palette.onSurfaceVariant,
+                          )
+                        : _Trailing(
+                            record: record,
+                            isPending: isPending,
+                            failed: failure != null,
+                          );
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,10 +239,10 @@ class AnalysisTile extends StatelessWidget {
                                         ? 'Não classificada'
                                         : record.displayTextureClass,
                                     style: theme.textTheme.titleMedium,
-                                    maxLines: showSyncStatus || stackTrailing
+                                    maxLines: showSyncStatus || wrapText
                                         ? null
                                         : 1,
-                                    overflow: stackTrailing
+                                    overflow: wrapText
                                         ? null
                                         : TextOverflow.ellipsis,
                                   ),
@@ -221,16 +254,18 @@ class AnalysisTile extends StatelessWidget {
                                           ).label
                                         : showSyncStatus
                                         ? _homeMetadata(record)
+                                        : history
+                                        ? _historyMetadata(record)
                                         : record.formattedTimestampCompact,
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: failure != null
                                           ? palette.error
                                           : palette.onSurfaceVariant,
                                     ),
-                                    maxLines: showSyncStatus || stackTrailing
+                                    maxLines: showSyncStatus || wrapText
                                         ? null
                                         : 1,
-                                    overflow: stackTrailing
+                                    overflow: wrapText
                                         ? null
                                         : TextOverflow.ellipsis,
                                   ),
@@ -241,7 +276,7 @@ class AnalysisTile extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            if (!stackTrailing) ...[
+                            if (!stackTrailing && !stackBelow) ...[
                               const SizedBox(width: AppSpacing.sm),
                               if (showSyncStatus)
                                 if (!stackStatus && (!offline || isPending))
@@ -253,6 +288,14 @@ class AnalysisTile extends StatelessWidget {
                             ],
                           ],
                         ),
+                        if (stackBelow)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: trailing,
+                            ),
+                          ),
                         if (stackStatus && (!offline || isPending)) ...[
                           const SizedBox(height: AppSpacing.xs),
                           FittedBox(
@@ -353,6 +396,17 @@ String _homeMetadata(SoilRecord record) {
       ? '${floorConfidencePercent(score)}%'
       : '—';
   return '$timestamp · $confidence';
+}
+
+String _historyMetadata(SoilRecord record) {
+  final date = DateTime.tryParse(record.timestamp)?.toLocal();
+  final time = date == null
+      ? record.formattedTimestampCompact
+      : '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  final score = record.confidenceScore;
+  return score != null && score.isFinite
+      ? '$time · ${floorConfidencePercent(score)}% de confiança'
+      : time;
 }
 
 String _semanticsLabel(
