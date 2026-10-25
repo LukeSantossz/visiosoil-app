@@ -225,11 +225,12 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
     final confirmed = await confirmDestructiveAction(
       context,
-      title: 'Apagar todos os dados',
+      title: 'Limpar dados do aparelho?',
       message:
-          'Tem certeza? Todos os registros de solo serão removidos permanentemente. '
-          'Esta ação não pode ser desfeita.',
-      confirmLabel: 'Apagar tudo',
+          'Isso apaga as análises e fotos salvas neste aparelho. '
+          'Não dá para desfazer.',
+      confirmLabel: 'Limpar dados',
+      cancelAutofocus: true,
     );
 
     if (confirmed && context.mounted) {
@@ -330,6 +331,7 @@ class _AccountTile extends ConsumerWidget {
           icon: Icons.account_circle_outlined,
           title: 'Conta Google',
           subtitle: account.email,
+          subtitleMaxLines: 1,
           trailing: TextButton(
             onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
             child: const Text('Sair'),
@@ -661,6 +663,7 @@ class _SettingsTile extends StatelessWidget {
                       Text(
                         subtitle!,
                         maxLines: subtitleMaxLines,
+                        softWrap: subtitleMaxLines == 1 ? false : null,
                         overflow: subtitleMaxLines == null
                             ? null
                             : TextOverflow.ellipsis,

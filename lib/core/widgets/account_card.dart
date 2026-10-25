@@ -62,6 +62,11 @@ class AccountCard extends StatelessWidget {
                           ),
                           Text(
                             subtitle,
+                            maxLines: email == null ? null : 1,
+                            overflow: email == null
+                                ? null
+                                : TextOverflow.ellipsis,
+                            softWrap: email == null ? null : false,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: context.palette.onSurfaceVariant,

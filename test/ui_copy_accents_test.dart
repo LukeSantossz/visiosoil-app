@@ -20,8 +20,8 @@ void main() {
     'lib/core/features/settings/settings_screen.dart': [
       ('Configuracoes', 'Configurações'),
       ('Versao', 'Versão'),
-      ('serao removidos', 'serão removidos'),
-      ('Esta acao nao pode ser desfeita.', 'Esta ação não pode ser desfeita.'),
+      ('analises', 'análises'),
+      ('Nao da para desfazer.', 'Não dá para desfazer.'),
     ],
     'lib/core/features/capture/widgets/camera_permission_denied_view.dart': [
       ('Nova Captura', 'Nova captura'),

@@ -23,6 +23,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -552,6 +553,34 @@ void main() {
     });
   });
 
+  testWidgets('long email stays on one line at 411dp in Sun mode', (
+    tester,
+  ) async {
+    const email = 'agronomist.with.a.very.long.email.address@example.com';
+    tester.view.physicalSize = const Size(411, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() => tester.view.resetPhysicalSize());
+    await tester.pumpWidget(
+      _app(
+        const AuthAccount(email: email, displayName: 'Agro'),
+        theme: AppTheme.sun,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final emailFinder = find.text(email);
+    final text = tester.widget<Text>(emailFinder);
+    expect(text.maxLines, 1);
+    expect(text.overflow, TextOverflow.ellipsis);
+    expect(text.softWrap, isFalse);
+    expect(
+      find.ancestor(of: emailFinder, matching: find.byType(Expanded)),
+      findsWidgets,
+    );
+    expect(find.text('Sair').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'confirming apagar tudo deletes all records and shows a snackbar',
     (tester) async {
@@ -568,8 +597,26 @@ void main() {
       await tester.tap(find.text('Limpar dados do aparelho'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Limpar dados do aparelho?'), findsOneWidget);
+      expect(
+        find.text(
+          'Isso apaga as análises e fotos salvas neste aparelho. '
+          'Não dá para desfazer.',
+        ),
+        findsOneWidget,
+      );
+      final cancelFinder = find.widgetWithText(TextButton, 'Cancelar');
+      expect(tester.widget<TextButton>(cancelFinder).autofocus, isTrue);
+      expect(Focus.of(tester.element(find.text('Cancelar'))).hasFocus, isTrue);
+      final confirmFinder = find.widgetWithText(TextButton, 'Limpar dados');
+      final confirm = tester.widget<TextButton>(confirmFinder);
+      expect(
+        confirm.style!.foregroundColor!.resolve({}),
+        Theme.of(tester.element(confirmFinder)).colorScheme.error,
+      );
+
       // Confirm; the delete-all runs and its own snackbar is shown.
-      await tester.tap(find.text('Apagar tudo'));
+      await tester.tap(find.text('Limpar dados'));
       await tester.pumpAndSettle();
 
       expect(repository.deleteAllCalls, 1);
@@ -594,7 +641,7 @@ void main() {
     );
     await tester.tap(find.text('Limpar dados do aparelho'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Apagar tudo'));
+    await tester.tap(find.text('Limpar dados'));
     await tester.pumpAndSettle();
 
     expect(report.clearCalls, 1);

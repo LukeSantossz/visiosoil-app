@@ -13,6 +13,7 @@ Future<bool> confirmDestructiveAction(
   required String title,
   required String message,
   required String confirmLabel,
+  bool cancelAutofocus = false,
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
@@ -21,6 +22,7 @@ Future<bool> confirmDestructiveAction(
       content: Text(message),
       actions: [
         TextButton(
+          autofocus: cancelAutofocus,
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: const Text('Cancelar'),
         ),
