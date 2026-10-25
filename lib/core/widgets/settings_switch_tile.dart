@@ -111,6 +111,14 @@ class _Thumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final duration = AppMotion.durationOf(context, AppMotion.base);
+    final switchTheme = Theme.of(context).switchTheme;
+    final states = <WidgetState>{if (value) WidgetState.selected};
+    final track = palette.isSun
+        ? switchTheme.trackColor?.resolve(states)
+        : null;
+    final thumb = palette.isSun
+        ? switchTheme.thumbColor?.resolve(states)
+        : null;
 
     return Opacity(
       opacity: enabled ? 1 : 0.38,
@@ -121,10 +129,13 @@ class _Thumb extends StatelessWidget {
         height: 32,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: value ? palette.primary : palette.surfaceContainerHigh,
+          color:
+              track ?? (value ? palette.primary : palette.surfaceContainerHigh),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: value ? palette.primary : palette.outline,
+            color: palette.isSun
+                ? Colors.black
+                : (value ? palette.primary : palette.outline),
             width: 2,
           ),
         ),
@@ -138,11 +149,15 @@ class _Thumb extends StatelessWidget {
             width: value ? 24 : 16,
             height: value ? 24 : 16,
             decoration: BoxDecoration(
-              color: value ? palette.onPrimary : palette.outline,
+              color: thumb ?? (value ? palette.onPrimary : palette.outline),
               shape: BoxShape.circle,
             ),
             child: value
-                ? Icon(Icons.check, size: 14, color: palette.primary)
+                ? Icon(
+                    Icons.check,
+                    size: 14,
+                    color: palette.isSun ? Colors.black : palette.primary,
+                  )
                 : null,
           ),
         ),
