@@ -12,9 +12,12 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -97,6 +100,9 @@ class CaptureScreen extends ConsumerStatefulWidget {
 
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
+  String? _processingClass;
+  Completer<void>? _settlement;
+
   static const Duration _locationTimeout = Duration(seconds: 20);
 
   /// Single immutable UI state. Every mutation goes through
@@ -138,6 +144,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   @override
   void dispose() {
+    _cancelSettlement();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -218,7 +225,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             return;
           }
           setState(
-              () => _state = _state.copyWith(cameraPermission: requestStatus));
+            () => _state = _state.copyWith(cameraPermission: requestStatus),
+          );
           return;
         }
       }
@@ -291,12 +299,22 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     ]);
   }
 
+  void _cancelSettlement() {
+    final settlement = _settlement;
+    if (settlement != null && !settlement.isCompleted) settlement.complete();
+    _settlement = null;
+    _processingClass = null;
+  }
+
   Future<void> _classifySoilTexture(String imagePath, int generation) async {
+    _cancelSettlement();
     if (mounted) {
-      setState(() => _state = _state.copyWith(
-            classification: ClassificationStatus.running,
-            classificationPhase: null,
-          ));
+      setState(
+        () => _state = _state.copyWith(
+          classification: ClassificationStatus.running,
+          classificationPhase: null,
+        ),
+      );
     }
 
     ClassificationReport report;
@@ -310,8 +328,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         onPhase: (phase) {
           // A superseded capture's isolate may still be reporting.
           if (!mounted || generation != _state.generation) return;
-          setState(
-              () => _state = _state.copyWith(classificationPhase: phase));
+          setState(() => _state = _state.copyWith(classificationPhase: phase));
         },
       );
     } catch (e) {
@@ -323,18 +340,34 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       );
     }
     if (report.cause != null) {
-      developer.log('Classification failed: ${report.cause!.name}',
-          name: 'CaptureScreen');
+      developer.log(
+        'Classification failed: ${report.cause!.name}',
+        name: 'CaptureScreen',
+      );
     }
 
     if (!mounted || generation != _state.generation) return;
-    setState(() => _state = _state.copyWith(
-          classificationResult: report.result,
-          classificationFailureCause: report.cause,
-          classification: report.outcome == ClassificationOutcome.ok
-              ? ClassificationStatus.done
-              : ClassificationStatus.failed,
-        ));
+    if (report.result != null) {
+      final settlement = _settlement = Completer<void>();
+      setState(() => _processingClass = report.result!.textureClass);
+      await settlement.future;
+      if (!mounted || generation != _state.generation) return;
+      if (!context.palette.isSun &&
+          !AppMotion.reduceMotion &&
+          !MediaQuery.disableAnimationsOf(context)) {
+        await Future<void>.delayed(AppMotion.slow);
+      }
+      if (!mounted || generation != _state.generation) return;
+    }
+    setState(
+      () => _state = _state.copyWith(
+        classificationResult: report.result,
+        classificationFailureCause: report.cause,
+        classification: report.outcome == ClassificationOutcome.ok
+            ? ClassificationStatus.done
+            : ClassificationStatus.failed,
+      ),
+    );
     // A result arriving; a failure's chip names its cause instead.
     if (report.outcome == ClassificationOutcome.ok) {
       unawaited(AppHaptics.result());
@@ -470,6 +503,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   void _discardImage() {
+    _cancelSettlement();
     final picked = ref.read(imageProvider).file;
     // Invalidates any in-flight location/classification work for this capture.
     final generation = _state.generation + 1;
@@ -545,16 +579,26 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       },
       child: Scaffold(
         appBar: VisioAppBar(
-          title: 'Nova captura',
-          actions: [
-            // The protocol on demand; it returns here and opens no camera
-            // (SPEC 0142).
-            VisioIconButton(
-              label: 'Como capturar',
-              icon: Icons.help_outline,
-              onPressed: () => context.push('/capture-guide'),
-            ),
-          ],
+          title: _state.isClassifying ? 'Resultado' : 'Nova captura',
+          centerTitle: !_state.isClassifying,
+          leading: _state.isClassifying
+              ? VisioIconButton(
+                  label: 'Descartar',
+                  icon: Icons.arrow_back,
+                  onPressed: _discardImage,
+                )
+              : null,
+          actions: _state.isClassifying
+              ? []
+              : [
+                  // The protocol on demand; it returns here and opens no camera
+                  // (SPEC 0142).
+                  VisioIconButton(
+                    label: 'Como capturar',
+                    icon: Icons.help_outline,
+                    onPressed: () => context.push('/capture-guide'),
+                  ),
+                ],
         ),
         body: SafeArea(
           child: Padding(
@@ -563,37 +607,61 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: CaptureImagePreview(
-                    image: image,
-                    // Cut once the classification is done, so the two do not
-                    // compete for the phone (SPEC 0172).
-                    sample: image == null || _state.isClassifying
-                        ? null
-                        : ref.watch(soilSampleProvider(image.path)).value,
-                    isLoading: _state.isLocating,
-                    isClassifying: _state.isClassifying,
-                    classificationPhase: _state.classificationPhase,
-                    address: _state.address,
-                    latitude: _state.latitude,
-                    longitude: _state.longitude,
-                    classificationResult: _state.classificationResult,
-                    classificationFailed: _state.classificationFailed,
-                    classificationFailureCause:
-                        _state.classificationFailureCause,
-                    onRetryClassification: _retryClassification,
+                  child: _state.isClassifying
+                      ? ProcessingView(
+                          key: ValueKey(_state.generation),
+                          highlightClass: _processingClass,
+                          phaseLabel: switch (_state.classificationPhase) {
+                            null => 'Classificando...',
+                            ClassificationPhase.readingPhotograph =>
+                              'Lendo a foto...',
+                            ClassificationPhase.findingSheet =>
+                              'Procurando a folha A4...',
+                            ClassificationPhase.describingTexture =>
+                              'Descrevendo a textura...',
+                            ClassificationPhase.scoring =>
+                              'Calculando a classe...',
+                          },
+                          onSettled: () {
+                            final settlement = _settlement;
+                            if (settlement != null && !settlement.isCompleted) {
+                              settlement.complete();
+                            }
+                          },
+                        )
+                      : CaptureImagePreview(
+                          image: image,
+                          // Cut once the classification is done, so the two do not
+                          // compete for the phone (SPEC 0172).
+                          sample: image == null || _state.isClassifying
+                              ? null
+                              : ref.watch(soilSampleProvider(image.path)).value,
+                          isLoading: _state.isLocating,
+                          isClassifying: _state.isClassifying,
+                          classificationPhase: _state.classificationPhase,
+                          address: _state.address,
+                          latitude: _state.latitude,
+                          longitude: _state.longitude,
+                          classificationResult: _state.classificationResult,
+                          classificationFailed: _state.classificationFailed,
+                          classificationFailureCause:
+                              _state.classificationFailureCause,
+                          onRetryClassification: _retryClassification,
+                        ),
+                ),
+                if (!_state.isClassifying) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  CaptureActions(
+                    hasImage: hasImage,
+                    // Location is optional, so Save does not wait for it; a record
+                    // saved first has no coordinates (SPEC 0117).
+                    isBusy: _state.isClassifying || _state.isSaving,
+                    onCapture: _pickImage,
+                    onSave: _saveRecord,
+                    onRetake: _pickImage,
+                    onDiscard: _discardImage,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                CaptureActions(
-                  hasImage: hasImage,
-                  // Location is optional, so Save does not wait for it; a record
-                  // saved first has no coordinates (SPEC 0117).
-                  isBusy: _state.isClassifying || _state.isSaving,
-                  onCapture: _pickImage,
-                  onSave: _saveRecord,
-                  onRetake: _pickImage,
-                  onDiscard: _discardImage,
-                ),
+                ],
               ],
             ),
           ),

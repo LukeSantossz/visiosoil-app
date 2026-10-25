@@ -20,9 +20,24 @@ abstract final class SoilTextureColors {
     'Argilosa': AppColors.soilClay,
   };
 
+  /// Approximate diagram bands for the broad released classes; these are
+  /// illustrative regions, never measured sample coordinates.
+  static SoilTextureRegion? regionForClass(String textureClass) =>
+      switch (textureClass) {
+        'Arenosa' => SoilTextureRegion.sand,
+        'Media' => SoilTextureRegion.medium,
+        'Argilosa' => SoilTextureRegion.clay,
+        'Muito Argilosa' => SoilTextureRegion.veryClay,
+        'Siltosa' => SoilTextureRegion.silt,
+        _ => null,
+      };
+
   /// Returns the designated color for a texture class name.
   /// Falls back to [AppColors.outline] for unknown classes.
   static Color forClass(String textureClass) {
     return _colorMap[textureClass] ?? AppColors.outline;
   }
 }
+
+/// Approximate bands in the illustrative texture diagram.
+enum SoilTextureRegion { sand, medium, clay, veryClay, silt }
