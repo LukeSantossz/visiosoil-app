@@ -18,6 +18,8 @@ class ConfidenceBadge extends StatelessWidget {
     this.fullLabel = false,
   });
 
+  static const double _height = 24;
+  static const double _sunHeight = 28;
   static const double _pillRadius = 6;
   static const double _sunBorderWidth = 2;
 
@@ -61,10 +63,10 @@ class ConfidenceBadge extends StatelessWidget {
           : 'Confiança ${level.label.toLowerCase()}',
       child: ExcludeSemantics(
         child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: AppSpacing.xs,
+          constraints: BoxConstraints(
+            minHeight: context.palette.isSun ? _sunHeight : _height,
           ),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           decoration: BoxDecoration(
             color: level.backgroundColor(context.palette),
             borderRadius: BorderRadius.circular(_pillRadius),
@@ -89,6 +91,7 @@ class ConfidenceBadge extends StatelessWidget {
                   text,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: context.palette.isSun ? 14 : 12,
+                    height: 1,
                     fontWeight: FontWeight.w600,
                     color: level.foregroundColor(context.palette),
                   ),
