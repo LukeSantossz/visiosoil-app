@@ -118,6 +118,23 @@ Widget _detailsUnderTest({
 }
 
 void main() {
+  for (final (score, label, percent) in [
+    (0.82, 'alta', 82),
+    (0.749, 'média', 74),
+    (0.499, 'baixa', 49),
+  ]) {
+    testWidgets('result shows full $label confidence label', (tester) async {
+      await tester.pumpWidget(
+        _detailsUnderTest(
+          share: _RecordingShareService(),
+          record: _unlocatedRecord().copyWith(confidenceScore: score),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Confiança $label · $percent%'), findsOneWidget);
+    });
+  }
+
   testWidgets('tips section sits between the info section and the actions',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 2400));

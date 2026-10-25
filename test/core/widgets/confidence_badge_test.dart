@@ -8,21 +8,186 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 
-Widget host(Widget child, {ThemeData? theme}) =>
-    MaterialApp(theme: theme, home: Scaffold(body: child));
+Widget host(Widget child, {ThemeData? theme}) => MaterialApp(
+  theme: theme,
+  home: Scaffold(body: child),
+);
 
 /// The pill's own [Container], carrying the level's background/border.
 Container pill(WidgetTester tester) => tester.widget<Container>(
-      find
-          .descendant(
-            of: find.byType(ConfidenceBadge),
-            matching: find.byType(Container),
-          )
-          .first,
-    );
+  find
+      .descendant(
+        of: find.byType(ConfidenceBadge),
+        matching: find.byType(Container),
+      )
+      .first,
+);
 
 void main() {
+  for (final (theme, height) in [
+    (AppTheme.light, 24.0),
+    (AppTheme.sun, 28.0),
+  ]) {
+    for (final compact in [false, true]) {
+      testWidgets('badge height is $height, compact=$compact', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(1)),
+              child: Scaffold(
+                body: Center(
+                  child: ConfidenceBadge(score: 0.82, compact: compact),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.getSize(find.byType(ConfidenceBadge)).height, height);
+        final label = tester.getRect(find.text('82% · Alta'));
+        final badge = tester.getRect(find.byType(ConfidenceBadge));
+        expect(label.top, greaterThanOrEqualTo(badge.top));
+        expect(label.bottom, lessThanOrEqualTo(badge.bottom));
+      });
+
+      testWidgets(
+        'badge grows at text scale 2, minimum height $height, compact=$compact',
+        (tester) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: theme,
+              home: MediaQuery(
+                data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+                child: Scaffold(
+                  body: Center(
+                    child: SizedBox(
+                      width: 180,
+                      child: ConfidenceBadge(
+                        score: 0.82,
+                        compact: compact,
+                        fullLabel: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          expect(tester.takeException(), isNull);
+          final badge = tester.getRect(find.byType(ConfidenceBadge));
+          final label = tester.getRect(find.text('Confiança alta · 82%'));
+          expect(badge.height, greaterThanOrEqualTo(height));
+          expect(badge.height, greaterThan(height));
+          expect(label.top, greaterThanOrEqualTo(badge.top));
+          expect(label.bottom, lessThanOrEqualTo(badge.bottom));
+        },
+      );
+    }
+  }
+
+  final themes = {
+    'light': AppTheme.light,
+    'dark': AppTheme.dark,
+    'sun': AppTheme.sun,
+    'light high contrast': AppTheme.lightHighContrast,
+    'dark high contrast': AppTheme.darkHighContrast,
+  };
+  for (final entry in themes.entries) {
+    for (final score in [0.49, 0.50, 0.75]) {
+      testWidgets(
+        '${entry.key} $score encloses icon and text with safe contrast',
+        (tester) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: entry.value,
+              home: Scaffold(body: ConfidenceBadge(score: score)),
+            ),
+          );
+          final pill = find.descendant(
+            of: find.byType(ConfidenceBadge),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Container && widget.decoration is BoxDecoration,
+            ),
+          );
+          expect(pill, findsOneWidget);
+          final decoration =
+              tester.widget<Container>(pill).decoration! as BoxDecoration;
+          expect(decoration.borderRadius, BorderRadius.circular(6));
+          final icon = find.descendant(of: pill, matching: find.byType(Icon));
+          expect(icon, findsOneWidget);
+          final text = find.descendant(of: pill, matching: find.byType(Text));
+          expect(text, findsOneWidget);
+          final palette = tester.element(pill).palette;
+          final labelStyle = tester.widget<Text>(text).style!;
+          expect(labelStyle.fontSize, palette.isSun ? 14 : 12);
+          expect(labelStyle.fontWeight, FontWeight.w600);
+          if (palette.isSun) {
+            expect(decoration.color, Colors.white);
+            expect(
+              decoration.border,
+              Border.all(color: palette.onSurface, width: 2),
+            );
+            expect(palette.onSurface, Colors.black);
+          } else {
+            expect(decoration.border, isNull);
+          }
+          final background = decoration.color!.computeLuminance();
+          for (final color in [
+            tester.widget<Icon>(icon).color!,
+            tester.widget<Text>(text).style!.color!,
+          ]) {
+            final foreground = color.computeLuminance();
+            final ratio = foreground > background
+                ? (foreground + 0.05) / (background + 0.05)
+                : (background + 0.05) / (foreground + 0.05);
+            expect(ratio, greaterThanOrEqualTo(4.5));
+          }
+        },
+      );
+    }
+  }
+
+  for (final (score, label, percent) in [
+    (0.82, 'alta', 82),
+    (0.749, 'média', 74),
+    (0.499, 'baixa', 49),
+  ]) {
+    for (final compact in [false, true]) {
+      testWidgets(
+        'full $label label preserves percent and semantics, compact=$compact',
+        (tester) async {
+          final semantics = tester.ensureSemantics();
+          await tester.pumpWidget(
+            host(
+              ConfidenceBadge(score: score, compact: compact, fullLabel: true),
+            ),
+          );
+          expect(find.text('Confiança $label · $percent%'), findsOneWidget);
+          expect(
+            find.bySemanticsLabel('Confiança $label, $percent por cento'),
+            findsOneWidget,
+          );
+          semantics.dispose();
+        },
+      );
+    }
+  }
+
+  testWidgets('full label handles null and non-finite scores', (tester) async {
+    await tester.pumpWidget(
+      host(const ConfidenceBadge(score: null, fullLabel: true)),
+    );
+    expect(find.byType(Text), findsNothing);
+    await tester.pumpWidget(
+      host(const ConfidenceBadge(score: double.nan, fullLabel: true)),
+    );
+    expect(find.text('Confiança baixa'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
+  });
+
   testWidgets('null score renders nothing', (tester) async {
     await tester.pumpWidget(host(const ConfidenceBadge(score: null)));
     expect(
@@ -34,8 +199,9 @@ void main() {
     );
   });
 
-  testWidgets('high confidence shows the label and the percentage',
-      (tester) async {
+  testWidgets('high confidence shows the label and the percentage', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(const ConfidenceBadge(score: 0.95)));
     expect(find.text('95% · Alta'), findsOneWidget);
     expect(find.byIcon(Icons.verified), findsOneWidget);
@@ -75,8 +241,9 @@ void main() {
   });
 
   group('compact still shows the label and percent, only denser', () {
-    testWidgets('renders the same label + percent text as the full badge',
-        (tester) async {
+    testWidgets('renders the same label + percent text as the full badge', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(const ConfidenceBadge(score: 0.82, compact: true)),
       );
@@ -90,15 +257,17 @@ void main() {
       await tester.pumpWidget(
         host(const ConfidenceBadge(score: 0.82, compact: true)),
       );
-      final compactSize =
-          tester.widget<Icon>(find.byIcon(Icons.verified)).size!;
+      final compactSize = tester
+          .widget<Icon>(find.byIcon(Icons.verified))
+          .size!;
 
       expect(compactSize, lessThan(fullSize));
     });
   });
 
-  testWidgets('a non-finite score falls back to the level label with no %',
-      (tester) async {
+  testWidgets('a non-finite score falls back to the level label with no %', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(const ConfidenceBadge(score: double.nan)));
     expect(find.textContaining('Baixa'), findsOneWidget);
     expect(find.textContaining('%'), findsNothing);
@@ -117,8 +286,7 @@ void main() {
   });
 
   group('semantics also floor the percentage', () {
-    testWidgets('0.499 reads "Confiança baixa, 49 por cento"',
-        (tester) async {
+    testWidgets('0.499 reads "Confiança baixa, 49 por cento"', (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(host(const ConfidenceBadge(score: 0.499)));
       expect(
@@ -128,8 +296,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('0.749 reads "Confiança média, 74 por cento"',
-        (tester) async {
+    testWidgets('0.749 reads "Confiança média, 74 por cento"', (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(host(const ConfidenceBadge(score: 0.749)));
       expect(

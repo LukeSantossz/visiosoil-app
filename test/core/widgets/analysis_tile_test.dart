@@ -2,6 +2,7 @@
 // states, plus the AnalysisTileSkeleton placeholder. No caller yet (PR 10
 // migrates the history screen's grid to this tile).
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
@@ -21,19 +22,45 @@ SoilRecord classifiedRecord({
   double? confidenceScore = 0.9,
   String syncStatus = 'synced',
   ClassificationFailureCause? classificationFailure,
-}) =>
-    SoilRecord(
-      id: 1,
-      imagePath: 'x.png',
-      timestamp: '2026-06-26T10:42:00Z',
-      address: 'Fazenda Boa Vista',
-      textureClass: classificationFailure != null ? null : 'Argilosa',
-      confidenceScore: classificationFailure != null ? null : confidenceScore,
-      syncStatus: syncStatus,
-      classificationFailure: classificationFailure,
-    );
+}) => SoilRecord(
+  id: 1,
+  imagePath: 'x.png',
+  timestamp: '2026-06-26T10:42:00Z',
+  address: 'Fazenda Boa Vista',
+  textureClass: classificationFailure != null ? null : 'Argilosa',
+  confidenceScore: classificationFailure != null ? null : confidenceScore,
+  syncStatus: syncStatus,
+  classificationFailure: classificationFailure,
+);
 
 void main() {
+  for (final scale in [1.0, 1.3]) {
+    testWidgets('320dp Sun tile preserves class and date at scale $scale', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final record = classifiedRecord();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.sun,
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(body: AnalysisTile(record: record)),
+          ),
+        ),
+      );
+      for (final text in [
+        record.displayTextureClass,
+        record.formattedTimestampCompact,
+      ]) {
+        final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+        expect(paragraph.didExceedMaxLines, isFalse, reason: text);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('Sun pending tile carries a 2dp black pill border', (
     tester,
   ) async {

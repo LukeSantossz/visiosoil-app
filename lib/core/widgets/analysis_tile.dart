@@ -33,6 +33,9 @@ class AnalysisTile extends StatelessWidget {
     this.dense = false,
   });
 
+  // QA saw truncation at 320 dp; the trailing content fit at 360 dp.
+  static const double _stackedTrailingWidth = 360;
+
   final SoilRecord record;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
@@ -65,46 +68,68 @@ class AnalysisTile extends StatelessWidget {
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 56),
-                child: Row(
-                  children: [
-                    _Thumbnail(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stackTrailing =
+                        constraints.maxWidth < _stackedTrailingWidth ||
+                        MediaQuery.textScalerOf(context).scale(14) > 14;
+                    final trailing = _Trailing(
                       record: record,
-                      size: thumbSize,
+                      isPending: isPending,
                       failed: failure != null,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            failure != null
-                                ? 'Não classificada'
-                                : record.displayTextureClass,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                    );
+                    return Row(
+                      children: [
+                        _Thumbnail(
+                          record: record,
+                          size: thumbSize,
+                          failed: failure != null,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                failure != null
+                                    ? 'Não classificada'
+                                    : record.displayTextureClass,
+                                style: theme.textTheme.titleMedium,
+                                maxLines: stackTrailing ? null : 1,
+                                overflow: stackTrailing
+                                    ? null
+                                    : TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                failure != null
+                                    ? classificationFailureChip(failure).label
+                                    : record.formattedTimestampCompact,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: failure != null
+                                      ? palette.error
+                                      : palette.onSurfaceVariant,
+                                ),
+                                maxLines: stackTrailing ? null : 1,
+                                overflow: stackTrailing
+                                    ? null
+                                    : TextOverflow.ellipsis,
+                              ),
+                              if (stackTrailing) ...[
+                                const SizedBox(height: AppSpacing.xs),
+                                trailing,
+                              ],
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            failure != null
-                                ? classificationFailureChip(failure).label
-                                : record.formattedTimestampCompact,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: failure != null
-                                  ? palette.error
-                                  : palette.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        ),
+                        if (!stackTrailing) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          trailing,
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _Trailing(record: record, isPending: isPending, failed: failure != null),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -128,13 +153,13 @@ class AnalysisTileSkeleton extends StatelessWidget {
     final thumbSize = dense ? 48.0 : 56.0;
 
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: palette.surfaceContainerHigh,
-            borderRadius: AppRadius.borderRadiusXs,
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: palette.surfaceContainerHigh,
+        borderRadius: AppRadius.borderRadiusXs,
+      ),
+    );
 
     return ExcludeSemantics(
       child: Padding(
@@ -177,13 +202,14 @@ String _semanticsLabel(
 ) {
   String base;
   if (failure != null) {
-    base = '${record.formattedTimestampCompact}, '
+    base =
+        '${record.formattedTimestampCompact}, '
         '${classificationFailureChip(failure).label}';
   } else {
     final score = record.confidenceScore;
     base = score != null && score.isFinite
         ? '${record.displayTextureClass}, ${record.formattedTimestampCompact}, '
-            '${floorConfidencePercent(score)}% de confiança'
+              '${floorConfidencePercent(score)}% de confiança'
         : '${record.displayTextureClass}, ${record.formattedTimestampCompact}';
   }
 
@@ -191,7 +217,11 @@ String _semanticsLabel(
 }
 
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.record, required this.size, required this.failed});
+  const _Thumbnail({
+    required this.record,
+    required this.size,
+    required this.failed,
+  });
 
   final SoilRecord record;
   final double size;
@@ -233,9 +263,11 @@ class _Thumbnail extends StatelessWidget {
   }
 
   Widget _fallback(Color color, IconData icon) => Container(
-        color: color.withValues(alpha: 0.3),
-        child: Center(child: Icon(icon, color: color, size: size * 0.45)),
-      );
+    color: color.withValues(alpha: 0.3),
+    child: Center(
+      child: Icon(icon, color: color, size: size * 0.45),
+    ),
+  );
 }
 
 class _Trailing extends StatelessWidget {
