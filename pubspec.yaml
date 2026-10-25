@@ -48,6 +48,8 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.24
   # Image decoding for the descriptor path
   image: ^4.3.0
+  # Bundles explicitly selected export photographs with the CSV.
+  archive: ^4.0.9
   # Permission handling
   permission_handler: ^11.3.1
   # App info (version, build number)

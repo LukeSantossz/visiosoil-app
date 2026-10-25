@@ -13,16 +13,18 @@ import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
-import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
-import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/segmented_control.dart';
+import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
+import 'package:visiosoil_app/core/features/settings/export_sheet.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/text_size_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
@@ -43,96 +45,179 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Configurações'),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
-          // --- Account ---
-          _SectionHeader(title: 'CONTA'),
-          const SizedBox(height: AppSpacing.sm),
-          const _AccountTile(),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // --- Appearance ---
-          _SectionHeader(title: 'APARÊNCIA'),
-          const SizedBox(height: AppSpacing.sm),
-          const _ThemeChoiceSelector(),
-          const _SunModeSwitch(),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // --- Preferences ---
-          _SectionHeader(title: 'PREFERÊNCIAS'),
-          const SizedBox(height: AppSpacing.sm),
-          const _VibrationSwitch(),
-          const _ReduceMotionSwitch(),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // --- About ---
-          _SectionHeader(title: 'SOBRE'),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingsTile(
-            icon: Icons.info_outline,
-            title: 'Versão do app',
-            trailing: pkgAsync.when(
-              data: (pkg) => Text(
-                '${pkg.version}+${pkg.buildNumber}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: context.palette.onSurfaceVariant,
-                ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+            children: [
+              const _SectionHeader(title: 'CONTA'),
+              const SizedBox(height: AppSpacing.sm),
+              const _AccountTile(),
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionHeader(title: 'PREFERÊNCIAS'),
+              const SizedBox(height: AppSpacing.sm),
+              _SettingsGroup(
+                children: [
+                  const _ThemeChoiceSelector(),
+                  SettingsSwitchTile(
+                    icon: Icons.wb_sunny_outlined,
+                    title: 'Modo Sol',
+                    subtitle: 'Alto contraste e letras maiores para o campo',
+                    value: ref.watch(sunModeProvider),
+                    onChanged: (on) =>
+                        ref.read(sunModeProvider.notifier).select(on),
+                  ),
+                  const _VibrationSwitch(),
+                  const _SettingsTile(
+                    icon: Icons.straighten,
+                    title: 'Unidades',
+                    subtitle: 'Distância em cm',
+                  ),
+                  const _SettingsTile(
+                    icon: Icons.translate,
+                    title: 'Idioma',
+                    subtitle: 'Português (Brasil)',
+                  ),
+                ],
               ),
-              loading: () => const SizedBox(
-                width: 16,
-                height: 16,
-                child: LoadingIndicator(size: 16, strokeWidth: 2),
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionHeader(title: 'CÂMERA E ANÁLISE'),
+              const SizedBox(height: AppSpacing.sm),
+              const _SettingsGroup(
+                children: [
+                  SettingsSwitchTile(
+                    icon: Icons.crop_free,
+                    title: 'Guia de enquadramento',
+                    subtitle: 'Moldura e checagem de luz, foco e distância',
+                    value: true,
+                    onChanged: null,
+                  ),
+                  SettingsSwitchTile(
+                    icon: Icons.image_outlined,
+                    title: 'Salvar fotos na galeria',
+                    value: false,
+                    onChanged: null,
+                  ),
+                  SettingsSwitchTile(
+                    icon: Icons.location_on_outlined,
+                    title: 'Registrar localização',
+                    subtitle: 'Aproximada, opcional',
+                    value: false,
+                    onChanged: null,
+                  ),
+                ],
               ),
-              error: (_, _) => Text(
-                '-',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: context.palette.onSurfaceVariant,
-                ),
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionHeader(title: 'DADOS E SINCRONIZAÇÃO'),
+              const SizedBox(height: AppSpacing.sm),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.backup_outlined,
+                    title: 'Backup na conta',
+                    subtitle:
+                        ref.watch(authNotifierProvider).value?.account == null
+                        ? 'Requer conta vinculada'
+                        : 'Dados só neste aparelho',
+                  ),
+                  const SettingsSwitchTile(
+                    icon: Icons.wifi,
+                    title: 'Sincronizar só no Wi-Fi',
+                    value: true,
+                    onChanged: null,
+                  ),
+                  _SettingsTile(
+                    icon: Icons.file_download_outlined,
+                    title: 'Exportar análises',
+                    subtitle: 'Planilha CSV',
+                    onTap: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      showDragHandle: true,
+                      builder: (_) => const ExportSheet(),
+                    ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.delete_outline,
+                    title: 'Limpar dados do aparelho',
+                    subtitle: 'Apaga análises e fotos locais',
+                    destructive: true,
+                    onTap: () => _confirmDeleteAll(context, ref),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionHeader(title: 'ACESSIBILIDADE'),
+              const SizedBox(height: AppSpacing.sm),
+              _SettingsGroup(
+                children: [
+                  const _ReduceMotionSwitch(),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tamanho do texto',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        SegmentedControl<bool>(
+                          semanticLabel: 'Tamanho do texto',
+                          value: ref.watch(largeTextProvider),
+                          options: const [
+                            SegmentedControlOption(
+                              value: false,
+                              label: 'Padrão',
+                            ),
+                            SegmentedControlOption(
+                              value: true,
+                              label: 'Grande',
+                            ),
+                          ],
+                          onChanged: (large) => ref
+                              .read(largeTextProvider.notifier)
+                              .select(large),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionHeader(title: 'SOBRE E AJUDA'),
+              const SizedBox(height: AppSpacing.sm),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.school_outlined,
+                    title: 'Como fotografar a amostra',
+                    onTap: () => context.push('/capture-guide'),
+                  ),
+                  const _PrivacyPolicyTile(),
+                  const _ErrorReportTile(),
+                  _SettingsTile(
+                    icon: Icons.info_outline,
+                    title: 'Versão',
+                    trailing: pkgAsync.when(
+                      data: (pkg) => Text(
+                        '${pkg.version}+${pkg.buildNumber}',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      loading: () => const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: LoadingIndicator(size: 16, strokeWidth: 2),
+                      ),
+                      error: (_, _) => const Text('—'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const _PrivacyPolicyTile(),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // --- Help ---
-          _SectionHeader(title: 'AJUDA'),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingsTile(
-            icon: Icons.school_outlined,
-            title: 'Como capturar bem',
-            trailing: Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: context.palette.onSurfaceVariant,
-            ),
-            // The guide, not the onboarding, holds the protocol on demand
-            // (SPEC 0142).
-            onTap: () => context.push('/capture-guide'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const _ErrorReportTile(),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // --- Danger zone ---
-          _SectionHeader(title: 'DADOS'),
-          const SizedBox(height: AppSpacing.sm),
-          // The app's destructive button, not a tile in red, so it does not
-          // read as one more setting (SPEC 0129).
-          VisioButton(
-            label: 'Apagar todos os dados',
-            icon: Icons.delete_forever_outlined,
-            variant: VisioButtonVariant.destructive,
-            expanded: true,
-            onPressed: () => _confirmDeleteAll(context, ref),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -224,8 +309,11 @@ class _AccountTile extends ConsumerWidget {
       // snapshot rather than assuming signed-out: a sign-out that fails to clear
       // local credentials leaves the account present, so it must keep showing
       // the account instead of the sign-in affordance.
-      error: (_, _) =>
-          _accountTile(context, ref, ref.read(authServiceProvider).currentAccount),
+      error: (_, _) => _accountTile(
+        context,
+        ref,
+        ref.read(authServiceProvider).currentAccount,
+      ),
       data: (state) => _accountTile(context, ref, state.account),
     );
   }
@@ -261,11 +349,15 @@ class _AccountTile extends ConsumerWidget {
 
   /// Deletes the account behind the shared confirmation (SPEC 0113). The
   /// records stay, and the confirmation says where they are erased.
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await confirmDestructiveAction(
       context,
       title: 'Excluir conta',
-      message: 'Sua conta Google será desconectada do VisioSoil e o acesso '
+      message:
+          'Sua conta Google será desconectada do VisioSoil e o acesso '
           'concedido ao app será revogado. Seus registros de solo continuam '
           'neste aparelho; para apagá-los, use "Apagar todos os dados".',
       confirmLabel: 'Excluir conta',
@@ -284,15 +376,15 @@ class _AccountTile extends ConsumerWidget {
   }
 
   Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
-        icon: Icons.login,
-        title: 'Entrar com Google',
-        onTap: () => _signIn(context, ref),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: context.palette.onSurfaceVariant,
-        ),
-      );
+    icon: Icons.login,
+    title: 'Entrar com Google',
+    onTap: () => _signIn(context, ref),
+    trailing: Icon(
+      Icons.arrow_forward_ios,
+      size: 16,
+      color: context.palette.onSurfaceVariant,
+    ),
+  );
 
   /// Starts a sign-in unless the device is known to be offline, where it could
   /// only fail. An unreadable status is not evidence of being offline, so it
@@ -317,59 +409,32 @@ class _AccountTile extends ConsumerWidget {
 
 // --- Theme Choice ---
 
-/// The base theme choice: Sistema, Claro or Escuro (redesign v11 §3.11,
-/// SPEC 0184). It applies at once and persists. Modo Sol is a separate
-/// override, below ([_SunModeSwitch]), not a fourth segment here.
+/// The base choice is retained while the independent Sun override is active.
 class _ThemeChoiceSelector extends ConsumerWidget {
   const _ThemeChoiceSelector();
 
-  static const _labels = {
-    ThemeMode.system: AppStrings.themeChoiceSystem,
-    ThemeMode.light: AppStrings.themeChoiceLight,
-    ThemeMode.dark: AppStrings.themeChoiceDark,
-  };
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(baseThemeModeProvider);
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<ThemeMode>(
-        showSelectedIcon: false,
-        segments: [
-          for (final MapEntry(key: value, value: label) in _labels.entries)
-            ButtonSegment(value: value, label: Text(label)),
-        ],
-        selected: {mode},
-        onSelectionChanged: (selection) {
-          AppHaptics.selection();
-          ref.read(baseThemeModeProvider.notifier).select(selection.single);
-        },
-      ),
-    );
-  }
-}
-
-/// Turns on Modo Sol: a fixed high-contrast light theme with 56 dp tap
-/// targets and larger type for outdoor field use, overriding whichever base
-/// theme is chosen above until turned off again (redesign v11 §2, §3.11,
-/// SPEC 0184).
-class _SunModeSwitch extends ConsumerWidget {
-  const _SunModeSwitch();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text(AppStrings.themeChoiceSun),
-      subtitle: const Text(AppStrings.themeChoiceCaption),
-      value: ref.watch(sunModeProvider),
-      onChanged: (on) {
-        AppHaptics.selection();
-        ref.read(sunModeProvider.notifier).select(on);
-      },
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tema', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedControl<ThemeMode>(
+          semanticLabel: 'Tema',
+          value: ref.watch(baseThemeModeProvider),
+          options: const [
+            SegmentedControlOption(value: ThemeMode.system, label: 'Sistema'),
+            SegmentedControlOption(value: ThemeMode.light, label: 'Claro'),
+            SegmentedControlOption(value: ThemeMode.dark, label: 'Escuro'),
+          ],
+          onChanged: (choice) =>
+              ref.read(baseThemeModeProvider.notifier).select(choice),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Vibration toggle: subtle haptic feedback on capture, save, and complete
@@ -379,10 +444,10 @@ class _VibrationSwitch extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Vibração'),
-      subtitle: const Text('Toques sutis ao capturar, salvar e concluir'),
+    return SettingsSwitchTile(
+      title: 'Vibração',
+      haptic: false,
+      subtitle: 'Toques sutis ao capturar, salvar e concluir',
       value: ref.watch(vibrationProvider),
       onChanged: (on) {
         ref.read(vibrationProvider.notifier).select(on);
@@ -398,13 +463,11 @@ class _ReduceMotionSwitch extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Reduzir movimento'),
-      subtitle: const Text('Troca animações por transições curtas'),
+    return SettingsSwitchTile(
+      title: 'Reduzir movimento',
+      subtitle: 'Troca animações por transições curtas',
       value: ref.watch(reduceMotionProvider),
       onChanged: (on) {
-        AppHaptics.selection();
         ref.read(reduceMotionProvider.notifier).select(on);
       },
     );
@@ -427,7 +490,7 @@ class _PrivacyPolicyTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SettingsTile(
       icon: Icons.privacy_tip_outlined,
-      title: 'Política de privacidade',
+      title: 'Privacidade e dados',
       trailing: Icon(
         Icons.arrow_forward_ios,
         size: 16,
@@ -472,7 +535,7 @@ class _ErrorReportTile extends ConsumerWidget {
     final hasEntries = ref.watch(errorReportHasEntriesProvider).value ?? false;
     return _SettingsTile(
       icon: Icons.bug_report_outlined,
-      title: AppStrings.errorReportTitle,
+      title: 'Enviar comentário',
       subtitle: AppStrings.errorReportPrivacy,
       trailing: hasEntries
           ? Icon(
@@ -483,8 +546,8 @@ class _ErrorReportTile extends ConsumerWidget {
           : Text(
               AppStrings.errorReportNothingToSend,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.palette.onSurfaceVariant,
-                  ),
+                color: context.palette.onSurfaceVariant,
+              ),
             ),
       onTap: hasEntries ? () => _share(context, ref) : null,
     );
@@ -526,10 +589,10 @@ class _SectionHeader extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: context.palette.onSurfaceVariant,
-          ),
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
+        color: context.palette.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -543,6 +606,7 @@ class _SettingsTile extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.destructive = false,
   });
 
   final IconData icon;
@@ -550,63 +614,88 @@ class _SettingsTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Material(
-      color: context.palette.surface,
-      borderRadius: AppRadius.borderRadiusMd,
-      clipBehavior: Clip.antiAlias,
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          constraints: BoxConstraints(minHeight: context.density.tap),
+          constraints: BoxConstraints(
+            minHeight: context.palette.isSun ? 64 : 56,
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: context.palette.cardBorder,
-              width: context.palette.edgeWidth,
-            ),
-            borderRadius: AppRadius.borderRadiusMd,
-          ),
-          // At large text a trailing label or button wraps within half the
-          // row, so it cannot squeeze the title (SPEC 0121).
-          child: LayoutBuilder(
-            builder: (context, constraints) => Row(
-              children: [
-                Icon(icon, size: 22, color: context.palette.onSurfaceVariant),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: theme.textTheme.bodyMedium),
-                      if (subtitle case final subtitle?)
-                        Text(
-                          subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: context.palette.onSurfaceVariant,
-                          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 24,
+                color: destructive
+                    ? context.palette.error
+                    : context.palette.primaryText,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: destructive ? context.palette.error : null,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: context.palette.onSurfaceVariant,
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-                if (trailing case final trailing?)
-                  ConstrainedBox(
-                    constraints:
-                        BoxConstraints(maxWidth: constraints.maxWidth / 2),
-                    child: trailing,
-                  ),
-              ],
-            ),
+              ),
+              if (trailing != null)
+                Flexible(child: trailing!)
+              else if (onTap != null)
+                Icon(
+                  Icons.chevron_right,
+                  color: context.palette.onSurfaceVariant,
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          if (index != 0)
+            Divider(
+              height: context.density.borderWidth,
+              thickness: context.density.borderWidth,
+              color: context.palette.divider,
+            ),
+          children[index],
+        ],
+      ],
+    ),
+  );
 }

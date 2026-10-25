@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/home/widgets/last_analysis_section.dart';
+import 'package:visiosoil_app/core/features/home/widgets/home_greeting.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -16,33 +17,33 @@ import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
 
 SoilRecord _record({String address = 'Fazenda Boa Vista'}) => SoilRecord(
-      id: 1,
-      imagePath: 'x.png',
-      timestamp: '2026-06-26T12:00:00Z',
-      address: address,
-      textureClass: 'Argilosa',
-      confidenceScore: 0.9,
-    );
+  id: 1,
+  imagePath: 'x.png',
+  timestamp: '2026-06-26T12:00:00Z',
+  address: address,
+  textureClass: 'Argilosa',
+  confidenceScore: 0.9,
+);
 
 GoRouter _router() => GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(path: '/', builder: (_, _) => const MainScreen()),
-        GoRoute(
-          path: '/settings',
-          builder: (_, _) => const Scaffold(body: Text('SETTINGS_STUB')),
-        ),
-        GoRoute(
-          path: '/capture',
-          builder: (_, _) => const Scaffold(body: Text('CAPTURE_STUB')),
-        ),
-        GoRoute(
-          path: '/details',
-          builder: (_, state) =>
-              Scaffold(body: Text('DETAILS_STUB ${state.extra}')),
-        ),
-      ],
-    );
+  initialLocation: '/',
+  routes: [
+    GoRoute(path: '/', builder: (_, _) => const MainScreen()),
+    GoRoute(
+      path: '/settings',
+      builder: (_, _) => const Scaffold(body: Text('SETTINGS_STUB')),
+    ),
+    GoRoute(
+      path: '/capture',
+      builder: (_, _) => const Scaffold(body: Text('CAPTURE_STUB')),
+    ),
+    GoRoute(
+      path: '/details',
+      builder: (_, state) =>
+          Scaffold(body: Text('DETAILS_STUB ${state.extra}')),
+    ),
+  ],
+);
 
 // The History tab lives in the same IndexedStack and shows an animating
 // loading spinner, so `pumpAndSettle` never settles; advance with fixed-
@@ -79,7 +80,13 @@ void main() {
   testWidgets('the settings avatar opens settings', (tester) async {
     await _pump(tester);
 
-    await tester.tap(find.byIcon(Icons.person_outline));
+    // The v11 Profile destination also uses the person icon.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(HomeGreeting),
+        matching: find.byIcon(Icons.person_outline),
+      ),
+    );
     await _settle(tester);
 
     expect(find.text('SETTINGS_STUB'), findsOneWidget);
@@ -140,8 +147,10 @@ void main() {
       of: find.byType(LastAnalysisSection),
       matching: find.textContaining(address),
     );
-    expect(tester.renderObject<RenderParagraph>(place).didExceedMaxLines,
-        isFalse);
+    expect(
+      tester.renderObject<RenderParagraph>(place).didExceedMaxLines,
+      isFalse,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -150,10 +159,12 @@ void main() {
     final haptics = recordHaptics(tester);
     await _pump(tester);
 
-    await tester.tap(find.descendant(
-      of: find.byType(NavigationBar),
-      matching: find.text('Histórico'),
-    ));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Histórico'),
+      ),
+    );
     await _settle(tester);
 
     expect(haptics, ['HapticFeedbackType.selectionClick']);

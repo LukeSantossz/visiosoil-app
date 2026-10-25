@@ -1,9 +1,13 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:visiosoil_app/providers/text_size_provider.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
@@ -23,24 +27,36 @@ Future<void> main() async {
   // Read before the first frame, so it is already in the chosen theme
   // (SPEC 0107).
   final appearance = SharedPreferencesAppearanceStore();
-  final (baseThemeMode, sunMode) =
-      await restoreAppearance(appearance, defaultNightModeSync());
+  final (baseThemeMode, sunMode) = await restoreAppearance(
+    appearance,
+    defaultNightModeSync(),
+  );
   // Vibration and reduce-motion restored before first frame (redesign v11 §3.11).
   final vibration = await restoreVibration(appearance);
   final reduceMotion = await restoreReduceMotion(appearance);
+  var largeText = false;
+  try {
+    final preferences = await SharedPreferences.getInstance();
+    largeText = preferences.getBool(TextSizeController.preferenceKey) ?? false;
+  } catch (error) {
+    developer.log('Text size preference restore failed: $error', name: 'main');
+  }
   // Set static flags before the first frame builds any controllers.
   AppHaptics.enabled = vibration;
   AppMotion.reduceMotion = reduceMotion;
-  runApp(ProviderScope(
-    overrides: [
-      initialBaseThemeModeProvider.overrideWithValue(baseThemeMode),
-      initialSunModeProvider.overrideWithValue(sunMode),
-      initialVibrationProvider.overrideWithValue(vibration),
-      initialReduceMotionProvider.overrideWithValue(reduceMotion),
-      errorReportStoreProvider.overrideWithValue(errorReport),
-    ],
-    child: const VisioSoilApp(),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [
+        initialBaseThemeModeProvider.overrideWithValue(baseThemeMode),
+        initialSunModeProvider.overrideWithValue(sunMode),
+        initialLargeTextProvider.overrideWithValue(largeText),
+        initialVibrationProvider.overrideWithValue(vibration),
+        initialReduceMotionProvider.overrideWithValue(reduceMotion),
+        errorReportStoreProvider.overrideWithValue(errorReport),
+      ],
+      child: const VisioSoilApp(),
+    ),
+  );
 }
 
 void registerFontLicenses() {
@@ -58,6 +74,7 @@ class VisioSoilApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final largeText = ref.watch(largeTextProvider);
     final sunMode = ref.watch(sunModeProvider);
     final baseThemeMode = ref.watch(baseThemeModeProvider);
     // Modo Sol forces its own fixed high-contrast light theme and ignores
@@ -68,7 +85,9 @@ class VisioSoilApp extends ConsumerWidget {
     // knocked out by that signal while it is the explicit override.
     final light = sunMode ? AppTheme.sun : AppTheme.light;
     final dark = sunMode ? AppTheme.sun : AppTheme.dark;
-    final highContrastLight = sunMode ? AppTheme.sun : AppTheme.lightHighContrast;
+    final highContrastLight = sunMode
+        ? AppTheme.sun
+        : AppTheme.lightHighContrast;
     final highContrastDark = sunMode ? AppTheme.sun : AppTheme.darkHighContrast;
     return MaterialApp.router(
       title: 'VisioSoil',
@@ -86,7 +105,15 @@ class VisioSoilApp extends ConsumerWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: _statusBarFor(Theme.of(context).brightness),
-        child: child ?? const SizedBox.shrink(),
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(
+              MediaQuery.textScalerOf(context).scale(1) *
+                  (largeText ? 1.15 : 1),
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }
@@ -98,12 +125,12 @@ class VisioSoilApp extends ConsumerWidget {
   /// left to the platform (#304).
   static SystemUiOverlayStyle _statusBarFor(Brightness theme) =>
       theme == Brightness.dark
-          ? const SystemUiOverlayStyle(
-              statusBarIconBrightness: Brightness.light,
-              statusBarBrightness: Brightness.dark,
-            )
-          : const SystemUiOverlayStyle(
-              statusBarIconBrightness: Brightness.dark,
-              statusBarBrightness: Brightness.light,
-            );
+      ? const SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        )
+      : const SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        );
 }

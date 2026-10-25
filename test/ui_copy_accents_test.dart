@@ -19,7 +19,7 @@ void main() {
     ],
     'lib/core/features/settings/settings_screen.dart': [
       ('Configuracoes', 'Configurações'),
-      ('Versao do app', 'Versão do app'),
+      ('Versao', 'Versão'),
       ('serao removidos', 'serão removidos'),
       ('Esta acao nao pode ser desfeita.', 'Esta ação não pode ser desfeita.'),
     ],
@@ -88,9 +88,9 @@ void main() {
   });
 
   group('history_grid const constructors', () {
-    final source =
-        File('lib/core/features/history/widgets/history_grid.dart')
-            .readAsStringSync();
+    final source = File(
+      'lib/core/features/history/widgets/history_grid.dart',
+    ).readAsStringSync();
     for (final widget in const [
       '_EmptyHistoryState',
       '_EmptySearchState',
@@ -99,8 +99,9 @@ void main() {
       test('$widget declares and is constructed with const', () {
         final usage = RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)');
         expect(
-          RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;')
-              .hasMatch(source),
+          RegExp(
+            'const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;',
+          ).hasMatch(source),
           isTrue,
           reason: '$widget must declare a const constructor',
         );
