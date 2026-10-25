@@ -9,7 +9,7 @@ The record screen opened after a save still shows the pre-v11 photo header and o
 Restructure `DetailsScreen` around a plain `VisioAppBar` titled "Resultado", keeping its "Nova captura" action (SPEC 0146), and build the body from components that already exist.
 
 - **Header.** It shows, top to bottom:
-  - the date chip ("dd/MM/yyyy · HH:mm", from `formattedTimestampCompact`);
+  - the date chip ("dd/MM/yyyy · HH:mm", from `Formatters.timestampDotted`);
   - the overline "Classe textural";
   - the class name in `headlineMedium`;
   - a row with the full-label `ConfidenceBadge`, which carries the floored percent (SPEC 0187), beside an animated `ConfidenceBar`;
