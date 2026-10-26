@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -223,9 +224,11 @@ class _SectionTitle extends StatelessWidget {
       header: true,
       child: Text(
         text,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontSize: 17, height: 24 / 17),
+        style: AppTypography.resized(
+          Theme.of(context).textTheme.titleMedium!,
+          17,
+          height: 24 / 17,
+        ),
       ),
     ),
   );

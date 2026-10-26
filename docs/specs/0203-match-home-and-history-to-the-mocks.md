@@ -135,7 +135,7 @@ Flutter 3.44.1, Dart 3.12.1. Run `flutter test`, `flutter analyze` and `mf check
 
 ## Risks and Assumptions
 
-- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente".
+- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente" ("faithfully and strictly").
 - The sizes are read from 2× PNGs, so they can be a sub-pixel off.
 - The image icon's 69 dp right inset is what the mock draws. It may be an artefact of the prototype, and it is followed as drawn.
 - With the four-class model, no record holds one of the twelve USDA reference labels yet. The collection therefore reads "0/12" on Home, as the history and its collection grid already show it.

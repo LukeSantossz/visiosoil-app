@@ -4,6 +4,7 @@ import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 /// Compact entry into the existing sheet-guided capture flow.
 class HeroCaptureCard extends StatelessWidget {
@@ -49,11 +50,11 @@ class HeroCaptureCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Analisar solo',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: context.palette.onSurfaceVariant,
-                  fontSize: 17,
+                style: AppTypography.resized(
+                  Theme.of(context).textTheme.bodyLarge!,
+                  17,
                   height: 24 / 17,
-                ),
+                ).copyWith(color: context.palette.onSurfaceVariant),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
