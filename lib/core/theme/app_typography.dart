@@ -47,6 +47,20 @@ abstract final class AppTypography {
     fontVariations: _axes(style.fontSize ?? 14, weight),
   );
 
+  /// [style] at [size], its `opsz` axis moved to the new size, as a plain
+  /// `copyWith(fontSize: ...)` would not.
+  static TextStyle resized(TextStyle style, double size, {double? height}) {
+    final named = style.fontVariations?.where((v) => v.axis == 'wght');
+    final weight = named != null && named.isNotEmpty
+        ? named.first.value
+        : (style.fontWeight ?? FontWeight.w400).value.toDouble();
+    return style.copyWith(
+      fontSize: size,
+      height: height,
+      fontVariations: _axes(size, weight),
+    );
+  }
+
   // --- Display ---
 
   /// 40/44, weight 650. For confidence % in result.
@@ -124,24 +138,24 @@ abstract final class AppTypography {
       headlineSmall: headlineSmall.copyWith(color: ink),
       titleLarge: titleLarge.copyWith(color: ink),
       titleMedium:
-          (sun
-                  ? titleMedium.copyWith(fontSize: 17, height: 24 / 17)
-                  : titleMedium)
+          (sun ? resized(titleMedium, 17, height: 24 / 17) : titleMedium)
               .copyWith(color: ink),
       titleSmall: titleSmall.copyWith(color: ink),
       bodyLarge: body(
-        sun ? bodyLarge.copyWith(fontSize: 18, height: 27 / 18) : bodyLarge,
+        sun ? resized(bodyLarge, 18, height: 27 / 18) : bodyLarge,
       ).copyWith(color: ink),
       bodyMedium: body(
-        sun ? bodyMedium.copyWith(fontSize: 16, height: 24 / 16) : bodyMedium,
+        sun ? resized(bodyMedium, 16, height: 24 / 16) : bodyMedium,
       ).copyWith(color: ink),
       bodySmall: body(
-        sun ? bodySmall.copyWith(fontSize: 14, height: 20 / 14) : bodySmall,
+        sun ? resized(bodySmall, 14, height: 20 / 14) : bodySmall,
       ).copyWith(color: mute),
-      labelLarge: (sun ? labelLarge.copyWith(fontSize: 17) : labelLarge)
-          .copyWith(color: ink),
-      labelMedium: (sun ? labelMedium.copyWith(fontSize: 14) : labelMedium)
-          .copyWith(color: mute),
+      labelLarge: (sun ? resized(labelLarge, 17) : labelLarge).copyWith(
+        color: ink,
+      ),
+      labelMedium: (sun ? resized(labelMedium, 14) : labelMedium).copyWith(
+        color: mute,
+      ),
       labelSmall: (hc ? weighted(labelSmall, 600) : labelSmall).copyWith(
         color: mute,
       ),
