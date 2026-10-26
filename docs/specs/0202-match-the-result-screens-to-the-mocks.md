@@ -19,12 +19,12 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
 
 - **Lattice.** A `ResultLattice` painter draws an equilateral triangle grid behind the app bar:
   - apex at (260, −40) dp from the screen's top-left, side 35 dp, rows 30 dp;
-  - 1 dp lines in `primaryText`, from 50 % opacity at the top fading to nothing 280 dp down.
+  - 1 dp lines in `primaryText` at 16.5 % opacity down to 110 dp, fading to nothing 250 dp down.
 
   Modo Sol draws none (§1.5, PNG 26). The date chip sits 169 dp below the app bar, as in the mock.
 - **Header.**
-  - **Date chip:** `onSurface` at 75 %, radius 8, 12.5 sp Inter 500 white tabular figures, padding 8 × 4.
-  - **Overline:** "Classe textural (triângulo USDA)", 12 sp, `onSurfaceVariant`.
+  - **Date chip:** `onSurface` at 75 %, radius 8, 12.5 sp Inter 500 tabular figures in `background`, padding 8 × 4.
+  - **Overline:** "Classe textural (triângulo USDA)", 12 sp, `textTertiary`, 28 dp under the chip.
   - **Class name:** `headlineMedium`, with no colour dot.
   - **Confidence row:** the badge, then 12 dp, then the bar, then 12 dp, then the percent, 13 sp tabular in `onSurfaceVariant`.
     - The badge reads only the level label ("Confiança alta") at 12 sp Inter 600, 10 dp side padding, 24 dp tall, radius 6. Its fill is `selected` for high, `warningContainer` for moderate and `errorContainer` for low, and its text is the level's foreground. There is no icon.
@@ -38,9 +38,9 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
 
   It plays `AppHaptics.selection()` and announces the selected tab.
 - **Visão geral.** Open sections on the background, 16 dp side margins:
-  - the intro at 15/20 in `onSurfaceVariant`;
-  - each section title at 14 sp Inter 600;
-  - "No triângulo textural": a 150 dp wide static triangle, then 16 dp, then "A região **{classe}** está destacada." at 15/20 and the diagram's note at 13 sp in `textTertiary`;
+  - the intro at 14/20 in `onSurfaceVariant`;
+  - each section title at 14 sp Inter 600 in `onSurfaceVariant`, its caption at 12 sp in `textTertiary`, 24 dp between sections;
+  - "No triângulo textural": a 150 dp wide static triangle, then 16 dp, then "A região **{classe}** está destacada." at 14/20 and the diagram's note at 12 sp in `textTertiary`;
   - "Sobre a classe" with its caption, and "Amostra" in the same open style;
   - the lab notice last.
 - **Footer.**
@@ -51,12 +51,12 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
 - **App bar.** Back (Lucide `arrowLeft`, "Voltar"), then the bookmark, then share (Lucide `share2`, `shareRecordWithConsent`).
   - The bookmark is Lucide `bookmark` outlined while unsaved and a filled bookmark once saved, both in `onSurface`.
   - "Nova captura" leaves the app bar. Home and history start a capture.
-- **Error (PNG 15).** Over the same lattice, centred, starting 182 dp from the top of the screen:
+- **Error (PNG 15).** Centred, 44 dp under the app bar, with 48 dp side margins:
   - a 56 dp `errorContainer` disc with Lucide `circleAlert` in `onErrorContainer`;
-  - the title "Não deu para classificar" at 20 sp Inter 600;
-  - the cause's copy at 15/20 in `onSurfaceVariant`, 24 dp margins;
-  - a primary "Fotografar de novo" with Lucide `camera`, as wide as its label;
-  - a text "Ver dicas de captura".
+  - 16 dp lower, the title "Não deu para classificar" at 18 sp Inter 600;
+  - 8 dp lower, the cause's copy at 14/20 in `onSurfaceVariant`;
+  - 20 dp lower, a primary "Fotografar de novo" with Lucide `camera`, as wide as its label;
+  - 8 dp lower, a text "Ver dicas de captura".
 
   Nothing else is listed.
   - A saved unclassified record still shares from the app bar and is removed through its filled bookmark (SPEC 0197).
@@ -71,7 +71,7 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
 - **Photo screen (PNG 19).**
   - The app bar is black, with back, the title and share.
   - The photograph is square, as wide as the screen.
-  - The rows are 56 dp, with 15 sp labels in `onSurfaceVariant` and 15 sp values on the right, separated by dividers: Classe estimada · Confiança · Data e hora · Coordenadas ("−17,79 · −50,92": two decimals, comma, true minus) · Modelo.
+  - The rows are at least 56 dp, with 14 sp labels in #C8C8C8 and 15 sp white values on the right, over #333333 rules: Classe estimada · Confiança · Data e hora · Coordenadas ("−17,79 · −50,92": two decimals, comma, true minus) · Modelo.
   - "Precisão" and "Endereço" leave the screen, since PNG 19 does not list them, and "Excluir registro" ends the page.
   - "Captura" stays out, because the app does not measure lux, distance or sharpness (§11).
 
