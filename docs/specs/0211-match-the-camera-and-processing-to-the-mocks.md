@@ -97,6 +97,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, as in SPEC 0210.
   - Modo Sol draws no lattice, as §1.5 draws no decoration and PNG 38 shows.
 - **`ProcessingView`.**
   - The triangle 12.5 dp higher.
+  - The chip's slot is a minimum height, not a fixed one, so enlarged system text grows the chip instead of clipping its label.
   - The chip, the title, the sentence and the disclaimer at the measured sizes, the sentence and the disclaimer within 312 dp.
   - In Modo Sol:
     - the chip is 14 sp in `onSurface` and its slot grows by the 2 dp rule above and below;
@@ -158,6 +159,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, as in SPEC 0210.
   - no `LinearProgressIndicator` is drawn;
   - the phase is a live region with no visible text.
 - `processing_draws_the_result_lattice`: the capture screen draws `ResultLattice` while it classifies.
+- `class_chip_grows_with_large_text`: at 2× text the class chip's label keeps its doubled 32 dp line in every theme.
 - Existing tests pass, updated where they pinned the replaced measures.
 
 ## Reproducibility
