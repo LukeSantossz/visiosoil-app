@@ -2045,6 +2045,22 @@ void main() {
       }
     });
 
+    // The block offers no retry, so a cause a rerun could fix asks for a new
+    // photograph instead of a tap (review of #436).
+    testWidgets('capture_failure_never_asks_for_a_tap', (tester) async {
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        failureCause: ClassificationFailureCause.timeout,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Análise não terminou · tire outra foto'), findsOneWidget);
+      expect(find.textContaining('tocar'), findsNothing);
+    });
+
     // The shutter and the triangle's settle each play a light impact first,
     // so the entry is counted rather than read off the end.
     for (final (score, medium, light) in [

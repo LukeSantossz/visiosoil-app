@@ -52,3 +52,11 @@ import 'package:visiosoil_app/core/services/classification_report.dart';
       (label: unavailable, retryable: false),
   };
 }
+
+/// What the result's error block says for [cause] (SPEC 0202). The block
+/// offers "Fotografar de novo" and no rerun, so a cause a rerun could fix asks
+/// for a new photograph, as every other cause does, instead of a tap.
+String classificationFailureReason(ClassificationFailureCause cause) {
+  final chip = classificationFailureChip(cause);
+  return chip.retryable ? 'Análise não terminou · tire outra foto' : chip.label;
+}
