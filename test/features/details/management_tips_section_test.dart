@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
@@ -54,7 +55,8 @@ void main() {
 
     expect(find.text('Dicas de manejo'), findsOneWidget);
     expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
-    expect(find.text('[1]'), findsOneWidget);
+    // The card's source line names the cited source (SPEC 0198).
+    expect(find.text('Embrapa Solos · Embrapa'), findsOneWidget);
     expect(find.text('Fontes'), findsOneWidget);
     expect(find.textContaining('consultivo'), findsOneWidget);
     expect(find.text('Atualizar dicas'), findsOneWidget);
@@ -232,7 +234,7 @@ void main() {
 
     await tester.tap(find.text('Gerar dicas'));
     await tester.pump();
-    expect(find.text('Gerando dicas de manejo…'), findsOneWidget);
+    expect(find.text('Carregando dicas'), findsOneWidget);
 
     gate.complete(ResearchSuccess(groundedTips()));
     await tester.pumpAndSettle();
@@ -382,5 +384,64 @@ void main() {
     final edge = ((banner.decoration! as BoxDecoration).border! as Border).top;
     expect(edge.color, AppPalette.lightHighContrast.onWarningContainer);
     expect(edge.width, 2);
+  });
+
+  // The v11 tips timeline (redesign §3.9, SPEC 0198).
+  group('tips timeline', () {
+    ManagementTipsResult twoCategories() => ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: const [
+            ManagementTip(
+              text: 'Ajuste a lâmina de irrigação.',
+              citations: [0, 1],
+              category: TipCategory.water,
+            ),
+            ManagementTip(
+              text: 'Evite tráfego com solo úmido.',
+              citations: [0],
+              category: TipCategory.preparation,
+            ),
+          ],
+          sources: const [
+            TipSource(title: 'Guia de solos', url: 'https://a', publisher: 'Embrapa'),
+            TipSource(title: 'Manual de irrigação', url: 'https://b'),
+          ],
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    Future<void> pumpTimeline(WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(420, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = FakeManagementTipsRepository()..seed('rec-1', twoCategories());
+      await tester.pumpWidget(harness(
+        record: tipsRecord(textureClass: 'Media'),
+        repo: repo,
+        service: okService(),
+        connectivity: ConnectivityStatus.online,
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('tips_render_as_a_timeline_by_category', (tester) async {
+      await pumpTimeline(tester);
+
+      final preparation = tester.getTopLeft(find.text('Preparo do solo')).dy;
+      final water = tester.getTopLeft(find.text('Água')).dy;
+      expect(preparation, lessThan(water));
+      expect(
+        tester.getTopLeft(find.text('Evite tráfego com solo úmido.')).dy,
+        lessThan(water),
+      );
+      expect(find.text('Guia de solos · Embrapa +1'), findsOneWidget);
+      expect(find.byIcon(Icons.agriculture_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.water_drop_outlined), findsOneWidget);
+    });
+
+    testWidgets('tips_header_counts_the_tips', (tester) async {
+      await pumpTimeline(tester);
+      expect(find.text('Média · 2 dicas'), findsOneWidget);
+    });
   });
 }

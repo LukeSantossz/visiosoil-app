@@ -81,11 +81,13 @@ void main() {
       );
     });
 
-    test('management_tips_section snaps its citation chip padding to sm/xs', () {
+    // The numbered citation chip went with the v11 tips timeline (SPEC 0198);
+    // no off-scale padding may come back with what replaced it.
+    test('management_tips_section keeps its padding on the scale', () {
       final src =
           _packed('lib/core/features/details/management_tips_section.dart');
       expect(src, isNot(contains('horizontal:10')));
-      expect(src, contains('horizontal:AppSpacing.sm'));
+      expect(src, contains('EdgeInsets.all(AppSpacing.md)'));
     });
 
     // The viewer's bottom sheet went with SPEC 0125; no off-scale radius may
