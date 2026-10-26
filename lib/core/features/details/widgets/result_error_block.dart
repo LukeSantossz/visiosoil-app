@@ -66,7 +66,7 @@ class ResultErrorBlock extends StatelessWidget {
           Text(
             failure == null
                 ? AppStrings.resultErrorWithoutCause
-                : classificationFailureChip(failure).label,
+                : classificationFailureReason(failure),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: palette.onSurfaceVariant,
