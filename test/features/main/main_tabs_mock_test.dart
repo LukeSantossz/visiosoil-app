@@ -322,7 +322,11 @@ void main() {
   });
 
   testWidgets('history_rows_match_the_mock', (tester) async {
-    _phone(tester);
+    // Wider than the phone: the test font's square glyphs would otherwise
+    // need the room a pending row's pill leaves Inter, and stack it.
+    tester.view.physicalSize = const Size(600, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await _pump(tester, home: const HistoryScreen());
 
     final sent = find.byType(AnalysisTile).first;

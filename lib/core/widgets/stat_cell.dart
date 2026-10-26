@@ -123,16 +123,20 @@ class StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Every card takes the tallest one's height (PNG 08, SPEC 0203).
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < cells.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.sm),
-            Expanded(child: cells[i]),
+    // Every card takes the tallest one's height, and at least PNG 08's
+    // 120 dp (SPEC 0203).
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 120),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < cells.length; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              Expanded(child: cells[i]),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

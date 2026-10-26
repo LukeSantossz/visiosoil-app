@@ -71,6 +71,16 @@ void main() {
     expect(widths, hasLength(1));
   });
 
+  // PNG 08's cards are 120 dp tall even when every label is one line
+  // (SPEC 0203; review of #437).
+  testWidgets('stats_row_is_at_least_120_dp', (tester) async {
+    await tester.pumpWidget(host(const StatsRow(cells: [
+      StatCell(value: '1', label: 'a'),
+      StatCell(value: '2', label: 'b'),
+    ])));
+    expect(tester.getSize(find.byType(StatsRow)).height, 120);
+  });
+
   // The skeleton loop stops under reduced motion (redesign v11 §6.5).
   testWidgets('the skeleton does not animate under reduced motion',
       (tester) async {
