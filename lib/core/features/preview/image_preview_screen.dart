@@ -2,6 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
+import 'package:visiosoil_app/core/widgets/visio_button.dart';
+import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
@@ -68,18 +75,55 @@ class _RecordNotFoundView extends StatelessWidget {
   }
 }
 
-class _PreviewContent extends StatelessWidget {
+class _PreviewContent extends ConsumerWidget {
   const _PreviewContent({required this.record});
 
   final SoilRecord record;
 
   @override
-  Widget build(BuildContext context) {
-    // The photograph and one way out: details, underneath, holds the rest
-    // (SPEC 0125).
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: _ImageViewer(record: record),
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The photograph, then what the app knows about it (redesign v11 §3.8,
+    // SPEC 0198), on the viewer's black canvas.
+    final height = MediaQuery.sizeOf(context).height;
+    return Theme(
+      data: AppTheme.dark,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: VisioAppBar(
+          title: AppStrings.photoTitle,
+          centerTitle: false,
+          leading: VisioIconButton(
+            label: 'Fechar',
+            icon: Icons.arrow_back,
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          actions: [
+            VisioIconButton(
+              label: 'Compartilhar',
+              icon: Icons.share_outlined,
+              onPressed: () => shareRecordWithConsent(context, ref, record),
+            ),
+          ],
+        ),
+        body: ListView(
+          children: [
+            SizedBox(
+              height: height * 0.6,
+              child: _ImageViewer(record: record),
+            ),
+            _RecordFacts(record: record),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: VisioButton(
+                label: 'Excluir registro',
+                icon: Icons.delete_outline,
+                variant: VisioButtonVariant.destructive,
+                onPressed: () => confirmAndDeleteRecord(context, ref, record),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -91,55 +135,88 @@ class _ImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageFile = File(record.imagePath);
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          child: Center(
-            child: Image.file(
-              imageFile,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.broken_image,
-                color: Colors.white54,
-                size: 64,
-              ),
+    return InteractiveViewer(
+      minScale: 0.5,
+      maxScale: 4.0,
+      child: Center(
+        // Flies from the result's Detalhes tab (SPEC 0198).
+        child: Hero(
+          tag: recordPhotoHeroTag(record.id),
+          child: Image.file(
+            File(record.imagePath),
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.broken_image,
+              color: Colors.white54,
+              size: 64,
             ),
           ),
         ),
-        const _TopBar(),
-      ],
+      ),
     );
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar();
+/// One row per fact the app knows; a fact it does not measure, such as the
+/// mock's lux or distance, has no row (SPEC 0198).
+class _RecordFacts extends StatelessWidget {
+  const _RecordFacts({required this.record});
+
+  final SoilRecord record;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: VisioIconButton(
-              label: 'Fechar',
-              icon: Icons.close,
-              overPhoto: true,
-              onPressed: () => Navigator.maybePop(context),
-            ),
+    final score = record.confidenceScore;
+    final model = record.modelVersion;
+    final rows = <(String, String)>[
+      if (record.hasClassification) ...[
+        ('Classe estimada', record.displayTextureClass),
+        if (score != null && score.isFinite)
+          (
+            'Confiança',
+            '${ConfidenceLevel.fromScore(score).label} · '
+                '${floorConfidencePercent(score)}%',
           ),
-        ),
+      ],
+      ('Data e hora', Formatters.timestampDotted(record.timestamp)),
+      if (record.hasCoordinates) ('Coordenadas', record.formattedCoordinates),
+      if (record.horizontalAccuracy != null)
+        ('Precisão', record.formattedHorizontalAccuracy),
+      if (record.hasValidAddress) ('Endereço', record.displayAddress),
+      if (model != null) ('Modelo', 'no aparelho · v$model'),
+    ];
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Column(
+        children: [
+          for (final (label, value) in rows)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.white24)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white70),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      value,
+                      textAlign: TextAlign.end,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

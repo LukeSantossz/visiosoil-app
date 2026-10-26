@@ -99,6 +99,9 @@ abstract final class AppStrings {
   static const String resultSaved = 'Salvo';
   static const String resultRemoveSaved = 'Remover dos salvos';
   static const String resultRetry = 'Tentar de novo';
+
+  /// The photo screen's title (redesign v11 §3.8, SPEC 0198).
+  static const String photoTitle = 'Foto da amostra';
   static const String resultSavedSnackbar = 'Salvo no histórico';
   static const String resultDraftManagement =
       'Salve a análise para ver as dicas de manejo desta amostra.';

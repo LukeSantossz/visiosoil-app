@@ -2,6 +2,11 @@
 // now provided by `Image.file`'s `errorBuilder` instead of a synchronous
 // `existsSync()` pre-check. The private `_ImageViewer` is exercised through the
 // public screen, with `soilRecordByIdProvider` overridden to supply the record.
+import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/services/share_service.dart';
+import 'package:visiosoil_app/providers/share_service_provider.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
+import '../../support/fake_soil_record_repository.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,6 +21,18 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/guidelines.dart';
+
+class _RecordingShareService extends ShareService {
+  bool shared = false;
+
+  @override
+  Future<void> shareRecord(
+    SoilRecord record, {
+    bool includeLocation = false,
+  }) async {
+    shared = true;
+  }
+}
 
 void main() {
   late Directory tempDir;
@@ -160,59 +177,104 @@ void main() {
     semantics.dispose();
   });
 
-  // The viewer is the photograph and one way out; details, underneath it,
-  // holds everything else (SPEC 0125).
-  testWidgets('viewer_is_photo_only', (tester) async {
+  // The v11 "Foto da amostra" screen (redesign §3.8, SPEC 0198): the
+  // photograph, then what the app knows about it, replacing SPEC 0125's
+  // photo-only viewer.
+  SoilRecord classified({bool located = true}) => SoilRecord(
+        id: 1,
+        imagePath: imagePath,
+        timestamp: '2026-10-22T10:42:00',
+        textureClass: 'Media',
+        confidenceScore: 0.82,
+        latitude: located ? -17.79 : null,
+        longitude: located ? -50.92 : null,
+        modelVersion: '1.0.0',
+      );
+
+  Future<void> pumpFacts(WidgetTester tester, SoilRecord shown) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        soilRecordByIdProvider.overrideWith((ref, id) async => record()),
-      ],
-      child: MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ImagePreviewScreen(recordId: 1),
-              ),
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    ));
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InteractiveViewer), findsOneWidget);
-    expect(find.byType(IconButton), findsOneWidget);
-    expect(find.byTooltip('Fechar'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Fechar'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ImagePreviewScreen), findsNothing);
-  });
-
-  testWidgets('viewer_has_no_duplicate_info', (tester) async {
-    final located = SoilRecord(
-      id: 1,
-      imagePath: imagePath,
-      timestamp: DateTime.utc(2026, 1, 2, 14, 30).toIso8601String(),
-      address: 'Fazenda Boa Vista, Piracicaba',
-      latitude: -22.7,
-      longitude: -47.6,
-    );
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        soilRecordByIdProvider.overrideWith((ref, id) async => located),
+        soilRecordByIdProvider.overrideWith((ref, id) async => shown),
       ],
       child: const MaterialApp(home: ImagePreviewScreen(recordId: 1)),
     ));
     await tester.pumpAndSettle();
+  }
 
-    expect(find.text('Capturado em'), findsNothing);
-    expect(find.text('Localização'), findsNothing);
-    expect(find.text(located.formattedTimestamp), findsNothing);
-    expect(find.textContaining('Fazenda Boa Vista'), findsNothing);
+  testWidgets('photo_screen_lists_the_known_facts', (tester) async {
+    await pumpFacts(tester, classified());
+
+    expect(find.text('Foto da amostra'), findsOneWidget);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.text('Classe estimada'), findsOneWidget);
+    expect(find.text('Média'), findsOneWidget);
+    expect(find.text('Alta · 82%'), findsOneWidget);
+    expect(find.text('22/10/2026 · 10:42'), findsOneWidget);
+    expect(find.text('Coordenadas'), findsOneWidget);
+    expect(find.text('no aparelho · v1.0.0'), findsOneWidget);
+    expect(find.byTooltip('Fechar'), findsOneWidget);
+    expect(find.byTooltip('Compartilhar'), findsOneWidget);
+    expect(find.text('Excluir registro'), findsOneWidget);
+  });
+
+  testWidgets('a record without coordinates has no coordinates row',
+      (tester) async {
+    await pumpFacts(tester, classified(located: false));
+    expect(find.text('Coordenadas'), findsNothing);
+  });
+
+  testWidgets('photo_screen_shares_and_deletes', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final share = _RecordingShareService();
+    final repository = FakeSoilRecordRepository();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        soilRecordByIdProvider
+            .overrideWith((ref, id) async => classified(located: false)),
+        shareServiceProvider.overrideWithValue(share),
+        soilRecordRepositoryProvider.overrideWithValue(repository),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: '/preview',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => const Scaffold(body: Text('HOME_STUB')),
+            ),
+            GoRoute(
+              path: '/preview',
+              builder: (_, _) => const ImagePreviewScreen(recordId: 1),
+            ),
+          ],
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Compartilhar'));
+    await tester.pumpAndSettle();
+    expect(share.shared, isTrue);
+
+    await tester.tap(find.text('Excluir registro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Excluir'));
+    await tester.pumpAndSettle();
+    expect(repository.deleteByIdCalls, [1]);
+    expect(find.text('HOME_STUB'), findsOneWidget);
+  });
+
+  testWidgets('the photograph carries the record hero tag', (tester) async {
+    await pumpFacts(tester, classified());
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Hero && w.tag == recordPhotoHeroTag(1),
+      ),
+      findsOneWidget,
+    );
   });
 
   // The viewer passes Flutter's four accessibility guidelines (SPEC 0133).

@@ -301,6 +301,17 @@ void main() {
     expect(find.text('HOME_STUB'), findsOneWidget);
   });
 
+  testWidgets('photo_flies_from_the_details_tab', (tester) async {
+    await _pump(tester, _classified());
+    await _selectTab(tester, 'Detalhes');
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Hero && w.tag == recordPhotoHeroTag(1),
+      ),
+      findsOneWidget,
+    );
+  });
+
   group('about_class_copy_per_model_class', () {
     for (final (textureClass, fragment) in [
       ('Arenosa', 'menos de 15% de argila'),
