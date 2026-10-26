@@ -135,6 +135,56 @@ void main() {
     expect(label.style?.fontSize, 17);
   });
 
+  // Modo Sol keeps its 56 dp target (review of #438).
+  testWidgets('sun_google_button_keeps_the_56_dp_target', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.sun,
+      home: Scaffold(
+        body: GoogleSignInButton(isLoading: false, onPressed: () {}),
+      ),
+    ));
+
+    expect(tester.getSize(find.byType(OutlinedButton)).height, 56);
+  });
+
+  // At 200 % text a compact control wider than its room shrinks its
+  // segments, and the indicator keeps their width (review of #438).
+  testWidgets('compact_segments_fit_their_room', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              child: SegmentedControl<String>(
+                compact: true,
+                options: const [
+                  SegmentedControlOption(value: 'a', label: 'Claro'),
+                  SegmentedControlOption(value: 'b', label: 'Escuro'),
+                ],
+                value: 'a',
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    final control = find.byType(SegmentedControl<String>);
+    expect(tester.getSize(control).width, lessThanOrEqualTo(160));
+    final indicator = find.descendant(
+      of: control,
+      matching: find.byType(AnimatedPositioned),
+    );
+    expect(
+      tester.getSize(indicator).width,
+      closeTo(tester.getSize(find.byKey(const Key('segment-0'))).width, 0.5),
+    );
+  });
+
   testWidgets('profile_account_card_matches_the_mock', (tester) async {
     await tester.pumpWidget(_host(const AccountCard(child: Text('Corpo'))));
 
