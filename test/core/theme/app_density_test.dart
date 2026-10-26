@@ -10,7 +10,7 @@ void main() {
       expect(AppDensity.standard.tap, 48);
     });
 
-    test('standard_has_52dp_button_height', () {
+    test('standard_has_48dp_button_height', () {
       expect(AppDensity.standard.buttonHeight, 48);
     });
 
