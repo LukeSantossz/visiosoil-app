@@ -107,8 +107,21 @@ class HomeScreen extends ConsumerWidget {
                               child: VisioButton(
                                 label: 'Ver todas',
                                 variant: VisioButtonVariant.text,
+                                // 14 sp, in ink in Modo Sol (PNG 25,
+                                // SPEC 0213).
+                                // 48 dp, Material's least target, in Modo
+                                // Sol too: its 56 dp would push "Recentes"
+                                // and the list 4 and 8 dp down (PNG 25).
+                                style: const ButtonStyle(
+                                  minimumSize: WidgetStatePropertyAll(
+                                    Size(64, 48),
+                                  ),
+                                ),
                                 labelStyle: TextStyle(
-                                  color: context.palette.primaryText,
+                                  fontSize: 14,
+                                  color: context.palette.isSun
+                                      ? context.palette.onSurface
+                                      : context.palette.primaryText,
                                 ),
                                 onPressed: () => ref
                                     .read(mainTabIndexProvider.notifier)

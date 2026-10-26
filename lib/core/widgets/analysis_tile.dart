@@ -81,6 +81,14 @@ class AnalysisTile extends StatelessWidget {
         : 56.0;
     final titleStyle = history
         ? theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500)
+        // Início keeps 16/22 in Modo Sol too, so its rows repeat every 64 dp
+        // (PNG 25, SPEC 0213).
+        : showSyncStatus
+        ? AppTypography.resized(
+            theme.textTheme.titleMedium!,
+            16,
+            height: 22 / 16,
+          )
         : theme.textTheme.titleMedium;
     final metadataStyle = showSyncStatus
         ? AppTypography.tabular(

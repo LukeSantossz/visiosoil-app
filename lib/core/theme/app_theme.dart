@@ -124,8 +124,10 @@ abstract final class AppTheme {
         indicatorColor: Colors.black,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
+            // Ink, as PNG 25 draws every label; the black indicator marks
+            // the selection (SPEC 0213).
             return sunLabelMedium.copyWith(
-              color: AppPalette.sun.primary,
+              color: AppPalette.sun.onSurface,
               fontWeight: FontWeight.w700,
             );
           }
