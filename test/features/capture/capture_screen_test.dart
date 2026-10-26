@@ -2045,6 +2045,56 @@ void main() {
       }
     });
 
+    // "Descartar" while the photograph is being read deletes the picker's
+    // file (SPEC 0147; restored in review of #436).
+    testWidgets('a_discarded_capture_deletes_the_picker_file', (tester) async {
+      final deleted = <String>[];
+      final pending = Completer<InferenceResult?>();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) => pending.future,
+        deletePickedFile: (path) async => deleted.add(path),
+      ));
+
+      await capture(tester);
+      await tester.tap(find.byTooltip('Descartar'));
+      await tester.pump();
+
+      expect(deleted, [samplePath]);
+      pending.complete(null);
+      await tester.pumpAndSettle();
+    });
+
+    // A label change cannot land after a save has taken the labels it had
+    // (review of #436).
+    testWidgets('correcting_is_ignored_while_saving', (tester) async {
+      final gate = Completer<void>();
+      final repository = _GatedSoilRecordRepository(gate.future);
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => const InferenceResult(
+          textureClass: 'Argilosa',
+          confidenceScore: 0.82,
+        ),
+        repository: repository,
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Salvar'));
+      await tester.pump();
+      await tester.tap(find.text('Corrigir'));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+    });
+
     // The block offers no retry, so a cause a rerun could fix asks for a new
     // photograph instead of a tap (review of #436).
     testWidgets('capture_failure_never_asks_for_a_tap', (tester) async {

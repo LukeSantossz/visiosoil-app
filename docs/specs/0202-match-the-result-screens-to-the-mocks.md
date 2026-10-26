@@ -36,7 +36,7 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
   - the others in `onSurfaceVariant`;
   - a 1 dp `surfaceContainerHigh` rule spans the full width under them.
 
-  It plays `AppHaptics.selection()` and announces the selected tab.
+  Each tab's target is the density's (48 dp, 56 dp in Modo Sol), the extra height above the label. It plays `AppHaptics.selection()` and announces the selected tab.
 - **Visão geral.** Open sections on the background, 16 dp side margins:
   - the intro at 14/20 in `onSurfaceVariant`;
   - each section title at 14 sp Inter 600 in `onSurfaceVariant`, its caption at 12 sp in `textTertiary`, 24 dp between sections;
@@ -47,7 +47,7 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
   - A 1 dp `surfaceContainerHigh` top rule, then 12 dp padding.
   - The 52 dp outlined "Corrigir", with Lucide `pencil` and flex 5, then 8 dp, then the 52 dp primary "Dicas de manejo", flex 8.
   - Labels are 15 sp Inter 600 on one line.
-  - From a 1.3× text scale the buttons stack (§8).
+  - From a 1.3× text scale, and on a screen 360 dp wide or less, the buttons stack (§8, §10). While a draft is saving, "Corrigir" does nothing, since the save has taken its labels.
 - **App bar.** Back (Lucide `arrowLeft`, "Voltar"), then the bookmark, then share (Lucide `share2`, `shareRecordWithConsent`).
   - The bookmark is Lucide `bookmark` outlined while unsaved and a filled bookmark once saved, both in `onSurface`.
   - "Nova captura" leaves the app bar. Home and history start a capture.
