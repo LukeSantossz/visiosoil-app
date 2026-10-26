@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/google_g_logo.dart';
@@ -49,7 +50,8 @@ class GoogleSignInButton extends StatelessWidget {
       loadingLabel: 'Vinculando sua conta…',
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(64, 48),
+        // The density's target: 48 dp, and Modo Sol's 56 (review of #438).
+        minimumSize: Size(64, context.density.tap),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         backgroundColor: fill,
         foregroundColor: ink,
