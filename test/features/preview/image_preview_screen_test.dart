@@ -70,6 +70,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  // The viewer keeps the whole photograph, so zooming out and panning reach
+  // its edges (review of #436).
+  testWidgets('photo_is_shown_whole', (tester) async {
+    await pumpPreview(tester);
+
+    expect(tester.widget<Image>(find.byType(Image)).fit, BoxFit.contain);
+  });
+
   testWidgets(
     'preview_image_file_has_error_builder_rendering_broken_image_fallback',
     (tester) async {

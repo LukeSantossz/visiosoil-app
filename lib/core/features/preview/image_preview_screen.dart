@@ -146,9 +146,11 @@ class _ImageViewer extends StatelessWidget {
         // Flies from the result's Detalhes tab (SPEC 0198).
         child: Hero(
           tag: recordPhotoHeroTag(record.id),
+          // Whole, so zooming out and panning reach its edges; a
+          // non-square photograph sits on the black page (review of #436).
           child: Image.file(
             File(record.imagePath),
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             width: double.infinity,
             height: double.infinity,
             errorBuilder: (context, error, stackTrace) =>

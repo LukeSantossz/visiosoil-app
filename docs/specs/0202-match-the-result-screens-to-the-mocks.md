@@ -54,7 +54,7 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
 - **Error (PNG 15).** Centred, 44 dp under the app bar, with 48 dp side margins:
   - a 56 dp `errorContainer` disc with Lucide `circleAlert` in `onErrorContainer`;
   - 16 dp lower, the title "Não deu para classificar" at 18 sp Inter 600;
-  - 8 dp lower, the cause's copy at 14/20 in `onSurfaceVariant`;
+  - 8 dp lower, the cause's copy at 14/20 in `onSurfaceVariant`. A cause the capture chip offers a rerun for (timeout, isolate failure, computation error) reads "Análise não terminou · tire outra foto", since the block offers no rerun;
   - 20 dp lower, a primary "Fotografar de novo" with Lucide `camera`, as wide as its label;
   - 8 dp lower, a text "Ver dicas de captura".
 
@@ -70,7 +70,7 @@ Measurements are read from the 2× PNGs (390 × 844 dp) and matched against Inte
   - The capture guide stays reachable from "Ver dicas de captura".
 - **Photo screen (PNG 19).**
   - The app bar is black, with back, the title and share.
-  - The photograph is square, as wide as the screen.
+  - The photograph sits in a square as wide as the screen, shown whole so the viewer's zoom and pan reach its edges; a non-square one sits on the black page.
   - The rows are at least 56 dp, with 14 sp labels in #C8C8C8 and 15 sp white values on the right, over #333333 rules: Classe estimada · Confiança · Data e hora · Coordenadas ("−17,79 · −50,92": two decimals, comma, true minus) · Modelo.
   - "Precisão" and "Endereço" leave the screen, since PNG 19 does not list them, and "Excluir registro" ends the page.
   - "Captura" stays out, because the app does not measure lux, distance or sharpness (§11).
