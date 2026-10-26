@@ -192,6 +192,27 @@ void main() {
     });
   });
 
+  // PNG 33 floats the snackbar 16 dp from the sides and 19 dp above the
+  // footer, in every theme (SPEC 0218).
+  test('snackbar_margins_match_the_mock', () {
+    for (final theme in [
+      AppTheme.light,
+      AppTheme.dark,
+      AppTheme.sun,
+      AppTheme.lightHighContrast,
+      AppTheme.darkHighContrast,
+    ]) {
+      expect(
+        theme.snackBarTheme.insetPadding,
+        const EdgeInsets.fromLTRB(16, 5, 16, 19),
+      );
+      expect(
+        theme.snackBarTheme.contentTextStyle?.leadingDistribution,
+        TextLeadingDistribution.even,
+      );
+    }
+  });
+
   group('AppTheme.light/dark segmentedButtonTheme', () {
     // The selected segment uses the mock's green `selected` token, not M3's
     // default secondaryContainer, which is brown in this palette (redesign
