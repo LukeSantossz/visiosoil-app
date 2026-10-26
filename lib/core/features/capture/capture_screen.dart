@@ -13,7 +13,9 @@ import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_de
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
+import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -29,6 +31,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
+import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 
@@ -506,6 +509,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(AppStrings.resultSavedSnackbar)),
         );
+        // Details pops its bookmark for this record (SPEC 0197).
+        final createdId = created.id;
+        if (createdId != null) {
+          ref.read(justSavedRecordProvider.notifier).mark(createdId);
+        }
         // Capture is replaced, so back from details returns to whatever
         // opened it (SPEC 0132).
         context.pushReplacement('/details', extra: created.id);
@@ -638,6 +646,81 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     );
   }
 
+  /// The v11 error result for a photograph that was not classified
+  /// (redesign v11 §3.6 PNG 15, SPEC 0197).
+  Widget _failedResult(File image, bool hasImage) {
+    final cause = _state.classificationFailureCause;
+    // A rerun can change only some causes (SPEC 0105); an unknown one keeps
+    // the retry it always had.
+    final retryable =
+        cause == null || classificationFailureChip(cause).retryable;
+    final actions = CaptureActions(
+      hasImage: hasImage,
+      isBusy: _state.isSaving,
+      onCapture: _pickImage,
+      onSave: _saveRecord,
+      onRetake: _pickImage,
+      onDiscard: _discardImage,
+    );
+    // The result's footer rule (SPEC 0197): fixed, unless the screen is
+    // short or the text large.
+    final inlineActions = MediaQuery.sizeOf(context).height < 600 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.3;
+    return Scaffold(
+      appBar: VisioAppBar(
+        title: AppStrings.resultTitle,
+        actions: [
+          VisioIconButton(
+            label: 'Como capturar',
+            icon: Icons.help_outline,
+            onPressed: () => context.push('/capture-guide'),
+          ),
+        ],
+      ),
+      bottomNavigationBar: inlineActions
+          ? null
+          : SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: actions,
+              ),
+            ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ResultErrorBlock(
+                cause: cause,
+                onRetake: _pickImage,
+                onCaptureTips: () => context.push('/capture-guide'),
+                onRetry: retryable ? _retryClassification : null,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: 200,
+                child: CaptureImagePreview(
+                  image: image,
+                  isLoading: _state.isLocating,
+                  isClassifying: false,
+                  address: _state.address,
+                  latitude: _state.latitude,
+                  longitude: _state.longitude,
+                ),
+              ),
+              if (inlineActions) ...[
+                const SizedBox(height: AppSpacing.lg),
+                actions,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Shows the permission denied screen if the camera was blocked
@@ -663,6 +746,19 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           if (didPop) _discardOnLeave();
         },
         child: _draftResult(image, result, hasImage),
+      );
+    }
+
+    // A failure reads as the v11 error result (SPEC 0197): why, how to try
+    // again, and the photograph, which can still be saved (SPEC 0173).
+    if (image != null &&
+        _state.classificationFailed &&
+        !_state.isClassifying) {
+      return PopScope(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) _discardOnLeave();
+        },
+        child: _failedResult(image, hasImage),
       );
     }
 

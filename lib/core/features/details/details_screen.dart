@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
+import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -22,6 +24,7 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_sample_provider.dart';
@@ -142,8 +145,12 @@ class _DetailsContentState extends ConsumerState<_DetailsContent> {
               )
             : null,
         actions: [
-          // A saved record's bookmark is filled (SPEC 0196).
-          const _SavedBookmark(),
+          // A saved record's bookmark is filled (SPEC 0196), and removes the
+          // record from the saved ones (SPEC 0197).
+          _SavedBookmark(
+            recordId: record.id,
+            onRemove: () => confirmAndDeleteRecord(context, ref, record),
+          ),
           // The next sample starts here, in view on the page a save opens
           // (SPEC 0146).
           VisioIconButton(
@@ -163,18 +170,66 @@ class _DetailsContentState extends ConsumerState<_DetailsContent> {
   }
 }
 
-/// The filled bookmark of a saved record: a state, not an action.
-class _SavedBookmark extends StatelessWidget {
-  const _SavedBookmark();
+/// The filled bookmark of a saved record (SPEC 0196). It pops once when a
+/// capture save has just landed here, and tapping it removes the record from
+/// the saved ones (redesign v11 §7, SPEC 0197).
+class _SavedBookmark extends ConsumerStatefulWidget {
+  const _SavedBookmark({required this.recordId, required this.onRemove});
+
+  final int? recordId;
+  final VoidCallback onRemove;
+
+  @override
+  ConsumerState<_SavedBookmark> createState() => _SavedBookmarkState();
+}
+
+class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
+    with SingleTickerProviderStateMixin {
+  static const Duration _popDuration = Duration(milliseconds: 340);
+
+  late final AnimationController _pop =
+      AnimationController(vsync: this, duration: _popDuration);
+  late final Animation<double> _scale = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1, end: 1.28), weight: 1),
+    TweenSequenceItem(tween: Tween(begin: 1.28, end: 1), weight: 1),
+  ]).animate(CurvedAnimation(
+    parent: _pop,
+    curve: AppMotion.emphasizedDecelerate,
+  ));
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final justSaved = ref.read(justSavedRecordProvider);
+      if (justSaved == null || justSaved != widget.recordId) return;
+      ref.read(justSavedRecordProvider.notifier).clear();
+      final reduce = AppMotion.reduceMotion ||
+          MediaQuery.disableAnimationsOf(context);
+      if (!reduce) _pop.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pop.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: AppStrings.resultSaved,
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        child: Icon(Icons.bookmark, color: context.palette.primary),
+    return ScaleTransition(
+      key: const ValueKey('saved-bookmark'),
+      scale: _scale,
+      child: VisioIconButton(
+        label: AppStrings.resultRemoveSaved,
+        icon: Icons.bookmark,
+        color: context.palette.primary,
+        onPressed: () {
+          unawaited(AppHaptics.selection());
+          widget.onRemove();
+        },
       ),
     );
   }
@@ -324,11 +379,18 @@ class _ResultContentState extends State<ResultContent>
         // shared and deleted (SPEC 0194).
         : [ResultErrorBlock(cause: record.classificationFailure), details];
 
+    final footer = classified && footerBuilder != null
+        ? footerBuilder(context, (tab) => setState(() => _tab = tab))
+        : null;
+    // A fixed footer would cover most of the result on a short screen or at
+    // large text, so there it ends the scrolling body (SPEC 0197).
+    final inlineFooter = footer != null &&
+        (MediaQuery.sizeOf(context).height < 600 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.3);
+
     return Scaffold(
       appBar: widget.appBar,
-      bottomNavigationBar: classified && footerBuilder != null
-          ? footerBuilder(context, (tab) => setState(() => _tab = tab))
-          : null,
+      bottomNavigationBar: inlineFooter ? null : footer,
       body: CustomScrollView(
         slivers: [
           // The page scrolls under the navigation bar on Android 12 and
@@ -352,6 +414,10 @@ class _ResultContentState extends State<ResultContent>
                         animation: _blockEntrances[i],
                         child: blocks[i],
                       ),
+                    ],
+                    if (inlineFooter) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      footer,
                     ],
                   ],
                 ),
@@ -571,7 +637,7 @@ class _ActionButtons extends ConsumerWidget {
         // Delete
         VisioButton(
           label: 'Excluir registro',
-          onPressed: () => _confirmAndDelete(context, ref),
+          onPressed: () => confirmAndDeleteRecord(context, ref, record),
           icon: Icons.delete_outline,
           variant: VisioButtonVariant.destructive,
         ),
@@ -623,24 +689,30 @@ class _ActionButtons extends ConsumerWidget {
       );
     }
   }
+}
 
-  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await confirmDestructiveAction(
-      context,
-      title: 'Excluir registro',
-      message: 'Tem certeza que deseja excluir este registro? '
-          'Esta ação não pode ser desfeita.',
-      confirmLabel: 'Excluir',
-    );
+/// Asks before deleting [record], then deletes it and returns home; from
+/// "Excluir registro" and from the saved bookmark (SPEC 0197).
+Future<void> confirmAndDeleteRecord(
+  BuildContext context,
+  WidgetRef ref,
+  SoilRecord record,
+) async {
+  final confirmed = await confirmDestructiveAction(
+    context,
+    title: 'Excluir registro',
+    message: 'Tem certeza que deseja excluir este registro? '
+        'Esta ação não pode ser desfeita.',
+    confirmLabel: 'Excluir',
+  );
 
-    if (confirmed && context.mounted && record.id != null) {
-      await ref.read(soilRecordRepositoryProvider).deleteById(record.id!);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro excluído.')),
-        );
-        context.go('/');
-      }
+  if (confirmed && context.mounted && record.id != null) {
+    await ref.read(soilRecordRepositoryProvider).deleteById(record.id!);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registro excluído.')),
+      );
+      context.go('/');
     }
   }
 }

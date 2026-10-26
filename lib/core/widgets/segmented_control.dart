@@ -136,15 +136,22 @@ class SegmentedControl<T> extends StatelessWidget {
                     Icon(option.icon, size: 16, color: foreground),
                     const SizedBox(width: AppSpacing.xs),
                   ],
+                  // One line, scaled down rather than clipped when a word
+                  // cannot fit its segment (SPEC 0197).
                   Flexible(
-                    child: Text(
-                      option.label,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: foreground,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        option.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: foreground,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
                       ),
                     ),
                   ),
