@@ -48,6 +48,8 @@ class MainScreen extends ConsumerWidget {
                     SafeArea(
                       right: false,
                       child: NavigationRail(
+                        // Four destinations stay reachable in a short window.
+                        scrollable: true,
                         selectedIndex: currentIndex,
                         onDestinationSelected: select,
                         labelType: NavigationRailLabelType.all,

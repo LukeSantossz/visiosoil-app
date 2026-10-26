@@ -152,7 +152,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _masterDetail = constraints.maxWidth >= 840;
+            // The window's width, so the rail beside the tabs does not move
+            // the breakpoint; the panes then share the width left.
+            _masterDetail = MediaQuery.sizeOf(context).width >= 840;
             final list = Column(
               children: [
                 if (!_isSelectionMode)

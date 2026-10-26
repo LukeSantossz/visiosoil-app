@@ -72,12 +72,10 @@ Future<StreamController<List<SoilRecord>>> _pump(
         (ref) => Stream.value(ConnectivityStatus.online),
       ),
       soilRecordsStreamProvider.overrideWith((ref) => Stream.value(_records)),
-      filteredRecordsProvider.overrideWith(
-        (ref) async* {
-          yield _records;
-          yield* filtered.stream;
-        },
-      ),
+      filteredRecordsProvider.overrideWith((ref) async* {
+        yield _records;
+        yield* filtered.stream;
+      }),
       soilRecordByIdProvider.overrideWith(
         (ref, id) async => _records.where((r) => r.id == id).firstOrNull,
       ),
@@ -106,6 +104,11 @@ void main() {
     await _settle(tester);
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byType(NavigationRail), findsOneWidget);
+    // Four destinations stay reachable in a short window.
+    expect(
+      tester.widget<NavigationRail>(find.byType(NavigationRail)).scrollable,
+      isTrue,
+    );
     for (final label in ['Início', 'Histórico', 'Dicas', 'Perfil']) {
       expect(
         find.descendant(
@@ -125,7 +128,9 @@ void main() {
     await _settle(tester);
     final history = find.byType(HistoryScreen);
     expect(
-      find.ancestor(of: history, matching: find.byType(Offstage)).evaluate()
+      find
+          .ancestor(of: history, matching: find.byType(Offstage))
+          .evaluate()
           .map((e) => (e.widget as Offstage).offstage),
       everyElement(isFalse),
     );
@@ -168,6 +173,49 @@ void main() {
       await _pump(tester, home: const HistoryScreen());
 
       expect(tester.getRect(find.text('Coleção')).right, lessThan(360));
+    });
+
+    // The breakpoint is the window's, so the rail beside the tabs does not
+    // push it to 840 dp plus the rail (Codex and CodeRabbit on #434).
+    testWidgets('history_is_master_detail_at_an_840_window', (tester) async {
+      _useSize(tester, const Size(840, 900));
+      await _pump(tester, home: const MainScreen(), tab: 1);
+
+      await tester.tap(find.widgetWithText(AnalysisTile, 'Arenosa'));
+      await _settle(tester);
+
+      expect(find.textContaining('DETAILS_STUB'), findsNothing);
+      expect(find.text(AppStrings.resultTitle), findsOneWidget);
+    });
+
+    testWidgets('selection_mode_marks_only_the_selected_rows', (tester) async {
+      _useSize(tester, const Size(1024, 900));
+      await _pump(tester, home: const HistoryScreen());
+      await tester.tap(find.widgetWithText(AnalysisTile, 'Arenosa'));
+      await _settle(tester);
+
+      await tester.tap(find.byTooltip('Selecionar registros'));
+      await _settle(tester);
+
+      final marked = tester
+          .widgetList<ColoredBox>(
+            find.ancestor(
+              of: find.widgetWithText(AnalysisTile, 'Arenosa'),
+              matching: find.byType(ColoredBox),
+            ),
+          )
+          .map((box) => box.color)
+          .toSet();
+      final plain = tester
+          .widgetList<ColoredBox>(
+            find.ancestor(
+              of: find.widgetWithText(AnalysisTile, 'Argilosa'),
+              matching: find.byType(ColoredBox),
+            ),
+          )
+          .map((box) => box.color)
+          .toSet();
+      expect(marked, plain);
     });
 
     testWidgets('history_pushes_below_840', (tester) async {

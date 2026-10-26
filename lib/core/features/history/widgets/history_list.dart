@@ -253,7 +253,10 @@ class _HistoryListState extends ConsumerState<HistoryList> {
           : (id == widget.activeId ? true : null),
       container: true,
       child: ColoredBox(
-        color: widget.selectedIds.contains(id) || id == widget.activeId
+        color:
+            (widget.isSelectionMode
+                ? widget.selectedIds.contains(id)
+                : id == widget.activeId)
             ? context.palette.selected
             : context.palette.background,
         child: AnalysisTile(
