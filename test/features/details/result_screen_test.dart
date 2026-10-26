@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_bar.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
@@ -738,5 +739,35 @@ void main() {
     expect(find.text('Argilosa'), findsOneWidget);
     expect(find.byType(ConfidenceBar), findsNothing);
     expect(find.textContaining('não está seguro'), findsNothing);
+  });
+
+  // SPEC 0210: the confidence row and the tabs as PNG 14 measures them.
+  testWidgets('confidence_row_matches_the_mock', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.light);
+
+    final badge = find.text(AppStrings.confidenceHigh);
+    final row = find.byType(SegmentedConfidenceBar);
+    expect(
+      tester.getSize(find.ancestor(of: badge, matching: find.byType(Container)).first).width,
+      lessThan(420 / 2),
+    );
+    final empty = tester.widget<Container>(
+      find.byKey(const ValueKey('confidence-segment-4')),
+    );
+    expect(
+      (empty.decoration! as BoxDecoration).color,
+      AppPalette.light.divider,
+    );
+    expect(row, findsOneWidget);
+    expect(tester.widget<Text>(find.text('82%')).style?.fontSize, 14);
+  });
+
+  testWidgets('tab_indicator_sits_on_the_rule', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.light);
+
+    expect(
+      tester.getBottomLeft(find.byKey(const ValueKey('result-tab-indicator'))).dy,
+      tester.getBottomLeft(find.byKey(const ValueKey('result-tab-rule'))).dy,
+    );
   });
 }

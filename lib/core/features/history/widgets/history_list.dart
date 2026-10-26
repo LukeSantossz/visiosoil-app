@@ -160,26 +160,17 @@ class _HistoryListState extends ConsumerState<HistoryList> {
               final hasFilter =
                   ref.watch(selectedTextureFilterProvider) != null ||
                   ref.watch(searchTermProvider).isNotEmpty;
+              if (!hasFilter) {
+                return [const SliverToBoxAdapter(child: _NoRecords())];
+              }
               return [
-                SliverFillRemaining(
+                const SliverFillRemaining(
                   hasScrollBody: false,
                   child: EmptyState(
-                    icon: hasFilter
-                        ? Icons.search_off
-                        : Icons.inventory_2_outlined,
-                    title: hasFilter
-                        ? 'Nenhum resultado'
-                        : 'Nenhuma análise ainda',
-                    description: hasFilter
-                        ? 'Tente ajustar os filtros ou o termo de busca.'
-                        : 'Suas análises aparecem aqui, agrupadas por data, mesmo sem internet.',
-                    action: hasFilter
-                        ? null
-                        : VisioButton(
-                            label: 'Fazer primeira análise',
-                            icon: Icons.camera_alt_outlined,
-                            onPressed: () => context.push('/capture'),
-                          ),
+                    icon: Icons.search_off,
+                    title: 'Nenhum resultado',
+                    description:
+                        'Tente ajustar os filtros ou o termo de busca.',
                   ),
                 ),
               ];
@@ -522,4 +513,146 @@ class _Collection extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// PNG 17: the empty history, its drawing 83 dp under the segmented
+/// control, an 18 sp title, the 14/20 sentence and the action (SPEC 0210).
+class _NoRecords extends StatelessWidget {
+  const _NoRecords();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = context.palette;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        _NoRecords.top,
+        AppSpacing.xl,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        children: [
+          ExcludeSemantics(
+            child: CustomPaint(
+              size: const Size(100, 77),
+              painter: _NoRecordsArt(
+                ink: palette.primaryText,
+                fill: palette.primaryContainer.withValues(alpha: .55),
+                line: palette.textTertiary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 31),
+          Semantics(
+            header: true,
+            child: Text(
+              'Nenhuma análise ainda',
+              textAlign: TextAlign.center,
+              style: AppTypography.weighted(
+                AppTypography.resized(
+                  theme.textTheme.titleMedium!,
+                  18,
+                  height: 24 / 18,
+                ),
+                600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Suas análises aparecem aqui, agrupadas por data, mesmo sem '
+            'internet.',
+            textAlign: TextAlign.center,
+            style: AppTypography.resized(
+              theme.textTheme.bodyMedium!,
+              14,
+              height: 20 / 14,
+            ).copyWith(color: palette.onSurfaceVariant),
+          ),
+          const SizedBox(height: 21),
+          VisioButton(
+            label: 'Fazer primeira análise',
+            icon: LucideIcons.camera,
+            onPressed: () => context.push('/capture'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// From the list's top to the drawing's.
+  static const double top = 83;
+}
+
+/// Two record cards behind a dashed one holding a sample and two lines, at
+/// PNG 17's coordinates (SPEC 0210).
+class _NoRecordsArt extends CustomPainter {
+  const _NoRecordsArt({
+    required this.ink,
+    required this.fill,
+    required this.line,
+  });
+
+  final Color ink;
+  final Color fill;
+  final Color line;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint stroke(Color color, double width) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round;
+    final front = RRect.fromLTRBR(
+      3.25,
+      29.75,
+      96.5,
+      75.5,
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(front, Paint()..color = fill);
+    canvas.drawRRect(
+      RRect.fromLTRBR(16, 1, 84, 22.25, const Radius.circular(6)),
+      stroke(line.withValues(alpha: .45), 1.5),
+    );
+    canvas.drawRRect(
+      RRect.fromLTRBR(9.75, 13.5, 90.25, 38, const Radius.circular(6)),
+      stroke(line.withValues(alpha: .75), 1.5),
+    );
+    final dash = stroke(ink, 1.5)..strokeCap = StrokeCap.butt;
+    for (final metric in (Path()..addRRect(front)).computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 9.5) {
+        canvas.drawPath(metric.extractPath(d, d + 6), dash);
+      }
+    }
+    canvas.drawRRect(
+      RRect.fromLTRBR(12.75, 39, 39, 65.25, const Radius.circular(6)),
+      stroke(ink, 1.5),
+    );
+    for (final (center, radius) in const [
+      (Offset(26, 52.25), 2.75),
+      (Offset(21, 57.25), 1.5),
+      (Offset(30.75, 58.5), 1.9),
+    ]) {
+      canvas.drawCircle(center, radius, Paint()..color = ink);
+    }
+    canvas.drawLine(
+      const Offset(46.25, 47.5),
+      const Offset(82.5, 47.5),
+      stroke(line, 1.25),
+    );
+    canvas.drawLine(
+      const Offset(46.25, 57.25),
+      const Offset(69.75, 57.25),
+      stroke(line, 1.25),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_NoRecordsArt oldDelegate) =>
+      ink != oldDelegate.ink ||
+      fill != oldDelegate.fill ||
+      line != oldDelegate.line;
 }

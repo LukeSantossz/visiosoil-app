@@ -215,4 +215,21 @@ void main() {
       }
     });
   });
+
+  // SPEC 0210: 48 dp and flat, as the mocks draw them.
+  testWidgets('buttons_are_48_dp', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: Center(
+            child: ElevatedButton(onPressed: () {}, child: const Text('Ok')),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byType(ElevatedButton)).height, 48);
+    expect(AppTheme.light.elevatedButtonTheme.style?.elevation?.resolve({}), 0);
+  });
 }
