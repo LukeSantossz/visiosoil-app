@@ -60,6 +60,11 @@ Future<void> _pumpHome(WidgetTester tester, LostCaptureService service) async {
   await _settle(tester);
 }
 
+// The bar on a phone, the rail on the test's 800 dp surface (SPEC 0200).
+final _mainNavigation = find.byWidgetPredicate(
+  (widget) => widget is NavigationBar || widget is NavigationRail,
+);
+
 void main() {
   testWidgets('a_recovered_capture_opens_the_capture_screen_with_it',
       (tester) async {
@@ -75,7 +80,7 @@ void main() {
     await _settle(tester);
 
     expect(find.textContaining('CAPTURE_STUB'), findsNothing);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(_mainNavigation, findsOneWidget);
   });
 
   testWidgets('an_unrecoverable_capture_is_reported_on_home', (tester) async {
@@ -86,7 +91,7 @@ void main() {
 
     expect(find.text(AppStrings.lostCaptureUnrecoverable), findsOneWidget);
     expect(find.textContaining('CAPTURE_STUB'), findsNothing);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(_mainNavigation, findsOneWidget);
   });
 
   testWidgets('no_lost_capture_leaves_home_alone', (tester) async {

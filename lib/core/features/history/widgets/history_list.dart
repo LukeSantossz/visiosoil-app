@@ -29,12 +29,16 @@ class HistoryList extends ConsumerStatefulWidget {
     required this.isSelectionMode,
     required this.onTap,
     required this.onLongPress,
+    this.activeId,
   });
   final int pageSize;
   final Set<int> selectedIds;
   final bool isSelectionMode;
   final ValueChanged<int> onTap;
   final ValueChanged<int> onLongPress;
+
+  /// The record open beside the list in master-detail (SPEC 0200).
+  final int? activeId;
 
   @override
   ConsumerState<HistoryList> createState() => _HistoryListState();
@@ -61,30 +65,34 @@ class _HistoryListState extends ConsumerState<HistoryList> {
         SliverPadding(
           padding: const EdgeInsets.all((AppSpacing.lg + AppSpacing.xs)),
           sliver: SliverToBoxAdapter(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: (MediaQuery.sizeOf(context).width.clamp(0, 560) - 40)
-                    .clamp(
-                      280 * MediaQuery.textScalerOf(context).scale(1),
-                      double.infinity,
-                    )
-                    .toDouble(),
-                child: SegmentedControl<bool>(
-                  options: const [
-                    SegmentedControlOption(
-                      value: false,
-                      label: 'Análises',
-                      icon: Icons.history,
-                    ),
-                    SegmentedControlOption(
-                      value: true,
-                      label: 'Coleção',
-                      icon: Icons.layers_outlined,
-                    ),
-                  ],
-                  value: _collection,
-                  onChanged: (value) => setState(() => _collection = value),
+            // The width the list has, not the screen's: beside a detail pane
+            // the list is narrower than the screen (SPEC 0200).
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: constraints.maxWidth
+                      .clamp(
+                        280 * MediaQuery.textScalerOf(context).scale(1),
+                        double.infinity,
+                      )
+                      .toDouble(),
+                  child: SegmentedControl<bool>(
+                    options: const [
+                      SegmentedControlOption(
+                        value: false,
+                        label: 'Análises',
+                        icon: Icons.history,
+                      ),
+                      SegmentedControlOption(
+                        value: true,
+                        label: 'Coleção',
+                        icon: Icons.layers_outlined,
+                      ),
+                    ],
+                    value: _collection,
+                    onChanged: (value) => setState(() => _collection = value),
+                  ),
                 ),
               ),
             ),
@@ -240,10 +248,15 @@ class _HistoryListState extends ConsumerState<HistoryList> {
   Widget _row(SoilRecord record) {
     final id = record.id!;
     final tile = Semantics(
-      selected: widget.isSelectionMode ? widget.selectedIds.contains(id) : null,
+      selected: widget.isSelectionMode
+          ? widget.selectedIds.contains(id)
+          : (id == widget.activeId ? true : null),
       container: true,
       child: ColoredBox(
-        color: widget.selectedIds.contains(id)
+        color:
+            (widget.isSelectionMode
+                ? widget.selectedIds.contains(id)
+                : id == widget.activeId)
             ? context.palette.selected
             : context.palette.background,
         child: AnalysisTile(
