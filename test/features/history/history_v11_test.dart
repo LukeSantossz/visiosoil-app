@@ -167,6 +167,10 @@ void main() {
             )
             .first,
       );
+      // The row itself, not only its key, must reach the viewport: a taller
+      // app bar (SPEC 0201) can leave the key in view and the row below.
+      await tester.ensureVisible(find.byType(SwipeToDelete).first);
+      await tester.pumpAndSettle();
       final visibleRow = tester
           .getRect(find.byType(SwipeToDelete).first)
           .intersect(tester.getRect(find.byType(CustomScrollView)));

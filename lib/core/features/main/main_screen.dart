@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
@@ -91,23 +92,20 @@ class MainScreen extends ConsumerWidget {
   }
 }
 
+// Lucide, as the mocks draw them (redesign v11 §5, SPEC 0201).
 const _destinations = [
-  (icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Início'),
+  (icon: LucideIcons.house, selectedIcon: LucideIcons.house, label: 'Início'),
   (
-    icon: Icons.photo_library_outlined,
-    selectedIcon: Icons.photo_library,
+    icon: LucideIcons.history,
+    selectedIcon: LucideIcons.history,
     label: 'Histórico',
   ),
   (
-    icon: Icons.lightbulb_outline,
-    selectedIcon: Icons.lightbulb_outline,
+    icon: LucideIcons.lightbulb,
+    selectedIcon: LucideIcons.lightbulb,
     label: 'Dicas',
   ),
-  (
-    icon: Icons.person_outline,
-    selectedIcon: Icons.person_outline,
-    label: 'Perfil',
-  ),
+  (icon: LucideIcons.user, selectedIcon: LucideIcons.user, label: 'Perfil'),
 ];
 
 /// Reuses the existing record-based tips instead of inventing sample advice.
