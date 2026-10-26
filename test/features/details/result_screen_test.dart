@@ -174,6 +174,67 @@ void main() {
     );
   });
 
+  // The selected tab is announced as such (review of #436).
+  testWidgets('tabs_announce_their_selection', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, _classified());
+    void expectSelected(String label, bool selected) => expect(
+      tester.getSemantics(find.text(label)),
+      isSemantics(isSelected: selected, isButton: true),
+      reason: label,
+    );
+
+    expectSelected('Visão geral', true);
+    expectSelected('Manejo', false);
+    await _selectTab(tester, 'Manejo');
+    expectSelected('Visão geral', false);
+    expectSelected('Manejo', true);
+    semantics.dispose();
+  });
+
+  // Modo Sol's targets are 56 dp (review of #436).
+  testWidgets('sun_tabs_are_56_dp', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(
+      overrides: _overrides(_classified()),
+      child: MaterialApp(
+        theme: AppTheme.sun,
+        home: const DetailsScreen(recordId: 1),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final tab = find.ancestor(
+      of: find.text('Manejo'),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.getSize(tab.first).height, greaterThanOrEqualTo(56));
+  });
+
+  // At 360 dp or less the footer stacks rather than shrinking its labels
+  // (review of #436).
+  for (final width in [320.0, 360.0]) {
+    testWidgets('footer_stacks_at_${width.toInt()}_dp', (tester) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: _overrides(_classified()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const DetailsScreen(recordId: 1),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.text('Dicas de manejo')).dy,
+        greaterThan(tester.getBottomLeft(find.text('Corrigir')).dy),
+      );
+    });
+  }
+
   testWidgets('footer_fits_one_line', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
