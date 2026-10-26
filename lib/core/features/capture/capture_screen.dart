@@ -583,6 +583,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       key: ValueKey(_state.generation),
       record: draft,
       locating: _state.isLocating,
+      announce: true,
       appBar: VisioAppBar(
         title: AppStrings.resultTitle,
         actions: [

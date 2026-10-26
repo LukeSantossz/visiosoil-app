@@ -194,12 +194,17 @@ class ResultContent extends StatefulWidget {
     required this.detailsTab,
     this.footerBuilder,
     this.locating = false,
+    this.announce = false,
   });
 
   final SoilRecord record;
 
   /// The record's location is still being read (SPEC 0196).
   final bool locating;
+
+  /// Announces the header to a screen reader when it appears: capture's
+  /// draft, which replaces the processing view (SPEC 0196).
+  final bool announce;
   final PreferredSizeWidget appBar;
   final Widget managementTab;
   final Widget detailsTab;
@@ -271,7 +276,10 @@ class _ResultContentState extends State<ResultContent>
 
     final List<Widget> blocks = classified
         ? [
-            ClassificationHeader(record: record),
+            Semantics(
+              liveRegion: widget.announce,
+              child: ClassificationHeader(record: record),
+            ),
             SegmentedControl<ResultTab>(
               semanticLabel: 'Seções do resultado',
               value: _tab,

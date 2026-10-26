@@ -156,6 +156,18 @@ void main() {
     semantics.dispose();
   });
 
+  // Opening a saved record announces nothing on its own (SPEC 0196).
+  testWidgets('a_saved_result_is_not_a_live_region', (tester) async {
+    await _pump(tester, _classified());
+
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.liveRegion == true,
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('overview_shows_the_triangle_card', (tester) async {
     await _pump(tester, _classified());
 

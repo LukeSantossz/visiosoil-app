@@ -2071,6 +2071,28 @@ void main() {
       expect(find.text('Descartar'), findsOneWidget);
     });
 
+    // The verdict is announced when the draft appears, as the preview's chip
+    // did before it moved into the hidden Detalhes tab (Codex on #430).
+    testWidgets('the_draft_result_is_announced', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      final live = find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.liveRegion == true,
+      );
+      expect(
+        find.descendant(of: live, matching: find.text('Argilosa')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
     testWidgets('bookmark_saves_the_draft', (tester) async {
       final repository = FakeSoilRecordRepository();
       await tester.pumpWidget(buildRouted(
