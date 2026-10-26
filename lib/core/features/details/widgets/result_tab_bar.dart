@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 
@@ -82,6 +83,9 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    // The density's target, 56 dp in Modo Sol; the extra height goes above
+    // the label so the indicator stays on the rule (review of #436).
+    final target = context.density.tap;
     return Semantics(
       selected: selected,
       button: true,
@@ -89,7 +93,7 @@ class _Tab extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: BoxConstraints(minHeight: target),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: IntrinsicWidth(
@@ -97,7 +101,7 @@ class _Tab extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12 + target - 48),
                   Text(
                     label,
                     maxLines: 1,
