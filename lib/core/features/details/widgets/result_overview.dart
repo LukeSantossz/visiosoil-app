@@ -43,7 +43,8 @@ class ResultOverview extends StatelessWidget {
         children: [
           // The triangle's own box keeps room for its labels around it, so
           // it is drawn 205 dp wide and shifted to put its base at 116 dp,
-          // 17 dp from the edge, as PNG 14 draws it.
+          // 17 dp from the edge, and 3.5 dp up, as PNG 14 and 26 draw it
+          // (SPEC 0212).
           SizedBox(
             width: 150,
             height: 146,
@@ -52,7 +53,7 @@ class ResultOverview extends StatelessWidget {
               minWidth: 205,
               maxWidth: 205,
               child: Transform.translate(
-                offset: const Offset(-27, 0),
+                offset: const Offset(-27, -3.5),
                 child: TextureTriangle(highlightClass: record.textureClass),
               ),
             ),
