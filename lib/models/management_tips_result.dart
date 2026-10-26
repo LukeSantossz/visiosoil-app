@@ -73,6 +73,29 @@ enum TipCategory {
   }
 }
 
+/// The crop phase a tip speaks to, in crop order (SPEC 0209). Same defensive
+/// parsing as [TipCategory], for the same reason.
+enum TipPhase {
+  beforePlanting('before_planting', 'Antes do plantio'),
+  sowing('sowing', 'Semeadura'),
+  cropCycle('crop_cycle', 'Ciclo da cultura');
+
+  const TipPhase(this.wireName, this.label);
+
+  final String wireName;
+
+  /// The timeline's heading for the phase.
+  final String label;
+
+  static TipPhase? fromWire(String? value) {
+    if (value == null) return null;
+    for (final phase in values) {
+      if (phase.wireName == value) return phase;
+    }
+    return null;
+  }
+}
+
 /// How well the cited sources support a tip. Same defensive parsing as
 /// [TipCategory], for the same reason.
 enum EvidenceStrength {
@@ -205,6 +228,8 @@ class ManagementTip {
     required this.citations,
     this.category,
     this.evidenceStrength,
+    this.title,
+    this.phase,
   });
 
   final String text;
@@ -216,11 +241,22 @@ class ManagementTip {
   /// Absent means render no strength badge.
   final EvidenceStrength? evidenceStrength;
 
+  /// A short heading over [text]. Absent means the card shows the text alone
+  /// (SPEC 0209).
+  final String? title;
+
+  /// Absent on any tip means the timeline groups by [category] instead.
+  final TipPhase? phase;
+
   Map<String, dynamic> toJson() => {
         'text': text,
         'citations': citations,
         'category': category?.wireName,
         'evidenceStrength': evidenceStrength?.wireName,
+        // Written only when present, so a result without them serialises as
+        // it did before SPEC 0209.
+        if (title != null) 'title': title,
+        if (phase != null) 'phase': phase!.wireName,
       };
 
   factory ManagementTip.fromJson(Map<String, dynamic> json) => ManagementTip(
@@ -230,6 +266,8 @@ class ManagementTip {
         category: TipCategory.fromWire(json['category'] as String?),
         evidenceStrength:
             EvidenceStrength.fromWire(json['evidenceStrength'] as String?),
+        title: json['title'] as String?,
+        phase: TipPhase.fromWire(json['phase'] as String?),
       );
 }
 

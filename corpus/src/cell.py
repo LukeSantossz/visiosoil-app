@@ -19,6 +19,11 @@ STATUSES = ("grounded", "abstained")
 that found no cell, so a cell can never carry it."""
 
 
+PHASES = ("before_planting", "sowing", "crop_cycle")
+"""The crop phases a tip may name, in crop order (SPEC 0209). The app groups the
+Dicas timeline by them when every tip carries one."""
+
+
 class CellValidationError(Exception):
     """A cell that does not satisfy the contract the app reads it through."""
 
@@ -49,6 +54,15 @@ def validate_cell(cell: dict[str, Any], *, source_count: int) -> None:
         text = tip.get("text")
         if not isinstance(text, str) or not text.strip():
             raise CellValidationError(f"tip {position} has no text")
+        if "title" in tip and (
+            not isinstance(tip["title"], str) or not tip["title"].strip()
+        ):
+            raise CellValidationError(f"tip {position} has an empty title")
+        if "phase" in tip and tip["phase"] not in PHASES:
+            raise CellValidationError(
+                f"tip {position} has a phase {tip['phase']!r} that is not one of "
+                f"{PHASES}"
+            )
         citations = tip.get("citations")
         if not isinstance(citations, list) or not citations:
             raise CellValidationError(
@@ -89,6 +103,8 @@ def build_cell_payload(
             {
                 "text": tip["text"],
                 "citations": list(tip.get("citations", [])),
+                **({"title": tip["title"]} if tip.get("title") else {}),
+                **({"phase": tip["phase"]} if tip.get("phase") else {}),
                 **({"category": tip["category"]} if tip.get("category") else {}),
                 **(
                     {"evidenceStrength": tip["evidenceStrength"]}

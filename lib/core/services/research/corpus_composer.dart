@@ -210,6 +210,8 @@ class CorpusComposer {
           citations: [for (final i in tip.citations) i + offset],
           category: tip.category,
           evidenceStrength: tip.evidenceStrength,
+          title: tip.title,
+          phase: tip.phase,
         ));
       }
       _addMissing(limitations, layer.limitations);

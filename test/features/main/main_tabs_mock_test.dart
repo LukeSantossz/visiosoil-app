@@ -373,4 +373,23 @@ void main() {
     await tester.pump();
     expect(container.read(mainTabIndexProvider), 0);
   });
+
+  // SPEC 0209: the Dicas tab's app bar ends in a filter.
+  testWidgets('tips_tab_offers_a_filter', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, home: const MainScreen());
+    container.read(mainTabIndexProvider.notifier).select(2);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final filter = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.byIcon(LucideIcons.slidersHorizontal),
+    );
+    expect(filter, findsOneWidget);
+    await tester.tap(find.byTooltip('Filtrar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Filtrar dicas'), findsOneWidget);
+  });
 }
