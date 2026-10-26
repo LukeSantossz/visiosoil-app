@@ -505,7 +505,7 @@ PreferredSizeWidget resultAppBar(
   );
 }
 
-/// [Corrigir] and [Dicas de manejo] side by side, 52 dp tall, flex 5 and 8
+/// [Corrigir] and [Dicas de manejo] side by side, 48 dp tall, flex 5 and 8
 /// under a 1 dp rule (PNG 14, SPEC 0202); stacked from a 1.3x text scale
 /// (redesign v11 §8).
 class ResultFooter extends StatelessWidget {
