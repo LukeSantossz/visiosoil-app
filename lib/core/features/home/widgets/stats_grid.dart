@@ -67,6 +67,7 @@ class StatsGrid extends StatelessWidget {
         ],
       );
     }
-    return StatsRow(cells: cells);
+    // PNG 08's cards are 120 dp tall (SPEC 0203).
+    return StatsRow(cells: cells, minHeight: 120);
   }
 }
