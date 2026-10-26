@@ -19,16 +19,18 @@ import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
-import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
+import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -247,18 +249,6 @@ void main() {
     expect(find.text('Câmera'), findsOneWidget);
   });
 
-  testWidgets('a failed classification shows a retry affordance',
-      (tester) async {
-    await tester.pumpWidget(buildScreen(
-      pickFromCamera: () async => XFile(samplePath),
-      locate: () async => null,
-      classify: (_) async => null,
-    ));
-
-    await capture(tester);
-
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-  });
 
   testWidgets('capture_screen_renders_a_failed_report_without_a_result',
       (tester) async {
@@ -298,83 +288,7 @@ void main() {
     expect(uiState.classificationResult, isNull);
   });
 
-  testWidgets('tapping retry reruns classification and shows the result',
-      (tester) async {
-    var calls = 0;
-    await tester.pumpWidget(buildScreen(
-      pickFromCamera: () async => XFile(samplePath),
-      locate: () async => null,
-      classify: (_) async {
-        calls++;
-        if (calls == 1) return null;
-        return const InferenceResult(
-          textureClass: 'Argilosa',
-          confidenceScore: 0.9,
-        );
-      },
-    ));
 
-    await capture(tester);
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('retryClassification')));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 10));
-    }
-
-    expect(find.text('Argilosa'), findsOneWidget);
-  });
-
-  testWidgets(
-      'a double tap on retry starts one classification, and retry works again '
-      'once it settles', (tester) async {
-    var calls = 0;
-    var gate = Completer<InferenceResult?>();
-    await tester.pumpWidget(buildScreen(
-      pickFromCamera: () async => XFile(samplePath),
-      locate: () async => null,
-      classify: (_) {
-        calls++;
-        // The automatic run after capture fails, surfacing the retry chip.
-        if (calls == 1) return Future<InferenceResult?>.value(null);
-        return gate.future;
-      },
-    ));
-
-    await capture(tester);
-    expect(calls, 1);
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-
-    // Both taps land in the same frame: no pump has run in between, so the chip
-    // is still in the tree for the second hit-test even though the first tap
-    // already set the in-flight flag. This is the window the guard closes.
-    await tester.tap(find.byKey(const Key('retryClassification')));
-    await tester.tap(find.byKey(const Key('retryClassification')));
-    await tester.pump();
-
-    expect(calls, 2, reason: 'the second tap must be rejected while in flight');
-
-    // Settle the retry as another failure, which brings the chip back once
-    // the last one has faded out (SPEC 0134).
-    gate.complete(null);
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 10));
-    }
-    await tester.pump(AppMotion.base);
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-
-    // The guard must have cleared: a later tap is accepted.
-    gate = Completer<InferenceResult?>();
-    await tester.tap(find.byKey(const Key('retryClassification')));
-    await tester.pump();
-
-    expect(calls, 3, reason: 'the guard must clear once the run settles');
-
-    gate.complete(null);
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 10));
-    }
-  });
 
   testWidgets('the screen applies no classification deadline of its own',
       (tester) async {
@@ -386,23 +300,23 @@ void main() {
     ));
 
     await capture(tester);
-    expect(find.byKey(const Key('retryClassification')), findsNothing);
+    expect(find.text(AppStrings.resultErrorTitle), findsNothing);
 
     // Well past the 20s deadline the screen used to impose. The single deadline
     // now lives in InferenceService, which is the only layer holding the isolate
     // handle and so the only one that can stop the work rather than abandon it.
     await tester.pump(const Duration(seconds: 25));
-    expect(find.byKey(const Key('retryClassification')), findsNothing,
+    expect(find.text(AppStrings.resultErrorTitle), findsNothing,
         reason: 'the screen must wait for the service instead of timing out');
 
     // The service resolving to null — its own timeout, or a failed run — is
-    // what surfaces the retry affordance.
+    // what surfaces the error result (SPEC 0202).
     pending.complete(null);
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
 
-    expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+    expect(find.text(AppStrings.resultErrorTitle), findsOneWidget);
   });
 
   testWidgets('a late result from a discarded capture does not overwrite a newer one',
@@ -547,7 +461,7 @@ void main() {
     ));
 
     await capture(tester);
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
@@ -558,10 +472,10 @@ void main() {
       find.text('Não foi possível salvar o registro. Tente novamente.'),
       findsOneWidget,
     );
-    expect(find.text('Salvar registro'), findsOneWidget);
+    expect(find.byTooltip('Salvar'), findsOneWidget);
 
     // The Save button is re-enabled: a second tap retries the write.
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     await tester.pump();
     expect(repository.createCalls.length, 2);
   });
@@ -569,9 +483,10 @@ void main() {
   // Location is optional, so Save waits for the classification and not for
   // the GPS (SPEC 0117).
   group('saving while locating', () {
-    VisioButton saveButton(WidgetTester tester) => tester.widget<VisioButton>(
+    VisioIconButton saveButton(WidgetTester tester) =>
+        tester.widget<VisioIconButton>(
           find.byWidgetPredicate(
-            (w) => w is VisioButton && w.label == 'Salvar registro',
+            (w) => w is VisioIconButton && w.label == 'Salvar',
           ),
         );
 
@@ -598,7 +513,7 @@ void main() {
       expect(find.text('Localizando...'), findsOneWidget);
       expect(saveButton(tester).onPressed, isNotNull);
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await settle(tester);
       await tester.pumpAndSettle();
 
@@ -625,40 +540,12 @@ void main() {
       await capture(tester);
       await settle(tester);
 
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.byTooltip('Salvar'), findsNothing);
 
       classifyGate.complete(null);
       await settle(tester);
     });
 
-    // A retry and a save in the same frame: the save's callback is from the
-    // last build, so it must check the state it runs against.
-    testWidgets('a_save_tapped_right_after_a_retry_waits_for_it',
-        (tester) async {
-      final repository = FakeSoilRecordRepository();
-      final locateGate = Completer<LocationReading?>();
-      final retryGate = Completer<InferenceResult?>();
-      var calls = 0;
-      await tester.pumpWidget(buildScreen(
-        pickFromCamera: () async => XFile(samplePath),
-        locate: () => locateGate.future,
-        classify: (_) => ++calls == 1 ? Future.value(null) : retryGate.future,
-        repository: repository,
-      ));
-
-      await capture(tester);
-      expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('retryClassification')));
-      await tester.tap(find.text('Salvar registro'));
-      await settle(tester);
-
-      expect(repository.createCalls, isEmpty);
-
-      retryGate.complete(null);
-      locateGate.complete(null);
-      await settle(tester);
-    });
 
     testWidgets('a_late_reading_after_a_failed_save_is_kept', (tester) async {
       final repository = FakeSoilRecordRepository()..throwOnCreate = true;
@@ -666,12 +553,15 @@ void main() {
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),
         locate: () => locateGate.future,
-        classify: (_) async => null,
+        // Classified, so the result's Amostra section reads the location
+      // (SPEC 0202).
+      classify: (_) async =>
+          const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
         repository: repository,
       ));
 
       await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await settle(tester);
       expect(repository.createCalls, hasLength(1));
 
@@ -681,7 +571,7 @@ void main() {
       );
       await settle(tester);
 
-      expect(find.text('São Paulo'), findsOneWidget);
+      expect(find.textContaining('São Paulo'), findsOneWidget);
     });
   });
 
@@ -699,7 +589,7 @@ void main() {
     await tester.tap(find.text('open capture'));
     await tester.pumpAndSettle();
     await capture(tester);
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
@@ -729,7 +619,7 @@ void main() {
     await tester.tap(find.text('open capture'));
     await tester.pumpAndSettle();
     await capture(tester);
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
@@ -739,7 +629,7 @@ void main() {
       find.text('Não foi possível salvar o registro. Tente novamente.'),
       findsOneWidget,
     );
-    expect(find.text('Salvar registro'), findsOneWidget);
+    expect(find.byTooltip('Salvar'), findsOneWidget);
     expect(find.textContaining('DETAILS_STUB'), findsNothing);
   });
 
@@ -763,7 +653,7 @@ void main() {
       await capture(tester);
       expect(count(haptics, 'lightImpact'), 1);
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
@@ -830,7 +720,7 @@ void main() {
     await tester.tap(find.text('open capture'));
     await tester.pumpAndSettle();
     await capture(tester);
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
@@ -870,7 +760,7 @@ void main() {
       await tester.tap(find.text('open capture'));
       await tester.pumpAndSettle();
       await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
@@ -904,7 +794,7 @@ void main() {
       await tester.tap(find.text('open capture'));
       await tester.pumpAndSettle();
       await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
@@ -993,7 +883,10 @@ void main() {
     await tester.pumpWidget(buildScreen(
       pickFromCamera: () async => XFile(samplePath),
       locate: () => locateGate.future,
-      classify: (_) async => null,
+      // Classified, so the result's Amostra section reads the location
+      // (SPEC 0202).
+      classify: (_) async =>
+          const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
     ));
 
     await capture(tester);
@@ -1008,7 +901,7 @@ void main() {
     // The address crossfades in over AppMotion.base (SPEC 0134).
     await tester.pump(AppMotion.base);
 
-    expect(find.text('São Paulo'), findsOneWidget);
+    expect(find.textContaining('São Paulo'), findsOneWidget);
     expect(find.text('Localizando...'), findsNothing);
   });
 
@@ -1024,7 +917,10 @@ void main() {
         accuracy: null,
         address: AppStrings.addressUnavailable,
       )),
-      classify: (_) async => null,
+      // Classified, so the result's Amostra section reads the location
+      // (SPEC 0202).
+      classify: (_) async =>
+          const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
     ));
 
     await capture(tester);
@@ -1032,8 +928,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
     }
 
-    expect(find.text(Formatters.coordinates(-23.5, -46.6)), findsOneWidget);
-    expect(find.text(AppStrings.addressUnavailable), findsNothing);
+    expect(find.textContaining(Formatters.coordinates(-23.5, -46.6)), findsOneWidget);
+    expect(find.textContaining(AppStrings.addressUnavailable), findsNothing);
   });
 
   // The picker's file carries the original EXIF, GPS included; the record
@@ -1044,7 +940,7 @@ void main() {
       await tester.tap(find.text('open capture'));
       await tester.pumpAndSettle();
       await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
@@ -1084,7 +980,7 @@ void main() {
       ));
 
       await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
@@ -1093,55 +989,7 @@ void main() {
       expect(deleted, isEmpty);
     });
 
-    testWidgets('a_discarded_capture_deletes_the_picker_file', (tester) async {
-      final deleted = <String>[];
-      await tester.pumpWidget(buildScreen(
-        pickFromCamera: () async => XFile(samplePath),
-        locate: () async => null,
-        classify: (_) async => null,
-        deletePickedFile: (path) async => deleted.add(path),
-      ));
 
-      await capture(tester);
-      await tester.tap(find.text('Descartar'));
-      await tester.pump();
-
-      expect(deleted, [samplePath]);
-      expect(find.text('Câmera'), findsOneWidget);
-    });
-
-    testWidgets('a_discard_during_a_save_leaves_the_file_to_the_save',
-        (tester) async {
-      final gate = Completer<void>();
-      final repository = _GatedSoilRecordRepository(gate.future);
-      final deleted = <String>[];
-      // Routed, because the save it lets finish opens details.
-      await tester.pumpWidget(buildRouted(
-        pickFromCamera: () async => XFile(samplePath),
-        locate: () async => null,
-        classify: (_) async => null,
-        repository: repository,
-        deletePickedFile: (path) async => deleted.add(path),
-      ));
-
-      await tester.tap(find.text('open capture'));
-      await tester.pumpAndSettle();
-      await capture(tester);
-      await tester.tap(find.text('Salvar registro'));
-      await tester.pump();
-      await tester.tap(find.text('Descartar'));
-      await tester.pump();
-
-      expect(repository.createCalls, hasLength(1));
-      expect(deleted, isEmpty);
-
-      gate.complete();
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 10));
-      }
-
-      expect(deleted, [samplePath]);
-    });
 
     testWidgets('a_failed_deletion_does_not_fail_the_save', (tester) async {
       final repository = FakeSoilRecordRepository();
@@ -1181,7 +1029,7 @@ void main() {
       await tester.tap(find.text('open capture'));
       await tester.pumpAndSettle();
       await capture(tester);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
     }
 
     testWidgets('leaving_capture_discards_its_photograph', (tester) async {
@@ -1194,10 +1042,10 @@ void main() {
       ));
       await openAndCapture(tester);
 
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Voltar'));
       await tester.pump();
       // The photograph leaves with the page instead of blanking under it.
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
       expect(deleted, isEmpty);
 
       await tester.pumpAndSettle();
@@ -1207,7 +1055,7 @@ void main() {
       await tester.tap(find.text('open capture'));
       await tester.pumpAndSettle();
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.byTooltip('Salvar'), findsNothing);
     });
 
     testWidgets('leaving_during_a_save_leaves_the_file_to_the_save',
@@ -1224,9 +1072,9 @@ void main() {
       ));
       await openAndCapture(tester);
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await tester.pump();
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Voltar'));
       await tester.pumpAndSettle();
       expect(find.byType(CaptureScreen), findsNothing);
       expect(deleted, isEmpty);
@@ -1247,7 +1095,7 @@ void main() {
         repository: FakeSoilRecordRepository(),
       ));
       await openAndCapture(tester);
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await tester.pumpAndSettle();
       expect(find.text('DETAILS_STUB 1'), findsOneWidget);
 
@@ -1257,7 +1105,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.byTooltip('Salvar'), findsNothing);
       final uiState =
           (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
               as CaptureUiState;
@@ -1279,7 +1127,7 @@ void main() {
 
     VisioButton retakeButton(WidgetTester tester) => tester.widget<VisioButton>(
           find.byWidgetPredicate(
-            (w) => w is VisioButton && w.label == 'Tirar outra foto',
+            (w) => w is VisioButton && w.label == 'Fotografar de novo',
           ),
         );
 
@@ -1296,7 +1144,7 @@ void main() {
     }
 
     Future<void> retake(WidgetTester tester) async {
-      await tester.tap(find.text('Tirar outra foto'));
+      await tester.tap(find.text('Fotografar de novo'));
       await settle(tester);
       await settle(tester);
     }
@@ -1305,14 +1153,11 @@ void main() {
         (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
             as CaptureUiState;
 
-    // The preview sits in the result's Detalhes tab once a photograph is
-    // classified (SPEC 0196), so it is looked up there too.
-    String? shownPath(WidgetTester tester) => tester
-        .widget<CaptureImagePreview>(
-          find.byType(CaptureImagePreview, skipOffstage: false),
-        )
-        .image
-        ?.path;
+    // The photograph capture holds; the error result shows none of it
+    // (SPEC 0202), so it is read from the provider.
+    String? shownPath(WidgetTester tester) => ProviderScope.containerOf(
+          tester.element(find.byType(CaptureScreen)),
+        ).read(imageProvider).file?.path;
 
     // Each reading names its turn, so a test can tell a kept location from a
     // new one. Typed as the resolver's nullable reading, so the screen's
@@ -1336,17 +1181,21 @@ void main() {
         locate: countedLocate(locations),
         classify: (path) async {
           classified.add(path);
-          return InferenceResult(
-            textureClass: path == samplePath ? 'Arenosa' : 'Argilosa',
-            confidenceScore: 0.8,
-          );
+          // The first fails, so its error result offers the retake
+          // (SPEC 0202).
+          return path == samplePath
+              ? null
+              : const InferenceResult(
+                  textureClass: 'Argilosa',
+                  confidenceScore: 0.8,
+                );
         },
         repository: repository,
         deletePickedFile: (path) async => deleted.add(path),
       ));
 
       await captureFirst(tester);
-      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).classificationFailed, isTrue);
       expect(uiState(tester).address, 'Ponto 1');
 
       await retake(tester);
@@ -1373,8 +1222,7 @@ void main() {
         locate: countedLocate(locations),
         classify: (path) async {
           classified.add(path);
-          return const InferenceResult(
-              textureClass: 'Arenosa', confidenceScore: 0.8);
+          return null;
         },
         deletePickedFile: (path) async => deleted.add(path),
       ));
@@ -1388,10 +1236,10 @@ void main() {
       expect(classified, [samplePath]);
       expect(locations[0], 1);
       expect(uiState(tester).generation, generation);
-      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).classificationFailed, isTrue);
       expect(uiState(tester).address, 'Ponto 1');
       expect(deleted, isEmpty);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
     });
 
     testWidgets('a_failed_retake_keeps_the_photograph', (tester) async {
@@ -1404,8 +1252,7 @@ void main() {
           throw PlatformException(code: 'camera_error');
         },
         locate: countedLocate(locations),
-        classify: (_) async =>
-            const InferenceResult(textureClass: 'Arenosa', confidenceScore: 0.8),
+        classify: (_) async => null,
         deletePickedFile: (path) async => deleted.add(path),
       ));
 
@@ -1415,7 +1262,7 @@ void main() {
       expect(picks, 2);
       expect(find.text('Não foi possível abrir a câmera.'), findsOneWidget);
       expect(shownPath(tester), samplePath);
-      expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+      expect(uiState(tester).classificationFailed, isTrue);
       expect(uiState(tester).address, 'Ponto 1');
       expect(locations[0], 1);
       expect(deleted, isEmpty);
@@ -1436,8 +1283,7 @@ void main() {
           overrides: [
             _guideAlreadySeen(),
             inferenceServiceProvider.overrideWithValue(_FakeInference(
-              (_) async => const InferenceResult(
-                  textureClass: 'Arenosa', confidenceScore: 0.8),
+              (_) async => null,
             )),
           ],
           child: MaterialApp(
@@ -1465,17 +1311,11 @@ void main() {
         expect(find.text('Sem acesso à câmera. A foto atual foi mantida.'),
             findsOneWidget);
         expect(find.text('Acesso à câmera necessário'), findsNothing);
-        expect(find.text('Salvar registro'), findsOneWidget);
+        expect(find.byTooltip('Salvar'), findsOneWidget);
         expect(shownPath(tester), samplePath);
-        expect(uiState(tester).classificationResult?.textureClass, 'Arenosa');
+        expect(uiState(tester).classificationFailed, isTrue);
         expect(uiState(tester).address, 'Ponto 1');
         expect(deleted, isEmpty);
-
-        // Without a photograph, a refusal still leads to the denied view.
-        await tester.tap(find.text('Descartar'));
-        await tester.pump();
-        await captureFirst(tester);
-        expect(find.text('Acesso à câmera necessário'), findsOneWidget);
       });
     }
 
@@ -1498,7 +1338,7 @@ void main() {
       await tester.pumpAndSettle();
       await captureFirst(tester);
 
-      expect(find.text('Tirar outra foto'), findsNothing,
+      expect(find.text('Fotografar de novo'), findsNothing,
           reason: 'retake is unavailable while classification runs');
       gates[0].complete(null);
       await settle(tester);
@@ -1507,17 +1347,18 @@ void main() {
 
       await retake(tester);
       expect(calls, 2);
-      expect(find.text('Tirar outra foto'), findsNothing);
-      gates[1].complete(
-          const InferenceResult(textureClass: 'Media', confidenceScore: 0.7));
+      expect(find.text('Fotografar de novo'), findsNothing);
+      gates[1].complete(null);
       await settle(tester);
       expect(retakeButton(tester).onPressed, isNotNull,
-          reason: 'enabled after a classification that succeeded');
+          reason: 'enabled again once the retake is classified');
 
-      await tester.tap(find.text('Salvar registro'));
+      // A retake tapped during the save opens no camera (SPEC 0147).
+      await tester.tap(find.byTooltip('Salvar'));
       await tester.pump();
-      expect(retakeButton(tester).onPressed, isNull,
-          reason: 'disabled while a save is in flight');
+      await tester.tap(find.text('Fotografar de novo'));
+      await tester.pump();
+      expect(picks, isEmpty, reason: 'both photographs were taken already');
 
       saveGate.complete();
       await tester.pumpAndSettle();
@@ -1543,8 +1384,8 @@ void main() {
       await tester.pumpAndSettle();
       await captureFirst(tester);
 
-      await tester.tap(find.text('Tirar outra foto'));
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.text('Fotografar de novo'));
+      await tester.tap(find.byTooltip('Salvar'));
       await settle(tester);
       expect(repository.createCalls, isEmpty,
           reason: 'no save while the camera is open for a retake');
@@ -1554,7 +1395,7 @@ void main() {
       expect(shownPath(tester), retakePath);
       expect(deleted, [samplePath]);
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await tester.pumpAndSettle();
       expect(repository.createCalls.single.imagePath, retakePath);
     });
@@ -1577,8 +1418,8 @@ void main() {
       await tester.pumpAndSettle();
       await captureFirst(tester);
 
-      await tester.tap(find.text('Salvar registro'));
-      await tester.tap(find.text('Tirar outra foto'));
+      await tester.tap(find.byTooltip('Salvar'));
+      await tester.tap(find.text('Fotografar de novo'));
       await settle(tester);
       expect(picks, 1, reason: 'no camera while a save is in flight');
 
@@ -1597,7 +1438,7 @@ void main() {
         pickFromCamera: () async => XFile(picks.removeAt(0)),
         locate: () async => null,
         classify: (path) async => path == samplePath
-            ? const InferenceResult(textureClass: 'Arenosa', confidenceScore: 0.6)
+            ? null
             : const InferenceResult(
                 textureClass: 'Argilosa', confidenceScore: 0.9),
         repository: repository,
@@ -1608,7 +1449,7 @@ void main() {
       await retake(tester);
       expect(repository.createCalls, isEmpty);
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.byTooltip('Salvar'));
       await tester.pumpAndSettle();
 
       final saved = repository.createCalls.single;
@@ -1625,14 +1466,13 @@ void main() {
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
-        classify: (_) async =>
-            const InferenceResult(textureClass: 'Media', confidenceScore: 0.7),
+        classify: (_) async => null,
       ));
       await captureFirst(tester);
       await tester.pumpAndSettle();
 
       expect(
-        tester.getSemantics(find.bySemanticsLabel('Tirar outra foto')),
+        tester.getSemantics(find.bySemanticsLabel('Fotografar de novo')),
         isSemantics(isButton: true, isEnabled: true, hasTapAction: true),
       );
       await expectMeetsGuidelines(tester);
@@ -1659,7 +1499,7 @@ void main() {
               accuracy: null, address: 'São Paulo')),
       classify: (path) async {
         classified.add(path);
-        return null;
+        return const InferenceResult(textureClass: 'Media', confidenceScore: 0.7);
       },
       initialImagePath: samplePath,
     ));
@@ -1668,9 +1508,9 @@ void main() {
     }
 
     expect(cameraOpened, isFalse);
-    expect(find.text('Salvar registro'), findsOneWidget);
+    expect(find.byTooltip('Salvar'), findsOneWidget);
     expect(classified, [samplePath]);
-    expect(find.text('São Paulo'), findsOneWidget);
+    expect(find.textContaining('São Paulo'), findsOneWidget);
   });
 
   // A failed classification says which cause it was (SPEC 0105).
@@ -1705,7 +1545,7 @@ void main() {
 
       await capture(tester);
       await tester.pumpAndSettle();
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     });
@@ -1782,11 +1622,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CaptureGuideScreen), findsNothing);
       expect(picks, ['camera']);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
 
-      // The second capture goes straight to the camera.
-      await tester.tap(find.text('Descartar'));
+      // The second capture goes straight to the camera; leaving discards the
+      // first (SPEC 0146, SPEC 0202).
+      await tester.tap(find.byTooltip('Voltar'));
       await tester.pumpAndSettle();
+      await openCapture(tester);
       await tester.tap(find.text('Câmera'));
       await tester.pumpAndSettle();
       expect(find.byType(CaptureGuideScreen), findsNothing);
@@ -1846,7 +1688,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(picks, ['camera']);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.byTooltip('Salvar'), findsOneWidget);
     });
 
     testWidgets('guide_reachable_on_demand from capture', (tester) async {
@@ -1877,9 +1719,11 @@ void main() {
   // The default picker composes the guided camera and the system camera it
   // falls back to (SPEC 0165).
   group('guided camera composition', () {
-    File? shownImage(WidgetTester tester) => tester
-        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
-        .image;
+    // The error result shows no photograph (SPEC 0202), so it is read from
+    // the provider capture holds it in.
+    File? shownImage(WidgetTester tester) => ProviderScope.containerOf(
+          tester.element(find.byType(CaptureScreen)),
+        ).read(imageProvider).file;
 
     testWidgets('no_camera_falls_back_to_the_system_camera', (tester) async {
       var systemCalls = 0;
@@ -1989,9 +1833,11 @@ void main() {
       return (h, deleted);
     }
 
-    File? shownImage(WidgetTester tester) => tester
-        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
-        .image;
+    // The error result shows no photograph (SPEC 0202), so it is read from
+    // the provider capture holds it in.
+    File? shownImage(WidgetTester tester) => ProviderScope.containerOf(
+          tester.element(find.byType(CaptureScreen)),
+        ).read(imageProvider).file;
 
     testWidgets('a_guided_photograph_returns_through_the_router',
         (tester) async {
@@ -2034,7 +1880,7 @@ void main() {
       await tester.pumpAndSettle();
 
       h.cameras.picturePath = second.path;
-      await tester.tap(find.text('Tirar outra foto'));
+      await tester.tap(find.text('Fotografar de novo'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-camera-shutter')));
       await settleIo(tester);
@@ -2064,15 +1910,54 @@ void main() {
 
       expect(find.text('Resultado'), findsOneWidget);
       expect(find.text('Argilosa'), findsOneWidget);
-      expect(find.text('Confiança alta · 82%'), findsOneWidget);
-      expect(find.byType(SegmentedControl<ResultTab>), findsOneWidget);
-      expect(find.text('Salvar registro'), findsOneWidget);
-      expect(find.text('Tirar outra foto'), findsOneWidget);
-      expect(find.text('Descartar'), findsOneWidget);
+      expect(find.text('Confiança alta'), findsOneWidget);
+      expect(find.text('82%'), findsOneWidget);
+      expect(find.byType(ResultTabBar<ResultTab>), findsOneWidget);
     });
 
-    // The verdict is announced when the draft appears, as the preview's chip
-    // did before it moved into the hidden Detalhes tab (Codex on #430).
+    // PNG 32: the saved result's footer and app bar, with nothing of the
+    // capture actions (SPEC 0202).
+    testWidgets('draft_footer_and_bookmark', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+        repository: repository,
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Corrigir'), findsOneWidget);
+      expect(find.text('Dicas de manejo'), findsOneWidget);
+      expect(find.byTooltip('Compartilhar'), findsOneWidget);
+      for (final gone in ['Salvar registro', 'Tirar outra foto', 'Descartar']) {
+        expect(find.text(gone), findsNothing, reason: gone);
+      }
+
+      // "Corrigir" names the field and the sample for the save.
+      await tester.tap(find.text('Corrigir'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'Talhão 3');
+      await tester.enterText(find.byType(TextField).at(1), 'A-12');
+      await tester.tap(find.text('Salvar').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Salvar'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+
+      final saved = repository.createCalls.single;
+      expect(saved.textureClass, 'Argilosa');
+      expect(saved.fieldName, 'Talhão 3');
+      expect(saved.sampleLabel, 'A-12');
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    });
+
     testWidgets('the_draft_result_is_announced', (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(buildScreen(
@@ -2126,10 +2011,7 @@ void main() {
       await capture(tester);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.descendant(
-        of: find.byType(SegmentedControl<ResultTab>),
-        matching: find.text('Manejo'),
-      ));
+      await tester.tap(find.text('Dicas de manejo'));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.resultDraftManagement), findsOneWidget);
@@ -2153,50 +2035,80 @@ void main() {
       );
       expect(find.text('Fotografar de novo'), findsOneWidget);
       expect(find.text('Ver dicas de captura'), findsOneWidget);
-      // Not retryable: a rerun of the same file cannot change the cause.
-      expect(find.byKey(const Key('retryClassification')), findsNothing);
-      await tester.scrollUntilVisible(find.text('Descartar'), 300);
-      expect(find.text('Salvar registro'), findsOneWidget);
-      expect(find.text('Descartar'), findsOneWidget);
+      // The bookmark still saves it (SPEC 0173); nothing else is listed
+      // (PNG 15, SPEC 0202).
+      expect(find.byTooltip('Salvar'), findsOneWidget);
+      expect(find.byType(CaptureImagePreview), findsNothing);
+      expect(find.byType(ResultTabBar<ResultTab>), findsNothing);
+      for (final gone in ['Salvar registro', 'Descartar', 'Tentar de novo']) {
+        expect(find.text(gone), findsNothing, reason: gone);
+      }
     });
 
-    testWidgets('retryable_failure_offers_retry', (tester) async {
-      var calls = 0;
+    // "Descartar" while the photograph is being read deletes the picker's
+    // file (SPEC 0147; restored in review of #436).
+    testWidgets('a_discarded_capture_deletes_the_picker_file', (tester) async {
+      final deleted = <String>[];
+      final pending = Completer<InferenceResult?>();
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
-        classify: (_) async {
-          calls++;
-          return calls == 1 ? null : result;
-        },
+        classify: (_) => pending.future,
+        deletePickedFile: (path) async => deleted.add(path),
       ));
+
+      await capture(tester);
+      await tester.tap(find.byTooltip('Descartar'));
+      await tester.pump();
+
+      expect(deleted, [samplePath]);
+      pending.complete(null);
+      await tester.pumpAndSettle();
+    });
+
+    // A label change cannot land after a save has taken the labels it had
+    // (review of #436).
+    testWidgets('correcting_is_ignored_while_saving', (tester) async {
+      final gate = Completer<void>();
+      final repository = _GatedSoilRecordRepository(gate.future);
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => const InferenceResult(
+          textureClass: 'Argilosa',
+          confidenceScore: 0.82,
+        ),
+        repository: repository,
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
       await capture(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Não deu para classificar'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('retryClassification')));
-      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Salvar'));
+      await tester.pump();
+      await tester.tap(find.text('Corrigir'));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
 
-      expect(calls, 2);
-      expect(find.text('Argilosa'), findsOneWidget);
+      gate.complete();
+      await tester.pumpAndSettle();
     });
 
-    testWidgets('failure_keeps_the_preview', (tester) async {
+    // The block offers no retry, so a cause a rerun could fix asks for a new
+    // photograph instead of a tap (review of #436).
+    testWidgets('capture_failure_never_asks_for_a_tap', (tester) async {
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
         classify: (_) async => null,
+        failureCause: ClassificationFailureCause.timeout,
       ));
       await capture(tester);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('retryClassification')), findsOneWidget);
-      // The harness's failures are timeouts, whose chip names the retry.
-      expect(
-        find.text('Análise não terminou · tocar para tentar de novo'),
-        findsOneWidget,
-      );
-      expect(find.byType(SegmentedControl<ResultTab>), findsNothing);
+      expect(find.text('Análise não terminou · tire outra foto'), findsOneWidget);
+      expect(find.textContaining('tocar'), findsNothing);
     });
 
     // The shutter and the triangle's settle each play a light impact first,

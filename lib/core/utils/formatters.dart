@@ -50,6 +50,16 @@ class Formatters {
     return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
   }
 
+  /// GPS coordinates as the photo screen shows them (PNG 19, SPEC 0202):
+  /// two decimals, a decimal comma, a true minus sign, joined by " · ".
+  ///
+  /// Example: (-17.7923, -50.9187) -> "−17,79 · −50,92"
+  static String coordinatesShort(double latitude, double longitude) {
+    String part(double value) =>
+        value.toStringAsFixed(2).replaceAll('-', '\u2212').replaceAll('.', ',');
+    return '${part(latitude)} · ${part(longitude)}';
+  }
+
   /// Formats a GPS accuracy radius in metres, rounded up so the shown radius
   /// never claims more precision than the device reported.
   ///

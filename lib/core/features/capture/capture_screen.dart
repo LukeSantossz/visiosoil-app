@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
@@ -13,9 +14,9 @@ import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_de
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
+import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
-import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -53,8 +54,8 @@ typedef CameraImagePicker = Future<XFile?> Function();
 
 /// Opens the guided camera and returns what it popped, or `null` for a back
 /// gesture (SPEC 0165).
-typedef GuidedCameraOpener = Future<GuidedCaptureResult?> Function(
-    BuildContext context);
+typedef GuidedCameraOpener =
+    Future<GuidedCaptureResult?> Function(BuildContext context);
 
 /// Reports a camera permission status.
 typedef CameraPermissionProbe = Future<AppPermissionStatus> Function();
@@ -127,7 +128,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   late final CameraImagePicker _pickFromCamera =
       widget.pickFromCamera ?? _defaultPickFromCamera;
-  late final GuidedCameraOpener _openGuidedCamera = widget.openGuidedCamera ??
+  late final GuidedCameraOpener _openGuidedCamera =
+      widget.openGuidedCamera ??
       (context) => context.push<GuidedCaptureResult>('/camera');
   late final CameraImagePicker _pickFromSystemCamera =
       widget.pickFromSystemCamera ?? _systemCameraPick;
@@ -180,11 +182,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<XFile?> _systemCameraPick() => ImagePicker().pickImage(
-        source: ImageSource.camera,
-        // Drop EXIF (including GPS) at the source so stored originals carry no
-        // uncontrolled location duplicate; the app never reads image metadata.
-        requestFullMetadata: false,
-      );
+    source: ImageSource.camera,
+    // Drop EXIF (including GPS) at the source so stored originals carry no
+    // uncontrolled location duplicate; the app never reads image metadata.
+    requestFullMetadata: false,
+  );
 
   Future<LocationReading?> _defaultLocate() async {
     final position = await LocationService.getCurrentLocation();
@@ -281,8 +283,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     try {
       seen = await ref.read(captureGuideStoreProvider).hasSeenCaptureGuide();
     } on Exception catch (e) {
-      developer.log('Could not read the capture guide flag: $e',
-          name: 'CaptureScreen');
+      developer.log(
+        'Could not read the capture guide flag: $e',
+        name: 'CaptureScreen',
+      );
       return true;
     }
     if (seen) return true;
@@ -299,7 +303,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     // Tags this capture so late results from a superseded one are ignored.
     final generation = _state.generation + 1;
-    setState(() => _state = _state.startingCapture(generation));
+    setState(() {
+      _state = _state.startingCapture(generation);
+      // A new photograph starts without the last draft's labels.
+      _draftLabels = null;
+    });
 
     // Runs location and classification in parallel (they are independent)
     await Future.wait([
@@ -382,7 +390,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // chip names its cause instead.
     final arrived = report.result;
     if (report.outcome == ClassificationOutcome.ok && arrived != null) {
-      final low = ConfidenceLevel.fromScore(arrived.confidenceScore) ==
+      final low =
+          ConfidenceLevel.fromScore(arrived.confidenceScore) ==
           ConfidenceLevel.low;
       unawaited(low ? AppHaptics.confirm() : AppHaptics.result());
     }
@@ -390,13 +399,17 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   Future<void> _fetchCurrentLocation(int generation) async {
     if (mounted) {
-      setState(() => _state = _state.copyWith(location: LocationStatus.loading));
+      setState(
+        () => _state = _state.copyWith(location: LocationStatus.loading),
+      );
     }
 
     LocationReading? reading;
     try {
-      reading =
-          await _locate().timeout(_locationTimeout, onTimeout: () => null);
+      reading = await _locate().timeout(
+        _locationTimeout,
+        onTimeout: () => null,
+      );
     } catch (_) {
       // Location is optional: the record can be saved without coordinates.
       reading = null;
@@ -450,11 +463,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     SoilRecord? created;
     try {
-      final String finalAddress = _state.address ?? AppStrings.addressUnavailable;
+      final String finalAddress =
+          _state.address ?? AppStrings.addressUnavailable;
+      final labelled = _draftRecord(image, null);
       final double? finalLatitude = _state.latitude;
       final double? finalLongitude = _state.longitude;
 
-      created = await ref.read(soilRecordRepositoryProvider).create(
+      created = await ref
+          .read(soilRecordRepositoryProvider)
+          .create(
             SoilRecord(
               imagePath: image.path,
               latitude: finalLatitude,
@@ -463,11 +480,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               timestamp: DateTime.now().toIso8601String(),
               textureClass: _state.classificationResult?.textureClass,
               confidenceScore: _state.classificationResult?.confidenceScore,
-              classDistribution:
-                  _state.classificationResult?.classDistribution,
+              classDistribution: _state.classificationResult?.classDistribution,
               modelVersion: _state.classificationResult?.modelVersion,
               datasetVersion: _state.classificationResult?.datasetVersion,
               horizontalAccuracy: _state.horizontalAccuracy,
+              // What "Corrigir" named on the draft (SPEC 0202).
+              fieldName: labelled.fieldName,
+              sampleLabel: labelled.sampleLabel,
               // The cause the chip named, kept for the record (SPEC 0173).
               classificationFailure: _state.classificationResult == null
                   ? _state.classificationFailureCause
@@ -482,8 +501,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Não foi possível salvar o registro. Tente novamente.'),
+            content: Text(
+              'Não foi possível salvar o registro. Tente novamente.',
+            ),
           ),
         );
       }
@@ -527,7 +547,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Invalidates any in-flight location/classification work for this capture.
     final generation = _state.generation + 1;
     ref.read(imageProvider.notifier).clearImage();
-    setState(() => _state = _state.startingCapture(generation));
+    setState(() {
+      _state = _state.startingCapture(generation);
+      // A new photograph starts without the last draft's labels.
+      _draftLabels = null;
+    });
     // A save in flight may still be copying the file; it deletes the file
     // itself once it succeeds.
     if (picked != null && !_state.isSaving) {
@@ -547,10 +571,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // A save in flight deletes the file itself once it succeeds.
     final saving = _state.isSaving;
     final left = ModalRoute.of(context)?.completed ?? Future<void>.value();
-    unawaited(left.then((_) {
-      imageNotifier.clearIfPath(picked.path);
-      if (!saving) unawaited(_disposePickedFile(deletePicked, picked.path));
-    }));
+    unawaited(
+      left.then((_) {
+        imageNotifier.clearIfPath(picked.path);
+        if (!saving) unawaited(_disposePickedFile(deletePicked, picked.path));
+      }),
+    );
   }
 
   /// Deletes the picker's file once the screen no longer needs it, best
@@ -564,8 +590,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     try {
       await delete(path);
     } catch (e) {
-      developer.log('Could not delete the picked file: $e',
-          name: 'CaptureScreen');
+      developer.log(
+        'Could not delete the picked file: $e',
+        name: 'CaptureScreen',
+      );
     }
   }
 
@@ -574,39 +602,61 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _pickImage();
   }
 
-  /// The result as it will be saved, with the guarded capture actions as its
-  /// footer and the bookmark as a second way to save (SPEC 0196).
-  Widget _draftResult(File image, InferenceResult result, bool hasImage) {
-    final draft = SoilRecord(
+  /// The labels "Corrigir" gave the draft, kept for the save (SPEC 0202).
+  ({String fieldName, String sampleLabel})? _draftLabels;
+
+  Future<void> _editDraftLabels(SoilRecord draft) async {
+    // A save has already taken the labels it writes (review of #436).
+    if (_state.isSaving) return;
+    final labels = await showLabelsDialog(context, draft);
+    if (labels == null || !mounted) return;
+    setState(() => _draftLabels = labels);
+  }
+
+  /// The record capture shows before a save: classified, or naming the cause
+  /// it was not (SPEC 0196, SPEC 0202).
+  SoilRecord _draftRecord(File image, InferenceResult? result) {
+    final labels = _draftLabels;
+    String? trimmed(String? text) =>
+        text == null || text.trim().isEmpty ? null : text.trim();
+    return SoilRecord(
       imagePath: image.path,
       latitude: _state.latitude,
       longitude: _state.longitude,
       address: _state.address,
       horizontalAccuracy: _state.horizontalAccuracy,
       timestamp: (_resultAt ?? DateTime.now()).toIso8601String(),
-      textureClass: result.textureClass,
-      confidenceScore: result.confidenceScore,
+      textureClass: result?.textureClass,
+      confidenceScore: result?.confidenceScore,
+      fieldName: trimmed(labels?.fieldName),
+      sampleLabel: trimmed(labels?.sampleLabel),
+      classificationFailure: result == null
+          ? _state.classificationFailureCause
+          : null,
     );
+  }
+
+  /// The draft's outlined bookmark, which saves it (SPEC 0196).
+  Widget _saveBookmark() => VisioIconButton(
+    label: AppStrings.resultSave,
+    icon: LucideIcons.bookmark,
+    color: context.palette.onSurface,
+    onPressed: _state.isSaving ? null : _saveRecord,
+  );
+
+  /// The result as it will be saved (PNG 32, SPEC 0202): the saved result's
+  /// app bar and footer; the bookmark saves and back discards.
+  Widget _draftResult(File image, InferenceResult result) {
+    final draft = _draftRecord(image, result);
     return ResultContent(
       key: ValueKey(_state.generation),
       record: draft,
       locating: _state.isLocating,
       announce: true,
-      appBar: VisioAppBar(
-        title: AppStrings.resultTitle,
-        actions: [
-          // The protocol on demand, as before the result (SPEC 0142).
-          VisioIconButton(
-            label: 'Como capturar',
-            icon: Icons.help_outline,
-            onPressed: () => context.push('/capture-guide'),
-          ),
-          VisioIconButton(
-            label: AppStrings.resultSave,
-            icon: Icons.bookmark_border,
-            onPressed: _state.isSaving ? null : _saveRecord,
-          ),
-        ],
+      appBar: resultAppBar(
+        context,
+        bookmark: _saveBookmark(),
+        onShare: () => shareRecordWithConsent(context, ref, draft),
       ),
       managementTab: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
@@ -629,95 +679,33 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           classificationResult: result,
         ),
       ),
-      footerBuilder: (context, _) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: CaptureActions(
-            hasImage: hasImage,
-            isBusy: _state.isSaving,
-            onCapture: _pickImage,
-            onSave: _saveRecord,
-            onRetake: _pickImage,
-            onDiscard: _discardImage,
-          ),
-        ),
+      footerBuilder: (context, selectTab) => ResultFooter(
+        onCorrect: () => _editDraftLabels(draft),
+        onManagementTips: () => selectTab(ResultTab.management),
       ),
     );
   }
 
-  /// The v11 error result for a photograph that was not classified
-  /// (redesign v11 §3.6 PNG 15, SPEC 0197).
-  Widget _failedResult(File image, bool hasImage) {
-    final cause = _state.classificationFailureCause;
-    // A rerun can change only some causes (SPEC 0105); an unknown one keeps
-    // the retry it always had.
-    final retryable =
-        cause == null || classificationFailureChip(cause).retryable;
-    final actions = CaptureActions(
-      hasImage: hasImage,
-      isBusy: _state.isSaving,
-      onCapture: _pickImage,
-      onSave: _saveRecord,
-      onRetake: _pickImage,
-      onDiscard: _discardImage,
-    );
-    // The result's footer rule (SPEC 0197): fixed, unless the screen is
-    // short or the text large.
-    final inlineActions = MediaQuery.sizeOf(context).height < 600 ||
-        MediaQuery.textScalerOf(context).scale(1) >= 1.3;
-    return Scaffold(
-      appBar: VisioAppBar(
-        title: AppStrings.resultTitle,
-        actions: [
-          VisioIconButton(
-            label: 'Como capturar',
-            icon: Icons.help_outline,
-            onPressed: () => context.push('/capture-guide'),
-          ),
-        ],
+  /// A photograph that was not classified, as PNG 15 shows it (SPEC 0202):
+  /// why and how to try again; the bookmark still saves it (SPEC 0173).
+  Widget _failedResult(File image) {
+    final draft = _draftRecord(image, null);
+    return ResultContent(
+      key: ValueKey(_state.generation),
+      record: draft,
+      announce: true,
+      appBar: resultAppBar(
+        context,
+        bookmark: _saveBookmark(),
+        onShare: () => shareRecordWithConsent(context, ref, draft),
       ),
-      bottomNavigationBar: inlineActions
-          ? null
-          : SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: actions,
-              ),
-            ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ResultErrorBlock(
-                cause: cause,
-                onRetake: _pickImage,
-                onCaptureTips: () => context.push('/capture-guide'),
-                onRetry: retryable ? _retryClassification : null,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                height: 200,
-                child: CaptureImagePreview(
-                  image: image,
-                  isLoading: _state.isLocating,
-                  isClassifying: false,
-                  address: _state.address,
-                  latitude: _state.latitude,
-                  longitude: _state.longitude,
-                ),
-              ),
-              if (inlineActions) ...[
-                const SizedBox(height: AppSpacing.lg),
-                actions,
-              ],
-            ],
-          ),
-        ),
+      errorBlock: ResultErrorBlock(
+        cause: _state.classificationFailureCause,
+        onRetake: _pickImage,
+        onCaptureTips: () => context.push('/capture-guide'),
       ),
+      managementTab: const SizedBox.shrink(),
+      detailsTab: const SizedBox.shrink(),
     );
   }
 
@@ -745,20 +733,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _discardOnLeave();
         },
-        child: _draftResult(image, result, hasImage),
+        child: _draftResult(image, result),
       );
     }
 
     // A failure reads as the v11 error result (SPEC 0197): why, how to try
     // again, and the photograph, which can still be saved (SPEC 0173).
-    if (image != null &&
-        _state.classificationFailed &&
-        !_state.isClassifying) {
+    if (image != null && _state.classificationFailed && !_state.isClassifying) {
       return PopScope(
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _discardOnLeave();
         },
-        child: _failedResult(image, hasImage),
+        child: _failedResult(image),
       );
     }
 

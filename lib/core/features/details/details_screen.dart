@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
@@ -10,7 +11,9 @@ import 'package:visiosoil_app/core/features/details/widgets/classification_heade
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -19,7 +22,6 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
-import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
@@ -136,35 +138,24 @@ class _DetailsContentState extends ConsumerState<_DetailsContent> {
     final record = widget.record;
     return ResultContent(
       record: record,
-      appBar: VisioAppBar(
-        title: AppStrings.resultTitle,
-        // Reads "Voltar" whatever the locale (SPEC 0118).
-        leading: Navigator.canPop(context)
-            ? VisioIconButton(
-                label: 'Voltar',
-                icon: Icons.arrow_back,
-                onPressed: () => Navigator.maybePop(context),
-              )
-            : null,
-        actions: [
+      appBar: resultAppBar(
+        context,
+        bookmark: _SavedBookmark(
           // A saved record's bookmark is filled (SPEC 0196), and removes the
           // record from the saved ones (SPEC 0197).
-          _SavedBookmark(
-            recordId: record.id,
-            onRemove: () => confirmAndDeleteRecord(context, ref, record),
-          ),
-          // The next sample starts here, in view on the page a save opens
-          // (SPEC 0146).
-          VisioIconButton(
-            label: 'Nova captura',
-            icon: Icons.add_a_photo_outlined,
-            onPressed: () => context.push('/capture'),
-          ),
-        ],
+          recordId: record.id,
+          onRemove: () => confirmAndDeleteRecord(context, ref, record),
+        ),
+        onShare: () => shareRecordWithConsent(context, ref, record),
+      ),
+      errorBlock: ResultErrorBlock(
+        cause: record.classificationFailure,
+        onRetake: () => context.push('/capture'),
+        onCaptureTips: () => context.push('/capture-guide'),
       ),
       managementTab: ManagementTipsSection(record: record),
       detailsTab: _DetailsTab(record: record, onEditLabels: _editLabels),
-      footerBuilder: (context, selectTab) => _ResultFooter(
+      footerBuilder: (context, selectTab) => ResultFooter(
         onCorrect: _editLabels,
         onManagementTips: () => selectTab(ResultTab.management),
       ),
@@ -229,7 +220,7 @@ class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
       child: VisioIconButton(
         label: AppStrings.resultRemoveSaved,
         icon: Icons.bookmark,
-        color: context.palette.primary,
+        color: context.palette.onSurface,
         onPressed: () {
           unawaited(AppHaptics.selection());
           widget.onRemove();
@@ -252,11 +243,16 @@ class ResultContent extends StatefulWidget {
     required this.managementTab,
     required this.detailsTab,
     this.footerBuilder,
+    this.errorBlock,
     this.locating = false,
     this.announce = false,
   });
 
   final SoilRecord record;
+
+  /// The unclassified layout's block; defaults to one reading the record's
+  /// cause with no actions.
+  final Widget? errorBlock;
 
   /// The record's location is still being read (SPEC 0196).
   final bool locating;
@@ -336,53 +332,52 @@ class _ResultContentState extends State<ResultContent>
 
     final List<Widget> blocks = classified
         ? [
-            Semantics(
-              liveRegion: widget.announce,
-              child: ClassificationHeader(record: record),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Semantics(
+                liveRegion: widget.announce,
+                child: ClassificationHeader(record: record),
+              ),
             ),
-            SegmentedControl<ResultTab>(
+            ResultTabBar<ResultTab>(
               semanticLabel: 'Seções do resultado',
               value: _tab,
               onChanged: (tab) => setState(() => _tab = tab),
-              options: const [
-                SegmentedControlOption(
-                  value: ResultTab.overview,
-                  label: AppStrings.resultTabOverview,
-                ),
-                SegmentedControlOption(
-                  value: ResultTab.management,
-                  label: AppStrings.resultTabManagement,
-                ),
-                SegmentedControlOption(
-                  value: ResultTab.details,
-                  label: AppStrings.resultTabDetails,
-                ),
+              tabs: const [
+                (ResultTab.overview, AppStrings.resultTabOverview),
+                (ResultTab.management, AppStrings.resultTabManagement),
+                (ResultTab.details, AppStrings.resultTabDetails),
               ],
             ),
             // Every tab stays mounted, so a tab change cannot drop state such
             // as tips still generating; a hidden tab takes no space.
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final (tab, content) in [
-                  (
-                    ResultTab.overview,
-                    ResultOverview(record: record, locating: widget.locating),
-                  ),
-                  (ResultTab.management, widget.managementTab),
-                  (ResultTab.details, details),
-                ])
-                  Visibility(
-                    visible: _tab == tab,
-                    maintainState: true,
-                    child: content,
-                  ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (tab, content) in [
+                    (
+                      ResultTab.overview,
+                      ResultOverview(record: record, locating: widget.locating),
+                    ),
+                    (ResultTab.management, widget.managementTab),
+                    (ResultTab.details, details),
+                  ])
+                    Visibility(
+                      visible: _tab == tab,
+                      maintainState: true,
+                      child: content,
+                    ),
+                ],
+              ),
             ),
           ]
-        // Unclassified: why, then the record itself, so it can still be
-        // shared and deleted (SPEC 0194).
-        : [ResultErrorBlock(cause: record.classificationFailure), details];
+        // Unclassified: only why and how to try again (PNG 15, SPEC 0202).
+        : [
+            widget.errorBlock ??
+                ResultErrorBlock(cause: record.classificationFailure),
+          ];
 
     final footer = classified && footerBuilder != null
         ? footerBuilder(context, (tab) => setState(() => _tab = tab))
@@ -393,42 +388,54 @@ class _ResultContentState extends State<ResultContent>
         footer != null &&
         (MediaQuery.sizeOf(context).height < 600 ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.3);
-
-    return Scaffold(
-      appBar: widget.appBar,
-      bottomNavigationBar: inlineFooter ? null : footer,
-      body: CustomScrollView(
-        slivers: [
-          // The page scrolls under the navigation bar on Android 12 and
-          // later (SPEC 0109), so the last action ends above it.
-          SliverSafeArea(
-            top: false,
-            sliver: SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.xxl,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < blocks.length; i++) ...[
-                      if (i > 0) const SizedBox(height: AppSpacing.lg),
-                      _RiseIn(animation: _blockEntrances[i], child: blocks[i]),
-                    ],
-                    if (inlineFooter) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      footer,
-                    ],
-                  ],
+    // 18 dp from the header to the tabs; the tab content starts on the rule.
+    final gaps = [classified ? 18.0 : 0.0, 0.0];
+    // The lattice sits behind the app bar, fixed to the top of the screen;
+    // the body starts below the bar, with the header 169 dp down and the
+    // error block's disc 44 dp down (PNGs 14 and 15, SPEC 0202).
+    return Stack(
+      children: [
+        Positioned.fill(child: ColoredBox(color: context.palette.background)),
+        const Positioned(top: 0, left: 0, right: 0, child: ResultLattice()),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: widget.appBar,
+          bottomNavigationBar: inlineFooter ? null : footer,
+          body: CustomScrollView(
+            slivers: [
+              // The page scrolls under the navigation bar on Android 12 and
+              // later (SPEC 0109), so the last action ends above it.
+              SliverSafeArea(
+                top: false,
+                sliver: SliverPadding(
+                  padding: EdgeInsets.only(
+                    top: classified ? 169 : 44,
+                    bottom: AppSpacing.xxl,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < blocks.length; i++) ...[
+                          if (i > 0) SizedBox(height: gaps[i - 1]),
+                          _RiseIn(
+                            animation: _blockEntrances[i],
+                            child: blocks[i],
+                          ),
+                        ],
+                        if (inlineFooter) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          footer,
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -462,10 +469,48 @@ class _RiseIn extends StatelessWidget {
   }
 }
 
-/// [Corrigir] and [Dicas de manejo], side by side, stacked where they no
-/// longer fit (redesign v11 §3.6, §8, §10).
-class _ResultFooter extends StatelessWidget {
-  const _ResultFooter({
+/// The result's app bar (PNGs 14 and 32, SPEC 0202): back, then the
+/// [bookmark], then share, transparent over the lattice until content
+/// scrolls under it.
+PreferredSizeWidget resultAppBar(
+  BuildContext context, {
+  required Widget bookmark,
+  required VoidCallback onShare,
+}) {
+  final background = context.palette.background;
+  return VisioAppBar(
+    title: AppStrings.resultTitle,
+    backgroundColor: WidgetStateColor.resolveWith(
+      (states) => states.contains(WidgetState.scrolledUnder)
+          ? background
+          : background.withValues(alpha: 0),
+    ),
+    // Reads "Voltar" whatever the locale (SPEC 0118).
+    leading: Navigator.canPop(context)
+        ? VisioIconButton(
+            label: 'Voltar',
+            icon: LucideIcons.arrowLeft,
+            onPressed: () => Navigator.maybePop(context),
+          )
+        : null,
+    actions: [
+      bookmark,
+      VisioIconButton(
+        label: 'Compartilhar',
+        icon: LucideIcons.share2,
+        onPressed: onShare,
+      ),
+      const SizedBox(width: AppSpacing.xs),
+    ],
+  );
+}
+
+/// [Corrigir] and [Dicas de manejo] side by side, 52 dp tall, flex 5 and 8
+/// under a 1 dp rule (PNG 14, SPEC 0202); stacked from a 1.3x text scale
+/// (redesign v11 §8).
+class ResultFooter extends StatelessWidget {
+  const ResultFooter({
+    super.key,
     required this.onCorrect,
     required this.onManagementTips,
   });
@@ -475,24 +520,30 @@ class _ResultFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Stacked from 1.3x text and at 360 dp or less, where the labels would
+    // otherwise shrink (§8, §10; review of #436).
     final stacked = resultStacks(context);
     final correct = VisioButton(
       label: AppStrings.resultCorrect,
-      icon: Icons.edit_outlined,
+      icon: LucideIcons.pencil,
       variant: VisioButtonVariant.secondary,
+      singleLine: !stacked,
       onPressed: onCorrect,
     );
     final tips = VisioButton(
       label: AppStrings.resultManagementTips,
+      singleLine: !stacked,
       onPressed: onManagementTips,
     );
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.palette.surface,
+        color: context.palette.background,
         border: Border(
           top: BorderSide(
-            color: context.palette.cardBorder,
+            color: context.palette.isSun
+                ? context.palette.onSurface
+                : context.palette.surfaceContainerHigh,
             width: context.palette.edgeWidth,
           ),
         ),
@@ -500,7 +551,12 @@ class _ResultFooter extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
           child: stacked
               ? Column(
                   mainAxisSize: MainAxisSize.min,
@@ -513,9 +569,9 @@ class _ResultFooter extends StatelessWidget {
                 )
               : Row(
                   children: [
-                    Expanded(child: correct),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(flex: 2, child: tips),
+                    Expanded(flex: 5, child: correct),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(flex: 8, child: tips),
                   ],
                 ),
         ),
