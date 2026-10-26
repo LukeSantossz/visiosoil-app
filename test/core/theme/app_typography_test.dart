@@ -9,15 +9,15 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 void main() {
   group('Inter font family', () {
     test('body_styles_use_inter', () {
-      expect(AppTypography.bodyLarge.fontFamily, 'Inter');
-      expect(AppTypography.bodyMedium.fontFamily, 'Inter');
-      expect(AppTypography.bodySmall.fontFamily, 'Inter');
+      expect(AppTypography.bodyLarge.fontFamily, 'InterVariable');
+      expect(AppTypography.bodyMedium.fontFamily, 'InterVariable');
+      expect(AppTypography.bodySmall.fontFamily, 'InterVariable');
     });
 
     test('label_styles_use_inter', () {
-      expect(AppTypography.labelLarge.fontFamily, 'Inter');
-      expect(AppTypography.labelMedium.fontFamily, 'Inter');
-      expect(AppTypography.labelSmall.fontFamily, 'Inter');
+      expect(AppTypography.labelLarge.fontFamily, 'InterVariable');
+      expect(AppTypography.labelMedium.fontFamily, 'InterVariable');
+      expect(AppTypography.labelSmall.fontFamily, 'InterVariable');
     });
   });
 
@@ -77,13 +77,13 @@ void main() {
 
   group('existing styles unchanged', () {
     test('labelLarge_unchanged', () {
-      expect(AppTypography.labelLarge.fontFamily, 'Inter');
+      expect(AppTypography.labelLarge.fontFamily, 'InterVariable');
       expect(AppTypography.labelLarge.fontSize, 14);
       expect(AppTypography.labelLarge.fontWeight, FontWeight.w600);
     });
 
     test('labelMedium_unchanged', () {
-      expect(AppTypography.labelMedium.fontFamily, 'Inter');
+      expect(AppTypography.labelMedium.fontFamily, 'InterVariable');
       expect(AppTypography.labelMedium.fontSize, 12);
       expect(AppTypography.labelMedium.fontWeight, FontWeight.w600);
     });
@@ -96,8 +96,10 @@ void main() {
   group('headlineMedium and titleMedium are Inter (SPEC 0186)', () {
     test('headlineMedium_has_spec_values', () {
       expect(AppTypography.headlineMedium.fontFamily, 'InterVariable');
-      expect(AppTypography.headlineMedium.fontVariations,
-          [const FontVariation('wght', 650)]);
+      expect(AppTypography.headlineMedium.fontVariations, [
+        const FontVariation('wght', 650),
+        const FontVariation('opsz', 28),
+      ]);
       expect(AppTypography.headlineMedium.fontSize, 28);
       expect(AppTypography.headlineMedium.fontWeight, FontWeight.w600);
       expect(AppTypography.headlineMedium.letterSpacing, closeTo(-0.7, 0.01));
@@ -108,7 +110,7 @@ void main() {
     });
 
     test('titleMedium_has_spec_values', () {
-      expect(AppTypography.titleMedium.fontFamily, 'Inter');
+      expect(AppTypography.titleMedium.fontFamily, 'InterVariable');
       expect(AppTypography.titleMedium.fontSize, 16);
       expect(AppTypography.titleMedium.fontWeight, FontWeight.w600);
       expect(AppTypography.titleMedium.height, closeTo(22 / 16, 0.01));
@@ -130,7 +132,7 @@ void main() {
 
   group('v11 additive tokens', () {
     test('v11LabelLarge_has_spec_values', () {
-      expect(AppTypography.v11LabelLarge.fontFamily, 'Inter');
+      expect(AppTypography.v11LabelLarge.fontFamily, 'InterVariable');
       expect(AppTypography.v11LabelLarge.fontSize, 15);
       expect(AppTypography.v11LabelLarge.fontWeight, FontWeight.w600);
       final features = AppTypography.v11LabelLarge.fontFeatures ?? [];

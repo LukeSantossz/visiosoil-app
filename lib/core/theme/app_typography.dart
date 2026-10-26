@@ -1,162 +1,114 @@
 import 'package:flutter/material.dart';
 import 'app_palette.dart';
 
-/// VisioSoil typographic scale.
-/// Display: Manrope (bold, tight tracking) for headlineLarge/Small and
-/// titleLarge/Small.
-/// headlineMedium, titleMedium, body and labels: Inter (legible in the
-/// field; headlineMedium and titleMedium moved from Manrope to Inter in
-/// SPEC 0186, per the redesign's §1.2).
+/// VisioSoil typographic scale: Inter for every role (redesign v11 §1.2,
+/// SPEC 0186, SPEC 0201).
 ///
-/// Fonts are bundled in assets/fonts/ and registered in pubspec.yaml
-/// via the Flutter fonts: section (no runtime fetching). headlineMedium uses
-/// InterVariable for exact weight 650; other Inter styles use static instances.
-///
-/// Redesign v11 introduces Inter font features (cv11, ss01) on body/label
-/// styles.
+/// Every style is set in the bundled InterVariable, the only Inter that
+/// carries the mocks' single-storey "a" (`cv11`), at the role's weight and
+/// with its `opsz` axis at the font size, as a browser sets it when it
+/// renders the mocks (SPEC 0201). Fonts are bundled in assets/fonts/
+/// and registered in pubspec.yaml (no runtime fetching).
 abstract final class AppTypography {
-  static const _displayFamily = 'Manrope';
-  static const _bodyFamily = 'Inter';
+  static const _family = 'InterVariable';
 
-  /// Inter font features: cv11 (alternate 1), ss01 (stylistic set 1).
-  static const _interFeatures = [
-    FontFeature('cv11'),
-    FontFeature('ss01'),
+  /// Inter font features: cv11 (single-storey a), ss01 (open digits).
+  static const _interFeatures = [FontFeature('cv11'), FontFeature('ss01')];
+
+  static TextStyle _inter(
+    double size,
+    double weight, {
+    required double height,
+    double letterSpacing = 0,
+  }) => TextStyle(
+    fontFamily: _family,
+    fontSize: size,
+    fontWeight: _nearest(weight),
+    fontVariations: _axes(size, weight),
+    letterSpacing: letterSpacing,
+    height: height,
+    fontFeatures: _interFeatures,
+  );
+
+  /// The engine sets `wght` from `fontWeight` unless the style names it, so
+  /// only a weight between the named ones (650) names it, and a later
+  /// `copyWith(fontWeight: ...)` still moves the axis.
+  static List<FontVariation> _axes(double size, double weight) => [
+    if (weight % 100 != 0) FontVariation('wght', weight),
+    FontVariation('opsz', size.clamp(14, 32).toDouble()),
   ];
+
+  static FontWeight _nearest(double weight) =>
+      FontWeight.values[(((weight - 1) / 100).round() - 1).clamp(0, 8)];
+
+  /// [style] at [weight], a weight between the named ones included.
+  static TextStyle weighted(TextStyle style, double weight) => style.copyWith(
+    fontWeight: _nearest(weight),
+    fontVariations: _axes(style.fontSize ?? 14, weight),
+  );
+
+  /// [style] at [size], its `opsz` axis moved to the new size, as a plain
+  /// `copyWith(fontSize: ...)` would not.
+  static TextStyle resized(TextStyle style, double size, {double? height}) {
+    final named = style.fontVariations?.where((v) => v.axis == 'wght');
+    final weight = named != null && named.isNotEmpty
+        ? named.first.value
+        : (style.fontWeight ?? FontWeight.w400).value.toDouble();
+    return style.copyWith(
+      fontSize: size,
+      height: height,
+      fontVariations: _axes(size, weight),
+    );
+  }
 
   // --- Display ---
 
-  /// 40/44, weight 650 (approximated as w600). For confidence % in result.
-  /// New in Redesign v11.
-  static TextStyle get displaySmall => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 40,
-        fontWeight: FontWeight.w600,
-        height: 44 / 40,
-        fontFeatures: _interFeatures,
-      );
+  /// 40/44, weight 650. For confidence % in result.
+  static TextStyle get displaySmall => _inter(40, 650, height: 44 / 40);
 
-  static TextStyle get headlineLarge => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 32,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
-        height: 1.2,
-      );
+  static TextStyle get headlineLarge =>
+      _inter(32, 650, height: 40 / 32, letterSpacing: -0.8);
 
-  /// Inter 28/36, variable weight 650, tracking -0.025em
-  /// (SPEC 0186; redesign v11 §1.2).
-  static TextStyle get headlineMedium => TextStyle(
-        fontFamily: 'InterVariable',
-        fontVariations: const [FontVariation('wght', 650)],
-        fontSize: 28,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.7, // -0.025em * 28
-        height: 36 / 28,
-        fontFeatures: _interFeatures,
-      );
+  /// Inter 28/36, weight 650, tracking -0.025em (SPEC 0186; §1.2).
+  static TextStyle get headlineMedium =>
+      _inter(28, 650, height: 36 / 28, letterSpacing: -0.7);
 
-  static TextStyle get headlineSmall => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 22,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.4,
-        height: 1.2,
-      );
+  static TextStyle get headlineSmall =>
+      _inter(22, 650, height: 28 / 22, letterSpacing: -0.55);
 
-  static TextStyle get titleLarge => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.3,
-        height: 1.3,
-      );
+  /// The app bar title: Inter 600 20/28, tracking -0.025em, measured from
+  /// the mocks' "Resultado" and "Histórico" (SPEC 0201).
+  static TextStyle get titleLarge =>
+      _inter(20, 600, height: 28 / 20, letterSpacing: -0.5);
 
   /// Inter 16/22, weight 600 (SPEC 0186; redesign v11 §1.2).
-  static TextStyle get titleMedium => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        height: 22 / 16,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get titleMedium => _inter(16, 600, height: 22 / 16);
 
-  static TextStyle get titleSmall => TextStyle(
-        fontFamily: _displayFamily,
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-        height: 1.4,
-      );
+  static TextStyle get titleSmall => _inter(14, 600, height: 20 / 14);
 
-  // --- Body (Inter) ---
+  // --- Body ---
 
-  static TextStyle get bodyLarge => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0,
-        height: 1.5,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get bodyLarge => _inter(16, 400, height: 1.5);
 
-  static TextStyle get bodyMedium => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0,
-        height: 20 / 14, // SPEC 0186; redesign v11 §1.2
-        fontFeatures: _interFeatures,
-      );
+  // SPEC 0186; redesign v11 §1.2.
+  static TextStyle get bodyMedium => _inter(14, 400, height: 20 / 14);
 
-  static TextStyle get bodySmall => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0,
-        height: 16 / 12, // SPEC 0186; redesign v11 §1.2
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get bodySmall => _inter(12, 400, height: 16 / 12);
 
-  // --- Labels (Inter) ---
+  // --- Labels ---
 
-  static TextStyle get labelLarge => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-        height: 1.4,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get labelLarge =>
+      _inter(14, 600, height: 1.4, letterSpacing: 0.1);
 
   /// Redesign v11 labelLarge: 15–16, weight 600.
-  /// Screens adopt this in later PRs via explicit use.
-  static TextStyle get v11LabelLarge => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-        height: 1.4,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get v11LabelLarge =>
+      _inter(15, 600, height: 1.4, letterSpacing: 0.1);
 
-  static TextStyle get labelMedium => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
-        height: 1.33,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get labelMedium =>
+      _inter(12, 600, height: 1.33, letterSpacing: 0.4);
 
-  static TextStyle get labelSmall => TextStyle(
-        fontFamily: _bodyFamily,
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.4,
-        height: 1.45,
-        fontFeatures: _interFeatures,
-      );
+  static TextStyle get labelSmall =>
+      _inter(11, 500, height: 1.45, letterSpacing: 0.4);
 
   /// Add tabular numbers feature (tnum) for %, times and statistics.
   static TextStyle tabular(TextStyle style) {
@@ -178,37 +130,34 @@ abstract final class AppTypography {
     final mute = palette.onSurfaceVariant;
     final hc = palette.highContrast;
     final sun = palette.isSun;
-    final body = hc ? FontWeight.w500 : null;
+    TextStyle body(TextStyle style) => hc ? weighted(style, 500) : style;
     return TextTheme(
       displaySmall: displaySmall.copyWith(color: ink),
       headlineLarge: headlineLarge.copyWith(color: ink),
       headlineMedium: headlineMedium.copyWith(color: ink),
       headlineSmall: headlineSmall.copyWith(color: ink),
       titleLarge: titleLarge.copyWith(color: ink),
-      titleMedium: (sun
-              ? titleMedium.copyWith(fontSize: 17, height: 24 / 17)
-              : titleMedium)
-          .copyWith(color: ink),
+      titleMedium:
+          (sun ? resized(titleMedium, 17, height: 24 / 17) : titleMedium)
+              .copyWith(color: ink),
       titleSmall: titleSmall.copyWith(color: ink),
-      bodyLarge: (sun
-              ? bodyLarge.copyWith(fontSize: 18, height: 27 / 18)
-              : bodyLarge)
-          .copyWith(color: ink, fontWeight: body),
-      bodyMedium: (sun
-              ? bodyMedium.copyWith(fontSize: 16, height: 24 / 16)
-              : bodyMedium)
-          .copyWith(color: ink, fontWeight: body),
-      bodySmall: (sun
-              ? bodySmall.copyWith(fontSize: 14, height: 20 / 14)
-              : bodySmall)
-          .copyWith(color: mute, fontWeight: body),
-      labelLarge: (sun ? labelLarge.copyWith(fontSize: 17) : labelLarge)
-          .copyWith(color: ink),
-      labelMedium: (sun ? labelMedium.copyWith(fontSize: 14) : labelMedium)
-          .copyWith(color: mute),
-      labelSmall: labelSmall.copyWith(
+      bodyLarge: body(
+        sun ? resized(bodyLarge, 18, height: 27 / 18) : bodyLarge,
+      ).copyWith(color: ink),
+      bodyMedium: body(
+        sun ? resized(bodyMedium, 16, height: 24 / 16) : bodyMedium,
+      ).copyWith(color: ink),
+      bodySmall: body(
+        sun ? resized(bodySmall, 14, height: 20 / 14) : bodySmall,
+      ).copyWith(color: mute),
+      labelLarge: (sun ? resized(labelLarge, 17) : labelLarge).copyWith(
+        color: ink,
+      ),
+      labelMedium: (sun ? resized(labelMedium, 14) : labelMedium).copyWith(
         color: mute,
-        fontWeight: hc ? FontWeight.w600 : null,
+      ),
+      labelSmall: (hc ? weighted(labelSmall, 600) : labelSmall).copyWith(
+        color: mute,
       ),
     );
   }

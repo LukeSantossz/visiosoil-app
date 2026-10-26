@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'app_density.dart';
 import 'app_palette.dart';
 import 'app_radius.dart';
@@ -33,9 +34,9 @@ abstract final class AppTheme {
     // which carry an explicit `textStyle` the ambient `TextTheme` cannot
     // reach — read the sun sizes too, not the base (unscaled) ones.
     final sunLabelLarge = WidgetStatePropertyAll(
-      AppTypography.labelLarge.copyWith(fontSize: 17),
+      AppTypography.resized(AppTypography.labelLarge, 17),
     );
-    final sunLabelMedium = AppTypography.labelMedium.copyWith(fontSize: 14);
+    final sunLabelMedium = AppTypography.resized(AppTypography.labelMedium, 14);
     return base.copyWith(
       extensions: [AppPalette.sun, AppDensity.sun],
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -159,12 +160,20 @@ abstract final class AppTheme {
     colorScheme: p.colorScheme,
     textTheme: AppTypography.textThemeFor(p),
     extensions: [p],
+    // Over the screen's own background, 64 dp tall, as in the mocks
+    // (SPEC 0201).
     appBarTheme: AppBarTheme(
-      backgroundColor: p.surface,
+      backgroundColor: p.background,
+      surfaceTintColor: Colors.transparent,
+      toolbarHeight: 64,
       foregroundColor: p.onSurface,
       elevation: 0,
-      centerTitle: true,
+      centerTitle: false,
       titleTextStyle: AppTypography.titleLarge.copyWith(color: p.onSurface),
+    ),
+    // Lucide's arrow on every pushed route (redesign v11 §5, SPEC 0201).
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (_) => const Icon(LucideIcons.arrowLeft),
     ),
     scaffoldBackgroundColor: p.background,
     cardTheme: CardThemeData(

@@ -8,11 +8,11 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.titleWidget,
     this.leading,
     this.actions,
-    this.centerTitle = true,
+    this.centerTitle = false,
   }) : assert(
-          title == null || titleWidget == null,
-          'Não é possível usar title e titleWidget ao mesmo tempo',
-        );
+         title == null || titleWidget == null,
+         'Não é possível usar title e titleWidget ao mesmo tempo',
+       );
 
   /// Title as a String.
   final String? title;
@@ -26,19 +26,26 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Widgets on the right.
   final List<Widget>? actions;
 
-  /// Whether to center the title. Default: true.
+  /// Whether to center the title. Default: false, start-aligned as in the
+  /// redesign mocks (SPEC 0201).
   final bool centerTitle;
 
   @override
   Widget build(BuildContext context) {
+    // The mocks set the title 60 dp from the edge after the back arrow and
+    // 16 dp without one (SPEC 0201).
+    final hasLeading =
+        leading != null ||
+        (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
     return AppBar(
       title: titleWidget ?? (title != null ? Text(title!) : null),
       leading: leading,
       actions: actions,
       centerTitle: centerTitle,
+      titleSpacing: centerTitle ? null : (hasLeading ? 4 : 16),
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(64);
 }
