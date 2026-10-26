@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
@@ -19,9 +20,9 @@ enum StatusPillStatus {
   };
 
   IconData get icon => switch (this) {
-    StatusPillStatus.sent => Icons.cloud_done_outlined,
-    StatusPillStatus.pending => Icons.refresh,
-    StatusPillStatus.error => Icons.cloud_off_outlined,
+    StatusPillStatus.sent => LucideIcons.cloudCheck,
+    StatusPillStatus.pending => LucideIcons.refreshCw,
+    StatusPillStatus.error => LucideIcons.cloudOff,
   };
 
   Color backgroundColor(AppPalette palette) => switch (this) {
@@ -68,9 +69,10 @@ class StatusPill extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // A 16 dp Lucide icon (PNG 16, SPEC 0203).
               Icon(
                 status.icon,
-                size: 12,
+                size: 16,
                 color: status.foregroundColor(palette),
               ),
               const SizedBox(width: AppSpacing.xs),

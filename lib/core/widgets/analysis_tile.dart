@@ -2,13 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
-import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/core/widgets/status_pill.dart';
@@ -34,15 +35,12 @@ class AnalysisTile extends StatelessWidget {
     this.onTap,
     this.onDelete,
     this.onLongPress,
+    this.onSelect,
     this.dense = false,
     this.showSyncStatus = false,
     this.offline = false,
     this.history = false,
   });
-
-  // History stacks its trailing content below the row on a phone narrower
-  // than this, when the row holds a pending pill.
-  static const double _historyPendingWidth = 360;
 
   // Below this inner width (a ~344 dp screen) the row stacks even when the
   // measured text would squeeze in: QA saw truncation at 320 dp, and long
@@ -53,6 +51,10 @@ class AnalysisTile extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onLongPress;
+
+  /// When given, adds a "Selecionar" custom semantics action: the history's
+  /// way into a selection that is not a gesture (SPEC 0122, SPEC 0203).
+  final VoidCallback? onSelect;
   final bool dense;
 
   /// Home keeps confidence in metadata and reserves the trailing edge for sync.
@@ -68,7 +70,29 @@ class AnalysisTile extends StatelessWidget {
     final palette = context.palette;
     final failure = record.classificationFailure;
     final isPending = record.syncStatus == 'pending';
-    final thumbSize = dense ? 48.0 : 56.0;
+    // Home's rows hold a 40 dp photograph and history's a 56 dp one (PNG 08
+    // and 16, SPEC 0203).
+    final thumbSize = showSyncStatus
+        ? 40.0
+        : history
+        ? 56.0
+        : dense
+        ? 48.0
+        : 56.0;
+    final titleStyle = history
+        ? theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500)
+        : theme.textTheme.titleMedium;
+    final metadataStyle = showSyncStatus
+        ? AppTypography.tabular(
+            theme.textTheme.bodySmall!.copyWith(
+              fontSize: 13,
+              height: 18 / 13,
+              color: palette.onSurfaceVariant,
+            ),
+          )
+        : theme.textTheme.bodySmall?.copyWith(
+            color: history ? palette.textTertiary : palette.onSurfaceVariant,
+          );
     final status = StatusPill(
       status: isPending
           ? StatusPillStatus.pending
@@ -89,8 +113,11 @@ class AnalysisTile extends StatelessWidget {
                 : ', Enviada'}'
           : _semanticsLabel(record, failure, isPending),
       onTap: onTap,
-      customSemanticsActions: onDelete != null
-          ? {const CustomSemanticsAction(label: 'Excluir'): onDelete!}
+      customSemanticsActions: onDelete != null || onSelect != null
+          ? {
+              const CustomSemanticsAction(label: 'Selecionar'): ?onSelect,
+              const CustomSemanticsAction(label: 'Excluir'): ?onDelete,
+            }
           : null,
       child: ExcludeSemantics(
         child: Material(
@@ -99,17 +126,22 @@ class AnalysisTile extends StatelessWidget {
             onTap: onTap,
             onLongPress: onLongPress,
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: dense ? AppSpacing.xs : AppSpacing.sm,
-              ),
+              // Home's 64 dp row and history's 72 dp one, the history row
+              // flush with the list's margins (PNG 08 and 16, SPEC 0203).
+              padding: showSyncStatus
+                  ? const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    )
+                  : history
+                  ? const EdgeInsets.symmetric(vertical: AppSpacing.sm)
+                  : EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: dense ? AppSpacing.xs : AppSpacing.sm,
+                    ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: history
-                      ? context.density.tap + AppSpacing.sm
-                      : showSyncStatus && context.density.tap == 56
-                      ? 64
-                      : 56,
+                  minHeight: showSyncStatus || history ? thumbSize : 56,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -140,14 +172,8 @@ class AnalysisTile extends StatelessWidget {
                         : history
                         ? _historyMetadata(record)
                         : record.formattedTimestampCompact;
-                    final titleWidth = textWidth(
-                      title,
-                      theme.textTheme.titleMedium,
-                    );
-                    final dateWidth = textWidth(
-                      metadata,
-                      theme.textTheme.bodySmall,
-                    );
+                    final titleWidth = textWidth(title, titleStyle);
+                    final dateWidth = textWidth(metadata, metadataStyle);
                     final columnWidth = titleWidth > dateWidth
                         ? titleWidth
                         : dateWidth;
@@ -157,7 +183,7 @@ class AnalysisTile extends StatelessWidget {
                     );
                     double statusWidth(StatusPillStatus status) =>
                         textWidth(status.label, pillStyle) +
-                        12 +
+                        16 +
                         AppSpacing.xs +
                         2 * AppSpacing.sm +
                         (palette.isSun ? 4 : 0);
@@ -166,7 +192,11 @@ class AnalysisTile extends StatelessWidget {
                     if (showSyncStatus) {
                       trailingWidth = offline && !isPending
                           ? 0
-                          : statusWidth(status.status);
+                          : _StatusDot.dotWidth +
+                                textWidth(
+                                  status.status.label,
+                                  _StatusDot.labelStyle(context),
+                                );
                     } else if (failure != null) {
                       trailingWidth = 20;
                     } else if (isPending) {
@@ -185,15 +215,19 @@ class AnalysisTile extends StatelessWidget {
                     } else {
                       trailingWidth = IconTheme.of(context).size ?? 24;
                     }
+                    // Home keeps its row on one line, ellipsing the text,
+                    // as PNG 08 draws it (SPEC 0203); only large text or a
+                    // narrow phone stacks it.
                     final needsStack =
                         textScaler.scale(1) >= 1.3 ||
                         constraints.maxWidth < _compactRowWidth ||
-                        thumbSize +
-                                AppSpacing.md +
-                                columnWidth +
-                                AppSpacing.sm +
-                                trailingWidth >
-                            constraints.maxWidth;
+                        (!showSyncStatus &&
+                            thumbSize +
+                                    AppSpacing.md +
+                                    columnWidth +
+                                    AppSpacing.sm +
+                                    trailingWidth >
+                                constraints.maxWidth);
                     final stackStatus = showSyncStatus && needsStack;
                     final stackTrailing =
                         !showSyncStatus && !history && needsStack;
@@ -202,15 +236,13 @@ class AnalysisTile extends StatelessWidget {
                     final stackBelow =
                         history &&
                         (constraints.maxWidth < 300 ||
-                            textScaler.scale(1) >= 1.3 ||
-                            (isPending &&
-                                failure == null &&
-                                constraints.maxWidth < _historyPendingWidth));
+                            textScaler.scale(1) >= 1.3);
                     final wrapText = stackTrailing || stackBelow;
                     final trailing = history && !isPending && failure == null
                         ? Icon(
-                            Icons.chevron_right,
-                            color: palette.onSurfaceVariant,
+                            LucideIcons.chevronRight,
+                            size: 24,
+                            color: palette.onSurface,
                           )
                         : _Trailing(
                             record: record,
@@ -238,15 +270,16 @@ class AnalysisTile extends StatelessWidget {
                                     failure != null
                                         ? 'Não classificada'
                                         : record.displayTextureClass,
-                                    style: theme.textTheme.titleMedium,
-                                    maxLines: showSyncStatus || wrapText
+                                    style: titleStyle,
+                                    maxLines: stackStatus || wrapText
                                         ? null
                                         : 1,
                                     overflow: wrapText
                                         ? null
                                         : TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: 2),
+                                  if (!showSyncStatus && !history)
+                                    const SizedBox(height: 2),
                                   Text(
                                     failure != null
                                         ? classificationFailureChip(
@@ -257,12 +290,12 @@ class AnalysisTile extends StatelessWidget {
                                         : history
                                         ? _historyMetadata(record)
                                         : record.formattedTimestampCompact,
-                                    style: theme.textTheme.bodySmall?.copyWith(
+                                    style: metadataStyle?.copyWith(
                                       color: failure != null
                                           ? palette.error
-                                          : palette.onSurfaceVariant,
+                                          : null,
                                     ),
-                                    maxLines: showSyncStatus || wrapText
+                                    maxLines: stackStatus || wrapText
                                         ? null
                                         : 1,
                                     overflow: wrapText
@@ -280,7 +313,7 @@ class AnalysisTile extends StatelessWidget {
                               const SizedBox(width: AppSpacing.sm),
                               if (showSyncStatus)
                                 if (!stackStatus && (!offline || isPending))
-                                  status
+                                  _StatusDot(status: status.status)
                                 else
                                   const SizedBox.shrink()
                               else
@@ -301,7 +334,7 @@ class AnalysisTile extends StatelessWidget {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
-                            child: status,
+                            child: _StatusDot(status: status.status),
                           ),
                         ],
                       ],
@@ -448,15 +481,19 @@ class _Thumbnail extends StatelessWidget {
         ? SoilTextureColors.forClass(record.textureClass!)
         : palette.outline;
 
+    // Radius 8 and no edge outside Modo Sol (PNG 08 and 16, SPEC 0203).
     return Container(
+      key: const Key('analysis-thumbnail'),
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.borderRadiusMd,
-        border: Border.all(color: textureColor, width: palette.edgeWidth),
-      ),
+      foregroundDecoration: palette.highContrast
+          ? BoxDecoration(
+              borderRadius: AppRadius.borderRadiusSm,
+              border: Border.all(color: textureColor, width: palette.edgeWidth),
+            )
+          : null,
       child: ClipRRect(
-        borderRadius: AppRadius.borderRadiusMd,
+        borderRadius: AppRadius.borderRadiusSm,
         child: Image.file(
           File(record.imagePath),
           fit: BoxFit.cover,
@@ -482,6 +519,44 @@ class _Thumbnail extends StatelessWidget {
       child: Icon(icon, color: color, size: size * 0.45),
     ),
   );
+}
+
+/// Home's sync status: a 7 dp dot and the word, both in the status colour
+/// (PNG 08, SPEC 0203).
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.status});
+
+  final StatusPillStatus status;
+
+  static const double dotWidth = 7 + 6;
+
+  static TextStyle? labelStyle(BuildContext context) => Theme.of(context)
+      .textTheme
+      .bodySmall
+      ?.copyWith(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w600);
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final color = switch (status) {
+      StatusPillStatus.sent => palette.statusSent,
+      StatusPillStatus.pending => palette.statusPending,
+      StatusPillStatus.error => palette.statusError,
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          key: const Key('status-dot'),
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(status.label, style: labelStyle(context)?.copyWith(color: color)),
+      ],
+    );
+  }
 }
 
 class _Trailing extends StatelessWidget {

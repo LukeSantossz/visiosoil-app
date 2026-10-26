@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -18,11 +19,9 @@ class HeroCaptureCard extends StatelessWidget {
         onPressed: onCapture,
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
-          minimumSize: Size(0, context.density.buttonHeight),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.md,
-          ),
+          // 56 dp in every theme, Modo Sol's target included (PNG 08, 25).
+          minimumSize: const Size(0, 56),
+          padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 69, 0),
           backgroundColor: context.palette.surface,
           foregroundColor: context.palette.onSurface,
           side: BorderSide(
@@ -35,24 +34,36 @@ class HeroCaptureCard extends StatelessWidget {
             borderRadius: AppRadius.borderRadiusPill,
           ),
         ),
+        // A 20 dp scan icon 20 dp in, the 17 sp text 16 dp after it, and the
+        // image icon 69 dp from the end, where PNG 08 draws it (SPEC 0203).
         child: Row(
           children: [
-            const ExcludeSemantics(
-              child: Icon(Icons.center_focus_strong_outlined),
+            ExcludeSemantics(
+              child: Icon(
+                LucideIcons.scan,
+                size: 20,
+                color: context.palette.onSurfaceVariant,
+              ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Text(
                 'Analisar solo',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: context.palette.onSurface,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w400,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: context.palette.onSurfaceVariant,
+                  fontSize: 17,
+                  height: 24 / 17,
                 ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            const ExcludeSemantics(child: Icon(Icons.photo_library_outlined)),
+            ExcludeSemantics(
+              child: Icon(
+                LucideIcons.image,
+                size: 20,
+                color: context.palette.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

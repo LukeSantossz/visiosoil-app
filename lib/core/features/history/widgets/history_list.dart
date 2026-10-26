@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
@@ -7,12 +8,12 @@ import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/offline_banner.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
-import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/swipe_to_delete.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -29,6 +30,7 @@ class HistoryList extends ConsumerStatefulWidget {
     required this.isSelectionMode,
     required this.onTap,
     required this.onLongPress,
+    this.onSelect,
     this.activeId,
   });
   final int pageSize;
@@ -36,6 +38,9 @@ class HistoryList extends ConsumerStatefulWidget {
   final bool isSelectionMode;
   final ValueChanged<int> onTap;
   final ValueChanged<int> onLongPress;
+
+  /// A row's "Selecionar" semantics action (SPEC 0203).
+  final ValueChanged<int>? onSelect;
 
   /// The record open beside the list in master-detail (SPEC 0200).
   final int? activeId;
@@ -62,8 +67,11 @@ class _HistoryListState extends ConsumerState<HistoryList> {
     final pending = records.where((r) => r.syncStatus == 'pending').length;
     return CustomScrollView(
       slivers: [
+        // Directly under the app bar at 16 dp margins; its hit area reaches
+        // 8 dp below the pill, into the gap above the summary (PNG 16,
+        // SPEC 0203).
         SliverPadding(
-          padding: const EdgeInsets.all((AppSpacing.lg + AppSpacing.xs)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           sliver: SliverToBoxAdapter(
             // The width the list has, not the screen's: beside a detail pane
             // the list is narrower than the screen (SPEC 0200).
@@ -82,12 +90,12 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                       SegmentedControlOption(
                         value: false,
                         label: 'Análises',
-                        icon: Icons.history,
+                        icon: LucideIcons.history,
                       ),
                       SegmentedControlOption(
                         value: true,
                         label: 'Coleção',
-                        icon: Icons.layers_outlined,
+                        icon: LucideIcons.layers,
                       ),
                     ],
                     value: _collection,
@@ -179,9 +187,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
             final shown = visible.take(_shown).toList();
             return [
               SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: (AppSpacing.lg + AppSpacing.xs),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverToBoxAdapter(child: _Summary(records: records)),
               ),
               if (visible.length > _shown)
@@ -192,7 +198,12 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                   ),
                 ),
               SliverPadding(
-                padding: const EdgeInsets.all((AppSpacing.lg + AppSpacing.xs)),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
                 sliver: SliverList.builder(
                   itemCount: shown.length,
                   itemBuilder: (context, index) {
@@ -204,16 +215,28 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                       children: [
                         if (index == 0 ||
                             heading != _dateHeading(shown[index - 1].timestamp))
-                          Padding(
+                          // 14 sp in onSurfaceVariant over a rule (PNG 16).
+                          Container(
                             padding: const EdgeInsets.only(
                               top: AppSpacing.xl,
                               bottom: AppSpacing.sm,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: context.palette.divider,
+                                  width: context.palette.edgeWidth,
+                                ),
+                              ),
                             ),
                             child: Semantics(
                               header: true,
                               child: Text(
                                 heading,
-                                style: Theme.of(context).textTheme.titleMedium,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: context.palette.onSurfaceVariant,
+                                    ),
                               ),
                             ),
                           ),
@@ -263,6 +286,9 @@ class _HistoryListState extends ConsumerState<HistoryList> {
           record: record,
           history: true,
           onLongPress: () => widget.onLongPress(id),
+          onSelect: widget.isSelectionMode || widget.onSelect == null
+              ? null
+              : () => widget.onSelect!(id),
           onTap: () => widget.onTap(id),
         ),
       ),
@@ -347,26 +373,97 @@ class _Summary extends StatelessWidget {
         .intersection(_collectionClasses.toSet())
         .length;
     final cells = [
-      StatCell(value: '${records.length}', label: 'análises'),
-      StatCell(
-        value: '$week',
-        label: 'nesta semana',
-        semanticLabel: '$week análises nesta semana',
-      ),
-      StatCell(value: '$earned/12', label: 'classes'),
+      ('${records.length}', 'análises', null),
+      ('$week', 'nesta semana', '$week análises nesta semana'),
+      ('$earned/12', 'classes', null),
     ];
-    return MediaQuery.textScalerOf(context).scale(1) >= 1.3
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final cell in cells)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: cell,
+    final stacked = MediaQuery.textScalerOf(context).scale(1) >= 1.3;
+    final rule = BorderSide(
+      color: context.palette.divider,
+      width: context.palette.edgeWidth,
+    );
+    // One bordered strip split in three (PNG 16, SPEC 0203); a column of
+    // cells from 1.3x text.
+    return Container(
+      key: const Key('history-summary'),
+      decoration: BoxDecoration(
+        border: Border.fromBorderSide(rule),
+        borderRadius: AppRadius.borderRadiusMd,
+      ),
+      child: IntrinsicHeight(
+        child: Flex(
+          direction: stacked ? Axis.vertical : Axis.horizontal,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < cells.length; i++)
+              Flexible(
+                fit: FlexFit.tight,
+                flex: stacked ? 0 : 1,
+                child: Container(
+                  decoration: i == 0
+                      ? null
+                      : BoxDecoration(
+                          border: stacked
+                              ? Border(top: rule)
+                              : Border(left: rule),
+                        ),
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: _SummaryCell(
+                    value: cells[i].$1,
+                    label: cells[i].$2,
+                    semanticLabel: cells[i].$3,
+                  ),
                 ),
-            ],
-          )
-        : StatsRow(cells: cells);
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryCell extends StatelessWidget {
+  const _SummaryCell({
+    required this.value,
+    required this.label,
+    this.semanticLabel,
+  });
+
+  final String value;
+  final String label;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // The value 20 sp weight 600, the label 12 sp in textTertiary.
+    return Semantics(
+      label: semanticLabel ?? '$value $label',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: AppTypography.tabular(
+                theme.textTheme.titleLarge!.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: context.palette.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

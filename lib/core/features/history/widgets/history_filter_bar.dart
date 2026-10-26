@@ -21,12 +21,19 @@ class HistoryFilterBar extends ConsumerWidget {
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onSelectTexture,
+    this.showSearch = true,
+    this.showFilters = true,
   });
 
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final ValueChanged<String?> onSelectTexture;
+
+  /// Whether the search field and the class chips are open; the history's
+  /// app bar toggles each (PNG 16, SPEC 0203).
+  final bool showSearch;
+  final bool showFilters;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,125 +42,133 @@ class HistoryFilterBar extends ConsumerWidget {
     final searchTerm = ref.watch(searchTermProvider);
     final availableClasses = ref.watch(availableTextureClassesProvider);
 
+    if (!showSearch && !showFilters) return const SizedBox.shrink();
     return Container(
-      color: theme.colorScheme.surface,
+      color: context.palette.background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.xs,
-            ),
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar por endereço, talhão ou amostra...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: searchTerm.isNotEmpty
-                    ? VisioIconButton(
-                        label: 'Limpar busca',
-                        icon: Icons.clear,
-                        iconSize: 20,
-                        onPressed: onClearSearch,
-                      )
-                    : null,
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                isDense: true,
+          if (showSearch)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.xs,
               ),
-              onChanged: onSearchChanged,
-            ),
-          ),
-          CollapseOnCorrection(
-            isError: availableClasses.hasError,
-            child: availableClasses.when(
-              loading: () => const SizedBox.shrink(),
-              // Surface a load failure inline with a retry instead of silently
-              // collapsing the chip bar (#117).
-              error: (error, stackTrace) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
-                ),
-                // At large text the retry's label wraps within half the row
-                // instead of squeezing the message (SPEC 0121).
-                child: LayoutBuilder(
-                  builder: (context, constraints) => Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 18,
-                        color: context.palette.error.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          'Não foi possível carregar os filtros',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth / 2,
-                        ),
-                        child: TextButton(
-                          // Invalidate the root records stream the chips derive
-                          // from, so a transient failure actually re-runs;
-                          // refreshing only the derived wrapper re-reads the same
-                          // cached failed stream.
-                          onPressed: () =>
-                              ref.invalidate(soilRecordsStreamProvider),
-                          child: const Text('Tentar novamente'),
-                        ),
-                      ),
-                    ],
+              child: TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar por endereço, talhão ou amostra...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: searchTerm.isNotEmpty
+                      ? VisioIconButton(
+                          label: 'Limpar busca',
+                          icon: Icons.clear,
+                          iconSize: 20,
+                          onPressed: onClearSearch,
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: BorderSide.none,
                   ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  isDense: true,
                 ),
+                autofocus: searchTerm.isEmpty,
+                onChanged: onSearchChanged,
               ),
-              data: (classes) {
-                if (classes.isEmpty) return const SizedBox.shrink();
-
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+            ),
+          if (showFilters)
+            CollapseOnCorrection(
+              isError: availableClasses.hasError,
+              child: availableClasses.when(
+                loading: () => const SizedBox.shrink(),
+                // Surface a load failure inline with a retry instead of silently
+                // collapsing the chip bar (#117).
+                error: (error, stackTrace) => Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.xs,
                   ),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Todas',
-                        isSelected: selectedFilter == null,
-                        onSelected: () => onSelectTexture(null),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      ...classes.map(
-                        (textureClass) => Padding(
-                          padding: const EdgeInsets.only(right: AppSpacing.xs),
-                          child: _FilterChip(
-                            label: SoilTextureReference.labelFor(textureClass),
-                            isSelected: selectedFilter == textureClass,
-                            onSelected: () => onSelectTexture(textureClass),
+                  // At large text the retry's label wraps within half the row
+                  // instead of squeezing the message (SPEC 0121).
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 18,
+                          color: context.palette.error.withValues(alpha: 0.8),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            'Não foi possível carregar os filtros',
+                            style: theme.textTheme.bodySmall,
                           ),
                         ),
-                      ),
-                    ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth / 2,
+                          ),
+                          child: TextButton(
+                            // Invalidate the root records stream the chips derive
+                            // from, so a transient failure actually re-runs;
+                            // refreshing only the derived wrapper re-reads the same
+                            // cached failed stream.
+                            onPressed: () =>
+                                ref.invalidate(soilRecordsStreamProvider),
+                            child: const Text('Tentar novamente'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
+                ),
+                data: (classes) {
+                  if (classes.isEmpty) return const SizedBox.shrink();
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: Row(
+                      children: [
+                        _FilterChip(
+                          label: 'Todas',
+                          isSelected: selectedFilter == null,
+                          onSelected: () => onSelectTexture(null),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        ...classes.map(
+                          (textureClass) => Padding(
+                            padding: const EdgeInsets.only(
+                              right: AppSpacing.xs,
+                            ),
+                            child: _FilterChip(
+                              label: SoilTextureReference.labelFor(
+                                textureClass,
+                              ),
+                              isSelected: selectedFilter == textureClass,
+                              onSelected: () => onSelectTexture(textureClass),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
           const SizedBox(height: AppSpacing.xs),
         ],
       ),

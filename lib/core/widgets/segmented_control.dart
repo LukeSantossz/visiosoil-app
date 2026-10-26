@@ -44,7 +44,12 @@ class SegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final selectedIndex = options.indexWhere((o) => o.value == value);
-    final height = context.density.tap;
+    // The mock draws a 40 dp pill (PNG 16, SPEC 0203). Its hit area keeps
+    // the 48 dp floor by reaching 8 dp below it, into the gap the mock leaves;
+    // Modo Sol draws the pill at its 56 dp target.
+    final target = context.density.tap;
+    final pillHeight = palette.isSun ? target : 40.0;
+    final reach = target - pillHeight;
 
     return Semantics(
       container: true,
@@ -53,61 +58,77 @@ class SegmentedControl<T> extends StatelessWidget {
         builder: (context, constraints) {
           final segmentWidth = constraints.maxWidth / options.length;
 
-          return IntrinsicHeight(
-            child: Container(
-              constraints: BoxConstraints(minHeight: height),
-              // The clip shape comes from a borderless `decoration` (clipping
-              // needs one); the border itself is a `foregroundDecoration`. A
-              // *background* decoration's border would otherwise reserve
-              // padding equal to its width, shrinking every segment's tap
-              // target below the 48 dp floor (redesign v11 §8).
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.borderRadiusPill,
-              ),
-              foregroundDecoration: BoxDecoration(
-                borderRadius: AppRadius.borderRadiusPill,
-                border: Border.all(
-                  color: palette.outline,
-                  width: palette.edgeWidth,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  if (selectedIndex >= 0)
-                    AnimatedPositioned(
-                      duration: AppMotion.durationOf(context, AppMotion.base),
-                      curve: AppMotion.standard,
-                      left: segmentWidth * selectedIndex,
-                      top: 0,
-                      bottom: 0,
-                      width: segmentWidth,
-                      child: Container(
-                        color: palette.isSun ? Colors.black : palette.selected,
+          return Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: reach),
+                child: IntrinsicHeight(
+                  child: Container(
+                    key: const Key('segmented-pill'),
+                    constraints: BoxConstraints(minHeight: pillHeight),
+                    // The clip shape comes from a borderless `decoration`; the
+                    // border is a `foregroundDecoration`, so it reserves no
+                    // padding inside the pill.
+                    decoration: BoxDecoration(
+                      borderRadius: AppRadius.borderRadiusPill,
+                    ),
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: AppRadius.borderRadiusPill,
+                      border: Border.all(
+                        color: palette.outline,
+                        width: palette.edgeWidth,
                       ),
                     ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < options.length; i++)
-                        Expanded(child: _buildSegment(context, i)),
-                    ],
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      children: [
+                        if (selectedIndex >= 0)
+                          AnimatedPositioned(
+                            duration: AppMotion.durationOf(
+                              context,
+                              AppMotion.base,
+                            ),
+                            curve: AppMotion.standard,
+                            left: segmentWidth * selectedIndex,
+                            top: 0,
+                            bottom: 0,
+                            width: segmentWidth,
+                            child: Container(
+                              color: palette.isSun
+                                  ? Colors.black
+                                  : palette.selected,
+                            ),
+                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < options.length; i++)
+                              Expanded(child: _buildLabel(context, i)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ),
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    for (var i = 0; i < options.length; i++)
+                      Expanded(child: _buildTarget(i)),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildSegment(BuildContext context, int index) {
+  Widget _buildTarget(int index) {
     final option = options[index];
     final isSelected = option.value == value;
-    final foreground = context.palette.isSun && isSelected
-        ? Colors.white
-        : null;
 
     void select() {
       if (!isSelected) {
@@ -117,48 +138,56 @@ class SegmentedControl<T> extends StatelessWidget {
     }
 
     return Semantics(
+      key: Key('segment-$index'),
+      container: true,
       button: true,
       selected: isSelected,
       label: option.label,
       onTap: select,
-      child: ExcludeSemantics(
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: select,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xs),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (option.icon != null) ...[
-                    Icon(option.icon, size: 16, color: foreground),
-                    const SizedBox(width: AppSpacing.xs),
-                  ],
-                  // One line, scaled down rather than clipped when a word
-                  // cannot fit its segment (SPEC 0197).
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        option.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: foreground,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                      ),
-                    ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        excludeFromSemantics: true,
+        onTap: select,
+      ),
+    );
+  }
+
+  Widget _buildLabel(BuildContext context, int index) {
+    final option = options[index];
+    final isSelected = option.value == value;
+    final color = context.palette.isSun && isSelected
+        ? Colors.white
+        : context.palette.onSurface;
+
+    // A 20 dp icon and the 14 sp label (PNG 16, SPEC 0203).
+    return ExcludeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (option.icon != null) ...[
+              Icon(option.icon, size: 20, color: color),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            // One line, scaled down rather than clipped when a word
+            // cannot fit its segment (SPEC 0197).
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  option.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

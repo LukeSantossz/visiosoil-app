@@ -84,17 +84,17 @@ void main() {
     expect(find.text('análises'), findsOneWidget);
   });
 
-  // The boot's logo Hero (redesign v11 §6.2/§6.4, SPEC 0193) needs a matching
-  // tag here to land on.
-  testWidgets('home carries the boot logo hero landing target', (tester) async {
+  // PNG 08 draws no logo on Home, so the boot's logo Hero has nowhere to
+  // land and the boot ends as its reduced-motion path does (SPEC 0203).
+  testWidgets('home carries no boot logo hero', (tester) async {
     await tester.pumpWidget(_homeUnderTest(() => Stream.value([_record()])));
     await tester.pumpAndSettle();
 
     expect(
       find.byWidgetPredicate(
-        (w) => w is Hero && w.tag == visioSoilLogoHeroTag && w.child is VisioSoilLogo,
+        (w) => w is Hero && w.tag == visioSoilLogoHeroTag,
       ),
-      findsOneWidget,
+      findsNothing,
     );
   });
 }

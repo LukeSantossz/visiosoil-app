@@ -3,9 +3,11 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 
-/// A single stat card (redesign v11 §4 `StatCell`): a bold [value] over a
-/// [label], with an optional leading [icon] in [color]. Renders a shimmering
+/// A single stat card (redesign v11 §4 `StatCell`, PNG 08 as SPEC 0203
+/// measures it): an optional 20 dp [icon] in [color], then a 24 sp [value]
+/// over a 12 sp [label]. Renders a shimmering
 /// placeholder instead when [isSkeleton].
 ///
 /// [semanticLabel] overrides the default `"<value> <label>"` reading, for a
@@ -49,21 +51,21 @@ class StatCell extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = context.palette;
 
+    // Flat on `surface`, its content centred in the row's height (PNG 08,
+    // SPEC 0203); only Modo Sol draws an edge.
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      alignment: AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
-        boxShadow: [
-          BoxShadow(
-            color: palette.shadowCard,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-        border: Border.all(color: palette.cardBorder, width: palette.edgeWidth),
+        border: palette.highContrast
+            ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
+            : null,
       ),
-      child: isSkeleton ? const _StatCellSkeletonContent() : _buildContent(theme, palette),
+      child: isSkeleton
+          ? const _StatCellSkeletonContent()
+          : _buildContent(theme, palette),
     );
   }
 
@@ -72,25 +74,35 @@ class StatCell extends StatelessWidget {
       label: semanticLabel ?? '$value $label',
       child: ExcludeSemantics(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: color ?? palette.primary),
-              const SizedBox(height: 2),
+              Icon(icon, size: 20, color: color ?? palette.onSurface),
+              const SizedBox(height: AppSpacing.md),
             ],
             Text(
               value,
-              style: valueStyle ?? theme.textTheme.titleLarge?.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+              style:
+                  valueStyle ??
+                  AppTypography.tabular(
+                    AppTypography.weighted(
+                      theme.textTheme.headlineMedium!.copyWith(
+                        fontSize: 24,
+                        height: 32 / 24,
+                        letterSpacing: -0.6,
+                      ),
+                      650,
+                    ),
+                  ),
             ),
             Text(
               label,
-              style: labelStyle ?? theme.textTheme.labelSmall?.copyWith(
-                color: palette.onSurfaceVariant,
-              ),
+              style:
+                  labelStyle ??
+                  theme.textTheme.bodySmall?.copyWith(
+                    color: palette.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -108,13 +120,17 @@ class StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < cells.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: cells[i]),
+    // Every card takes the tallest one's height (PNG 08, SPEC 0203).
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cells.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.sm),
+            Expanded(child: cells[i]),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

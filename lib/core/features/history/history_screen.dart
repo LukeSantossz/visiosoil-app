@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_list.dart';
@@ -28,9 +29,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
-  /// Explicit, so the app bar's button can start a selection with nothing
-  /// selected yet; a long press is not the only way in (SPEC 0122).
+  /// Explicit, so deselecting every record can keep the mode until it is
+  /// cancelled. A row's long press or its "Selecionar" semantics action
+  /// starts it, so a gesture is not the only way in (SPEC 0122, SPEC 0203).
   bool _isSelectionMode = false;
+
+  /// The app bar's search and filter actions open their part of the filter
+  /// bar; a part also stays open while it holds a term or a class (PNG 16,
+  /// SPEC 0203).
+  bool _searchOpen = false;
+  bool _filtersOpen = false;
 
   /// The record open beside the list from 840 dp (redesign v11 §10,
   /// SPEC 0200). Below that, a tap pushes details instead.
@@ -90,10 +98,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       _isSelectionMode = true;
       _selectedIds.add(id);
     });
-  }
-
-  void _startEmptySelection() {
-    setState(() => _isSelectionMode = true);
   }
 
   void _cancelSelection() {
@@ -163,6 +167,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     onSearchChanged: _onSearchChanged,
                     onClearSearch: _clearSearch,
                     onSelectTexture: _selectTextureFilter,
+                    showSearch:
+                        _searchOpen || ref.watch(searchTermProvider).isNotEmpty,
+                    showFilters:
+                        _filtersOpen ||
+                        ref.watch(selectedTextureFilterProvider) != null,
                   ),
                 Expanded(
                   child: HistoryList(
@@ -171,6 +180,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     isSelectionMode: _isSelectionMode,
                     onTap: _handleTap,
                     onLongPress: _enterSelectionMode,
+                    onSelect: _enterSelectionMode,
                     activeId: _masterDetail ? _activeId : null,
                   ),
                 ),
@@ -218,15 +228,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   VisioAppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
-    // A reload or an error may retain records in `value`; actions follow the
-    // state currently shown by the list.
-    final hasRecords = ref
-        .watch(filteredRecordsProvider)
-        .when(
-          data: (records) => records.isNotEmpty,
-          error: (error, stackTrace) => false,
-          loading: () => false,
-        );
 
     return VisioAppBar(
       title: switch ((_isSelectionMode, count)) {
@@ -261,20 +262,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
             ]
           : [
-              // The empty history has its own capture action
-              // (SPEC 0146).
-              if (hasRecords) ...[
-                VisioIconButton(
-                  label: 'Nova captura',
-                  icon: Icons.add_a_photo_outlined,
-                  onPressed: () => context.push('/capture'),
-                ),
-                VisioIconButton(
-                  label: 'Selecionar registros',
-                  icon: Icons.checklist,
-                  onPressed: _startEmptySelection,
-                ),
-              ],
+              // Search and filters, as PNG 16 draws the bar (SPEC 0203). A
+              // selection starts from a row: a long press, or its
+              // "Selecionar" semantics action.
+              VisioIconButton(
+                label: 'Buscar',
+                icon: LucideIcons.search,
+                onPressed: () => setState(() => _searchOpen = !_searchOpen),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              VisioIconButton(
+                label: 'Filtros',
+                icon: LucideIcons.slidersHorizontal,
+                onPressed: () => setState(() => _filtersOpen = !_filtersOpen),
+              ),
+              const SizedBox(width: AppSpacing.xs),
             ],
     );
   }

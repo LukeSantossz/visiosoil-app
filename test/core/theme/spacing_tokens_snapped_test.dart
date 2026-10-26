@@ -32,8 +32,9 @@ void main() {
     test('hero_capture_card uses compact v11 token radius and spacing', () {
       final src =
           _packed('lib/core/features/home/widgets/hero_capture_card.dart');
-      expect(src, contains('context.density.buttonHeight'));
-      expect(src, contains('horizontal:AppSpacing.xl,vertical:AppSpacing.md'));
+      // 56 dp tall, its insets measured on PNG 08 (SPEC 0203).
+      expect(src, contains('minimumSize:constSize(0,56)'));
+      expect(src, contains('fromSTEB(20,0,69,0)'));
       expect(src, contains('AppRadius.borderRadiusPill'));
       expect(src, isNot(contains('circular(20)')));
       expect(src, isNot(contains('circular(32)')));
@@ -42,7 +43,14 @@ void main() {
 
     test('home owns the shared page padding', () {
       final src = _packed('lib/core/features/home/home_screen.dart');
-      expect(src, contains('EdgeInsets.all(AppSpacing.lg+AppSpacing.xs)'));
+      // Blocks at 16 dp, the first line 20 dp below the safe area (SPEC 0203).
+      expect(
+        src,
+        contains(
+          'fromLTRB(AppSpacing.lg,AppSpacing.lg+AppSpacing.xs,AppSpacing.lg,'
+          'AppSpacing.lg)',
+        ),
+      );
     });
 
     // The card padding moved into the shared StatCell (redesign v11 §4, PR 5):
@@ -50,7 +58,8 @@ void main() {
     test('stat_cell snaps its card padding', () {
       final src = _packed('lib/core/widgets/stat_cell.dart');
       expect(src, isNot(contains('EdgeInsets.all(10)')));
-      expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
+      // 12 dp, as PNG 08 measures it (SPEC 0203).
+      expect(src, contains('EdgeInsets.all(AppSpacing.md)'));
     });
   });
 

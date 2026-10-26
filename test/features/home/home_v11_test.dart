@@ -38,12 +38,6 @@ Widget home(
 );
 
 void main() {
-  testWidgets('settings control has the Configurações tooltip', (tester) async {
-    await tester.pumpWidget(home(AppTheme.light, Stream.value([])));
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('Configurações'), findsOneWidget);
-  });
   testWidgets(
     'weekly stats exclude older records and collection deduplicates',
     (tester) async {
@@ -55,7 +49,7 @@ void main() {
           id: 1,
           imagePath: 'x',
           timestamp: now.toIso8601String(),
-          textureClass: 'Argilosa',
+          textureClass: 'Argila',
           confidenceScore: .849,
         ),
         SoilRecord(
@@ -64,7 +58,7 @@ void main() {
           timestamp: monday
               .subtract(const Duration(seconds: 1))
               .toIso8601String(),
-          textureClass: 'Argilosa',
+          textureClass: 'Argila',
           confidenceScore: .2,
         ),
       ];
@@ -76,7 +70,7 @@ void main() {
         ),
       );
       final cells = tester.widgetList<StatCell>(find.byType(StatCell)).toList();
-      expect(cells.map((s) => s.value), ['1', '1', '84%']);
+      expect(cells.map((s) => s.value), ['1', '1/12', '84%']);
       expect(cells.first.semanticLabel, '1 análises nesta semana');
     },
   );
@@ -253,13 +247,11 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(find.byType(AnalysisTile), findsNWidgets(5));
-          final pills = tester
-              .widgetList<StatusPill>(find.byType(StatusPill))
-              .map((p) => p.status)
-              .toList();
-          expect(pills, contains(StatusPillStatus.pending));
-          expect(pills.contains(StatusPillStatus.sent), !offline);
-          expect(pills.contains(StatusPillStatus.error), !offline);
+          // A dot and the word name each status (PNG 08, SPEC 0203).
+          expect(find.byType(StatusPill), findsNothing);
+          expect(find.text('Pendente'), findsWidgets);
+          expect(find.text('Enviada').evaluate().isNotEmpty, !offline);
+          expect(find.text('Erro').evaluate().isNotEmpty, !offline);
           expect(tester.takeException(), isNull);
           expect(
             find.bySemanticsLabel(RegExp('82% de confiança')),

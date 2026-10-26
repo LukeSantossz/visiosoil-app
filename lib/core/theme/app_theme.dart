@@ -220,21 +220,28 @@ abstract final class AppTheme {
       unselectedLabelStyle: AppTypography.labelMedium,
       type: BottomNavigationBarType.fixed,
     ),
+    // On surfaceContainer, the labels 12 sp with the selected one in ink
+    // (PNG 08, SPEC 0203); MainScreen draws the rule on top.
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: p.surfaceContainer,
+      surfaceTintColor: Colors.transparent,
       indicatorColor: p.primaryContainer,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final label = AppTypography.labelMedium.copyWith(letterSpacing: 0);
         if (states.contains(WidgetState.selected)) {
-          return AppTypography.labelMedium.copyWith(
-            color: p.primary,
-            fontWeight: FontWeight.w700,
+          return label.copyWith(
+            color: p.onSurface,
+            fontWeight: FontWeight.w600,
           );
         }
-        return AppTypography.labelMedium.copyWith(color: p.onSurfaceVariant);
+        return label.copyWith(
+          color: p.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return IconThemeData(color: p.primary);
+          return IconThemeData(color: p.onPrimaryContainer);
         }
         return IconThemeData(color: p.onSurfaceVariant);
       }),

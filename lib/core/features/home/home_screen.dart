@@ -12,8 +12,6 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
-import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
-import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -37,10 +35,21 @@ class HomeScreen extends ConsumerWidget {
         ref.watch(connectivityStatusProvider).value ==
         ConnectivityStatus.offline;
     final theme = Theme.of(context);
+    // On surfaceContainer, so the white cards stand out; Modo Sol stays
+    // white (PNG 08, 25 and 27, SPEC 0203).
     return Scaffold(
+      backgroundColor: context.palette.highContrast
+          ? context.palette.background
+          : context.palette.surfaceContainer,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+          // Blocks 16 dp from the edge, titles 20 dp (PNG 08).
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg + AppSpacing.xs,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
           // Centred at most 560 dp wide on a tablet (redesign v11 §10).
           child: Center(
             child: ConstrainedBox(
@@ -55,78 +64,63 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        // Where the boot's logo Hero lands (redesign v11
-                        // §6.2/§6.4, SPEC 0193).
-                        Hero(
-                          tag: visioSoilLogoHeroTag,
-                          child: VisioSoilLogo(
-                            size: 32,
-                            color: context.palette.primary,
-                          ),
+                    // The title alone, 20 dp in (PNG 08, SPEC 0203): Perfil
+                    // hosts Settings, and the mock draws no logo.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Início',
+                          style: theme.textTheme.headlineMedium,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Semantics(
-                            header: true,
-                            child: Text(
-                              'Início',
-                              style: theme.textTheme.headlineMedium,
-                            ),
-                          ),
-                        ),
-                        // Transitional until the Perfil tab hosts Settings (SPEC §3.13 / item 6).
-                        VisioIconButton(
-                          label: 'Configurações',
-                          icon: Icons.settings_outlined,
-                          onPressed: () => context.push('/settings'),
-                        ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     HeroCaptureCard(onCapture: () => context.push('/capture')),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: 28),
                     if (source.hasError)
                       HomeDataError(
                         onRetry: () =>
                             ref.invalidate(soilRecordsStreamProvider),
                       )
                     else ...[
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          'Esta semana',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ),
+                      _SectionTitle('Esta semana'),
                       const SizedBox(height: AppSpacing.md),
                       StatsGrid(recordsAsync: recordsAsync),
-                      const SizedBox(height: AppSpacing.xl),
+                      // The link's 48 dp target centres the title in it, so
+                      // the gaps give back its 12 dp above and below; its
+                      // text ends 4 dp from the card's edge (PNG 08).
+                      SizedBox(height: records.isNotEmpty ? 16 : 28),
                       Wrap(
                         alignment: WrapAlignment.spaceBetween,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: AppSpacing.md,
                         children: [
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              'Recentes',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                          ),
+                          const _SectionTitle('Recentes'),
                           if (records.isNotEmpty)
-                            VisioButton(
-                              label: 'Ver todas',
-                              variant: VisioButtonVariant.text,
-                              onPressed: () => ref
-                                  .read(mainTabIndexProvider.notifier)
-                                  .select(1),
+                            Transform.translate(
+                              offset: const Offset(AppSpacing.sm, 0),
+                              child: VisioButton(
+                                label: 'Ver todas',
+                                variant: VisioButtonVariant.text,
+                                labelStyle: TextStyle(
+                                  color: context.palette.primaryText,
+                                ),
+                                onPressed: () => ref
+                                    .read(mainTabIndexProvider.notifier)
+                                    .select(1),
+                              ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(height: records.isNotEmpty ? 0 : AppSpacing.md),
                       Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
                         decoration: BoxDecoration(
                           color: context.palette.surface,
                           borderRadius: AppRadius.borderRadiusLg,
@@ -180,10 +174,11 @@ class HomeScreen extends ConsumerWidget {
                                   ) ...[
                                     if (index > 0)
                                       Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 76,
-                                          right: AppSpacing.lg,
-                                        ),
+                                        padding:
+                                            const EdgeInsetsDirectional.only(
+                                              start: 68,
+                                              end: AppSpacing.lg,
+                                            ),
                                         child: Divider(
                                           height: 1,
                                           color: context.palette.divider,
@@ -214,6 +209,26 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A section title 20 dp from the edge, 17 sp weight 600 (PNG 08, SPEC 0203).
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+    child: Semantics(
+      header: true,
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontSize: 17, height: 24 / 17),
+      ),
+    ),
+  );
 }
 
 class _RecentSkeleton extends StatefulWidget {
