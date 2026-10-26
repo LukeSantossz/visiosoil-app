@@ -36,6 +36,25 @@ void main() {
     }
   });
 
+  // The bundled static Inter has no single-storey "a" (cv11); the mocks
+  // set it, so every role reads InterVariable at an optical size equal to
+  // its font size, as a browser sets it (SPEC 0201).
+  test('every_style_is_the_variable_inter_at_its_optical_size', () {
+    final theme = AppTypography.textThemeFor(AppPalette.light);
+    for (final style in [
+      theme.headlineMedium,
+      theme.titleLarge,
+      theme.bodyMedium,
+      theme.labelSmall,
+    ]) {
+      expect(style?.fontFamily, 'InterVariable');
+      expect(
+        style?.fontVariations,
+        contains(FontVariation('opsz', style!.fontSize!.clamp(14, 32))),
+      );
+    }
+  });
+
   test('app_bar_title_matches_the_mock', () {
     expect(AppTypography.titleLarge.fontSize, 20);
     expect(AppTypography.titleLarge.fontWeight, FontWeight.w600);

@@ -10,7 +10,11 @@ The Developer asked on 2026-10-26 that every screen follow the redesign v11 mock
 
 ## Design Decision
 
-- **Typography.** Every `AppTypography` style uses Inter, and Manrope is retired:
+- **Typography.** Every `AppTypography` style uses the bundled InterVariable, and Manrope is retired.
+  - The mocks set Inter's single-storey "a" (`cv11`), which the bundled static Inter files do not carry. They are also rendered at an optical size equal to the font size, as a browser does.
+  - Each style therefore sets the `opsz` axis to its size, clamped to 14–32, and its weight through `fontWeight`, which the engine maps to the `wght` axis.
+  - Only a weight between the named ones (650) names `wght` itself, and `AppTypography.weighted` sets such a weight on a derived style.
+  - Measured against the mocks this way, text widths match within 1 %.
   - `headlineLarge` and `headlineSmall` move to Inter at weight 650, 32/40 and 22/28, with tracking −0.025 em.
   - `titleLarge`, the app bar title, becomes Inter 600 20/28 with tracking −0.025 em, measured from the mocks' "Resultado" and "Histórico".
   - `titleSmall` becomes Inter 600 14/20.
@@ -43,7 +47,8 @@ The Developer asked on 2026-10-26 that every screen follow the redesign v11 mock
 
 ## Acceptance Criteria
 
-- `every_style_is_inter`: every style of `AppTypography.textThemeFor(AppPalette.light)` has an Inter family (`Inter` or `InterVariable`).
+- `every_style_is_inter`: every style of `AppTypography.textThemeFor(AppPalette.light)` has an Inter family.
+- `every_style_is_the_variable_inter_at_its_optical_size`: the styles are InterVariable, with `opsz` equal to their size.
 - `app_bar_title_matches_the_mock`: `titleLarge` is 20 sp, weight 600.
 - `app_bar_title_starts_left`:
   - a `VisioAppBar` title starts 16 dp from the left edge without a leading widget;
