@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/home/widgets/hero_capture_card.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -25,19 +26,19 @@ void main() {
     await tester.pumpWidget(host(HeroCaptureCard(onCapture: () => taps++)));
 
     expect(find.text('Analisar solo'), findsOneWidget);
-    expect(find.byIcon(Icons.center_focus_strong_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.scan), findsOneWidget);
+    expect(find.byIcon(LucideIcons.image), findsOneWidget);
     final title = tester.widget<Text>(find.text('Analisar solo'));
-    expect(title.style?.fontSize, 22);
+    expect(title.style?.fontSize, 17); // PNG 08, SPEC 0203.
     expect(title.style?.fontWeight, FontWeight.w400);
     expect(
       find.ancestor(
-        of: find.byIcon(Icons.photo_library_outlined),
+        of: find.byIcon(LucideIcons.image),
         matching: find.byType(ExcludeSemantics),
       ),
       findsWidgets,
     );
-    await tester.tap(find.byIcon(Icons.photo_library_outlined));
+    await tester.tap(find.byIcon(LucideIcons.image));
     expect(taps, 1);
     await tester.tap(find.text('Analisar solo'));
     expect(taps, 2);
@@ -65,8 +66,9 @@ void main() {
       );
       final value = tester.widget<Text>(find.text('90%'));
       final label = tester.widget<Text>(find.text('última confiança'));
-      expect(value.style?.fontSize, entry.key == 'sun' ? 22 : 20);
-      expect(value.style?.height, 1.4);
+      // 24 sp weight 650 over a 12 sp label (PNG 08, SPEC 0203).
+      expect(value.style?.fontSize, 24);
+      expect(value.style?.height, 32 / 24);
       expect(
         value.style?.fontFeatures,
         contains(const FontFeature.tabularFigures()),
@@ -74,9 +76,9 @@ void main() {
       expect(value.style?.fontWeight, FontWeight.w600);
       expect(
         value.style?.fontVariations,
-        contains(const FontVariation('wght', 600)),
+        contains(const FontVariation('wght', 650)),
       );
-      expect(label.style?.fontSize, 14);
+      expect(label.style?.fontSize, entry.key == 'sun' ? 14 : 12);
       expect(
         value.style?.fontFamily,
         theme.textTheme.headlineMedium?.fontFamily,

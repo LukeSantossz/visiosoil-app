@@ -4,6 +4,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +50,28 @@ final class _DisposeSpy extends ProviderObserver {
   }
 }
 
+/// Opens the class chips, which the app bar's "Filtros" toggles (SPEC 0203).
+Future<void> _openFilters(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Filtros'));
+  await tester.pump();
+}
+
+/// Starts a selection with [tile] through its "Selecionar" semantics action,
+/// the entry that is not a gesture (SPEC 0122, SPEC 0203).
+Future<void> _selectBySemantics(WidgetTester tester, Finder tile) async {
+  final handle = tester.ensureSemantics();
+  final node = tester.getSemantics(tile);
+  tester.binding.renderViews.single.owner!.semanticsOwner!.performAction(
+    node.id,
+    SemanticsAction.customAction,
+    CustomSemanticsAction.getIdentifier(
+      const CustomSemanticsAction(label: 'Selecionar'),
+    ),
+  );
+  await tester.pumpAndSettle();
+  handle.dispose();
+}
+
 void main() {
   // A synchronous AsyncError on the root stream reliably drives the chips into
   // the error branch (async stream errors do not settle under flutter_test).
@@ -58,6 +81,45 @@ void main() {
   final emptyGrid = filteredRecordsProvider.overrideWith(
     (ref) => Stream.value(<SoilRecord>[]),
   );
+
+  // The app bar's "Buscar" and "Filtros" each open their own part of the
+  // filter bar and close it again (SPEC 0203; review of #437).
+  testWidgets('search_and_filter_actions_toggle_their_part', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          emptyGrid,
+          rootError,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
+    await tester.pump();
+    final search = find.byType(TextField);
+    // The filters' part, here in its error state, which needs no records.
+    final chips = find.text('Não foi possível carregar os filtros');
+    expect(search, findsNothing);
+    expect(chips, findsNothing);
+
+    await tester.tap(find.byTooltip('Buscar'));
+    await tester.pump();
+    expect(search, findsOneWidget);
+    expect(chips, findsNothing);
+
+    await tester.tap(find.byTooltip('Buscar'));
+    await tester.pump();
+    expect(search, findsNothing);
+
+    await _openFilters(tester);
+    expect(chips, findsOneWidget);
+    expect(search, findsNothing);
+
+    await _openFilters(tester);
+    expect(chips, findsNothing);
+  });
 
   testWidgets('filter error branch renders visible feedback and a retry', (
     tester,
@@ -75,6 +137,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _openFilters(tester);
 
     expect(find.text('Não foi possível carregar os filtros'), findsOneWidget);
     expect(
@@ -105,6 +168,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _openFilters(tester);
 
     expect(find.text('Tentar novamente'), findsOneWidget);
     spy.disposed.clear();
@@ -286,6 +350,7 @@ void main() {
       final haptics = recordHaptics(tester);
       await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
       await tester.pumpAndSettle();
+      await _openFilters(tester);
 
       await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
       await tester.pumpAndSettle();
@@ -297,16 +362,13 @@ void main() {
       final haptics = recordHaptics(tester);
       await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Selecionar registros'));
-      await tester.pumpAndSettle();
+      await _selectBySemantics(tester, find.byType(AnalysisTile));
       expect(haptics, isEmpty);
 
       await tester.tap(find.byType(Image));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(Image));
-      await tester.pumpAndSettle();
 
-      expect(haptics, [click, click]);
+      expect(haptics, [click]);
     });
 
     testWidgets('long_press_vibrates_once', (tester) async {
@@ -322,13 +384,14 @@ void main() {
     });
   });
 
-  // Selection mode has an entry that is not a long press (SPEC 0122).
+  // Selection mode has an entry that is not a long press (SPEC 0122): a
+  // row's "Selecionar" semantics action, since PNG 16's app bar offers none
+  // (SPEC 0203).
   group('selection without a long press', () {
-    Future<void> enterByTheButton(WidgetTester tester) async {
+    Future<void> enterBySemantics(WidgetTester tester) async {
       await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Selecionar registros'));
-      await tester.pumpAndSettle();
+      await _selectBySemantics(tester, find.byType(AnalysisTile));
     }
 
     IconButton deleteButton(WidgetTester tester) => tester.widget<IconButton>(
@@ -336,18 +399,10 @@ void main() {
     );
 
     testWidgets('selection_has_non_gesture_entry', (tester) async {
-      await enterByTheButton(tester);
+      await enterBySemantics(tester);
 
-      expect(find.text('Nenhum selecionado'), findsOneWidget);
-      expect(find.byTooltip('Cancelar seleção'), findsOneWidget);
-      expect(deleteButton(tester).onPressed, isNull);
-
-      // A tap now selects the record instead of opening the preview, which
-      // this harness has no route for.
-      await tester.tap(find.byType(Image));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
       expect(find.text('1 selecionado'), findsOneWidget);
+      expect(find.byTooltip('Cancelar seleção'), findsOneWidget);
       expect(deleteButton(tester).onPressed, isNotNull);
     });
 
@@ -369,66 +424,36 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nenhuma análise ainda'), findsOneWidget);
-      expect(find.byTooltip('Selecionar registros'), findsNothing);
+      expect(find.byType(AnalysisTile), findsNothing);
     });
 
-    // The button follows what the grid shows: a stream that fails after
-    // records keeps them in `value`, but the grid shows its error.
-    testWidgets('selection_entry_follows_the_grid', (tester) async {
-      final records = StreamController<List<SoilRecord>>(sync: true);
-      addTearDown(records.close);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectivityStatusProvider.overrideWithValue(
-              const AsyncData(ConnectivityStatus.online),
+    testWidgets('selection_mode_offers_no_second_entry', (tester) async {
+      final handle = tester.ensureSemantics();
+      await enterBySemantics(tester);
+
+      final node = tester.getSemantics(find.byType(AnalysisTile));
+      expect(
+        node.getSemanticsData().customSemanticsActionIds,
+        isNot(
+          contains(
+            CustomSemanticsAction.getIdentifier(
+              const CustomSemanticsAction(label: 'Selecionar'),
             ),
-            soilRecordsStreamProvider.overrideWithValue(
-              AsyncValue<List<SoilRecord>>.data([record(7)]),
-            ),
-            filteredRecordsProvider.overrideWith((ref) => records.stream),
-          ],
-          child: const MaterialApp(home: HistoryScreen()),
+          ),
         ),
       );
-      records.add([record(7)]);
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
-
-      records.addError(Exception('boom'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Não foi possível carregar o histórico.'),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('Selecionar registros'), findsNothing);
-    });
-
-    testWidgets('selection_entry_is_labelled', (tester) async {
-      final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
-      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-      semantics.dispose();
+      handle.dispose();
     });
 
     testWidgets('deselecting_the_last_record_ends_selection', (tester) async {
-      await enterByTheButton(tester);
+      await enterBySemantics(tester);
 
-      await tester.tap(find.byType(Image));
-      await tester.pumpAndSettle();
       await tester.tap(find.byType(Image));
       await tester.pumpAndSettle();
 
       expect(find.text('Histórico'), findsOneWidget);
       expect(find.byTooltip('Cancelar seleção'), findsNothing);
-      expect(find.byTooltip('Selecionar registros'), findsOneWidget);
+      expect(find.byTooltip('Filtros'), findsOneWidget);
     });
   });
 
@@ -489,11 +514,11 @@ void main() {
       useATallScreen(tester);
       await tester.pumpWidget(routedApp());
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Selecionar registros'));
-      await tester.pumpAndSettle();
+      await _selectBySemantics(
+        tester,
+        find.descendant(of: card(7), matching: find.byType(AnalysisTile)),
+      );
 
-      expect(compareButton(tester).onPressed, isNull, reason: 'none');
-      await select(tester, 7);
       expect(compareButton(tester).onPressed, isNull, reason: 'one');
       await select(tester, 8);
       expect(compareButton(tester).onPressed, isNotNull, reason: 'two');
@@ -582,6 +607,7 @@ void main() {
     testWidgets('show_more_keeps_the_filters', (tester) async {
       await tester.pumpWidget(appWithAll());
       await tester.pumpAndSettle();
+      await _openFilters(tester);
       await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
       await tester.pumpAndSettle();
       expect(gridCount(tester), 150);
@@ -604,162 +630,12 @@ void main() {
       await tapShowMore(tester);
       expect(gridCount(tester), 300);
 
-      await tester.tap(find.byTooltip('Selecionar registros'));
-      await tester.pumpAndSettle();
+      await _selectBySemantics(tester, find.byType(AnalysisTile).first);
       expect(gridCount(tester), 300);
 
       await tester.tap(find.byTooltip('Cancelar seleção'));
       await tester.pumpAndSettle();
       expect(gridCount(tester), 300);
-    });
-  });
-
-  // A populated history starts the next capture from its app bar, and back
-  // from it returns to the same filtered grid (SPEC 0146).
-  group('new capture', () {
-    const newCapture = 'Nova captura';
-
-    testWidgets('new_capture_from_history', (tester) async {
-      final records = [
-        record(7),
-        SoilRecord(
-          id: 8,
-          imagePath: 'x.png',
-          timestamp: '2026-06-26T12:00:00Z',
-          textureClass: 'Arenosa',
-          confidenceScore: 0.9,
-        ),
-      ];
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectivityStatusProvider.overrideWithValue(
-              const AsyncData(ConnectivityStatus.online),
-            ),
-            soilRecordsStreamProvider.overrideWithValue(
-              AsyncValue<List<SoilRecord>>.data(records),
-            ),
-            soilRecordRepositoryProvider.overrideWithValue(
-              _ListSoilRecordRepository(records),
-            ),
-          ],
-          child: MaterialApp.router(
-            routerConfig: GoRouter(
-              routes: [
-                GoRoute(path: '/', builder: (_, _) => const HistoryScreen()),
-                GoRoute(
-                  path: '/capture',
-                  builder: (_, _) => Scaffold(
-                    appBar: AppBar(),
-                    body: const Text('CAPTURE_STUB'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilterChip, 'Argilosa'));
-      await tester.pumpAndSettle();
-      expect(find.byType(Image), findsOneWidget);
-
-      await tester.tap(find.byTooltip(newCapture));
-      await tester.pumpAndSettle();
-      expect(find.text('CAPTURE_STUB'), findsOneWidget);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('CAPTURE_STUB'), findsNothing);
-      expect(
-        tester
-            .widget<FilterChip>(find.widgetWithText(FilterChip, 'Argilosa'))
-            .selected,
-        isTrue,
-      );
-      expect(find.byType(Image), findsOneWidget);
-    });
-
-    testWidgets('new_capture_follows_the_grid', (tester) async {
-      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip(newCapture), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Selecionar registros'));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip(newCapture), findsNothing);
-
-      await tester.tap(find.byTooltip('Cancelar seleção'));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip(newCapture), findsOneWidget);
-
-      // A grid that shows its error has no records to follow.
-      final failing = StreamController<List<SoilRecord>>(sync: true);
-      addTearDown(failing.close);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectivityStatusProvider.overrideWithValue(
-              const AsyncData(ConnectivityStatus.online),
-            ),
-            soilRecordsStreamProvider.overrideWithValue(
-              AsyncValue<List<SoilRecord>>.data([record(7)]),
-            ),
-            filteredRecordsProvider.overrideWith((ref) => failing.stream),
-          ],
-          child: const MaterialApp(home: HistoryScreen()),
-        ),
-      );
-      failing.addError(Exception('boom'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump();
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Não foi possível carregar o histórico.'),
-        findsOneWidget,
-      );
-      expect(find.byTooltip(newCapture), findsNothing);
-
-      // The empty history keeps its own button, and gets no second one.
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectivityStatusProvider.overrideWithValue(
-              const AsyncData(ConnectivityStatus.online),
-            ),
-            soilRecordsStreamProvider.overrideWithValue(
-              const AsyncValue<List<SoilRecord>>.data(<SoilRecord>[]),
-            ),
-            emptyGrid,
-          ],
-          child: const MaterialApp(home: HistoryScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Nenhuma análise ainda'), findsOneWidget);
-      expect(find.text('Fazer primeira análise'), findsOneWidget);
-      expect(find.byTooltip(newCapture), findsNothing);
-    });
-
-    testWidgets('new_capture_is_labelled', (tester) async {
-      final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(appWith(FakeSoilRecordRepository(), record(7)));
-      await tester.pumpAndSettle();
-
-      final action = find.ancestor(
-        of: find.byTooltip(newCapture),
-        matching: find.byType(IconButton),
-      );
-      expect(action, findsOneWidget);
-      expect(
-        tester.getSemantics(action),
-        isSemantics(tooltip: newCapture, isButton: true, hasTapAction: true),
-      );
-      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-      semantics.dispose();
     });
   });
 
@@ -786,6 +662,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _openFilters(tester);
     expect(find.text('Tentar novamente'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'empty, filter error');
   });

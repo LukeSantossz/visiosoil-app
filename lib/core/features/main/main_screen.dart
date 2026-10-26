@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/features/profile/profile_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
@@ -72,17 +73,30 @@ class MainScreen extends ConsumerWidget {
             }
             return Scaffold(
               body: tabs,
-              bottomNavigationBar: NavigationBar(
-                selectedIndex: currentIndex,
-                onDestinationSelected: select,
-                destinations: [
-                  for (final d in _destinations)
-                    NavigationDestination(
-                      icon: Icon(d.icon),
-                      selectedIcon: Icon(d.selectedIcon),
-                      label: d.label,
+              // A rule on top of the bar (PNG 08, SPEC 0203).
+              bottomNavigationBar: DecoratedBox(
+                key: const Key('navigation-bar-rule'),
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: context.palette.divider,
+                      width: context.palette.edgeWidth,
                     ),
-                ],
+                  ),
+                ),
+                child: NavigationBar(
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: select,
+                  destinations: [
+                    for (final d in _destinations)
+                      NavigationDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(d.selectedIcon),
+                        label: d.label,
+                      ),
+                  ],
+                ),
               ),
             );
           },

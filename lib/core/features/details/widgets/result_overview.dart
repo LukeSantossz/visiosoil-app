@@ -113,7 +113,7 @@ class ResultOverview extends StatelessWidget {
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(AppStrings.resultIntro, style: body),
           const SizedBox(height: AppSpacing.xl),
           // Triangle beside the information from 600 dp (redesign v11 §10).

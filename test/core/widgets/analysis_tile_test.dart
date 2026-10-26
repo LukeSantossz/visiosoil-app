@@ -21,6 +21,18 @@ import '../../support/guidelines.dart';
 
 Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
+Widget _sun(Widget child) => MaterialApp(
+  theme: AppTheme.sun,
+  home: Scaffold(body: child),
+);
+
+Border? _thumbnailBorder(WidgetTester tester) {
+  final thumbnail = tester.widget<Container>(
+    find.byKey(const Key('analysis-thumbnail')),
+  );
+  return (thumbnail.foregroundDecoration as BoxDecoration?)?.border as Border?;
+}
+
 SoilRecord classifiedRecord({
   double? confidenceScore = 0.9,
   String syncStatus = 'synced',
@@ -113,15 +125,47 @@ void main() {
         host(AnalysisTile(record: classifiedRecord(), showSyncStatus: true)),
       );
 
+      // Home names the status beside a dot (SPEC 0203).
       final metadata = find.textContaining(' · 90%');
-      expect(find.byType(StatusPill), findsOneWidget);
+      expect(find.text('Enviada'), findsOneWidget);
       expect(
-        tester.getTopLeft(find.byType(StatusPill)).dy,
+        tester.getTopLeft(find.text('Enviada')).dy,
         greaterThanOrEqualTo(tester.getBottomLeft(metadata).dy),
       );
       expect(tester.takeException(), isNull);
     },
   );
+
+  // A pending history row whose pill leaves its metadata too little room
+  // moves the pill below the text, as Modo Sol's can at 330 dp (review of
+  // #437).
+  testWidgets('narrow_sun_pending_history_row_keeps_its_metadata', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(330, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.sun,
+        home: Scaffold(
+          body: AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            history: true,
+          ),
+        ),
+      ),
+    );
+    final metadata = find.textContaining('de confiança');
+    expect(
+      tester.renderObject<RenderParagraph>(metadata).didExceedMaxLines,
+      isFalse,
+    );
+    expect(
+      tester.getTopLeft(find.byType(StatusPill)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(metadata).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   for (final scale in [1.0, 1.3]) {
     testWidgets('320dp Sun tile preserves class and date at scale $scale', (
@@ -313,8 +357,9 @@ void main() {
     testWidgets('shows the outline-colored border, not a texture color', (
       tester,
     ) async {
+      // Only Modo Sol draws the photograph's edge (SPEC 0203).
       await tester.pumpWidget(
-        host(
+        _sun(
           AnalysisTile(
             record: classifiedRecord(
               classificationFailure: ClassificationFailureCause.sheetNotFound,
@@ -322,11 +367,8 @@ void main() {
           ),
         ),
       );
-      final decoration =
-          tester.widget<Container>(find.byType(Container).first).decoration
-              as BoxDecoration;
-      final border = decoration.border as Border;
-      expect(border.top.color, AppPalette.light.outline);
+      final border = _thumbnailBorder(tester)!;
+      expect(border.top.color, AppPalette.sun.outline);
     });
   });
 
@@ -334,12 +376,17 @@ void main() {
     testWidgets('a classified record gets the texture-colored border', (
       tester,
     ) async {
-      await tester.pumpWidget(host(AnalysisTile(record: classifiedRecord())));
-      final decoration =
-          tester.widget<Container>(find.byType(Container).first).decoration
-              as BoxDecoration;
-      final border = decoration.border as Border;
+      await tester.pumpWidget(_sun(AnalysisTile(record: classifiedRecord())));
+      final border = _thumbnailBorder(tester)!;
       expect(border.top.color, SoilTextureColors.forClass('Argilosa'));
+    });
+
+    // PNG 08 and 16 draw the photograph without an edge (SPEC 0203).
+    testWidgets('outside Modo Sol the photograph has no border', (
+      tester,
+    ) async {
+      await tester.pumpWidget(host(AnalysisTile(record: classifiedRecord())));
+      expect(_thumbnailBorder(tester), isNull);
     });
   });
 

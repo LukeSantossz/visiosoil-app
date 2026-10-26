@@ -182,12 +182,15 @@ abstract final class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusLg),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      // 52 dp tall, the mocks' buttonHeight (§1.4, SPEC 0202).
+      // 48 dp tall, as PNG 05, 14 and 15 draw them (SPEC 0210); §1.4's
+      // 52 dp is not what the mocks show.
       style: ElevatedButton.styleFrom(
         backgroundColor: p.primary,
         foregroundColor: p.onPrimary,
-        minimumSize: const Size(64, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        // Flat, as every mock draws it.
+        elevation: 0,
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
         textStyle: AppTypography.v11LabelLarge,
       ),
@@ -195,8 +198,8 @@ abstract final class AppTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: p.primary,
-        minimumSize: const Size(64, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
         side: BorderSide(color: p.outlineVariant),
         textStyle: AppTypography.v11LabelLarge,
@@ -220,21 +223,28 @@ abstract final class AppTheme {
       unselectedLabelStyle: AppTypography.labelMedium,
       type: BottomNavigationBarType.fixed,
     ),
+    // On surfaceContainer, the labels 12 sp with the selected one in ink
+    // (PNG 08, SPEC 0203); MainScreen draws the rule on top.
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: p.surfaceContainer,
+      surfaceTintColor: Colors.transparent,
       indicatorColor: p.primaryContainer,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final label = AppTypography.labelMedium.copyWith(letterSpacing: 0);
         if (states.contains(WidgetState.selected)) {
-          return AppTypography.labelMedium.copyWith(
-            color: p.primary,
-            fontWeight: FontWeight.w700,
+          return label.copyWith(
+            color: p.onSurface,
+            fontWeight: FontWeight.w600,
           );
         }
-        return AppTypography.labelMedium.copyWith(color: p.onSurfaceVariant);
+        return label.copyWith(
+          color: p.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return IconThemeData(color: p.primary);
+          return IconThemeData(color: p.onPrimaryContainer);
         }
         return IconThemeData(color: p.onSurfaceVariant);
       }),

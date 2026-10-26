@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
-import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -13,19 +14,6 @@ class StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final valueStyle = textTheme.headlineMedium?.copyWith(
-      fontSize: context.palette.isSun ? 22 : 20,
-      height: 1.4,
-      letterSpacing: 0,
-      fontFeatures: const [FontFeature.tabularFigures()],
-      fontWeight: FontWeight.w600,
-      fontVariations: const [FontVariation('wght', 600)],
-    );
-    final labelStyle = textTheme.bodyMedium?.copyWith(
-      fontSize: 14,
-      color: context.palette.onSurfaceVariant,
-    );
     final records = recordsAsync.value ?? <SoilRecord>[];
     final loading = recordsAsync.isLoading;
     final now = DateTime.now();
@@ -35,39 +23,36 @@ class StatsGrid extends StatelessWidget {
       final date = DateTime.tryParse(record.timestamp)?.toLocal();
       return date != null && !date.isBefore(monday) && !date.isAfter(now);
     }).length;
+    // The twelve USDA reference classes the records hold, counted as Perfil
+    // and the history count them (SPEC 0203).
     final classes = records
         .where((r) => r.hasClassification)
         .map((r) => r.textureClass)
         .toSet()
+        .intersection(SoilTextureColors.referenceClasses.keys.toSet())
         .length;
     final score = records.isNotEmpty ? records.first.confidenceScore : null;
     final cells = loading
         ? List.generate(3, (_) => const StatCell.skeleton())
         : [
             StatCell(
-              valueStyle: valueStyle,
-              labelStyle: labelStyle,
               value: '$weekly',
               label: 'análises',
-              icon: Icons.crop_free,
+              icon: LucideIcons.scan,
               semanticLabel: '$weekly análises nesta semana',
             ),
             StatCell(
-              valueStyle: valueStyle,
-              labelStyle: labelStyle,
-              value: '$classes',
+              value: '$classes/12',
               label: 'coleção',
-              icon: Icons.layers_outlined,
-              semanticLabel: '$classes classes na coleção',
+              icon: LucideIcons.layers,
+              semanticLabel: '$classes de 12 classes na coleção',
             ),
             StatCell(
-              valueStyle: valueStyle,
-              labelStyle: labelStyle,
               value: score != null && score.isFinite
                   ? '${floorConfidencePercent(score)}%'
                   : '—',
               label: records.isEmpty ? 'última classe' : 'última confiança',
-              icon: Icons.spa_outlined,
+              icon: LucideIcons.sprout,
             ),
           ];
     if (MediaQuery.textScalerOf(context).scale(1) >= 1.3) {
@@ -82,6 +67,7 @@ class StatsGrid extends StatelessWidget {
         ],
       );
     }
-    return StatsRow(cells: cells);
+    // PNG 08's cards are 120 dp tall (SPEC 0203).
+    return StatsRow(cells: cells, minHeight: 120);
   }
 }

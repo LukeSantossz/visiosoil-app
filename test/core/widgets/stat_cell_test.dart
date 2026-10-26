@@ -71,6 +71,23 @@ void main() {
     expect(widths, hasLength(1));
   });
 
+  // Início's PNG 08 cards are 120 dp tall even when every label is one line;
+  // Perfil's PNG 21 cards take their content's height (SPEC 0203; review
+  // of #437).
+  testWidgets('stats_row_holds_its_minimum_height', (tester) async {
+    const cells = [
+      StatCell(value: '1', label: 'a'),
+      StatCell(value: '2', label: 'b'),
+    ];
+    await tester.pumpWidget(
+      host(const StatsRow(cells: cells, minHeight: 120)),
+    );
+    expect(tester.getSize(find.byType(StatsRow)).height, 120);
+    // Without one the row takes its content's height, as Perfil's does.
+    await tester.pumpWidget(host(const StatsRow(cells: cells)));
+    expect(tester.getSize(find.byType(StatsRow)).height, lessThan(120));
+  });
+
   // The skeleton loop stops under reduced motion (redesign v11 §6.5).
   testWidgets('the skeleton does not animate under reduced motion',
       (tester) async {

@@ -10,10 +10,9 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
-import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
-import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -37,10 +36,21 @@ class HomeScreen extends ConsumerWidget {
         ref.watch(connectivityStatusProvider).value ==
         ConnectivityStatus.offline;
     final theme = Theme.of(context);
+    // On surfaceContainer, so the white cards stand out; Modo Sol stays
+    // white (PNG 08, 25 and 27, SPEC 0203).
     return Scaffold(
+      backgroundColor: context.palette.highContrast
+          ? context.palette.background
+          : context.palette.surfaceContainer,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+          // Blocks 16 dp from the edge, titles 20 dp (PNG 08).
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg + AppSpacing.xs,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
           // Centred at most 560 dp wide on a tablet (redesign v11 §10).
           child: Center(
             child: ConstrainedBox(
@@ -55,78 +65,63 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        // Where the boot's logo Hero lands (redesign v11
-                        // §6.2/§6.4, SPEC 0193).
-                        Hero(
-                          tag: visioSoilLogoHeroTag,
-                          child: VisioSoilLogo(
-                            size: 32,
-                            color: context.palette.primary,
-                          ),
+                    // The title alone, 20 dp in (PNG 08, SPEC 0203): Perfil
+                    // hosts Settings, and the mock draws no logo.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Início',
+                          style: AppTypography.pageTitle(context),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Semantics(
-                            header: true,
-                            child: Text(
-                              'Início',
-                              style: theme.textTheme.headlineMedium,
-                            ),
-                          ),
-                        ),
-                        // Transitional until the Perfil tab hosts Settings (SPEC §3.13 / item 6).
-                        VisioIconButton(
-                          label: 'Configurações',
-                          icon: Icons.settings_outlined,
-                          onPressed: () => context.push('/settings'),
-                        ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     HeroCaptureCard(onCapture: () => context.push('/capture')),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: 28),
                     if (source.hasError)
                       HomeDataError(
                         onRetry: () =>
                             ref.invalidate(soilRecordsStreamProvider),
                       )
                     else ...[
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          'Esta semana',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ),
+                      _SectionTitle('Esta semana'),
                       const SizedBox(height: AppSpacing.md),
                       StatsGrid(recordsAsync: recordsAsync),
-                      const SizedBox(height: AppSpacing.xl),
+                      // The link's 48 dp target centres the title in it, so
+                      // the gaps give back its 12 dp above and below; its
+                      // text ends 4 dp from the card's edge (PNG 08).
+                      SizedBox(height: records.isNotEmpty ? 16 : 28),
                       Wrap(
                         alignment: WrapAlignment.spaceBetween,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: AppSpacing.md,
                         children: [
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              'Recentes',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                          ),
+                          const _SectionTitle('Recentes'),
                           if (records.isNotEmpty)
-                            VisioButton(
-                              label: 'Ver todas',
-                              variant: VisioButtonVariant.text,
-                              onPressed: () => ref
-                                  .read(mainTabIndexProvider.notifier)
-                                  .select(1),
+                            Transform.translate(
+                              offset: const Offset(AppSpacing.sm, 0),
+                              child: VisioButton(
+                                label: 'Ver todas',
+                                variant: VisioButtonVariant.text,
+                                labelStyle: TextStyle(
+                                  color: context.palette.primaryText,
+                                ),
+                                onPressed: () => ref
+                                    .read(mainTabIndexProvider.notifier)
+                                    .select(1),
+                              ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(height: records.isNotEmpty ? 0 : AppSpacing.md),
                       Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
                         decoration: BoxDecoration(
                           color: context.palette.surface,
                           borderRadius: AppRadius.borderRadiusLg,
@@ -140,32 +135,52 @@ class HomeScreen extends ConsumerWidget {
                         child: recordsAsync.isLoading
                             ? const _RecentSkeleton()
                             : records.isEmpty
+                            // PNG 09: the drawing 48 dp under the card's
+                            // top, a 15/20 line and a 13/18 sentence under it
+                            // (SPEC 0210).
                             ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.xxxl,
-                                  horizontal: AppSpacing.lg,
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.lg,
+                                  43,
+                                  AppSpacing.lg,
+                                  17,
                                 ),
                                 child: Column(
                                   children: [
                                     ExcludeSemantics(
                                       child: CustomPaint(
-                                        size: const Size(110, 90),
+                                        size: const Size(110, 77),
                                         painter: _EmptySoilIllustration(
                                           context.palette.primaryText,
-                                          context.palette.primaryContainer,
+                                          context.palette.primaryContainer
+                                              .withValues(alpha: .55),
+                                          context.palette.textTertiary,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: AppSpacing.xl),
+                                    const SizedBox(height: 25),
                                     Text(
                                       'Suas análises aparecem aqui.',
-                                      style: theme.textTheme.bodyLarge,
+                                      style: AppTypography.resized(
+                                        theme.textTheme.bodyLarge!,
+                                        15,
+                                        height: 20 / 15,
+                                      ),
                                       textAlign: TextAlign.center,
                                     ),
-                                    const SizedBox(height: AppSpacing.sm),
+                                    const SizedBox(height: 6),
                                     Text(
                                       'Fotografe a camada de 0–20 cm, na sombra e sem palha.',
-                                      style: theme.textTheme.bodyMedium,
+                                      style:
+                                          AppTypography.resized(
+                                            theme.textTheme.bodyMedium!,
+                                            13,
+                                            height: 18 / 13,
+                                          ).copyWith(
+                                            color: context
+                                                .palette
+                                                .onSurfaceVariant,
+                                          ),
                                       textAlign: TextAlign.center,
                                     ),
                                   ],
@@ -180,10 +195,11 @@ class HomeScreen extends ConsumerWidget {
                                   ) ...[
                                     if (index > 0)
                                       Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 76,
-                                          right: AppSpacing.lg,
-                                        ),
+                                        padding:
+                                            const EdgeInsetsDirectional.only(
+                                              start: 68,
+                                              end: AppSpacing.lg,
+                                            ),
                                         child: Divider(
                                           height: 1,
                                           color: context.palette.divider,
@@ -214,6 +230,28 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A section title 20 dp from the edge, 17 sp weight 600 (PNG 08, SPEC 0203).
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+    child: Semantics(
+      header: true,
+      child: Text(
+        text,
+        style: AppTypography.resized(
+          Theme.of(context).textTheme.titleMedium!,
+          17,
+          height: 24 / 17,
+        ),
+      ),
+    ),
+  );
 }
 
 class _RecentSkeleton extends StatefulWidget {
@@ -304,38 +342,99 @@ class _HomeContours extends CustomPainter {
   bool shouldRepaint(_HomeContours oldDelegate) => color != oldDelegate.color;
 }
 
+/// PNG 09's magnifier over two soil lines, at the coordinates measured on
+/// the mock (SPEC 0210): a 21 dp lens in `primaryText` over `primaryContainer`
+/// at 55 %, three grains, and the lines in `textTertiary`, the lower at half.
 class _EmptySoilIllustration extends CustomPainter {
-  const _EmptySoilIllustration(this.ink, this.fill);
+  const _EmptySoilIllustration(this.ink, this.fill, this.line);
   final Color ink;
   final Color fill;
+  final Color line;
+
+  static const _upper = [
+    Offset(8.25, 65.25),
+    Offset(14.25, 64.25),
+    Offset(20.25, 63.5),
+    Offset(26.25, 63.5),
+    Offset(32.25, 64),
+    Offset(38.25, 65),
+    Offset(44.25, 65.5),
+    Offset(50.25, 65.75),
+    Offset(56.25, 65.5),
+    Offset(62.25, 64.25),
+    Offset(68.25, 62.5),
+    Offset(74.25, 61.5),
+    Offset(80.25, 60.5),
+    Offset(86.25, 60.25),
+    Offset(92.25, 61),
+    Offset(98.25, 62.5),
+    Offset(102, 63.25),
+  ];
+
+  static const _lower = [
+    Offset(16.5, 74.75),
+    Offset(20.25, 74.5),
+    Offset(26.25, 74),
+    Offset(32.25, 73.75),
+    Offset(38.25, 74),
+    Offset(44.25, 74.5),
+    Offset(50.25, 74.5),
+    Offset(56.25, 75),
+    Offset(62.25, 75),
+    Offset(68.25, 74.75),
+    Offset(74.25, 74),
+    Offset(80.25, 72.75),
+    Offset(86.25, 71.75),
+    Offset(92.25, 71),
+    Offset(98.25, 72),
+    Offset(100.5, 72.5),
+  ];
+
+  /// A Catmull-Rom curve through [points].
+  static Path _smooth(List<Offset> points) {
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 0; i < points.length - 1; i++) {
+      final p0 = points[i == 0 ? 0 : i - 1];
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+      final c1 = p1 + (p2 - p0) / 6;
+      final c2 = p2 - (p3 - p1) / 6;
+      path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+    }
+    return path;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final pen = Paint()
-      ..color = ink
+    Paint pen(Color color) => Paint()
+      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    const center = Offset(49, 30);
-    canvas.drawCircle(center, 23, Paint()..color = fill);
-    canvas.drawCircle(center, 23, pen);
-    canvas.drawLine(const Offset(66, 47), const Offset(84, 65), pen);
-    for (final grain in [
-      const Offset(42, 25),
-      const Offset(55, 28),
-      const Offset(47, 37),
-      const Offset(58, 38),
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    const center = Offset(49.35, 22);
+    canvas.drawCircle(center, 21, Paint()..color = fill);
+    canvas.drawCircle(center, 21, pen(ink));
+    canvas.drawLine(
+      const Offset(64.25, 36.9),
+      const Offset(80, 52.75),
+      pen(ink),
+    );
+    for (final (grain, radius) in const [
+      (Offset(42.25, 18), 3.0),
+      (Offset(53.5, 20.5), 2.25),
+      (Offset(47.25, 28.25), 1.5),
+      (Offset(57.25, 29), 1.0),
     ]) {
-      canvas.drawCircle(grain, 1.8, Paint()..color = ink);
+      canvas.drawCircle(grain, radius, Paint()..color = ink);
     }
-    for (final y in [77.0, 87.0]) {
-      final soil = Path()
-        ..moveTo(5, y)
-        ..cubicTo(30, y - 7, 42, y + 5, 65, y - 1)
-        ..cubicTo(85, y - 8, 96, y - 5, 108, y);
-      canvas.drawPath(soil, pen);
-    }
+    canvas.drawPath(_smooth(_upper), pen(line));
+    canvas.drawPath(_smooth(_lower), pen(line.withValues(alpha: .5)));
   }
 
   @override
   bool shouldRepaint(_EmptySoilIllustration oldDelegate) =>
-      ink != oldDelegate.ink || fill != oldDelegate.fill;
+      ink != oldDelegate.ink ||
+      fill != oldDelegate.fill ||
+      line != oldDelegate.line;
 }

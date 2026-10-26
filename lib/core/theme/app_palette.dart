@@ -60,6 +60,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.textTertiary,
     required this.divider,
     required this.selected,
+    required this.statusSent,
+    required this.statusPending,
+    required this.statusError,
     required this.destructive,
     required this.surfaceContainer,
     required this.surfaceContainerHigh,
@@ -128,6 +131,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Selected row/chip background (--sel in mock).
   final Color selected;
+
+  /// The sync status a recent row names beside its dot: sent, pending and
+  /// failed (PNG 08 and 27, SPEC 0203).
+  final Color statusSent;
+  final Color statusPending;
+  final Color statusError;
 
   /// Destructive action colour (delete button in swipe).
   final Color destructive;
@@ -249,6 +258,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textTertiary: Color(0xFF5E6359),
     divider: Color(0xFFE0E4DA),
     selected: Color(0xFFE4F0D9),
+    statusSent: Color(0xFF2E6B3A),
+    statusPending: Color(0xFF8A5A00),
+    statusError: Color(0xFFB3261E),
     destructive: Color(0xFFB3261E),
     surfaceContainer: Color(0xFFEEF1E9),
     surfaceContainerHigh: Color(0xFFE0E4DA),
@@ -301,6 +313,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textTertiary: Color(0xFFA3A89C),
     divider: Color(0xFF2F312D),
     selected: Color(0xFF243517),
+    statusSent: Color(0xFF9BD3A3),
+    statusPending: Color(0xFFE9C16C),
+    statusError: Color(0xFFF2B8B5),
     destructive: Color(0xFFB3261E),
     surfaceContainer: Color(0xFF232521),
     surfaceContainerHigh: Color(0xFF2F312D),
@@ -369,6 +384,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textTertiary: Color(0xFF1F1F1F),
     divider: Color(0xFF000000),
     selected: Color(0xFFFFFFFF),
+    statusSent: Color(0xFF000000),
+    statusPending: Color(0xFF000000),
+    statusError: Color(0xFF000000),
     destructive: Color(0xFFB3261E),
     surfaceContainer: Color(0xFFF2F2F2),
     surfaceContainerHigh: Color(0xFFE6E6E6),
@@ -470,6 +488,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
       textTertiary: textTertiary,
       divider: divider,
       selected: selected,
+      statusSent: statusSent,
+      statusPending: statusPending,
+      statusError: statusError,
       destructive: destructive,
       surfaceContainer: surfaceContainer,
       surfaceContainerHigh: surfaceContainerHigh,
@@ -529,6 +550,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
       textTertiary: mix(textTertiary, other.textTertiary),
       divider: mix(divider, other.divider),
       selected: mix(selected, other.selected),
+      statusSent: mix(statusSent, other.statusSent),
+      statusPending: mix(statusPending, other.statusPending),
+      statusError: mix(statusError, other.statusError),
       destructive: mix(destructive, other.destructive),
       surfaceContainer: mix(surfaceContainer, other.surfaceContainer),
       surfaceContainerHigh:

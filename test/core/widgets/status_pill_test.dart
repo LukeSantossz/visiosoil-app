@@ -3,6 +3,7 @@
 // icon and a label always accompany the fill.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/status_pill.dart';
 
@@ -63,7 +64,7 @@ void main() {
       host(const StatusPill(status: StatusPillStatus.sent)),
     );
     expect(find.text('Enviada'), findsOneWidget);
-    expect(find.byIcon(Icons.cloud_done_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.cloudCheck), findsOneWidget);
   });
 
   testWidgets('pending shows the pending label and icon', (tester) async {
@@ -71,7 +72,7 @@ void main() {
       host(const StatusPill(status: StatusPillStatus.pending)),
     );
     expect(find.text('Pendente'), findsOneWidget);
-    expect(find.byIcon(Icons.refresh), findsOneWidget);
+    expect(find.byIcon(LucideIcons.refreshCw), findsOneWidget);
   });
 
   testWidgets('error shows the error label and icon', (tester) async {
@@ -79,7 +80,7 @@ void main() {
       host(const StatusPill(status: StatusPillStatus.error)),
     );
     expect(find.text('Erro'), findsOneWidget);
-    expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.cloudOff), findsOneWidget);
   });
 
   testWidgets('the three statuses use three distinct colors', (tester) async {

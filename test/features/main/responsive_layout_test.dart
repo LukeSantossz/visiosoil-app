@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/main_screen.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -194,8 +196,21 @@ void main() {
       await tester.tap(find.widgetWithText(AnalysisTile, 'Arenosa'));
       await _settle(tester);
 
-      await tester.tap(find.byTooltip('Selecionar registros'));
+      // A selection that starts on another row (SPEC 0203) leaves the open
+      // record unmarked.
+      final handle = tester.ensureSemantics();
+      final node = tester.getSemantics(
+        find.widgetWithText(AnalysisTile, 'Argilosa'),
+      );
+      tester.binding.renderViews.single.owner!.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.customAction,
+        CustomSemanticsAction.getIdentifier(
+          const CustomSemanticsAction(label: 'Selecionar'),
+        ),
+      );
       await _settle(tester);
+      handle.dispose();
 
       final marked = tester
           .widgetList<ColoredBox>(
@@ -204,18 +219,9 @@ void main() {
               matching: find.byType(ColoredBox),
             ),
           )
-          .map((box) => box.color)
-          .toSet();
-      final plain = tester
-          .widgetList<ColoredBox>(
-            find.ancestor(
-              of: find.widgetWithText(AnalysisTile, 'Argilosa'),
-              matching: find.byType(ColoredBox),
-            ),
-          )
-          .map((box) => box.color)
-          .toSet();
-      expect(marked, plain);
+          .map((box) => box.color);
+      expect(find.text('1 selecionado'), findsOneWidget);
+      expect(marked, isNot(contains(AppPalette.light.selected)));
     });
 
     testWidgets('history_pushes_below_840', (tester) async {

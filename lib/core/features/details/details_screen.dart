@@ -388,8 +388,8 @@ class _ResultContentState extends State<ResultContent>
         footer != null &&
         (MediaQuery.sizeOf(context).height < 600 ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.3);
-    // 18 dp from the header to the tabs; the tab content starts on the rule.
-    final gaps = [classified ? 18.0 : 0.0, 0.0];
+    // 17 dp from the header to the tabs; the tab content starts on the rule.
+    final gaps = [classified ? 17.0 : 0.0, 0.0];
     // The lattice sits behind the app bar, fixed to the top of the screen;
     // the body starts below the bar, with the header 169 dp down and the
     // error block's disc 44 dp down (PNGs 14 and 15, SPEC 0202).
@@ -505,7 +505,7 @@ PreferredSizeWidget resultAppBar(
   );
 }
 
-/// [Corrigir] and [Dicas de manejo] side by side, 52 dp tall, flex 5 and 8
+/// [Corrigir] and [Dicas de manejo] side by side, 48 dp tall, flex 5 and 8
 /// under a 1 dp rule (PNG 14, SPEC 0202); stacked from a 1.3x text scale
 /// (redesign v11 §8).
 class ResultFooter extends StatelessWidget {

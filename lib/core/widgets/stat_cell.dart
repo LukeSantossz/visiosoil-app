@@ -3,9 +3,11 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 
-/// A single stat card (redesign v11 §4 `StatCell`): a bold [value] over a
-/// [label], with an optional leading [icon] in [color]. Renders a shimmering
+/// A single stat card (redesign v11 §4 `StatCell`, PNG 08 as SPEC 0203
+/// measures it): an optional 20 dp [icon] in [color], then a 24 sp [value]
+/// over a 12 sp [label]. Renders a shimmering
 /// placeholder instead when [isSkeleton].
 ///
 /// [semanticLabel] overrides the default `"<value> <label>"` reading, for a
@@ -26,14 +28,14 @@ class StatCell extends StatelessWidget {
   /// A placeholder [StatCell] shown while the value it would show is still
   /// loading.
   const StatCell.skeleton({super.key})
-      : value = '',
-        label = '',
-        icon = null,
-        color = null,
-        semanticLabel = null,
-        valueStyle = null,
-        labelStyle = null,
-        isSkeleton = true;
+    : value = '',
+      label = '',
+      icon = null,
+      color = null,
+      semanticLabel = null,
+      valueStyle = null,
+      labelStyle = null,
+      isSkeleton = true;
 
   final String value;
   final String label;
@@ -49,21 +51,21 @@ class StatCell extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = context.palette;
 
+    // Flat on `surface`, its content centred in the row's height (PNG 08,
+    // SPEC 0203); only Modo Sol draws an edge.
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      alignment: AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: AppRadius.borderRadiusLg,
-        boxShadow: [
-          BoxShadow(
-            color: palette.shadowCard,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-        border: Border.all(color: palette.cardBorder, width: palette.edgeWidth),
+        border: palette.highContrast
+            ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
+            : null,
       ),
-      child: isSkeleton ? const _StatCellSkeletonContent() : _buildContent(theme, palette),
+      child: isSkeleton
+          ? const _StatCellSkeletonContent()
+          : _buildContent(theme, palette),
     );
   }
 
@@ -72,25 +74,38 @@ class StatCell extends StatelessWidget {
       label: semanticLabel ?? '$value $label',
       child: ExcludeSemantics(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // An 18 dp icon 2 dp lower, so the value keeps its place
+            // (PNG 08, SPEC 0210).
             if (icon != null) ...[
-              Icon(icon, size: 14, color: color ?? palette.primary),
               const SizedBox(height: 2),
+              Icon(icon, size: 18, color: color ?? palette.onSurface),
+              const SizedBox(height: AppSpacing.md),
             ],
             Text(
               value,
-              style: valueStyle ?? theme.textTheme.titleLarge?.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+              style:
+                  valueStyle ??
+                  AppTypography.tabular(
+                    AppTypography.weighted(
+                      theme.textTheme.headlineMedium!.copyWith(
+                        fontSize: 24,
+                        height: 32 / 24,
+                        letterSpacing: -0.6,
+                      ),
+                      650,
+                    ),
+                  ),
             ),
             Text(
               label,
-              style: labelStyle ?? theme.textTheme.labelSmall?.copyWith(
-                color: palette.onSurfaceVariant,
-              ),
+              style:
+                  labelStyle ??
+                  theme.textTheme.bodySmall?.copyWith(
+                    color: palette.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -102,19 +117,30 @@ class StatCell extends StatelessWidget {
 /// Lays [cells] out in an equal-width row with the design system's spacing
 /// between them (redesign v11 §4 `StatsRow`).
 class StatsRow extends StatelessWidget {
-  const StatsRow({super.key, required this.cells});
+  const StatsRow({super.key, required this.cells, this.minHeight = 0});
 
   final List<StatCell> cells;
 
+  /// The row's least height: Início's PNG 08 draws its cards 120 dp tall,
+  /// Perfil's PNG 21 lets them take their content's 104 (SPEC 0203).
+  final double minHeight;
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < cells.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: cells[i]),
-        ],
-      ],
+    // Every card takes the tallest one's height, and at least [minHeight].
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < cells.length; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              Expanded(child: cells[i]),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -136,8 +162,9 @@ class _StatCellSkeletonContentState extends State<_StatCellSkeletonContent>
     vsync: this,
     duration: const Duration(milliseconds: 1200),
   );
-  late final Animation<double> _opacity =
-      _controller.drive(Tween(begin: 0.3, end: 0.6));
+  late final Animation<double> _opacity = _controller.drive(
+    Tween(begin: 0.3, end: 0.6),
+  );
 
   bool _reduceMotion = false;
 
@@ -164,13 +191,13 @@ class _StatCellSkeletonContentState extends State<_StatCellSkeletonContent>
     final color = context.palette.surfaceContainerHigh;
 
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: AppRadius.borderRadiusXs,
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: AppRadius.borderRadiusXs,
+      ),
+    );
 
     return ExcludeSemantics(
       child: AnimatedBuilder(

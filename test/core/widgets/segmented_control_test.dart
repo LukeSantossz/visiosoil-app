@@ -2,6 +2,7 @@
 // to the selected option.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
@@ -209,5 +210,25 @@ void main() {
           lessThanOrEqualTo(segment), reason: label);
     }
     expect(tester.takeException(), isNull);
+  });
+
+  // A keyboard or D-pad reaches each segment and Enter selects it (review
+  // of #437).
+  testWidgets('segments_take_keyboard_focus_and_activate', (tester) async {
+    String? changed;
+    await tester.pumpWidget(
+      host(
+        SegmentedControl<String>(
+          options: options,
+          value: 'list',
+          onChanged: (value) => changed = value,
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(changed, 'coll');
   });
 }

@@ -244,7 +244,12 @@ void main() {
       final revealed = tester.getRect(image);
       final swipe = tester.getRect(find.byKey(const ValueKey('swipe-2')));
       expect(revealed.width, before.width);
-      expect(revealed.left, greaterThanOrEqualTo(swipe.left));
+      // The row recedes 12 dp and the list's edge clips that much of the
+      // photograph, which sits on the margin since SPEC 0203 (PNG 34).
+      expect(
+        revealed.intersect(swipe).width,
+        greaterThanOrEqualTo(before.width - 12),
+      );
       expect(revealed.right, lessThanOrEqualTo(swipe.right));
       await tester.tap(find.text('Excluir'));
       await tester.pump();
