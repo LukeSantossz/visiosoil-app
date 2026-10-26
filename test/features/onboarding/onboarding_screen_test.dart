@@ -2,20 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/constants/capture_protocol.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
+import 'package:visiosoil_app/core/services/auth/auth_account.dart';
+import 'package:visiosoil_app/core/services/auth/auth_service.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
+import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 import '../../support/fake_onboarding_store.dart';
 import '../../support/guidelines.dart';
+import '../../support/haptics_recorder.dart';
 import '../../support/large_text.dart';
+
+class _Auth implements AuthService {
+  _Auth({this.result, this.error});
+  final AuthAccount? result;
+  final Object? error;
+  int signInCalls = 0;
+  AuthAccount? _account;
+  @override
+  AuthAccount? get currentAccount => _account;
+  @override
+  Future<AuthAccount?> restoreSession() async => null;
+  @override
+  Future<AuthAccount?> signIn() async {
+    signInCalls++;
+    if (error != null) throw error!;
+    return _account = result;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+int _cameraRequests = 0;
+Future<AppPermissionStatus> _requestCamera() async {
+  _cameraRequests++;
+  return AppPermissionStatus.granted;
+}
 
 GoRouter _router({required String initialLocation}) => GoRouter(
       initialLocation: initialLocation,
       routes: [
         GoRoute(
           path: '/onboarding',
-          builder: (_, _) => const OnboardingScreen(),
+          builder: (_, _) =>
+              const OnboardingScreen(requestCameraPermission: _requestCamera),
         ),
         GoRoute(
           path: '/',
@@ -39,11 +76,36 @@ Widget _app(
   GoRouter router,
   FakeOnboardingStore store, {
   ThemeData? theme,
+  AuthService? auth,
+  bool offline = false,
 }) =>
     ProviderScope(
-      overrides: [onboardingStoreProvider.overrideWithValue(store)],
+      overrides: [
+        onboardingStoreProvider.overrideWithValue(store),
+        authServiceProvider.overrideWithValue(auth ?? _Auth()),
+        connectivityStatusProvider.overrideWith(
+          (ref) => Stream.value(
+            offline ? ConnectivityStatus.offline : ConnectivityStatus.online,
+          ),
+        ),
+      ],
       child: MaterialApp.router(theme: theme, routerConfig: router),
     );
+
+// Moves from the first page to the [step]th (1-based) with the steps' own
+// buttons: "Agora não" on the account step, "Continuar" after it.
+Future<void> _goToStep(WidgetTester tester, int step) async {
+  for (var i = 1; i < step; i++) {
+    await _next(tester, i);
+  }
+}
+
+Future<void> _next(WidgetTester tester, int from) async {
+  final button = find.text(from == 1 ? 'Agora não' : 'Continuar');
+  await tester.ensureVisible(button);
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('skipping marks completion and goes home when it cannot pop',
@@ -65,11 +127,9 @@ void main() {
     await tester.pumpWidget(_app(_router(initialLocation: '/onboarding'), store));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Próximo'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Próximo'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Começar'));
+    await _goToStep(tester, 4);
+    await tester.ensureVisible(find.text('Permitir câmera'));
+    await tester.tap(find.text('Permitir câmera'));
     await tester.pumpAndSettle();
 
     expect(store.markCalls, 1);
@@ -92,8 +152,97 @@ void main() {
     expect(find.text('Pular'), findsNothing); // onboarding is gone
   });
 
-  // The steps teach the capture protocol the A4-sheet reader assumes (ADR 0017,
-  // SPEC 0104): a photograph taken any other way is refused by name.
+  testWidgets('header_counts_four_steps', (tester) async {
+    await tester.pumpWidget(
+        _app(_router(initialLocation: '/onboarding'), FakeOnboardingStore()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Passo 1 de 4'), findsOneWidget);
+    expect(find.byKey(const Key('onboardingStepBar')), findsNWidgets(4));
+
+    await tester.tap(find.text('Agora não'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Passo 2 de 4'), findsOneWidget);
+  });
+
+  group('account step', () {
+    testWidgets('account_step_links_with_google', (tester) async {
+      final haptics = recordHaptics(tester);
+      final auth = _Auth(
+        result: const AuthAccount(
+          email: 'ana@exemplo.com',
+          displayName: 'Ana Rocha',
+        ),
+      );
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+        auth: auth,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Continuar com o Google'));
+      await tester.pumpAndSettle();
+      // The linked haptic's second impact follows 90 ms later.
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(auth.signInCalls, 1);
+      expect(find.text('Conta vinculada'), findsOneWidget);
+      expect(find.text('Ana Rocha'), findsOneWidget);
+      expect(find.text('ana@exemplo.com'), findsOneWidget);
+      expect(haptics, [
+        'HapticFeedbackType.mediumImpact',
+        'HapticFeedbackType.lightImpact',
+      ]);
+
+      await tester.tap(find.text('Continuar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Passo 2 de 4'), findsOneWidget);
+    });
+
+    testWidgets('account_step_offline_disables_google', (tester) async {
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+        offline: true,
+      ));
+      await tester.pumpAndSettle();
+
+      final button =
+          find.widgetWithText(OutlinedButton, 'Continuar com o Google');
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      expect(
+        find.text('Sem conexão. Você pode vincular depois em Perfil.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('account_step_error_shows_snackbar', (tester) async {
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+        auth: _Auth(error: Exception('cancelled')),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Continuar com o Google'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Não foi possível vincular. Tente de novo ou continue sem conta.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Continuar com o Google'), findsOneWidget);
+      expect(find.text('Conta vinculada'), findsNothing);
+    });
+  });
+
+  // The photograph step still teaches the capture protocol the A4-sheet
+  // reader assumes (ADR 0017, SPEC 0104): a photograph taken any other way
+  // is refused by name.
   group('copy', () {
     const steps = [
       (
@@ -117,15 +266,12 @@ void main() {
       ));
       await tester.pumpAndSettle();
       final pages = <List<String>>[];
-      for (var i = 0; i < steps.length; i++) {
+      for (var i = 1; i <= 4; i++) {
         pages.add(tester
             .widgetList<Text>(find.byType(Text))
             .map((t) => t.data ?? '')
             .toList());
-        if (i < steps.length - 1) {
-          await tester.tap(find.text('Próximo'));
-          await tester.pumpAndSettle();
-        }
+        if (i < 4) await _next(tester, i);
       }
       return pages;
     }
@@ -139,17 +285,69 @@ void main() {
       }
     });
 
-    testWidgets('the_steps_teach_the_sheet_protocol_in_order', (tester) async {
-      final pages = await pageTexts(tester);
+    testWidgets('photo_step_teaches_the_sheet_protocol', (tester) async {
+      final page = (await pageTexts(tester))[1];
 
-      for (var i = 0; i < steps.length; i++) {
-        expect(pages[i], containsAll([steps[i].$1, steps[i].$2]),
-            reason: 'step ${i + 1}');
-      }
+      expect(page, contains('Fotografe a amostra de solo'));
+      final protocol = [for (final s in steps) ...[s.$1, s.$2]];
+      expect(protocol, [
+        for (final s in captureProtocolSteps) ...[s.title, s.description],
+      ]);
+      final shown = page.where(protocol.contains).toList();
+      expect(shown, protocol);
+    });
+
+    testWidgets('class_step_shows_the_triangle', (tester) async {
+      await tester.pumpWidget(_app(
+        _router(initialLocation: '/onboarding'),
+        FakeOnboardingStore(),
+      ));
+      await tester.pumpAndSettle();
+      await _goToStep(tester, 3);
+
+      expect(find.text('Veja a classe textural estimada'), findsOneWidget);
+      expect(find.byType(TextureTriangle), findsOneWidget);
     });
   });
 
-  // With the platform asking for no animations, "Próximo" jumps instead of
+  group('camera step', () {
+    testWidgets('camera_step_requests_then_completes', (tester) async {
+      _cameraRequests = 0;
+      final store = FakeOnboardingStore();
+      await tester.pumpWidget(
+          _app(_router(initialLocation: '/onboarding'), store));
+      await tester.pumpAndSettle();
+      await _goToStep(tester, 4);
+
+      expect(find.text('Permita o acesso à câmera'), findsOneWidget);
+      await tester.ensureVisible(find.text('Permitir câmera'));
+      await tester.tap(find.text('Permitir câmera'));
+      await tester.pumpAndSettle();
+
+      expect(_cameraRequests, 1);
+      expect(store.markCalls, 1);
+      expect(find.text('HOME_STUB'), findsOneWidget);
+    });
+
+    testWidgets('agora_nao_completes_without_asking', (tester) async {
+      _cameraRequests = 0;
+      final store = FakeOnboardingStore();
+      await tester.pumpWidget(
+          _app(_router(initialLocation: '/onboarding'), store));
+      await tester.pumpAndSettle();
+      await _goToStep(tester, 4);
+
+      await tester.ensureVisible(find.text('Agora não'));
+      await tester.tap(find.text('Agora não'));
+      await tester.pumpAndSettle();
+
+      expect(_cameraRequests, 0);
+      expect(store.markCalls, 1);
+      expect(find.text('HOME_STUB'), findsOneWidget);
+    });
+  });
+
+  // With the platform asking for no animations, a step's button jumps instead of
   // sliding (SPEC 0120). The second test is the control that shows the first
   // one can fail.
   group('reduced motion', () {
@@ -160,7 +358,7 @@ void main() {
       await tester.pumpWidget(
           _app(_router(initialLocation: '/onboarding'), FakeOnboardingStore()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Próximo'));
+      await tester.tap(find.text('Agora não'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -190,13 +388,12 @@ void main() {
         _app(_router(initialLocation: '/onboarding'), FakeOnboardingStore()));
     await tester.pumpAndSettle();
 
-    for (var step = 1; step <= 3; step++) {
+    for (var step = 1; step <= 4; step++) {
       expect(tester.takeException(), isNull, reason: 'step $step');
       await scrollToTheEnd(tester);
       expect(tester.takeException(), isNull, reason: 'step $step, scrolled');
-      if (step < 3) {
-        await tester.tap(find.text('Próximo'));
-        await tester.pumpAndSettle();
+      if (step < 4) {
+        await _next(tester, step);
       }
     }
   });
@@ -216,7 +413,7 @@ void main() {
     final decoration = disc.decoration! as BoxDecoration;
     expect(decoration.color, AppPalette.lightHighContrast.primaryContainer);
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.description_outlined)).color,
+      tester.widget<Icon>(find.byIcon(Icons.cloud_sync_outlined)).color,
       AppPalette.lightHighContrast.onPrimaryContainer,
     );
   });
