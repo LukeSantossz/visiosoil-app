@@ -39,9 +39,7 @@ class DetailsScreen extends ConsumerWidget {
     final asyncRecord = ref.watch(soilRecordByIdProvider(recordId));
 
     return asyncRecord.when(
-      loading: () => const Scaffold(
-        body: LoadingIndicator(),
-      ),
+      loading: () => const Scaffold(body: LoadingIndicator()),
       error: (_, _) => _DetailsErrorView(
         onRetry: () => ref.invalidate(soilRecordByIdProvider(recordId)),
       ),
@@ -91,6 +89,10 @@ class _RecordNotFoundView extends StatelessWidget {
 
 /// The result screen's tabs (redesign v11 §3.6, SPEC 0194).
 enum ResultTab { overview, management, details }
+
+/// The Hero tag a record's photograph flies under, from the result's
+/// Detalhes tab to the photo screen (redesign v11 §3.8, SPEC 0198).
+String recordPhotoHeroTag(int? recordId) => 'record-photo-$recordId';
 
 class _DetailsContent extends ConsumerStatefulWidget {
   const _DetailsContent({required this.record, required this.recordId});
@@ -187,15 +189,17 @@ class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
     with SingleTickerProviderStateMixin {
   static const Duration _popDuration = Duration(milliseconds: 340);
 
-  late final AnimationController _pop =
-      AnimationController(vsync: this, duration: _popDuration);
-  late final Animation<double> _scale = TweenSequence<double>([
-    TweenSequenceItem(tween: Tween(begin: 1, end: 1.28), weight: 1),
-    TweenSequenceItem(tween: Tween(begin: 1.28, end: 1), weight: 1),
-  ]).animate(CurvedAnimation(
-    parent: _pop,
-    curve: AppMotion.emphasizedDecelerate,
-  ));
+  late final AnimationController _pop = AnimationController(
+    vsync: this,
+    duration: _popDuration,
+  );
+  late final Animation<double> _scale =
+      TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 1, end: 1.28), weight: 1),
+        TweenSequenceItem(tween: Tween(begin: 1.28, end: 1), weight: 1),
+      ]).animate(
+        CurvedAnimation(parent: _pop, curve: AppMotion.emphasizedDecelerate),
+      );
 
   @override
   void initState() {
@@ -205,8 +209,8 @@ class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
       final justSaved = ref.read(justSavedRecordProvider);
       if (justSaved == null || justSaved != widget.recordId) return;
       ref.read(justSavedRecordProvider.notifier).clear();
-      final reduce = AppMotion.reduceMotion ||
-          MediaQuery.disableAnimationsOf(context);
+      final reduce =
+          AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context);
       if (!reduce) _pop.forward();
     });
   }
@@ -268,7 +272,8 @@ class ResultContent extends StatefulWidget {
   final Widget Function(
     BuildContext context,
     ValueChanged<ResultTab> selectTab,
-  )? footerBuilder;
+  )?
+  footerBuilder;
 
   @override
   State<ResultContent> createState() => _ResultContentState();
@@ -384,7 +389,8 @@ class _ResultContentState extends State<ResultContent>
         : null;
     // A fixed footer would cover most of the result on a short screen or at
     // large text, so there it ends the scrolling body (SPEC 0197).
-    final inlineFooter = footer != null &&
+    final inlineFooter =
+        footer != null &&
         (MediaQuery.sizeOf(context).height < 600 ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.3);
 
@@ -410,10 +416,7 @@ class _ResultContentState extends State<ResultContent>
                   children: [
                     for (var i = 0; i < blocks.length; i++) ...[
                       if (i > 0) const SizedBox(height: AppSpacing.lg),
-                      _RiseIn(
-                        animation: _blockEntrances[i],
-                        child: blocks[i],
-                      ),
+                      _RiseIn(animation: _blockEntrances[i], child: blocks[i]),
                     ],
                     if (inlineFooter) ...[
                       const SizedBox(height: AppSpacing.lg),
@@ -557,57 +560,60 @@ class _SamplePhoto extends StatelessWidget {
   Widget build(BuildContext context) {
     final cacheH = (_height * MediaQuery.devicePixelRatioOf(context)).round();
 
-    return ClipRRect(
-      borderRadius: AppRadius.borderRadiusLg,
-      child: SizedBox(
-        height: _height,
-        // A labelled button that opens the full-screen viewer, its ink on a
-        // transparent Material over the photograph (SPEC 0125).
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // The soil sample once it is cut, the photograph until then and
-            // when there is none (SPEC 0172).
-            Consumer(
-              builder: (context, ref, photo) {
-                final sample = ref
-                    .watch(soilSampleProvider(record.imagePath))
-                    .value;
-                if (sample == null) return photo!;
-                return Image.memory(
-                  sample,
-                  key: const ValueKey('soil-sample'),
+    return Hero(
+      tag: recordPhotoHeroTag(record.id),
+      child: ClipRRect(
+        borderRadius: AppRadius.borderRadiusLg,
+        child: SizedBox(
+          height: _height,
+          // A labelled button that opens the full-screen viewer, its ink on a
+          // transparent Material over the photograph (SPEC 0125).
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The soil sample once it is cut, the photograph until then and
+              // when there is none (SPEC 0172).
+              Consumer(
+                builder: (context, ref, photo) {
+                  final sample = ref
+                      .watch(soilSampleProvider(record.imagePath))
+                      .value;
+                  if (sample == null) return photo!;
+                  return Image.memory(
+                    sample,
+                    key: const ValueKey('soil-sample'),
+                    fit: BoxFit.cover,
+                    cacheHeight: cacheH,
+                  );
+                },
+                child: Image.file(
+                  File(record.imagePath),
                   fit: BoxFit.cover,
                   cacheHeight: cacheH,
-                );
-              },
-              child: Image.file(
-                File(record.imagePath),
-                fit: BoxFit.cover,
-                cacheHeight: cacheH,
-                errorBuilder: (_, _, _) => Container(
-                  color: context.palette.surfaceVariant,
-                  child: Center(
-                    child: Icon(
-                      Icons.broken_image,
-                      size: 48,
-                      color: context.palette.onSurfaceVariant,
+                  errorBuilder: (_, _, _) => Container(
+                    color: context.palette.surfaceVariant,
+                    child: Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        size: 48,
+                        color: context.palette.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Semantics(
-              button: true,
-              label: 'Ampliar foto',
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  onTap: () => context.push('/preview', extra: record.id),
+              Semantics(
+                button: true,
+                label: 'Ampliar foto',
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: () => context.push('/preview', extra: record.id),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -628,7 +634,7 @@ class _ActionButtons extends ConsumerWidget {
       children: [
         // Share
         OutlinedButton.icon(
-          onPressed: () => _shareRecord(context, ref),
+          onPressed: () => shareRecordWithConsent(context, ref, record),
           icon: const Icon(Icons.share_outlined),
           label: const Text('Compartilhar'),
         ),
@@ -644,51 +650,6 @@ class _ActionButtons extends ConsumerWidget {
       ],
     );
   }
-
-  Future<void> _shareRecord(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    // Location is confidential client data; disclose it only on an explicit,
-    // per-share opt-in. A record with no location shares directly.
-    var includeLocation = false;
-    if (record.hasCoordinates || record.hasValidAddress) {
-      final choice = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Incluir localização?'),
-          content: const Text(
-            'As coordenadas exatas do local ficarão visíveis para quem '
-            'receber o compartilhamento.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Compartilhar sem localização'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Incluir localização'),
-            ),
-          ],
-        ),
-      );
-      // Dismissing the dialog (barrier tap / back) cancels the share.
-      if (choice == null) return;
-      includeLocation = choice;
-    }
-
-    try {
-      await ref
-          .read(shareServiceProvider)
-          .shareRecord(record, includeLocation: includeLocation);
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível compartilhar o registro.'),
-        ),
-      );
-    }
-  }
 }
 
 /// Asks before deleting [record], then deletes it and returns home; from
@@ -701,7 +662,8 @@ Future<void> confirmAndDeleteRecord(
   final confirmed = await confirmDestructiveAction(
     context,
     title: 'Excluir registro',
-    message: 'Tem certeza que deseja excluir este registro? '
+    message:
+        'Tem certeza que deseja excluir este registro? '
         'Esta ação não pode ser desfeita.',
     confirmLabel: 'Excluir',
   );
@@ -709,10 +671,61 @@ Future<void> confirmAndDeleteRecord(
   if (confirmed && context.mounted && record.id != null) {
     await ref.read(soilRecordRepositoryProvider).deleteById(record.id!);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro excluído.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
       context.go('/');
     }
+  }
+}
+
+/// Shares [record], asking first whether its location goes with it; from
+/// details and from the photo screen (SPEC 0198).
+Future<void> shareRecordWithConsent(
+  BuildContext context,
+  WidgetRef ref,
+  SoilRecord record,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+
+  // Location is confidential client data; disclose it only on an explicit,
+  // per-share opt-in. A record with no location shares directly.
+  var includeLocation = false;
+  if (record.hasCoordinates || record.hasValidAddress) {
+    final choice = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Incluir localização?'),
+        content: const Text(
+          'As coordenadas exatas do local ficarão visíveis para quem '
+          'receber o compartilhamento.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Compartilhar sem localização'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Incluir localização'),
+          ),
+        ],
+      ),
+    );
+    // Dismissing the dialog (barrier tap / back) cancels the share.
+    if (choice == null) return;
+    includeLocation = choice;
+  }
+
+  try {
+    await ref
+        .read(shareServiceProvider)
+        .shareRecord(record, includeLocation: includeLocation);
+  } catch (_) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Não foi possível compartilhar o registro.'),
+      ),
+    );
   }
 }

@@ -100,6 +100,7 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
               if (_generating && result == null) return const _TipsLoading();
               if (result != null) {
                 return _TipsData(
+                  textureLabel: _record.displayTextureClass,
                   result: result,
                   generating: _generating,
                   onRefresh: _generate,
@@ -174,7 +175,7 @@ class _TipsLoading extends StatelessWidget {
           const LoadingIndicator(),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Gerando dicas de manejo…',
+            'Carregando dicas',
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
@@ -188,11 +189,13 @@ class _TipsLoading extends StatelessWidget {
 
 class _TipsData extends StatelessWidget {
   const _TipsData({
+    required this.textureLabel,
     required this.result,
     required this.generating,
     required this.onRefresh,
   });
 
+  final String textureLabel;
   final ManagementTipsResult result;
   final bool generating;
   final Future<void> Function() onRefresh;
@@ -214,11 +217,16 @@ class _TipsData extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
           )
-        else
-          for (final tip in result.tips) ...[
-            _TipCard(tip: tip, sourceCount: result.sources.length),
-            const SizedBox(height: AppSpacing.md),
-          ],
+        else ...[
+          // The class and how many tips it has (redesign v11 §3.9).
+          Text(
+            '$textureLabel · ${result.tips.length} dicas',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: context.palette.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _TipsTimeline(tips: result.tips, sources: result.sources),
+        ],
         if (result.sources.isNotEmpty) ...[
           _SourcesList(sources: result.sources),
           const SizedBox(height: AppSpacing.md),
@@ -250,68 +258,171 @@ class _TipsData extends StatelessWidget {
   }
 }
 
-class _TipCard extends StatelessWidget {
-  const _TipCard({required this.tip, required this.sourceCount});
+/// The tips grouped by category on a timeline (redesign v11 §3.9,
+/// SPEC 0198). Tips carry a category, not a crop phase, so the groups are the
+/// categories, in a fixed order.
+class _TipsTimeline extends StatelessWidget {
+  const _TipsTimeline({required this.tips, required this.sources});
 
-  final ManagementTip tip;
-  final int sourceCount;
+  final List<ManagementTip> tips;
+  final List<TipSource> sources;
+
+  static const List<(TipCategory?, String)> _groups = [
+    (TipCategory.preparation, 'Preparo do solo'),
+    (TipCategory.crops, 'Culturas'),
+    (TipCategory.water, 'Água'),
+    (TipCategory.other, 'Outras práticas'),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final theme = Theme.of(context);
-    final citations =
-        tip.citations.where((i) => i >= 0 && i < sourceCount).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: context.palette.surface,
-        borderRadius: AppRadius.borderRadiusLg,
-        border: Border.all(
-          color: context.palette.cardBorder,
-          width: context.palette.edgeWidth,
+    final groups = [
+      for (final (category, heading) in _groups)
+        (
+          heading,
+          tips
+              .where((tip) =>
+                  tip.category == category ||
+                  // A tip without a known category reads as "other".
+                  (category == TipCategory.other && tip.category == null))
+              .toList(),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(tip.text, style: theme.textTheme.bodyMedium),
-          if (citations.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [for (final i in citations) _CitationChip(label: i + 1)],
+    ].where((group) => group.$2.isNotEmpty).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var g = 0; g < groups.length; g++)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The dot and the rule that joins the groups.
+                SizedBox(
+                  width: AppSpacing.xl,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: g == 0 ? palette.primary : palette.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: palette.primary, width: 2),
+                        ),
+                      ),
+                      if (g < groups.length - 1)
+                        Expanded(
+                          child: Container(width: 2, color: palette.outlineVariant),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(groups[g].$1, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: AppSpacing.sm),
+                      for (final tip in groups[g].$2) ...[
+                        _TipCard(tip: tip, sources: sources),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
 
-class _CitationChip extends StatelessWidget {
-  const _CitationChip({required this.label});
+class _TipCard extends StatelessWidget {
+  const _TipCard({required this.tip, required this.sources});
 
-  final int label;
+  final ManagementTip tip;
+  final List<TipSource> sources;
+
+  static IconData _iconFor(TipCategory? category) => switch (category) {
+        TipCategory.preparation => Icons.agriculture_outlined,
+        TipCategory.crops => Icons.eco_outlined,
+        TipCategory.water => Icons.water_drop_outlined,
+        TipCategory.other || null => Icons.lightbulb_outline,
+      };
+
+  /// The first cited source, and how many more the tip cites.
+  String? _sourceLine() {
+    final cited = tip.citations
+        .where((i) => i >= 0 && i < sources.length)
+        .toList();
+    if (cited.isEmpty) return null;
+    final first = sources[cited.first];
+    final name = [first.title, if (first.publisher != null) first.publisher!]
+        .join(' · ');
+    return cited.length > 1 ? '$name +${cited.length - 1}' : name;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = context.palette;
+    final source = _sourceLine();
+
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: context.palette.primaryContainer,
-        borderRadius: AppRadius.borderRadiusPill,
+        color: palette.surface,
+        borderRadius: AppRadius.borderRadiusLg,
+        border: Border.all(color: palette.cardBorder, width: palette.edgeWidth),
       ),
-      child: Text(
-        '[$label]',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: context.palette.onPrimaryContainer,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: palette.surfaceContainerHigh,
+              borderRadius: AppRadius.borderRadiusMd,
             ),
+            child: Icon(_iconFor(tip.category), color: palette.onSurfaceVariant),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tip.text, style: theme.textTheme.bodyMedium),
+                if (source != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.bookmark_border,
+                        size: 16,
+                        color: palette.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          source,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: palette.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
