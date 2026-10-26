@@ -82,6 +82,45 @@ void main() {
     (ref) => Stream.value(<SoilRecord>[]),
   );
 
+  // The app bar's "Buscar" and "Filtros" each open their own part of the
+  // filter bar and close it again (SPEC 0203; review of #437).
+  testWidgets('search_and_filter_actions_toggle_their_part', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStatusProvider.overrideWithValue(
+            const AsyncData(ConnectivityStatus.online),
+          ),
+          emptyGrid,
+          rootError,
+        ],
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
+    await tester.pump();
+    final search = find.byType(TextField);
+    // The filters' part, here in its error state, which needs no records.
+    final chips = find.text('Não foi possível carregar os filtros');
+    expect(search, findsNothing);
+    expect(chips, findsNothing);
+
+    await tester.tap(find.byTooltip('Buscar'));
+    await tester.pump();
+    expect(search, findsOneWidget);
+    expect(chips, findsNothing);
+
+    await tester.tap(find.byTooltip('Buscar'));
+    await tester.pump();
+    expect(search, findsNothing);
+
+    await _openFilters(tester);
+    expect(chips, findsOneWidget);
+    expect(search, findsNothing);
+
+    await _openFilters(tester);
+    expect(chips, findsNothing);
+  });
+
   testWidgets('filter error branch renders visible feedback and a retry', (
     tester,
   ) async {

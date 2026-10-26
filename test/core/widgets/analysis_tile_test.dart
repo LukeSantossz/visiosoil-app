@@ -136,6 +136,37 @@ void main() {
     },
   );
 
+  // A pending history row whose pill leaves its metadata too little room
+  // moves the pill below the text, as Modo Sol's can at 330 dp (review of
+  // #437).
+  testWidgets('narrow_sun_pending_history_row_keeps_its_metadata', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(330, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.sun,
+        home: Scaffold(
+          body: AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            history: true,
+          ),
+        ),
+      ),
+    );
+    final metadata = find.textContaining('de confiança');
+    expect(
+      tester.renderObject<RenderParagraph>(metadata).didExceedMaxLines,
+      isFalse,
+    );
+    expect(
+      tester.getTopLeft(find.byType(StatusPill)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(metadata).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final scale in [1.0, 1.3]) {
     testWidgets('320dp Sun tile preserves class and date at scale $scale', (
       tester,
