@@ -32,6 +32,10 @@ abstract final class SoilTextureColors {
         _ => null,
       };
 
+  /// The class the onboarding's triangle marks, as PNG 06 draws it
+  /// (SPEC 0206): an illustration, not a classification.
+  static const exampleClass = 'Media';
+
   /// USDA reference vocabulary for the collection, independent of model labels.
   static const referenceClasses = <String, Color>{
     'Areia': AppColors.soilSandy,

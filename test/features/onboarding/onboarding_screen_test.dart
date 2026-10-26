@@ -4,13 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/constants/capture_protocol.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
+import 'package:visiosoil_app/core/features/onboarding/onboarding_panel.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
-import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
@@ -113,6 +113,8 @@ void main() {
     final store = FakeOnboardingStore();
     await tester.pumpWidget(_app(_router(initialLocation: '/onboarding'), store));
     await tester.pumpAndSettle();
+    // "Pular" sits under step 2's "Continuar" (SPEC 0206).
+    await _goToStep(tester, 2);
 
     await tester.tap(find.text('Pular'));
     await tester.pumpAndSettle();
@@ -143,6 +145,7 @@ void main() {
 
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
+    await _goToStep(tester, 2);
 
     await tester.tap(find.text('Pular'));
     await tester.pumpAndSettle();
@@ -240,23 +243,7 @@ void main() {
     });
   });
 
-  // The photograph step still teaches the capture protocol the A4-sheet
-  // reader assumes (ADR 0017, SPEC 0104): a photograph taken any other way
-  // is refused by name.
   group('copy', () {
-    const steps = [
-      (
-        'Folha A4',
-        'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
-            'mais escura que o papel. Não coloque mais nada sobre ela.',
-      ),
-      ('Amostra', 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.'),
-      (
-        'Foto',
-        'Fotografe de cima, com a folha inteira no quadro e uma margem em '
-            'volta, em luz difusa e sem flash.',
-      ),
-    ];
 
     // Pumps the onboarding and returns the text of each page, in order.
     Future<List<List<String>>> pageTexts(WidgetTester tester) async {
@@ -285,16 +272,17 @@ void main() {
       }
     });
 
-    testWidgets('photo_step_teaches_the_sheet_protocol', (tester) async {
+    // PNG 05 shows the step's sentence alone. The protocol the A4-sheet
+    // reader assumes (ADR 0017) is taught by the capture guide before the
+    // first camera launch (SPEC 0142, SPEC 0206).
+    testWidgets('photo_step_is_the_sentence_alone', (tester) async {
       final page = (await pageTexts(tester))[1];
 
       expect(page, contains('Fotografe a amostra de solo'));
-      final protocol = [for (final s in steps) ...[s.$1, s.$2]];
-      expect(protocol, [
-        for (final s in captureProtocolSteps) ...[s.title, s.description],
-      ]);
-      final shown = page.where(protocol.contains).toList();
-      expect(shown, protocol);
+      for (final s in captureProtocolSteps) {
+        expect(page, isNot(contains(s.title)));
+        expect(page, isNot(contains(s.description)));
+      }
     });
 
     testWidgets('class_step_shows_the_triangle', (tester) async {
@@ -398,24 +386,15 @@ void main() {
     }
   });
 
-  testWidgets('hc_discs_are_solid: the first onboarding disc', (tester) async {
-    await tester.pumpWidget(_app(
-      _router(initialLocation: '/onboarding'),
-      FakeOnboardingStore(),
-      theme: AppTheme.lightHighContrast,
-    ));
-    await tester.pumpAndSettle();
-
-    final disc = tester.widget<Container>(find.byWidgetPredicate((widget) {
-      final decoration = widget is Container ? widget.decoration : null;
-      return decoration is BoxDecoration && decoration.shape == BoxShape.circle;
-    }));
-    final decoration = disc.decoration! as BoxDecoration;
-    expect(decoration.color, AppPalette.lightHighContrast.primaryContainer);
-    expect(
-      tester.widget<Icon>(find.byIcon(Icons.cloud_sync_outlined)).color,
-      AppPalette.lightHighContrast.onPrimaryContainer,
-    );
+  // The panel's art replaces the discs and keeps their high-contrast rule:
+  // a solid container under its own ink (SPEC 0139, SPEC 0206).
+  test('hc_discs_are_solid: the onboarding art', () {
+    final (fill, ink) =
+        OnboardingPanel.artColors(AppPalette.lightHighContrast);
+    expect(fill, AppPalette.lightHighContrast.primaryContainer);
+    expect(ink, AppPalette.lightHighContrast.onPrimaryContainer);
+    final (lightFill, _) = OnboardingPanel.artColors(AppPalette.light);
+    expect(lightFill.a, closeTo(.5, .01));
   });
 
   // The first step passes Flutter's four accessibility guidelines

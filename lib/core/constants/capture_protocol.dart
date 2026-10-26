@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// One point of the capture protocol: its icon, its title and its sentence.
 class CaptureProtocolStep {
@@ -19,19 +20,19 @@ class CaptureProtocolStep {
 /// (SPEC 0142). A photograph taken any other way is refused by name.
 const captureProtocolSteps = <CaptureProtocolStep>[
   CaptureProtocolStep(
-    icon: Icons.description_outlined,
+    icon: LucideIcons.fileText,
     title: 'Folha A4',
     description:
         'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
         'mais escura que o papel. Não coloque mais nada sobre ela.',
   ),
   CaptureProtocolStep(
-    icon: Icons.blur_circular,
+    icon: LucideIcons.circleDashed,
     title: 'Amostra',
     description: 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.',
   ),
   CaptureProtocolStep(
-    icon: Icons.photo_camera_outlined,
+    icon: LucideIcons.camera,
     title: 'Foto',
     description:
         'Fotografe de cima, com a folha inteira no quadro e uma margem em '

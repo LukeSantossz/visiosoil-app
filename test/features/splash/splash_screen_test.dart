@@ -98,14 +98,40 @@ void main() {
     );
   });
 
-  testWidgets('splash_title_uses_variable_weight_800', (tester) async {
+  // PNG 01 as SPEC 0207 measures it.
+  testWidgets('boot_text_matches_the_mock', (tester) async {
     for (final (_, theme) in appThemes) {
       await pumpSplash(tester, theme: theme);
 
       final title = tester.widget<Text>(find.text('VisioSoil'));
       expect(title.style?.fontFamily, 'InterVariable');
-      expect(title.style?.fontWeight, FontWeight.w800);
-      expect(title.style?.fontVariations, [const FontVariation('wght', 800)]);
+      expect(title.style?.fontSize, 32);
+      expect(title.style?.fontWeight, FontWeight.w700);
+      expect(
+        tester.widget<Text>(find.text('Análise de textura do solo')).style
+            ?.fontSize,
+        16,
+      );
+      final skip = tester.widget<Text>(find.text('Pular'));
+      expect(skip.style?.fontSize, 17);
+      expect(skip.style?.fontWeight, FontWeight.w600);
+
+      await unmount(tester);
+    }
+  });
+
+  testWidgets('boot_draws_contours', (tester) async {
+    for (final (name, theme, drawn) in [
+      ('light', AppTheme.light, true),
+      ('sun', AppTheme.sun, false),
+    ]) {
+      await pumpSplash(tester, theme: theme);
+
+      expect(
+        find.byKey(const Key('boot-contours')),
+        drawn ? findsOneWidget : findsNothing,
+        reason: name,
+      );
 
       await unmount(tester);
     }

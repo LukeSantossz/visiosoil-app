@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/constants/capture_protocol.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
+import 'package:visiosoil_app/core/features/onboarding/onboarding_panel.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
@@ -10,7 +10,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
-import 'package:visiosoil_app/core/widgets/account_card.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/google_sign_in_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -77,49 +77,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final pages = [
       _AccountStep(onNext: _next),
       _StepPage(
-        illustration: _Disc(
-          icon: Icons.photo_camera_outlined,
-          color: (p) => p.warning,
-        ),
+        step: 1,
+        art: OnboardingArt.photograph,
         title: 'Fotografe a amostra de solo',
         description:
             'Destorroe uma porção da camada de 0–20 cm e enquadre na moldura. '
             'O app checa luz, foco e distância antes de liberar a foto.',
-        // The protocol the A4-sheet reader assumes, from the list the capture
-        // guide reads too (SPEC 0104, SPEC 0142).
-        extra: Column(
-          children: [
-            for (final step in captureProtocolSteps)
-              _ListRow(
-                icon: step.icon,
-                title: step.title,
-                description: step.description,
-              ),
-          ],
-        ),
+        // PNG 05 draws no list: the A4-sheet protocol is taught by the
+        // capture guide, shown before the first camera launch (SPEC 0142,
+        // SPEC 0206).
         actions: [
-          VisioButton(label: 'Continuar', onPressed: _next, expanded: true),
+          _primary('Continuar', _next),
+          _textAction('Pular', _complete),
         ],
       ),
       _StepPage(
-        illustration: const SizedBox(width: 200, child: TextureTriangle()),
+        step: 2,
+        art: OnboardingArt.triangle,
         title: 'Veja a classe textural estimada',
         description:
             'O resultado mostra a classe textural estimada pelo modelo e a '
             'confiança dela, em palavras e em percentual.',
         actions: [
-          VisioButton(label: 'Continuar', onPressed: _next, expanded: true),
+          _primary('Continuar', _next),
+          _textAction('Pular', _complete),
         ],
       ),
       _StepPage(
-        illustration: _Disc(
-          icon: Icons.camera_outlined,
-          color: (p) => p.secondary,
-        ),
+        step: 3,
+        art: OnboardingArt.camera,
         title: 'Permita o acesso à câmera',
         description:
             'Usamos a câmera para fotografar o solo. Funciona sem internet; as '
@@ -127,13 +116,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         extra: const Column(
           children: [
             _ListRow(
-              icon: Icons.photo_camera_outlined,
+              icon: LucideIcons.camera,
               description:
                   'Câmera, para fotografar a amostra. As fotos ficam no '
                   'aparelho.',
             ),
             _ListRow(
-              icon: Icons.location_on_outlined,
+              icon: LucideIcons.mapPin,
               description:
                   'Localização aproximada, opcional, para registrar onde a '
                   'amostra foi coletada.',
@@ -141,88 +130,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ],
         ),
         actions: [
-          VisioButton(
-            label: 'Permitir câmera',
-            onPressed: _allowCamera,
-            expanded: true,
-          ),
-          VisioButton(
-            label: 'Agora não',
-            onPressed: _complete,
-            variant: VisioButtonVariant.text,
-            expanded: true,
-          ),
+          _primary('Permitir câmera', _allowCamera),
+          _textAction('Agora não', _complete),
         ],
       ),
     ];
 
+    // The panel runs behind the status bar, so the page draws edge to edge
+    // (PNG 02 to 07, SPEC 0206).
     return Scaffold(
       backgroundColor: context.palette.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with the step count and skip
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.sm,
-                0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Passo ${_currentPage + 1} de $_stepCount',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                  TextButton(onPressed: _complete, child: const Text('Pular')),
-                ],
-              ),
-            ),
-            // Progress indicators
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: List.generate(_stepCount, (i) {
-                  final active = i <= _currentPage;
-                  return Expanded(
-                    child: Container(
-                      key: const Key('onboardingStepBar'),
-                      height: 4,
-                      margin: EdgeInsets.only(
-                        right: i < _stepCount - 1 ? AppSpacing.xs : 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? context.palette.primary
-                            : context.palette.outlineVariant,
-                        borderRadius: AppRadius.borderRadiusPill,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-            // Page content
-            Expanded(
-              child: PageView(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                children: pages,
-              ),
-            ),
-          ],
-        ),
+      body: PageView(
+        controller: _controller,
+        onPageChanged: (i) => setState(() => _currentPage = i),
+        children: pages,
       ),
     );
   }
 }
+
+/// A step's 48 dp primary action (SPEC 0206).
+Widget _primary(String label, VoidCallback onPressed) => VisioButton(
+  label: label,
+  onPressed: onPressed,
+  expanded: true,
+  style: ElevatedButton.styleFrom(
+    minimumSize: const Size(64, 48),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  ),
+);
+
+/// A step's second action, as text under the first.
+Widget _textAction(String label, VoidCallback onPressed) => VisioButton(
+  label: label,
+  onPressed: onPressed,
+  variant: VisioButtonVariant.text,
+  expanded: true,
+  style: TextButton.styleFrom(
+    minimumSize: const Size(64, 48),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  ),
+);
 
 /// Step 1: link a Google account, or not (redesign v11 §3.2, §9).
 class _AccountStep extends ConsumerWidget {
@@ -254,32 +202,39 @@ class _AccountStep extends ConsumerWidget {
 
     if (account != null) {
       return _StepPage(
-        illustration: _Disc(
-          icon: Icons.cloud_done_outlined,
-          color: (p) => p.primary,
-        ),
+        step: 0,
+        art: OnboardingArt.linked,
         title: 'Conta vinculada',
         description:
             'Suas análises vão sincronizar sozinhas quando houver internet.',
-        extra: AccountCard(
-          name: account.displayName,
-          email: account.email,
-          child: const SizedBox.shrink(),
-        ),
         actions: [
-          VisioButton(label: 'Continuar', onPressed: onNext, expanded: true),
+          // 16 dp above "Continuar", as PNG 04 draws it.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _LinkedAccountRow(
+              name: account.displayName,
+              email: account.email,
+            ),
+          ),
+          _primary('Continuar', onNext),
         ],
       );
     }
     return _StepPage(
-      illustration: _Disc(
-        icon: Icons.cloud_sync_outlined,
-        color: (p) => p.primary,
-      ),
+      step: 0,
+      art: OnboardingArt.account,
       title: 'Vincular conta para salvar e sincronizar suas análises',
       description:
           'Guardamos suas análises, fotos e coleção na sua conta Google. Sem '
           'conta, tudo fica só neste aparelho.',
+      extra: offline
+          ? Text(
+              'Sem conexão. Você pode vincular depois em Perfil.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.palette.onSurfaceVariant,
+              ),
+            )
+          : null,
       actions: [
         GoogleSignInButton(
           isLoading: auth.isLoading,
@@ -287,54 +242,115 @@ class _AccountStep extends ConsumerWidget {
               ? null
               : () => ref.read(authNotifierProvider.notifier).signIn(),
         ),
-        if (offline)
-          Text(
-            'Sem conexão. Você pode vincular depois em Perfil.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.palette.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
         VisioButton(
           label: 'Agora não',
           onPressed: onNext,
-          variant: VisioButtonVariant.text,
+          variant: VisioButtonVariant.secondary,
+          // Set as the Google button's label above it (PNG 02).
+          labelStyle: AppTypography.resized(
+            Theme.of(context).textTheme.bodyLarge!,
+            17,
+            height: 24 / 17,
+          ).copyWith(fontWeight: FontWeight.w500),
           expanded: true,
+          // Dark ink on an outline rule (PNG 02).
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(64, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            foregroundColor: context.palette.onSurface,
+            side: BorderSide(
+              color: context.palette.outline,
+              width: context.palette.edgeWidth,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-/// A step's illustration disc, tinted from the theme it is drawn under
-/// (SPEC 0107).
-class _Disc extends StatelessWidget {
-  const _Disc({required this.icon, required this.color});
+/// The linked account above "Continuar" (PNG 04, SPEC 0206).
+class _LinkedAccountRow extends StatelessWidget {
+  const _LinkedAccountRow({this.name, this.email});
 
-  final IconData icon;
-  final Color Function(AppPalette) color;
+  final String? name;
+  final String? email;
 
   @override
   Widget build(BuildContext context) {
-    final accent = color(context.palette);
+    final theme = Theme.of(context);
+    final palette = context.palette;
+    final title = name ?? email ?? '';
+    final initials = title
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.characters.first)
+        .join()
+        .toUpperCase();
     return Container(
-      width: 160,
-      height: 160,
+      key: const Key('linked-account-row'),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: context.palette.discFill(accent, alpha: 0.12),
-        shape: BoxShape.circle,
+        color: palette.surface,
+        borderRadius: AppRadius.borderRadiusMd,
+        border: Border.all(
+          color: palette.highContrast
+              ? palette.cardBorder
+              : palette.outlineVariant,
+          width: palette.edgeWidth,
+        ),
       ),
-      child: Icon(icon, size: 72, color: context.palette.discInk(accent)),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              initials,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: palette.primaryText,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                if (email != null && email != title)
+                  Text(
+                    email!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: palette.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Icon(LucideIcons.cloudCheck, size: 20, color: palette.onSurface),
+        ],
+      ),
     );
   }
 }
 
-/// One row of a step's list: an icon, an optional title, and a sentence.
+/// One row of a step's list: a 20 dp icon and a sentence at 14/20
+/// (SPEC 0206).
 class _ListRow extends StatelessWidget {
-  const _ListRow({required this.icon, this.title, required this.description});
+  const _ListRow({required this.icon, required this.description});
 
   final IconData icon;
-  final String? title;
   final String description;
 
   @override
@@ -345,21 +361,14 @@ class _ListRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: context.palette.primaryText),
+          Icon(icon, size: 20, color: context.palette.primaryText),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (title != null)
-                  Text(title!, style: theme.textTheme.titleSmall),
-                Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: context.palette.onSurfaceVariant,
-                  ),
-                ),
-              ],
+            child: Text(
+              description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: context.palette.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -368,16 +377,23 @@ class _ListRow extends StatelessWidget {
   }
 }
 
+/// A step as PNG 02 to 07 lay it out (SPEC 0206): the panel, the step bars
+/// and count, the left-aligned headline and body, then the actions pinned to
+/// the bottom. The content above the actions scrolls, as at large text
+/// (SPEC 0121).
 class _StepPage extends StatelessWidget {
   const _StepPage({
-    required this.illustration,
+    required this.step,
+    required this.art,
     required this.title,
     required this.description,
     this.extra,
     required this.actions,
   });
 
-  final Widget illustration;
+  /// Zero-based.
+  final int step;
+  final OnboardingArt art;
   final String title;
   final String description;
   final Widget? extra;
@@ -386,49 +402,98 @@ class _StepPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.palette;
+    final bottom = MediaQuery.paddingOf(context).bottom;
 
-    // Scrolls when a step is taller than the page, as at large text, and
-    // stays centred when it fits (SPEC 0121). The actions close the scroll so
-    // they are never covered.
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: AppSpacing.lg),
-              illustration,
-              const SizedBox(height: AppSpacing.xxl),
-              Text(
-                title,
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                description,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: context.palette.onSurfaceVariant,
-                  height: 1.6,
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OnboardingPanel(art: art),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xl,
+                    AppSpacing.xl,
+                    0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          for (var i = 0; i < _stepCount; i++) ...[
+                            if (i > 0) const SizedBox(width: 6),
+                            Expanded(
+                              child: Container(
+                                key: const Key('onboardingStepBar'),
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: i <= step
+                                      ? palette.primary
+                                      : palette.surfaceContainerHigh,
+                                  borderRadius: AppRadius.borderRadiusPill,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'Passo ${step + 1} de $_stepCount',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: palette.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          title,
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        description,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: palette.onSurfaceVariant,
+                        ),
+                      ),
+                      if (extra != null) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        extra!,
+                      ],
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              if (extra != null) ...[
-                const SizedBox(height: AppSpacing.xl),
-                extra!,
               ],
-              const SizedBox(height: AppSpacing.xl),
-              for (final action in actions) ...[
-                action,
-                const SizedBox(height: AppSpacing.sm),
+            ),
+          ),
+        ),
+        // The content scrolls to 8 dp above the actions, so step 4's list
+        // ends where PNG 07 ends it.
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.sm,
+            AppSpacing.xl,
+            AppSpacing.xl + bottom,
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < actions.length; i++) ...[
+                if (i > 0) const SizedBox(height: AppSpacing.sm),
+                actions[i],
               ],
-              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
