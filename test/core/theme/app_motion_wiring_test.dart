@@ -9,15 +9,17 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // One curve since SPEC 0089: the tile no longer scales in, so the
-  // emphasized curve that drove the scale left with it. Duration respects
-  // reduce motion preference (redesign v11 §6.5).
+  // Redesign v11's boot "Peneira" (§6.2, SPEC 0193) replaced SPEC 0089's
+  // single-fade splash with three AppMotion-driven stages: the mesh's
+  // emphasizedDecelerate scale-in, each grain's emphasizedDecelerate fall,
+  // and the logo + name's standardDecelerate rise. Duration still respects
+  // the reduce motion preference (redesign v11 §6.5).
   test('splash intro is wired to AppMotion (duration + curve)', () {
     final src =
         File('lib/core/features/splash/splash_screen.dart').readAsStringSync();
-    expect(src, contains('AppMotion.reveal'));
     expect(src, contains('AppMotion.reducedMotion'));
-    expect(src, contains('curve: AppMotion.standard'));
+    expect(src, contains('curve: AppMotion.emphasizedDecelerate'));
+    expect(src, contains('curve: AppMotion.standardDecelerate'));
     expect(src, isNot(contains('Curves.easeIn')));
     expect(src, isNot(contains('Curves.easeOutBack')));
   });

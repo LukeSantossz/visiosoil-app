@@ -355,4 +355,12 @@ void main() {
           AppPalette.light.warning);
     });
   });
+
+  // The boot "Peneira" screen's fill (redesign v11 §3.1, SPEC 0193): the same
+  // three hex values the spec names, read off each palette's existing fields.
+  test('boot_background_matches_each_theme', () {
+    expect(AppPalette.light.bootBackground, const Color(0xFF4A7C59));
+    expect(AppPalette.dark.bootBackground, const Color(0xFF1B3625));
+    expect(AppPalette.sun.bootBackground, const Color(0xFF1F4D2E));
+  });
 }
