@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
@@ -338,7 +339,7 @@ void main() {
       );
       final icon = tester.widget<Icon>(find.descendant(
         of: banner.first,
-        matching: find.byIcon(Icons.info_outline),
+        matching: find.byIcon(LucideIcons.info),
       ));
       expect(icon.color, palette.onWarningContainer);
       expect(
@@ -435,13 +436,290 @@ void main() {
         lessThan(water),
       );
       expect(find.text('Guia de solos · Embrapa +1'), findsOneWidget);
-      expect(find.byIcon(Icons.agriculture_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.water_drop_outlined), findsOneWidget);
+      expect(find.byIcon(LucideIcons.tractor), findsOneWidget);
+      expect(find.byIcon(LucideIcons.droplets), findsOneWidget);
     });
 
     testWidgets('tips_header_counts_the_tips', (tester) async {
       await pumpTimeline(tester);
       expect(find.text('Média · 2 dicas'), findsOneWidget);
+    });
+  });
+
+  // The Dicas tab as PNG 20 draws it (SPEC 0205).
+  group('tips page', () {
+    ManagementTipsResult twoGroups() => ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: const [
+            ManagementTip(
+              text: 'Evite tráfego com solo úmido.',
+              citations: [0],
+              category: TipCategory.preparation,
+            ),
+            ManagementTip(
+              text: 'Ajuste a lâmina de irrigação.',
+              citations: [0],
+              category: TipCategory.water,
+            ),
+          ],
+          sources: const [TipSource(title: 'Guia de solos', url: 'https://a')],
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    Future<void> pumpPage(
+      WidgetTester tester, {
+      bool asPage = true,
+      ManagementTipsResult? result,
+      Set<TipCategory> hiddenCategories = const {},
+      double width = 390,
+    }) async {
+      await tester.binding.setSurfaceSize(Size(width, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', result ?? twoGroups());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          managementTipsRepositoryProvider.overrideWithValue(repo),
+          researchServiceProvider.overrideWithValue(okService()),
+          connectivityServiceProvider.overrideWithValue(
+              FakeConnectivityService(ConnectivityStatus.online)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ManagementTipsSection(
+                asPage: asPage,
+                hiddenCategories: hiddenCategories,
+                record: tipsRecord().copyWith(
+                  fieldName: 'Talhão 3',
+                  sampleLabel: 'Amostra 2',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('tips_page_heads_with_the_record', (tester) async {
+      await pumpPage(tester);
+
+      expect(find.text('Argilosa'), findsOneWidget);
+      expect(find.text('Talhão 3 · Amostra 2'), findsOneWidget);
+      expect(find.text('2 dicas'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('tips-record-photo'))),
+        const Size(56, 56),
+      );
+      expect(find.text('Dicas de manejo'), findsNothing);
+    });
+
+    testWidgets('disclaimer_comes_first', (tester) async {
+      await pumpPage(tester);
+
+      final banner = find.byKey(const Key('tips-disclaimer'));
+      expect(
+        tester.getTopLeft(banner).dy,
+        lessThan(tester.getTopLeft(find.text('Preparo do solo')).dy),
+      );
+      final decoration =
+          tester.widget<Container>(banner).decoration! as BoxDecoration;
+      expect(decoration.border, isNull);
+    });
+
+    testWidgets('timeline_matches_the_mock', (tester) async {
+      await pumpPage(tester);
+
+      expect(tester.widget<Text>(find.text('Preparo do solo')).style?.fontSize,
+          16);
+      BoxDecoration dot(int i) =>
+          tester.widget<Container>(find.byKey(Key('tips-dot-$i'))).decoration!
+              as BoxDecoration;
+      expect(dot(0).color, AppPalette.light.primary);
+      expect(dot(1).color, AppPalette.light.surface);
+      expect((dot(1).border! as Border).top.color, AppPalette.light.outline);
+    });
+
+    testWidgets('tip_card_matches_the_mock', (tester) async {
+      await pumpPage(tester);
+
+      final card = tester.widget<Container>(
+        find.byKey(const Key('tip-card')).first,
+      );
+      final decoration = card.decoration! as BoxDecoration;
+      expect((decoration.border! as Border).top.color, AppPalette.light.divider);
+      expect(decoration.borderRadius, BorderRadius.circular(16));
+      expect(
+        tester.getSize(find.byKey(const Key('tip-icon-tile')).first),
+        const Size(40, 40),
+      );
+      expect(find.byIcon(LucideIcons.tractor), findsOneWidget);
+      expect(find.byIcon(LucideIcons.droplets), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Evite tráfego com solo úmido.')).style
+            ?.fontSize,
+        14,
+      );
+    });
+
+    // SPEC 0209: phases, titles and the filter.
+    ManagementTipsResult phased() => ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: const [
+            ManagementTip(
+              title: 'Ajuste a lâmina de irrigação',
+              text: 'Prefira turnos mais espaçados.',
+              citations: [0],
+              category: TipCategory.water,
+              phase: TipPhase.sowing,
+            ),
+            ManagementTip(
+              title: 'Evite tráfego com solo úmido',
+              text: 'Entre com máquinas abaixo do ponto de friabilidade.',
+              citations: [0],
+              category: TipCategory.preparation,
+              phase: TipPhase.beforePlanting,
+            ),
+            ManagementTip(
+              title: 'Monitore o encharcamento',
+              text: 'Observe as baixadas após chuvas fortes.',
+              citations: [0],
+              category: TipCategory.water,
+              phase: TipPhase.cropCycle,
+            ),
+          ],
+          sources: const [TipSource(title: 'Guia de solos', url: 'https://a')],
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    testWidgets('phases_group_the_timeline', (tester) async {
+      // Wide enough for the test font to keep each title and its chip on
+      // one line.
+      await pumpPage(tester, result: phased(), width: 800);
+
+      final before = tester.getTopLeft(find.text('Antes do plantio')).dy;
+      final sowing = tester.getTopLeft(find.text('Semeadura')).dy;
+      final cycle = tester.getTopLeft(find.text('Ciclo da cultura')).dy;
+      expect(before, lessThan(sowing));
+      expect(sowing, lessThan(cycle));
+      expect(find.text('Preparo do solo'), findsNothing);
+
+      final now = find.byKey(const Key('tips-phase-chip-0'));
+      final next = find.byKey(const Key('tips-phase-chip-1'));
+      expect(find.descendant(of: now, matching: find.text('Agora')), findsOneWidget);
+      expect(
+        find.descendant(of: next, matching: find.text('Próximo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('tips-phase-chip-2')), findsNothing);
+      expect(tester.getSize(now).height, 24);
+      final nowBox = tester.widget<Container>(now).decoration! as BoxDecoration;
+      final nextBox = tester.widget<Container>(next).decoration! as BoxDecoration;
+      expect(nowBox.color, AppPalette.light.selected);
+      expect(nextBox.color, AppPalette.light.surfaceContainer);
+      final label = tester.widget<Text>(find.text('Agora'));
+      expect(label.style?.fontSize, 12);
+      expect(label.style?.color, AppPalette.light.primaryText);
+      expect(
+        tester.getTopLeft(now).dx -
+            tester.getTopRight(find.text('Antes do plantio')).dx,
+        8,
+      );
+    });
+
+    testWidgets('categories_group_without_phases', (tester) async {
+      await pumpPage(tester);
+
+      expect(find.text('Preparo do solo'), findsOneWidget);
+      expect(find.text('Agora'), findsNothing);
+      expect(find.text('Próximo'), findsNothing);
+    });
+
+    testWidgets('titled_card_matches_the_mock', (tester) async {
+      await pumpPage(tester, result: phased());
+
+      final title = tester.widget<Text>(find.text('Evite tráfego com solo úmido'));
+      expect(title.style?.fontSize, 15);
+      expect(title.style?.fontWeight, FontWeight.w600);
+      expect(title.style?.color, AppPalette.light.onSurface);
+      final body = tester.widget<Text>(
+        find.text('Entre com máquinas abaixo do ponto de friabilidade.'),
+      );
+      expect(body.style?.fontSize, 14);
+      expect(body.style?.color, AppPalette.light.onSurfaceVariant);
+      expect(
+        tester
+                .getTopLeft(
+                  find.text('Entre com máquinas abaixo do ponto de friabilidade.'),
+                )
+                .dy -
+            tester.getBottomLeft(find.text('Evite tráfego com solo úmido')).dy,
+        0,
+      );
+    });
+
+    testWidgets('filter_hides_a_category', (tester) async {
+      await pumpPage(
+        tester,
+        result: phased(),
+        hiddenCategories: const {TipCategory.water},
+      );
+
+      expect(find.text('Evite tráfego com solo úmido'), findsOneWidget);
+      expect(find.text('Ajuste a lâmina de irrigação'), findsNothing);
+      expect(find.text('Monitore o encharcamento'), findsNothing);
+      expect(find.text('1 dicas'), findsOneWidget);
+    });
+
+    testWidgets('filter_sheet_toggles_a_category', (tester) async {
+      Set<TipCategory>? chosen;
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showTipsFilterSheet(
+              context,
+              present: const {TipCategory.preparation, TipCategory.water},
+              hidden: const {},
+              onChanged: (hidden) => chosen = hidden,
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filtrar dicas'), findsOneWidget);
+      expect(find.text('Preparo do solo'), findsOneWidget);
+      await tester.tap(find.text('Água'));
+      await tester.pumpAndSettle();
+
+      expect(chosen, {TipCategory.water});
+    });
+  
+    // A tip without a category is not filed under "Outras práticas": the
+    // sheet offers only categories the tips carry, and no switch hides an
+    // uncategorised tip (SPEC 0209; review of #439).
+    test('uncategorised_tips_are_not_filterable', () {
+      const loose = ManagementTip(text: 'Sem categoria', citations: [0]);
+      const water = ManagementTip(
+        text: 'Água',
+        citations: [0],
+        category: TipCategory.water,
+      );
+      expect(filterableCategories(const [loose]), isEmpty);
+      expect(filterableCategories(const [loose, water]), {TipCategory.water});
+      expect(
+        shownTips(const [loose, water], const {TipCategory.other}),
+        const [loose, water],
+      );
     });
   });
 }

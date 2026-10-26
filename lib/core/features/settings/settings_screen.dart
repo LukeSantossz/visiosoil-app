@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,18 +13,19 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
-import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
+import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/core/features/settings/export_sheet.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/text_size_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -48,20 +50,27 @@ class SettingsScreen extends ConsumerWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
+          // Cards at 16 dp, the first label right under the app bar
+          // (PNG 23, SPEC 0204).
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.xl,
+            ),
             children: [
               const _SectionHeader(title: 'CONTA'),
               const SizedBox(height: AppSpacing.sm),
-              const _AccountTile(),
+              const SettingsGroup(children: [_AccountTile()]),
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'PREFERÊNCIAS'),
               const SizedBox(height: AppSpacing.sm),
-              _SettingsGroup(
+              SettingsGroup(
                 children: [
                   const _ThemeChoiceSelector(),
                   SettingsSwitchTile(
-                    icon: Icons.wb_sunny_outlined,
+                    icon: LucideIcons.sun,
                     title: 'Modo Sol',
                     subtitle: 'Alto contraste e letras maiores para o campo',
                     value: ref.watch(sunModeProvider),
@@ -69,52 +78,66 @@ class SettingsScreen extends ConsumerWidget {
                         ref.read(sunModeProvider.notifier).select(on),
                   ),
                   const _VibrationSwitch(),
-                  const _SettingsTile(
-                    icon: Icons.straighten,
+                  SettingsTile(
+                    icon: LucideIcons.rulerDimensionLine,
                     title: 'Unidades',
                     subtitle: 'Distância em cm',
+                    onTap: () => _showOnlyChoice(
+                      context,
+                      title: 'Unidades',
+                      option: 'Centímetros (cm)',
+                    ),
                   ),
-                  const _SettingsTile(
-                    icon: Icons.translate,
+                  SettingsTile(
+                    icon: LucideIcons.languages,
                     title: 'Idioma',
                     subtitle: 'Português (Brasil)',
+                    onTap: () => _showOnlyChoice(
+                      context,
+                      title: 'Idioma',
+                      option: 'Português (Brasil)',
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'CÂMERA E ANÁLISE'),
               const SizedBox(height: AppSpacing.sm),
-              const _SettingsGroup(
+              // Each switch acts on the capture (SPEC 0208).
+              SettingsGroup(
                 children: [
                   SettingsSwitchTile(
-                    icon: Icons.crop_free,
+                    icon: LucideIcons.focus,
                     title: 'Guia de enquadramento',
                     subtitle: 'Moldura e checagem de luz, foco e distância',
-                    value: true,
-                    onChanged: null,
+                    value: ref.watch(frameGuideProvider),
+                    onChanged: (on) =>
+                        ref.read(frameGuideProvider.notifier).select(on),
                   ),
                   SettingsSwitchTile(
-                    icon: Icons.image_outlined,
+                    icon: LucideIcons.image,
                     title: 'Salvar fotos na galeria',
-                    value: false,
-                    onChanged: null,
+                    value: ref.watch(saveToGalleryProvider),
+                    onChanged: (on) =>
+                        ref.read(saveToGalleryProvider.notifier).select(on),
                   ),
                   SettingsSwitchTile(
-                    icon: Icons.location_on_outlined,
+                    icon: LucideIcons.mapPin,
                     title: 'Registrar localização',
                     subtitle: 'Aproximada, opcional',
-                    value: false,
-                    onChanged: null,
+                    value: ref.watch(recordLocationProvider),
+                    onChanged: (on) =>
+                        ref.read(recordLocationProvider.notifier).select(on),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'DADOS E SINCRONIZAÇÃO'),
               const SizedBox(height: AppSpacing.sm),
-              _SettingsGroup(
+              SettingsGroup(
                 children: [
-                  _SettingsTile(
-                    icon: Icons.backup_outlined,
+                  SettingsTile(
+                    icon: LucideIcons.cloudUpload,
                     title: 'Backup na conta',
                     subtitle:
                         ref.watch(authNotifierProvider).value?.account == null
@@ -122,13 +145,13 @@ class SettingsScreen extends ConsumerWidget {
                         : 'Dados só neste aparelho',
                   ),
                   const SettingsSwitchTile(
-                    icon: Icons.wifi,
+                    icon: LucideIcons.wifi,
                     title: 'Sincronizar só no Wi-Fi',
                     value: true,
                     onChanged: null,
                   ),
-                  _SettingsTile(
-                    icon: Icons.file_download_outlined,
+                  SettingsTile(
+                    icon: LucideIcons.download,
                     title: 'Exportar análises',
                     subtitle: 'Planilha CSV',
                     onTap: () => showModalBottomSheet<void>(
@@ -138,8 +161,8 @@ class SettingsScreen extends ConsumerWidget {
                       builder: (_) => const ExportSheet(),
                     ),
                   ),
-                  _SettingsTile(
-                    icon: Icons.delete_outline,
+                  SettingsTile(
+                    icon: LucideIcons.trash2,
                     title: 'Limpar dados do aparelho',
                     subtitle: 'Apaga análises e fotos locais',
                     destructive: true,
@@ -150,37 +173,26 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'ACESSIBILIDADE'),
               const SizedBox(height: AppSpacing.sm),
-              _SettingsGroup(
+              SettingsGroup(
                 children: [
                   const _ReduceMotionSwitch(),
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tamanho do texto',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        SegmentedControl<bool>(
-                          semanticLabel: 'Tamanho do texto',
-                          value: ref.watch(largeTextProvider),
-                          options: const [
-                            SegmentedControlOption(
-                              value: false,
-                              label: 'Padrão',
-                            ),
-                            SegmentedControlOption(
-                              value: true,
-                              label: 'Grande',
-                            ),
-                          ],
-                          onChanged: (large) => ref
-                              .read(largeTextProvider.notifier)
-                              .select(large),
-                        ),
+                  SettingsRowFrame(
+                    icon: Icon(
+                      LucideIcons.aLargeSmall,
+                      size: 22,
+                      color: context.palette.primaryText,
+                    ),
+                    title: 'Tamanho do texto',
+                    trailing: SegmentedControl<bool>(
+                      compact: true,
+                      semanticLabel: 'Tamanho do texto',
+                      value: ref.watch(largeTextProvider),
+                      options: const [
+                        SegmentedControlOption(value: false, label: 'Padrão'),
+                        SegmentedControlOption(value: true, label: 'Grande'),
                       ],
+                      onChanged: (large) =>
+                          ref.read(largeTextProvider.notifier).select(large),
                     ),
                   ),
                 ],
@@ -188,17 +200,17 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'SOBRE E AJUDA'),
               const SizedBox(height: AppSpacing.sm),
-              _SettingsGroup(
+              SettingsGroup(
                 children: [
-                  _SettingsTile(
-                    icon: Icons.school_outlined,
+                  SettingsTile(
+                    icon: LucideIcons.circleHelp,
                     title: 'Como fotografar a amostra',
                     onTap: () => context.push('/capture-guide'),
                   ),
                   const _PrivacyPolicyTile(),
                   const _ErrorReportTile(),
-                  _SettingsTile(
-                    icon: Icons.info_outline,
+                  SettingsTile(
+                    icon: LucideIcons.info,
                     title: 'Versão',
                     trailing: pkgAsync.when(
                       data: (pkg) => Text(
@@ -219,6 +231,55 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Unidades and Idioma each have one option today; the sheet shows it,
+  /// chosen (SPEC 0204).
+  void _showOnlyChoice(
+    BuildContext context, {
+    required String title,
+    required String option,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final palette = sheetContext.palette;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(sheetContext).textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.sm),
+                SettingsGroup(
+                  children: [
+                    Semantics(
+                      selected: true,
+                      child: SettingsRowFrame(
+                        title: option,
+                        trailing: Icon(
+                          LucideIcons.check,
+                          size: 20,
+                          color: palette.primaryText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -297,8 +358,8 @@ class _AccountTile extends ConsumerWidget {
     final authAsync = ref.watch(authNotifierProvider);
 
     return authAsync.when(
-      loading: () => const _SettingsTile(
-        icon: Icons.account_circle_outlined,
+      loading: () => const SettingsTile(
+        icon: LucideIcons.user,
         title: 'Conta',
         trailing: SizedBox(
           width: 16,
@@ -327,8 +388,8 @@ class _AccountTile extends ConsumerWidget {
     if (account == null) return _signInTile(context, ref);
     return Column(
       children: [
-        _SettingsTile(
-          icon: Icons.account_circle_outlined,
+        SettingsTile(
+          icon: LucideIcons.cloud,
           title: 'Conta Google',
           subtitle: account.email,
           subtitleMaxLines: 1,
@@ -341,7 +402,7 @@ class _AccountTile extends ConsumerWidget {
         // Destructive, like "Apagar todos os dados" (SPEC 0129).
         VisioButton(
           label: 'Excluir conta',
-          icon: Icons.person_remove_outlined,
+          icon: LucideIcons.userX,
           variant: VisioButtonVariant.destructive,
           expanded: true,
           onPressed: () => _confirmDeleteAccount(context, ref),
@@ -378,17 +439,12 @@ class _AccountTile extends ConsumerWidget {
     }
   }
 
-  Widget _signInTile(BuildContext context, WidgetRef ref) => _SettingsTile(
-    icon: Icons.login,
+  Widget _signInTile(BuildContext context, WidgetRef ref) => SettingsTile(
+    icon: LucideIcons.user,
     title: 'Conta',
     subtitle: 'Não vinculada · dados só neste aparelho',
     subtitleMaxLines: 2,
     onTap: () => _signIn(context, ref),
-    trailing: Icon(
-      Icons.arrow_forward_ios,
-      size: 16,
-      color: context.palette.onSurfaceVariant,
-    ),
   );
 
   /// Starts a sign-in unless the device is known to be offline, where it could
@@ -419,27 +475,38 @@ class _ThemeChoiceSelector extends ConsumerWidget {
   const _ThemeChoiceSelector();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    padding: const EdgeInsets.all(AppSpacing.lg),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Tema', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        SegmentedControl<ThemeMode>(
-          semanticLabel: 'Tema',
-          value: ref.watch(baseThemeModeProvider),
-          options: const [
-            SegmentedControlOption(value: ThemeMode.system, label: 'Sistema'),
-            SegmentedControlOption(value: ThemeMode.light, label: 'Claro'),
-            SegmentedControlOption(value: ThemeMode.dark, label: 'Escuro'),
-          ],
-          onChanged: (choice) =>
-              ref.read(baseThemeModeProvider.notifier).select(choice),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // PNG 23 offers Claro | Escuro. Until one is chosen the theme follows the
+    // system, and the control marks the brightness the system gives
+    // (SPEC 0204).
+    final base = ref.watch(baseThemeModeProvider);
+    final shown = base != ThemeMode.system
+        ? base
+        : MediaQuery.platformBrightnessOf(context) == Brightness.dark
+        ? ThemeMode.dark
+        : ThemeMode.light;
+    return SettingsRowFrame(
+      // One row, the compact control at its end (PNG 23, SPEC 0204).
+      key: const Key('theme-row'),
+      icon: Icon(
+        LucideIcons.moon,
+        size: 22,
+        color: context.palette.primaryText,
+      ),
+      title: 'Tema',
+      trailing: SegmentedControl<ThemeMode>(
+        compact: true,
+        semanticLabel: 'Tema',
+        value: shown,
+        options: const [
+          SegmentedControlOption(value: ThemeMode.light, label: 'Claro'),
+          SegmentedControlOption(value: ThemeMode.dark, label: 'Escuro'),
+        ],
+        onChanged: (choice) =>
+            ref.read(baseThemeModeProvider.notifier).select(choice),
+      ),
+    );
+  }
 }
 
 /// Vibration toggle: subtle haptic feedback on capture, save, and complete
@@ -450,6 +517,7 @@ class _VibrationSwitch extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SettingsSwitchTile(
+      icon: LucideIcons.smartphone,
       title: 'Vibração',
       haptic: false,
       subtitle: 'Toques sutis ao capturar, salvar e concluir',
@@ -469,6 +537,7 @@ class _ReduceMotionSwitch extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SettingsSwitchTile(
+      icon: LucideIcons.zap,
       title: 'Reduzir movimento',
       subtitle: 'Troca animações por transições curtas',
       value: ref.watch(reduceMotionProvider),
@@ -493,14 +562,9 @@ class _PrivacyPolicyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingsTile(
-      icon: Icons.privacy_tip_outlined,
+    return SettingsTile(
+      icon: LucideIcons.shield,
       title: 'Privacidade e dados',
-      trailing: Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: context.palette.onSurfaceVariant,
-      ),
       onTap: () => _open(context),
     );
   }
@@ -538,13 +602,13 @@ class _ErrorReportTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasEntries = ref.watch(errorReportHasEntriesProvider).value ?? false;
-    return _SettingsTile(
-      icon: Icons.bug_report_outlined,
+    return SettingsTile(
+      icon: LucideIcons.messageSquare,
       title: 'Enviar comentário',
       subtitle: AppStrings.errorReportPrivacy,
       trailing: hasEntries
           ? Icon(
-              Icons.share_outlined,
+              LucideIcons.share2,
               size: 20,
               color: context.palette.onSurfaceVariant,
             )
@@ -591,126 +655,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.5,
-        color: context.palette.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-// --- Settings Tile ---
-
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.subtitleMaxLines,
-    this.trailing,
-    this.onTap,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final int? subtitleMaxLines;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          constraints: BoxConstraints(
-            minHeight: context.palette.isSun ? 64 : 56,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 24,
-                color: destructive
-                    ? context.palette.error
-                    : context.palette.primaryText,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: destructive ? context.palette.error : null,
-                      ),
-                    ),
-                    if (subtitle != null)
-                      Text(
-                        subtitle!,
-                        maxLines: subtitleMaxLines,
-                        softWrap: subtitleMaxLines == 1 ? false : null,
-                        overflow: subtitleMaxLines == null
-                            ? null
-                            : TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: context.palette.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (trailing is Icon) ...[
-                const SizedBox(width: AppSpacing.sm),
-                trailing!,
-              ] else if (trailing != null)
-                Flexible(child: trailing!)
-              else if (onTap != null)
-                Icon(
-                  Icons.chevron_right,
-                  color: context.palette.onSurfaceVariant,
-                ),
-            ],
-          ),
+    // 12 sp weight 600 in textTertiary, 16 dp in (PNG 23, SPEC 0204).
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
+          color: context.palette.textTertiary,
         ),
       ),
     );
   }
-}
-
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({required this.children});
-  final List<Widget> children;
-  @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      children: [
-        for (var index = 0; index < children.length; index++) ...[
-          if (index != 0)
-            Divider(
-              height: context.density.borderWidth,
-              thickness: context.density.borderWidth,
-              color: context.palette.divider,
-            ),
-          children[index],
-        ],
-      ],
-    ),
-  );
 }

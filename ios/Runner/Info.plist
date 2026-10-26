@@ -4,6 +4,10 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Acesso à localização para marcação de amostras</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>O VisioSoil salva na galeria as fotos das amostras, quando você ativa essa opção.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O VisioSoil precisa do acesso às fotos para salvar nelas as fotos das amostras, quando você ativa essa opção.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Acesso à câmera para captura de imagens</string>
 	<key>NSMicrophoneUsageDescription</key>

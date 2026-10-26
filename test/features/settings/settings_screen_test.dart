@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher_platform_interface/link.dart';
@@ -23,7 +24,9 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -769,9 +772,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final tile = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_SettingsTile',
-    );
+    final tile = find.byWidgetPredicate((widget) => widget is SettingsTile);
     await tester.scrollUntilVisible(
       find.text('Excluir conta').hitTestable(),
       200,
@@ -838,7 +839,13 @@ void main() {
       await tester.pumpAndSettle();
       await expectMeetsGuidelines(tester);
 
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+      // The test font's square glyphs make the rows beside a wide control
+      // tall, so the list scrolls until the last row shows.
+      await tester.scrollUntilVisible(
+        find.text('Versão').hitTestable(),
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       expect(find.text('Versão').hitTestable(), findsOneWidget);
       await expectMeetsGuidelines(tester);
@@ -981,6 +988,47 @@ void main() {
       expect(find.text(_policyFailedMessage), findsOneWidget);
       expect(find.byType(SettingsScreen), findsOneWidget);
     });
+  });
+
+  // SPEC 0204: Tema is one row holding a compact control, and the section
+  // labels follow PNG 23.
+  testWidgets('theme_row_holds_a_compact_control', (tester) async {
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('theme-row'));
+    expect(
+      find.descendant(of: row, matching: find.byIcon(LucideIcons.moon)),
+      findsOneWidget,
+    );
+    final pill = find.descendant(
+      of: row,
+      matching: find.byKey(const Key('segmented-pill')),
+    );
+    expect(tester.getSize(pill).height, 32);
+    expect(
+      (tester.getCenter(pill).dy - tester.getCenter(find.text('Tema')).dy)
+          .abs(),
+      lessThan(4),
+    );
+
+    await tester.tap(find.text('Escuro'));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(SettingsScreen)),
+    );
+    expect(container.read(baseThemeModeProvider), ThemeMode.dark);
+  });
+
+  testWidgets('section_labels_match_the_mock', (tester) async {
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    final label = tester.widget<Text>(find.text('PREFERÊNCIAS'));
+    expect(label.style?.fontSize, 12);
+    expect(label.style?.fontWeight, FontWeight.w600);
+    expect(label.style?.letterSpacing, 0.6);
+    expect(label.style?.color, AppPalette.light.textTertiary);
   });
 }
 

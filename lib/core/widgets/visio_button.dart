@@ -22,6 +22,8 @@ class VisioButton extends StatelessWidget {
     this.variant = VisioButtonVariant.primary,
     this.expanded = false,
     this.singleLine = false,
+    this.style,
+    this.leadingGap = 10,
   }) : assert(leading == null || icon == null);
 
   /// Button text.
@@ -59,6 +61,13 @@ class VisioButton extends StatelessWidget {
   /// result's side-by-side footer needs (SPEC 0202).
   final bool singleLine;
 
+  /// Merged over the variant's theme style, for a button that carries
+  /// colours of its own, as Google's does (SPEC 0204).
+  final ButtonStyle? style;
+
+  /// The gap after [leading].
+  final double leadingGap;
+
   @override
   Widget build(BuildContext context) {
     final child = _buildChild(context);
@@ -71,16 +80,19 @@ class VisioButton extends StatelessWidget {
         VisioButtonVariant.primary => ElevatedButton(
           onPressed: onPressedOrNull,
           statesController: states,
+          style: style,
           child: child,
         ),
         VisioButtonVariant.secondary => OutlinedButton(
           onPressed: onPressedOrNull,
           statesController: states,
+          style: style,
           child: child,
         ),
         VisioButtonVariant.text => TextButton(
           onPressed: onPressedOrNull,
           statesController: states,
+          style: style,
           child: child,
         ),
         VisioButtonVariant.destructive => TextButton(
@@ -88,7 +100,7 @@ class VisioButton extends StatelessWidget {
           statesController: states,
           style: TextButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.error,
-          ),
+          ).merge(style),
           child: child,
         ),
       },
@@ -144,7 +156,7 @@ class VisioButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           leading ?? Icon(icon, size: 20),
-          SizedBox(width: leading != null ? 10 : 8),
+          SizedBox(width: leading != null ? leadingGap : 8),
           // Wraps at large text instead of running past the button (SPEC 0121).
           Flexible(child: _label()),
         ],

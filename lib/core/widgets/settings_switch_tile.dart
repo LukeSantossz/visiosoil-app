@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
-import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 
 /// A settings row with a trailing switch (redesign v11 §4 `SettingsSwitchTile`):
 /// [title] and an optional [subtitle], tapping anywhere in the row toggles
@@ -43,7 +43,6 @@ class SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final palette = context.palette;
 
     return Semantics(
@@ -56,40 +55,14 @@ class SettingsSwitchTile extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkWell(
             onTap: _enabled ? _toggle : null,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 56),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 20, color: palette.primaryText),
-                      const SizedBox(width: AppSpacing.md),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(title, style: theme.textTheme.bodyLarge),
-                          if (subtitle != null)
-                            Text(
-                              subtitle!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: palette.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    _Thumb(value: value, enabled: _enabled),
-                  ],
-                ),
-              ),
+            // The settings row's metrics (PNG 23, SPEC 0204).
+            child: SettingsRowFrame(
+              icon: icon == null
+                  ? null
+                  : Icon(icon, size: 22, color: palette.primaryText),
+              title: title,
+              subtitle: subtitle,
+              trailing: _Thumb(value: value, enabled: _enabled),
             ),
           ),
         ),

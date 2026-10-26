@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 
 /// Decorative Google mark; the adjacent button label names the provider.
 class GoogleGLogo extends StatelessWidget {
-  const GoogleGLogo({super.key});
+  const GoogleGLogo({super.key, this.size = 18});
+
+  final double size;
 
   @override
-  Widget build(BuildContext context) => const ExcludeSemantics(
-    child: CustomPaint(size: Size.square(18), painter: _GoogleGPainter()),
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: Size.square(size),
+      painter: const _GoogleGPainter(),
+    ),
   );
 }
 

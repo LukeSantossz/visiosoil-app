@@ -244,11 +244,12 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 21 files declaring 46 providers (database, repository,
+└── providers/                         # 24 files declaring 60 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
                                        #   storage, lost capture, appearance, error report,
-                                       #   capture guide, guided camera, soil sample, plus the history filter/search and
+                                       #   capture guide, guided camera, capture preferences,
+                                       #   soil sample, plus the history filter/search and
                                        #   derived-stats providers)
 ```
 

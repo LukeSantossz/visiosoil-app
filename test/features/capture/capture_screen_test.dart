@@ -21,6 +21,7 @@ import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/core/services/gallery_saver.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
@@ -30,6 +31,7 @@ import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -80,6 +82,20 @@ class _GatedSoilRecordRepository extends FakeSoilRecordRepository {
     final saved = super.create(record);
     await _gate;
     return saved;
+  }
+}
+
+/// Records each photograph handed to the gallery, or refuses them all.
+class _RecordingGallerySaver implements GallerySaver {
+  _RecordingGallerySaver({this.fails = false});
+
+  final bool fails;
+  final saved = <String>[];
+
+  @override
+  Future<void> save(String imagePath) async {
+    if (fails) throw StateError('refused');
+    saved.add(imagePath);
   }
 }
 
@@ -153,6 +169,7 @@ void main() {
     SoilRecordRepository? repository,
     PickedFileDeleter deletePickedFile = _keepPickedFile,
     ClassificationFailureCause failureCause = ClassificationFailureCause.timeout,
+    List<Override> overrides = const [],
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -195,6 +212,7 @@ void main() {
         ),
         if (repository != null)
           soilRecordRepositoryProvider.overrideWithValue(repository),
+        ...overrides,
       ],
       child: MaterialApp.router(routerConfig: router),
     );
@@ -605,6 +623,108 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('open capture'), findsOneWidget);
     expect(find.byType(CaptureScreen), findsNothing);
+  });
+
+  // Configurações' capture switches (SPEC 0208).
+  group('capture settings', () {
+    Future<void> captureAndSave(WidgetTester tester) async {
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.tap(find.byTooltip('Salvar'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('location_off_skips_the_fix', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      var locateCalls = 0;
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async {
+          locateCalls++;
+          return (
+            latitude: -22.9,
+            longitude: -47.06,
+            accuracy: 5.0,
+            address: 'X',
+          );
+        },
+        classify: (_) async => null,
+        repository: repository,
+        overrides: [initialRecordLocationProvider.overrideWithValue(false)],
+      ));
+
+      await captureAndSave(tester);
+
+      expect(locateCalls, 0);
+      expect(repository.createCalls.single.latitude, isNull);
+      expect(repository.createCalls.single.longitude, isNull);
+    });
+
+    testWidgets('gallery_on_copies_the_stored_photo', (tester) async {
+      final gallery = _RecordingGallerySaver();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: _StoringRepository(),
+        overrides: [
+          initialSaveToGalleryProvider.overrideWithValue(true),
+          gallerySaverProvider.overrideWithValue(gallery),
+        ],
+      ));
+
+      await captureAndSave(tester);
+
+      // The stored copy, not the picker's file (review of #438).
+      expect(gallery.saved, [_StoringRepository.storedPath]);
+    });
+
+    testWidgets('gallery_off_copies_nothing', (tester) async {
+      final gallery = _RecordingGallerySaver();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: FakeSoilRecordRepository(),
+        overrides: [gallerySaverProvider.overrideWithValue(gallery)],
+      ));
+
+      await captureAndSave(tester);
+
+      expect(gallery.saved, isEmpty);
+    });
+
+    testWidgets('gallery_failure_keeps_the_record', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+        overrides: [
+          initialSaveToGalleryProvider.overrideWithValue(true),
+          gallerySaverProvider.overrideWithValue(
+            _RecordingGallerySaver(fails: true),
+          ),
+        ],
+      ));
+
+      await captureAndSave(tester);
+
+      expect(repository.createCalls, hasLength(1));
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+      // Queued behind the saved notice.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Não foi possível salvar a foto na galeria.'),
+        findsOneWidget,
+      );
+    });
   });
 
   testWidgets('failed_save_stays', (tester) async {
@@ -2140,4 +2260,14 @@ void main() {
       });
     }
   });
+}
+
+/// Saves each record under another path, as the image store does, so a test
+/// can tell the stored photograph from the picker's file.
+class _StoringRepository extends FakeSoilRecordRepository {
+  static const storedPath = '/stored/sample.jpg';
+
+  @override
+  Future<SoilRecord> create(SoilRecord record) =>
+      super.create(record.copyWith(imagePath: storedPath));
 }

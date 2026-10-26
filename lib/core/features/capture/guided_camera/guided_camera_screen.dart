@@ -32,6 +32,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
 import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 
@@ -132,12 +133,22 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   late final DateTime Function() _clock;
   bool _flashing = false;
 
+  /// Whether Configurações' "Guia de enquadramento" is on (SPEC 0208). Off,
+  /// the screen reads nothing live and draws only the camera and its
+  /// controls, and the shutter is never held.
+  late final bool _guide = ref.read(frameGuideProvider);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _errors = ref.read(errorReportStoreProvider);
     _clock = ref.read(autoCaptureClockProvider);
+    if (_guide) _listenToTilt();
+    unawaited(_start());
+  }
+
+  void _listenToTilt() {
     _tiltSubscription = ref
         .read(tiltSourceProvider)
         .samples
@@ -170,7 +181,6 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             }
           },
         );
-    unawaited(_start());
   }
 
   Future<void> _start() async {
@@ -294,7 +304,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// Starts reading [camera]'s preview live, unless the reader failed this
   /// visit or the contract cannot be loaded (SPEC 0166).
   Future<void> _startLive(CaptureCamera camera) async {
-    if (_liveFailed || _reader != null || _shooting) return;
+    if (!_guide || _liveFailed || _reader != null || _shooting) return;
     final token = _liveToken;
     final loadContract = ref.read(liveContractLoaderProvider);
     final spawn = ref.read(liveSheetReaderFactoryProvider);
@@ -802,8 +812,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }
 
   bool _canCapture(GuidanceRow row) =>
-      (_shownReading == null || row == GuidanceRow.ready) &&
-      (_quality == null || (_quality!.lightOk && _quality!.focusOk));
+      !_guide ||
+      ((_shownReading == null || row == GuidanceRow.ready) &&
+          (_quality == null || (_quality!.lightOk && _quality!.focusOk)));
 
   QualityStatus _status(bool? ok) => ok == null
       ? QualityStatus.adjusting
@@ -962,34 +973,35 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                 color: Color(0x8CFFFFFF),
               ),
             ),
-          SafeArea(
-            child: CaptureGuideOverlay(
-              preview: camera == null
-                  ? null
-                  : previewRectOnOverlay(
-                      previewSize: camera.previewSize,
-                      screenSize: MediaQuery.sizeOf(context),
-                      safePadding: MediaQuery.paddingOf(context),
-                    ),
-              topInset: GuidedCameraScreen.bannerHeight,
-              bottomInset: GuidedCameraScreen.footerHeight,
-              tilt: _tilt,
-              direction: _smoother.direction,
-              brackets: cropped
-                  ? {
-                      for (final position in BracketPosition.values)
-                        position: GuideState.off,
-                    }
-                  : alignment?.brackets ?? allIdle,
-              // An arrow only ever says what the banner says.
-              arrow: shown.row == GuidanceRow.sheetMisaligned
-                  ? alignment?.arrow
-                  : null,
-              target: cropped ? GuideState.idle : targetStateFor(reading),
-              glow: croppedSides,
-              warning: cropped ? croppedWarning(croppedSides) : null,
+          if (_guide)
+            SafeArea(
+              child: CaptureGuideOverlay(
+                preview: camera == null
+                    ? null
+                    : previewRectOnOverlay(
+                        previewSize: camera.previewSize,
+                        screenSize: MediaQuery.sizeOf(context),
+                        safePadding: MediaQuery.paddingOf(context),
+                      ),
+                topInset: GuidedCameraScreen.bannerHeight,
+                bottomInset: GuidedCameraScreen.footerHeight,
+                tilt: _tilt,
+                direction: _smoother.direction,
+                brackets: cropped
+                    ? {
+                        for (final position in BracketPosition.values)
+                          position: GuideState.off,
+                      }
+                    : alignment?.brackets ?? allIdle,
+                // An arrow only ever says what the banner says.
+                arrow: shown.row == GuidanceRow.sheetMisaligned
+                    ? alignment?.arrow
+                    : null,
+                target: cropped ? GuideState.idle : targetStateFor(reading),
+                glow: croppedSides,
+                warning: cropped ? croppedWarning(croppedSides) : null,
+              ),
             ),
-          ),
           SafeArea(
             child: Column(
               children: [
@@ -1023,7 +1035,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                     ],
                   ),
                 ),
-                _GuidanceBanner(guidance: guidance),
+                if (_guide) _GuidanceBanner(guidance: guidance),
                 Expanded(
                   child: Align(
                     alignment: Alignment.bottomCenter,
@@ -1041,8 +1053,10 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                                   CaptureAlert(failures: _failures!),
                                   const SizedBox(height: AppSpacing.sm),
                                 ],
-                                _qualityChips(shown.row),
-                                const SizedBox(height: AppSpacing.lg),
+                                if (_guide) ...[
+                                  _qualityChips(shown.row),
+                                  const SizedBox(height: AppSpacing.lg),
+                                ],
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceEvenly,
@@ -1085,12 +1099,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: AppSpacing.sm),
-                                const Text(
-                                  'Captura liberada quando os 3 itens estiverem ok',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.white),
-                                ),
+                                if (_guide) ...[
+                                  const SizedBox(height: AppSpacing.sm),
+                                  const Text(
+                                    'Captura liberada quando os 3 itens estiverem ok',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

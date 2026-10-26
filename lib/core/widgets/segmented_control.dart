@@ -30,6 +30,7 @@ class SegmentedControl<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.semanticLabel,
+    this.compact = false,
   });
 
   final List<SegmentedControlOption<T>> options;
@@ -40,6 +41,10 @@ class SegmentedControl<T> extends StatelessWidget {
   /// each segment already names itself.
   final String? semanticLabel;
 
+  /// A 32 dp pill sized to its labels, for the end of a settings row
+  /// (PNG 23, SPEC 0204); every segment takes the widest label's width.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -48,20 +53,35 @@ class SegmentedControl<T> extends StatelessWidget {
     // the 48 dp floor by reaching 8 dp below it, into the gap the mock leaves;
     // Modo Sol draws the pill at its 56 dp target.
     final target = context.density.tap;
-    final pillHeight = palette.isSun ? target : 40.0;
+    final pillHeight = compact
+        ? 32.0
+        : palette.isSun
+        ? target
+        : 40.0;
     final reach = target - pillHeight;
+    // A compact pill reaches as far above as below, centred in its row.
+    final padding = compact
+        ? EdgeInsets.symmetric(vertical: reach / 2)
+        : EdgeInsets.only(bottom: reach);
 
     return Semantics(
       container: true,
       label: semanticLabel,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final segmentWidth = constraints.maxWidth / options.length;
+          // A compact control wider than its room shrinks its segments, so
+          // the indicator and rules stay on the labels (review of #438).
+          final natural = compact
+              ? _compactSegmentWidth(context)
+              : constraints.maxWidth / options.length;
+          final segmentWidth = natural * options.length > constraints.maxWidth
+              ? constraints.maxWidth / options.length
+              : natural;
 
-          return Stack(
+          final control = Stack(
             children: [
               Padding(
-                padding: EdgeInsets.only(bottom: reach),
+                padding: padding,
                 child: IntrinsicHeight(
                   child: Container(
                     key: const Key('segmented-pill'),
@@ -99,6 +119,18 @@ class SegmentedControl<T> extends StatelessWidget {
                                   : palette.selected,
                             ),
                           ),
+                        // A rule between segments (PNG 16 and 23).
+                        for (var i = 1; i < options.length; i++)
+                          Positioned(
+                            left: segmentWidth * i - palette.edgeWidth / 2,
+                            top: 0,
+                            bottom: 0,
+                            width: palette.edgeWidth,
+                            child: ColoredBox(
+                              key: const Key('segment-separator'),
+                              color: palette.outline,
+                            ),
+                          ),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -121,9 +153,32 @@ class SegmentedControl<T> extends StatelessWidget {
               ),
             ],
           );
+          return compact
+              ? SizedBox(width: segmentWidth * options.length, child: control)
+              : control;
         },
       ),
     );
+  }
+
+  TextStyle? _labelStyle(BuildContext context) => Theme.of(
+    context,
+  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500);
+
+  /// The widest label, 12 dp either side of it.
+  double _compactSegmentWidth(BuildContext context) {
+    var widest = 0.0;
+    for (final option in options) {
+      final painter = TextPainter(
+        text: TextSpan(text: option.label, style: _labelStyle(context)),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      if (painter.width > widest) widest = painter.width;
+      painter.dispose();
+    }
+    return widest.ceilToDouble() + 2 * AppSpacing.md;
   }
 
   Widget _buildTarget(int index) {
@@ -170,7 +225,7 @@ class SegmentedControl<T> extends StatelessWidget {
     // A 20 dp icon and the 14 sp label (PNG 16, SPEC 0203).
     return ExcludeSemantics(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xs),
+        padding: EdgeInsets.all(compact ? 0 : AppSpacing.xs),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -188,10 +243,7 @@ class SegmentedControl<T> extends StatelessWidget {
                   option.label,
                   textAlign: TextAlign.center,
                   maxLines: 1,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: _labelStyle(context)?.copyWith(color: color),
                 ),
               ),
             ),

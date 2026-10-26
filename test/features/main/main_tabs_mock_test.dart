@@ -22,9 +22,11 @@ import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
+import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 import '../../support/fake_soil_record_repository.dart';
+import '../../support/management_tips_fakes.dart';
 
 final _now = DateTime.now();
 
@@ -80,6 +82,9 @@ Future<ProviderContainer> _pump(
         (ref) => Stream.value(ConnectivityStatus.online),
       ),
       soilRecordsStreamProvider.overrideWith((ref) => Stream.value(shown)),
+      managementTipsRepositoryProvider.overrideWithValue(
+        FakeManagementTipsRepository(),
+      ),
       filteredRecordsProvider.overrideWith((ref) => Stream.value(shown)),
     ],
   );
@@ -358,6 +363,39 @@ void main() {
       tester.getTopRight(pill).dx,
       greaterThan(tester.getTopRight(title).dx),
     );
+  });
+
+  // SPEC 0205: the Dicas tab has its app bar, and back selects Início.
+  testWidgets('tips_tab_has_an_app_bar', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, home: const MainScreen());
+    container.read(mainTabIndexProvider.notifier).select(2);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.widgetWithText(AppBar, 'Dicas de manejo'), findsOneWidget);
+    await tester.tap(find.byTooltip('Voltar'));
+    await tester.pump();
+    expect(container.read(mainTabIndexProvider), 0);
+  });
+
+  // SPEC 0209: the Dicas tab's app bar ends in a filter.
+  testWidgets('tips_tab_offers_a_filter', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, home: const MainScreen());
+    container.read(mainTabIndexProvider.notifier).select(2);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final filter = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.byIcon(LucideIcons.slidersHorizontal),
+    );
+    expect(filter, findsOneWidget);
+    await tester.tap(find.byTooltip('Filtrar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Filtrar dicas'), findsOneWidget);
   });
 
   // SPEC 0210: the page titles, and the empty history of PNG 17.
