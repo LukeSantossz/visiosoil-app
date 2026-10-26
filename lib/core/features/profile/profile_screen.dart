@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/google_sign_in_button.dart';
@@ -51,10 +52,7 @@ class ProfileScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
               children: [
-                Text(
-                  'Perfil',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
+                Text('Perfil', style: AppTypography.pageTitle(context)),
                 const SizedBox(height: AppSpacing.xl),
                 AccountCard(
                   name: account?.displayName,

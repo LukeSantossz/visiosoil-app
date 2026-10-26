@@ -73,7 +73,7 @@ class SegmentedConfidenceBar extends StatelessWidget {
 
   static const int segments = 5;
   static const double _height = 6;
-  static const double _gap = 2;
+  static const double _gap = 2.5;
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +95,10 @@ class SegmentedConfidenceBar extends StatelessWidget {
                 key: ValueKey('confidence-segment-$i'),
                 height: _height,
                 decoration: BoxDecoration(
-                  color: i < filled
-                      ? fillColor
-                      : context.palette.surfaceContainerHigh,
-                  borderRadius: AppRadius.borderRadiusPill,
+                  // Square-ended segments on a `divider` track (PNG 14,
+                  // SPEC 0210).
+                  color: i < filled ? fillColor : context.palette.divider,
+                  borderRadius: BorderRadius.circular(1.5),
                 ),
               ),
             ),

@@ -28,14 +28,14 @@ class StatCell extends StatelessWidget {
   /// A placeholder [StatCell] shown while the value it would show is still
   /// loading.
   const StatCell.skeleton({super.key})
-      : value = '',
-        label = '',
-        icon = null,
-        color = null,
-        semanticLabel = null,
-        valueStyle = null,
-        labelStyle = null,
-        isSkeleton = true;
+    : value = '',
+      label = '',
+      icon = null,
+      color = null,
+      semanticLabel = null,
+      valueStyle = null,
+      labelStyle = null,
+      isSkeleton = true;
 
   final String value;
   final String label;
@@ -77,8 +77,11 @@ class StatCell extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // An 18 dp icon 2 dp lower, so the value keeps its place
+            // (PNG 08, SPEC 0210).
             if (icon != null) ...[
-              Icon(icon, size: 20, color: color ?? palette.onSurface),
+              const SizedBox(height: 2),
+              Icon(icon, size: 18, color: color ?? palette.onSurface),
               const SizedBox(height: AppSpacing.md),
             ],
             Text(
@@ -152,8 +155,9 @@ class _StatCellSkeletonContentState extends State<_StatCellSkeletonContent>
     vsync: this,
     duration: const Duration(milliseconds: 1200),
   );
-  late final Animation<double> _opacity =
-      _controller.drive(Tween(begin: 0.3, end: 0.6));
+  late final Animation<double> _opacity = _controller.drive(
+    Tween(begin: 0.3, end: 0.6),
+  );
 
   bool _reduceMotion = false;
 
@@ -180,13 +184,13 @@ class _StatCellSkeletonContentState extends State<_StatCellSkeletonContent>
     final color = context.palette.surfaceContainerHigh;
 
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: AppRadius.borderRadiusXs,
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: AppRadius.borderRadiusXs,
+      ),
+    );
 
     return ExcludeSemantics(
       child: AnimatedBuilder(
