@@ -22,7 +22,7 @@ The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fideli
   - Its drawing does not match the mock's magnifier: a 21 dp lens over two soil lines in `textTertiary`, the lower at half strength.
 - **Empty Histórico** (PNG 17).
   - The app centres a Material archive icon in the remaining height.
-  - The mock draws, 83 dp under the segmented control, two record cards behind a dashed one holding a sample. Under it come an 18 sp title, the 14/20 sentence and the action.
+  - The mock draws, 74.5 dp under the list's top, two record cards behind a dashed one holding a sample. Under it come an 18 sp title, the 14/20 sentence and the action.
 
 ## Design Decision
 
@@ -41,7 +41,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, and checked by render
   - the badge hugs its label inside its 24 dp minimum height;
   - the bar's segments have a 1.5 dp radius and are 2.5 dp apart, their track `divider`;
   - the percent is 14 sp;
-  - 17 dp between the header and the tabs.
+  - 17 dp between the header and the tabs, and 8 dp from the rule to the overview's first line.
 - **`ResultTabBar`**:
   - the rule is drawn under the tabs and the indicator over it, its bottom on the rule's;
   - a tab's extra height goes above its label.
@@ -56,7 +56,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, and checked by render
     - two back cards in `textTertiary` at 45 % and 75 %;
     - the sample square with three grains;
     - two 1.25 dp lines;
-  - 83 dp from the list's top;
+  - 74.5 dp from the list's top;
   - the title at 18/24 weight 600, 6 dp above the 14/20 sentence;
   - the action 21 dp lower, with a Lucide `camera`.
   - A history filtered to nothing keeps the existing "Nenhum resultado" state.
