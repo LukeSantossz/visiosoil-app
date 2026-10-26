@@ -29,9 +29,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
-  /// Explicit, so deselecting every record can keep the mode until it is
-  /// cancelled. A row's long press or its "Selecionar" semantics action
-  /// starts it, so a gesture is not the only way in (SPEC 0122, SPEC 0203).
+  /// A row's long press or its "Selecionar" semantics action starts it, so a
+  /// gesture is not the only way in (SPEC 0122, SPEC 0203). Deselecting the
+  /// last record ends it.
   bool _isSelectionMode = false;
 
   /// The app bar's search and filter actions open their part of the filter
