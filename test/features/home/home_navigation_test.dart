@@ -59,6 +59,13 @@ Future<void> _pump(
   ThemeData? theme,
 }) async {
   final shown = record ?? _record();
+  // A phone, where the tabs are a bottom bar (SPEC 0200), unless the test
+  // already chose its own surface.
+  if (tester.view.physicalSize == const Size(2400, 1800)) {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+  }
   await tester.pumpWidget(
     ProviderScope(
       overrides: [

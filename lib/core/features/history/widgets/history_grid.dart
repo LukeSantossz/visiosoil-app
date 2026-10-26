@@ -46,7 +46,8 @@ class _HistoryGridState extends ConsumerState<HistoryGrid> {
   @override
   Widget build(BuildContext context) {
     final asyncRecords = ref.watch(filteredRecordsProvider);
-    final hasActiveFilter = ref.watch(selectedTextureFilterProvider) != null ||
+    final hasActiveFilter =
+        ref.watch(selectedTextureFilterProvider) != null ||
         ref.watch(searchTermProvider).isNotEmpty;
 
     return asyncRecords.when(
@@ -209,7 +210,7 @@ class _ThumbnailCard extends StatelessWidget {
         // The labels follow the date, as the card shows them (SPEC 0149).
         label: record.hasLabels
             ? 'Registro de ${record.formattedTimestampCompact}, '
-                '${record.labelsSummary}'
+                  '${record.labelsSummary}'
             : 'Registro de ${record.formattedTimestampCompact}',
         selected: isSelectionMode ? isSelected : null,
         child: ClipRRect(
@@ -265,8 +266,9 @@ class _ThumbnailImage extends StatelessWidget {
                   child: Center(
                     child: Icon(
                       Icons.image,
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.5),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ),
                 ),
@@ -333,15 +335,15 @@ class _TimestampLabel extends StatelessWidget {
             if (labels != null)
               Text(
                 labels!,
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: Colors.white),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             Text(
               timestamp,
-              style:
-                  theme.textTheme.labelSmall?.copyWith(color: Colors.white),
+              style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -395,8 +397,8 @@ class _SelectionCheckbox extends StatelessWidget {
           color: isSelected
               ? theme.colorScheme.primary
               : palette.highContrast
-                  ? palette.surface
-                  : Colors.white.withValues(alpha: 0.8),
+              ? palette.surface
+              : Colors.white.withValues(alpha: 0.8),
           shape: BoxShape.circle,
           border: Border.all(
             color: isSelected

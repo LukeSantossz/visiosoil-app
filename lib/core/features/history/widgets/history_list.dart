@@ -29,12 +29,16 @@ class HistoryList extends ConsumerStatefulWidget {
     required this.isSelectionMode,
     required this.onTap,
     required this.onLongPress,
+    this.activeId,
   });
   final int pageSize;
   final Set<int> selectedIds;
   final bool isSelectionMode;
   final ValueChanged<int> onTap;
   final ValueChanged<int> onLongPress;
+
+  /// The record open beside the list in master-detail (SPEC 0200).
+  final int? activeId;
 
   @override
   ConsumerState<HistoryList> createState() => _HistoryListState();
@@ -240,10 +244,12 @@ class _HistoryListState extends ConsumerState<HistoryList> {
   Widget _row(SoilRecord record) {
     final id = record.id!;
     final tile = Semantics(
-      selected: widget.isSelectionMode ? widget.selectedIds.contains(id) : null,
+      selected: widget.isSelectionMode
+          ? widget.selectedIds.contains(id)
+          : (id == widget.activeId ? true : null),
       container: true,
       child: ColoredBox(
-        color: widget.selectedIds.contains(id)
+        color: widget.selectedIds.contains(id) || id == widget.activeId
             ? context.palette.selected
             : context.palette.background,
         child: AnalysisTile(

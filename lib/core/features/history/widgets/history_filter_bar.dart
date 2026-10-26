@@ -78,77 +78,80 @@ class HistoryFilterBar extends ConsumerWidget {
           CollapseOnCorrection(
             isError: availableClasses.hasError,
             child: availableClasses.when(
-            loading: () => const SizedBox.shrink(),
-            // Surface a load failure inline with a retry instead of silently
-            // collapsing the chip bar (#117).
-            error: (error, stackTrace) => Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
-              ),
-              // At large text the retry's label wraps within half the row
-              // instead of squeezing the message (SPEC 0121).
-              child: LayoutBuilder(
-                builder: (context, constraints) => Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 18,
-                      color: context.palette.error.withValues(alpha: 0.8),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Text(
-                        'Não foi possível carregar os filtros',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                    ConstrainedBox(
-                      constraints:
-                          BoxConstraints(maxWidth: constraints.maxWidth / 2),
-                      child: TextButton(
-                        // Invalidate the root records stream the chips derive
-                        // from, so a transient failure actually re-runs;
-                        // refreshing only the derived wrapper re-reads the same
-                        // cached failed stream.
-                        onPressed: () =>
-                            ref.invalidate(soilRecordsStreamProvider),
-                        child: const Text('Tentar novamente'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            data: (classes) {
-              if (classes.isEmpty) return const SizedBox.shrink();
-
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              loading: () => const SizedBox.shrink(),
+              // Surface a load failure inline with a retry instead of silently
+              // collapsing the chip bar (#117).
+              error: (error, stackTrace) => Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
                   vertical: AppSpacing.xs,
                 ),
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: 'Todas',
-                      isSelected: selectedFilter == null,
-                      onSelected: () => onSelectTexture(null),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    ...classes.map((textureClass) => Padding(
+                // At large text the retry's label wraps within half the row
+                // instead of squeezing the message (SPEC 0121).
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 18,
+                        color: context.palette.error.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          'Não foi possível carregar os filtros',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth / 2,
+                        ),
+                        child: TextButton(
+                          // Invalidate the root records stream the chips derive
+                          // from, so a transient failure actually re-runs;
+                          // refreshing only the derived wrapper re-reads the same
+                          // cached failed stream.
+                          onPressed: () =>
+                              ref.invalidate(soilRecordsStreamProvider),
+                          child: const Text('Tentar novamente'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              data: (classes) {
+                if (classes.isEmpty) return const SizedBox.shrink();
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      _FilterChip(
+                        label: 'Todas',
+                        isSelected: selectedFilter == null,
+                        onSelected: () => onSelectTexture(null),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      ...classes.map(
+                        (textureClass) => Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.xs),
                           child: _FilterChip(
                             label: SoilTextureReference.labelFor(textureClass),
                             isSelected: selectedFilter == textureClass,
                             onSelected: () => onSelectTexture(textureClass),
                           ),
-                        )),
-                  ],
-                ),
-              );
-            },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.xs),

@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_list.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
+import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -28,6 +31,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// Explicit, so the app bar's button can start a selection with nothing
   /// selected yet; a long press is not the only way in (SPEC 0122).
   bool _isSelectionMode = false;
+
+  /// The record open beside the list from 840 dp (redesign v11 §10,
+  /// SPEC 0200). Below that, a tap pushes details instead.
+  int? _activeId;
+  bool _masterDetail = false;
 
   @override
   void initState() {
@@ -138,13 +146,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shown = ref.watch(filteredRecordsProvider).value ?? const [];
     return Scaffold(
       appBar: _buildAppBar(),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _masterDetail = constraints.maxWidth >= 840;
+            final list = Column(
               children: [
                 if (!_isSelectionMode)
                   HistoryFilterBar(
@@ -160,14 +169,48 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     isSelectionMode: _isSelectionMode,
                     onTap: _handleTap,
                     onLongPress: _enterSelectionMode,
+                    activeId: _masterDetail ? _activeId : null,
                   ),
                 ),
               ],
-            ),
-          ),
+            );
+            if (!_masterDetail) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: list,
+                ),
+              );
+            }
+            return Row(
+              children: [
+                SizedBox(width: 360, child: list),
+                const VerticalDivider(width: 1),
+                Expanded(child: _detailPane(shown)),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  /// The chosen record, or the placeholder until one is chosen and once it
+  /// leaves the list, deleted or filtered out.
+  Widget _detailPane(List<SoilRecord> shown) {
+    final id = _activeId;
+    if (id == null || !shown.any((record) => record.id == id)) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xl),
+          child: Text(
+            'Selecione uma análise para ver os detalhes.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    return DetailsScreen(key: ValueKey(id), recordId: id);
   }
 
   VisioAppBar _buildAppBar() {
@@ -240,8 +283,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       AppHaptics.selection();
       _toggleSelection(id);
     } else {
-      // Details first; its photograph opens the viewer (SPEC 0125).
-      context.push('/details', extra: id);
+      if (_masterDetail) {
+        setState(() => _activeId = id);
+      } else {
+        // Details first; its photograph opens the viewer (SPEC 0125).
+        context.push('/details', extra: id);
+      }
     }
   }
 }

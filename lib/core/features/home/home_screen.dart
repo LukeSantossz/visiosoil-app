@@ -41,164 +41,173 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
-          child: CustomPaint(
-            painter: context.density.borderWidth == 2
-                ? null
-                : _HomeContours(
-                    context.palette.primaryText.withValues(alpha: .10),
-                  ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+          // Centred at most 560 dp wide on a tablet (redesign v11 §10).
+          child: Center(
+            child: ConstrainedBox(
+              key: const Key('homeContent'),
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: CustomPaint(
+                painter: context.density.borderWidth == 2
+                    ? null
+                    : _HomeContours(
+                        context.palette.primaryText.withValues(alpha: .10),
+                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Where the boot's logo Hero lands (redesign v11
-                    // §6.2/§6.4, SPEC 0193).
-                    Hero(
-                      tag: visioSoilLogoHeroTag,
-                      child: VisioSoilLogo(
-                        size: 32,
-                        color: context.palette.primary,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text(
-                          'Início',
-                          style: theme.textTheme.headlineMedium,
+                    Row(
+                      children: [
+                        // Where the boot's logo Hero lands (redesign v11
+                        // §6.2/§6.4, SPEC 0193).
+                        Hero(
+                          tag: visioSoilLogoHeroTag,
+                          child: VisioSoilLogo(
+                            size: 32,
+                            color: context.palette.primary,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              'Início',
+                              style: theme.textTheme.headlineMedium,
+                            ),
+                          ),
+                        ),
+                        // Transitional until the Perfil tab hosts Settings (SPEC §3.13 / item 6).
+                        VisioIconButton(
+                          label: 'Configurações',
+                          icon: Icons.settings_outlined,
+                          onPressed: () => context.push('/settings'),
+                        ),
+                      ],
                     ),
-                    // Transitional until the Perfil tab hosts Settings (SPEC §3.13 / item 6).
-                    VisioIconButton(
-                      label: 'Configurações',
-                      icon: Icons.settings_outlined,
-                      onPressed: () => context.push('/settings'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                HeroCaptureCard(onCapture: () => context.push('/capture')),
-                const SizedBox(height: AppSpacing.xl),
-                if (source.hasError)
-                  HomeDataError(
-                    onRetry: () => ref.invalidate(soilRecordsStreamProvider),
-                  )
-                else ...[
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      'Esta semana',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  StatsGrid(recordsAsync: recordsAsync),
-                  const SizedBox(height: AppSpacing.xl),
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: AppSpacing.md,
-                    children: [
+                    const SizedBox(height: AppSpacing.lg),
+                    HeroCaptureCard(onCapture: () => context.push('/capture')),
+                    const SizedBox(height: AppSpacing.xl),
+                    if (source.hasError)
+                      HomeDataError(
+                        onRetry: () =>
+                            ref.invalidate(soilRecordsStreamProvider),
+                      )
+                    else ...[
                       Semantics(
                         header: true,
                         child: Text(
-                          'Recentes',
+                          'Esta semana',
                           style: theme.textTheme.titleLarge,
                         ),
                       ),
-                      if (records.isNotEmpty)
-                        VisioButton(
-                          label: 'Ver todas',
-                          variant: VisioButtonVariant.text,
-                          onPressed: () =>
-                              ref.read(mainTabIndexProvider.notifier).select(1),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: context.palette.surface,
-                      borderRadius: AppRadius.borderRadiusLg,
-                      border: context.density.borderWidth == 2
-                          ? Border.all(
-                              color: context.palette.outline,
-                              width: context.density.borderWidth,
-                            )
-                          : null,
-                    ),
-                    child: recordsAsync.isLoading
-                        ? const _RecentSkeleton()
-                        : records.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.xxxl,
-                              horizontal: AppSpacing.lg,
+                      const SizedBox(height: AppSpacing.md),
+                      StatsGrid(recordsAsync: recordsAsync),
+                      const SizedBox(height: AppSpacing.xl),
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppSpacing.md,
+                        children: [
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              'Recentes',
+                              style: theme.textTheme.titleLarge,
                             ),
-                            child: Column(
-                              children: [
-                                ExcludeSemantics(
-                                  child: CustomPaint(
-                                    size: const Size(110, 90),
-                                    painter: _EmptySoilIllustration(
-                                      context.palette.primaryText,
-                                      context.palette.primaryContainer,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.xl),
-                                Text(
-                                  'Suas análises aparecem aqui.',
-                                  style: theme.textTheme.bodyLarge,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                  'Fotografe a camada de 0–20 cm, na sombra e sem palha.',
-                                  style: theme.textTheme.bodyMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          )
-                        : Column(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < records.length && index < 5;
-                                index++
-                              ) ...[
-                                if (index > 0)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 76,
-                                      right: AppSpacing.lg,
-                                    ),
-                                    child: Divider(
-                                      height: 1,
-                                      color: context.palette.divider,
-                                    ),
-                                  ),
-                                AnalysisTile(
-                                  record: records[index],
-                                  dense: true,
-                                  showSyncStatus: true,
-                                  offline: offline,
-                                  onTap: () => context.push(
-                                    '/details',
-                                    extra: records[index].id,
-                                  ),
-                                ),
-                              ],
-                            ],
                           ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-              ],
+                          if (records.isNotEmpty)
+                            VisioButton(
+                              label: 'Ver todas',
+                              variant: VisioButtonVariant.text,
+                              onPressed: () => ref
+                                  .read(mainTabIndexProvider.notifier)
+                                  .select(1),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: context.palette.surface,
+                          borderRadius: AppRadius.borderRadiusLg,
+                          border: context.density.borderWidth == 2
+                              ? Border.all(
+                                  color: context.palette.outline,
+                                  width: context.density.borderWidth,
+                                )
+                              : null,
+                        ),
+                        child: recordsAsync.isLoading
+                            ? const _RecentSkeleton()
+                            : records.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: AppSpacing.xxxl,
+                                  horizontal: AppSpacing.lg,
+                                ),
+                                child: Column(
+                                  children: [
+                                    ExcludeSemantics(
+                                      child: CustomPaint(
+                                        size: const Size(110, 90),
+                                        painter: _EmptySoilIllustration(
+                                          context.palette.primaryText,
+                                          context.palette.primaryContainer,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.xl),
+                                    Text(
+                                      'Suas análises aparecem aqui.',
+                                      style: theme.textTheme.bodyLarge,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Text(
+                                      'Fotografe a camada de 0–20 cm, na sombra e sem palha.',
+                                      style: theme.textTheme.bodyMedium,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  for (
+                                    var index = 0;
+                                    index < records.length && index < 5;
+                                    index++
+                                  ) ...[
+                                    if (index > 0)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 76,
+                                          right: AppSpacing.lg,
+                                        ),
+                                        child: Divider(
+                                          height: 1,
+                                          color: context.palette.divider,
+                                        ),
+                                      ),
+                                    AnalysisTile(
+                                      record: records[index],
+                                      dense: true,
+                                      showSyncStatus: true,
+                                      offline: offline,
+                                      onTap: () => context.push(
+                                        '/details',
+                                        extra: records[index].id,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
