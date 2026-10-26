@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
@@ -338,7 +339,7 @@ void main() {
       );
       final icon = tester.widget<Icon>(find.descendant(
         of: banner.first,
-        matching: find.byIcon(Icons.info_outline),
+        matching: find.byIcon(LucideIcons.info),
       ));
       expect(icon.color, palette.onWarningContainer);
       expect(
@@ -435,13 +436,126 @@ void main() {
         lessThan(water),
       );
       expect(find.text('Guia de solos · Embrapa +1'), findsOneWidget);
-      expect(find.byIcon(Icons.agriculture_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.water_drop_outlined), findsOneWidget);
+      expect(find.byIcon(LucideIcons.tractor), findsOneWidget);
+      expect(find.byIcon(LucideIcons.droplets), findsOneWidget);
     });
 
     testWidgets('tips_header_counts_the_tips', (tester) async {
       await pumpTimeline(tester);
       expect(find.text('Média · 2 dicas'), findsOneWidget);
+    });
+  });
+
+  // The Dicas tab as PNG 20 draws it (SPEC 0205).
+  group('tips page', () {
+    ManagementTipsResult twoGroups() => ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: const [
+            ManagementTip(
+              text: 'Evite tráfego com solo úmido.',
+              citations: [0],
+              category: TipCategory.preparation,
+            ),
+            ManagementTip(
+              text: 'Ajuste a lâmina de irrigação.',
+              citations: [0],
+              category: TipCategory.water,
+            ),
+          ],
+          sources: const [TipSource(title: 'Guia de solos', url: 'https://a')],
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    Future<void> pumpPage(WidgetTester tester, {bool asPage = true}) async {
+      await tester.binding.setSurfaceSize(const Size(390, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = FakeManagementTipsRepository()..seed('rec-1', twoGroups());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          managementTipsRepositoryProvider.overrideWithValue(repo),
+          researchServiceProvider.overrideWithValue(okService()),
+          connectivityServiceProvider.overrideWithValue(
+              FakeConnectivityService(ConnectivityStatus.online)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ManagementTipsSection(
+                asPage: asPage,
+                record: tipsRecord().copyWith(
+                  fieldName: 'Talhão 3',
+                  sampleLabel: 'Amostra 2',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('tips_page_heads_with_the_record', (tester) async {
+      await pumpPage(tester);
+
+      expect(find.text('Argilosa'), findsOneWidget);
+      expect(find.text('Talhão 3 · Amostra 2'), findsOneWidget);
+      expect(find.text('2 dicas'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('tips-record-photo'))),
+        const Size(56, 56),
+      );
+      expect(find.text('Dicas de manejo'), findsNothing);
+    });
+
+    testWidgets('disclaimer_comes_first', (tester) async {
+      await pumpPage(tester);
+
+      final banner = find.byKey(const Key('tips-disclaimer'));
+      expect(
+        tester.getTopLeft(banner).dy,
+        lessThan(tester.getTopLeft(find.text('Preparo do solo')).dy),
+      );
+      final decoration =
+          tester.widget<Container>(banner).decoration! as BoxDecoration;
+      expect(decoration.border, isNull);
+    });
+
+    testWidgets('timeline_matches_the_mock', (tester) async {
+      await pumpPage(tester);
+
+      expect(tester.widget<Text>(find.text('Preparo do solo')).style?.fontSize,
+          17);
+      BoxDecoration dot(int i) =>
+          tester.widget<Container>(find.byKey(Key('tips-dot-$i'))).decoration!
+              as BoxDecoration;
+      expect(dot(0).color, AppPalette.light.primary);
+      expect(dot(1).color, AppPalette.light.surface);
+      expect((dot(1).border! as Border).top.color, AppPalette.light.outline);
+    });
+
+    testWidgets('tip_card_matches_the_mock', (tester) async {
+      await pumpPage(tester);
+
+      final card = tester.widget<Container>(
+        find.byKey(const Key('tip-card')).first,
+      );
+      final decoration = card.decoration! as BoxDecoration;
+      expect((decoration.border! as Border).top.color, AppPalette.light.divider);
+      expect(decoration.borderRadius, BorderRadius.circular(16));
+      expect(
+        tester.getSize(find.byKey(const Key('tip-icon-tile')).first),
+        const Size(40, 40),
+      );
+      expect(find.byIcon(LucideIcons.tractor), findsOneWidget);
+      expect(find.byIcon(LucideIcons.droplets), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Evite tráfego com solo úmido.')).style
+            ?.fontSize,
+        15,
+      );
     });
   });
 }

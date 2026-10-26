@@ -7,6 +7,8 @@ import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/core/features/profile/profile_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -123,23 +125,34 @@ const _destinations = [
 ];
 
 /// Reuses the existing record-based tips instead of inventing sample advice.
+/// The tab has its app bar, whose back selects Início as the system back
+/// does, and 16 dp margins (PNG 20, SPEC 0205).
 class _TipsTab extends ConsumerWidget {
   const _TipsTab();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final record = ref.watch(latestClassifiedSoilRecordProvider);
-    return SafeArea(
-      child: record.when(
+    return Scaffold(
+      appBar: VisioAppBar(
+        title: 'Dicas de manejo',
+        leading: VisioIconButton(
+          label: 'Voltar',
+          icon: LucideIcons.arrowLeft,
+          onPressed: () => ref.read(mainTabIndexProvider.notifier).select(0),
+        ),
+      ),
+      body: record.when(
         loading: () => const Center(child: LoadingIndicator()),
         error: (_, _) =>
             const Center(child: Text('Não foi possível carregar as dicas.')),
         data: (value) => value == null
             ? const Center(child: Text('Sem dicas para esta classe ainda.'))
             : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 560),
-                    child: ManagementTipsSection(record: value),
+                    child: ManagementTipsSection(record: value, asPage: true),
                   ),
                 ),
               ),
