@@ -20,9 +20,42 @@ abstract final class SoilTextureColors {
     'Argilosa': AppColors.soilClay,
   };
 
+  /// Approximate diagram bands for the broad released classes; these are
+  /// illustrative regions, never measured sample coordinates.
+  static SoilTextureRegion? regionForClass(String textureClass) =>
+      switch (textureClass) {
+        'Arenosa' => SoilTextureRegion.sand,
+        'Media' => SoilTextureRegion.medium,
+        'Argilosa' => SoilTextureRegion.clay,
+        'Muito Argilosa' => SoilTextureRegion.veryClay,
+        'Siltosa' => SoilTextureRegion.silt,
+        _ => null,
+      };
+
+  /// USDA reference vocabulary for the collection, independent of model labels.
+  static const referenceClasses = <String, Color>{
+    'Areia': AppColors.soilSandy,
+    'Areia franca': AppColors.soilSandy,
+    'Franco-arenosa': AppColors.soilSandy,
+    'Franca': AppColors.soilMedium,
+    'Franco-siltosa': AppColors.soilSilt,
+    'Silte': AppColors.soilSilt,
+    'Franco-argilo-arenosa': AppColors.soilClay,
+    'Franco-argilosa': AppColors.soilClay,
+    'Franco-argilo-siltosa': AppColors.soilClay,
+    'Argilo-arenosa': AppColors.soilClay,
+    'Argilo-siltosa': AppColors.soilClay,
+    'Argila': AppColors.soilClay,
+  };
+
   /// Returns the designated color for a texture class name.
   /// Falls back to [AppColors.outline] for unknown classes.
   static Color forClass(String textureClass) {
-    return _colorMap[textureClass] ?? AppColors.outline;
+    return _colorMap[textureClass] ??
+        referenceClasses[textureClass] ??
+        AppColors.outline;
   }
 }
+
+/// Approximate bands in the illustrative texture diagram.
+enum SoilTextureRegion { sand, medium, clay, veryClay, silt }

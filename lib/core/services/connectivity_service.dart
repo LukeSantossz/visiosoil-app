@@ -1,3 +1,6 @@
+import 'dart:developer' as developer;
+
+import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Online/offline state of the device, as the rest of the app consumes it.
@@ -22,21 +25,38 @@ abstract class ConnectivityService {
 /// to a concrete backend and are out of scope here.
 class ConnectivityPlusService implements ConnectivityService {
   ConnectivityPlusService([Connectivity? connectivity])
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   final Connectivity _connectivity;
 
   @override
-  Stream<ConnectivityStatus> watch() =>
-      _connectivity.onConnectivityChanged.map(_mapResults);
+  Stream<ConnectivityStatus> watch() async* {
+    // EventChannel reports missing registration through FlutterError rather
+    // than the stream. Probe the method channel before opening that stream.
+    final ConnectivityStatus initial;
+    try {
+      initial = await current();
+    } on MissingPluginException catch (error, stackTrace) {
+      developer.log(
+        'Connectivity monitoring is unavailable on this platform.',
+        name: 'ConnectivityPlusService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    yield initial;
+    yield* _connectivity.onConnectivityChanged.map(_mapResults);
+  }
 
   @override
   Future<ConnectivityStatus> current() async =>
       _mapResults(await _connectivity.checkConnectivity());
 
   ConnectivityStatus _mapResults(List<ConnectivityResult> results) {
-    final hasActiveInterface =
-        results.any((result) => result != ConnectivityResult.none);
+    final hasActiveInterface = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
     return hasActiveInterface
         ? ConnectivityStatus.online
         : ConnectivityStatus.offline;

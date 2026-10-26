@@ -15,11 +15,13 @@ class VisioButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.leading,
+    this.labelStyle,
     this.isLoading = false,
     this.loadingLabel,
     this.variant = VisioButtonVariant.primary,
     this.expanded = false,
-  });
+  }) : assert(leading == null || icon == null);
 
   /// Button text.
   final String label;
@@ -29,6 +31,12 @@ class VisioButton extends StatelessWidget {
 
   /// Optional icon to the left of the label.
   final IconData? icon;
+
+  /// Custom leading artwork, with a 10dp gap before the label.
+  final Widget? leading;
+
+  /// Optional product-specific label typography.
+  final TextStyle? labelStyle;
 
   /// If true, shows a loading indicator instead of the content.
   final bool isLoading;
@@ -56,36 +64,33 @@ class VisioButton extends StatelessWidget {
       scale: 0.98,
       builder: (states) => switch (variant) {
         VisioButtonVariant.primary => ElevatedButton(
-            onPressed: onPressedOrNull,
-            statesController: states,
-            child: child,
-          ),
+          onPressed: onPressedOrNull,
+          statesController: states,
+          child: child,
+        ),
         VisioButtonVariant.secondary => OutlinedButton(
-            onPressed: onPressedOrNull,
-            statesController: states,
-            child: child,
-          ),
+          onPressed: onPressedOrNull,
+          statesController: states,
+          child: child,
+        ),
         VisioButtonVariant.text => TextButton(
-            onPressed: onPressedOrNull,
-            statesController: states,
-            child: child,
-          ),
+          onPressed: onPressedOrNull,
+          statesController: states,
+          child: child,
+        ),
         VisioButtonVariant.destructive => TextButton(
-            onPressed: onPressedOrNull,
-            statesController: states,
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: child,
+          onPressed: onPressedOrNull,
+          statesController: states,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
           ),
+          child: child,
+        ),
       },
     );
 
     if (expanded) {
-      return SizedBox(
-        width: double.infinity,
-        child: button,
-      );
+      return SizedBox(width: double.infinity, child: button);
     }
 
     return button;
@@ -96,8 +101,7 @@ class VisioButton extends StatelessWidget {
       final spinnerColor = switch (variant) {
         VisioButtonVariant.primary => Theme.of(context).colorScheme.onPrimary,
         VisioButtonVariant.secondary ||
-        VisioButtonVariant.text =>
-          Theme.of(context).colorScheme.primary,
+        VisioButtonVariant.text => Theme.of(context).colorScheme.primary,
         VisioButtonVariant.destructive => Theme.of(context).colorScheme.error,
       };
 
@@ -130,18 +134,20 @@ class VisioButton extends StatelessWidget {
       );
     }
 
-    if (icon != null) {
+    if (leading != null || icon != null) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 8),
+          leading ?? Icon(icon, size: 20),
+          SizedBox(width: leading != null ? 10 : 8),
           // Wraps at large text instead of running past the button (SPEC 0121).
-          Flexible(child: Text(label, textAlign: TextAlign.center)),
+          Flexible(
+            child: Text(label, textAlign: TextAlign.center, style: labelStyle),
+          ),
         ],
       );
     }
 
-    return Text(label);
+    return Text(label, style: labelStyle);
   }
 }

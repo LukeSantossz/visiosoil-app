@@ -19,12 +19,12 @@ void main() {
     ],
     'lib/core/features/settings/settings_screen.dart': [
       ('Configuracoes', 'Configurações'),
-      ('Versao do app', 'Versão do app'),
-      ('serao removidos', 'serão removidos'),
-      ('Esta acao nao pode ser desfeita.', 'Esta ação não pode ser desfeita.'),
+      ('Versao', 'Versão'),
+      ('analises', 'análises'),
+      ('Nao da para desfazer.', 'Não dá para desfazer.'),
     ],
     'lib/core/features/capture/widgets/camera_permission_denied_view.dart': [
-      ('Nova Captura', 'Nova captura'),
+      ('Nova Analise', 'Nova análise'),
       ('Camera restrita', 'Câmera restrita'),
       ('Acesso a camera necessario', 'Acesso à câmera necessário'),
       ('acesso a camera esta restrito', 'acesso à câmera está restrito'),
@@ -42,8 +42,8 @@ void main() {
       ('refaca a foto para confirmar', 'refaça a foto para confirmar'),
     ],
     'lib/core/features/home/widgets/stats_grid.dart': [
-      ('Analises', 'Análises'),
-      ('Confianca', 'Confiança'),
+      ('analises', 'análises'),
+      ('confianca', 'confiança'),
     ],
     'lib/core/features/history/widgets/history_filter_bar.dart': [
       ('Buscar por endereco', 'Buscar por endereço'),
@@ -88,9 +88,9 @@ void main() {
   });
 
   group('history_grid const constructors', () {
-    final source =
-        File('lib/core/features/history/widgets/history_grid.dart')
-            .readAsStringSync();
+    final source = File(
+      'lib/core/features/history/widgets/history_grid.dart',
+    ).readAsStringSync();
     for (final widget in const [
       '_EmptyHistoryState',
       '_EmptySearchState',
@@ -99,8 +99,9 @@ void main() {
       test('$widget declares and is constructed with const', () {
         final usage = RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)');
         expect(
-          RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;')
-              .hasMatch(source),
+          RegExp(
+            'const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;',
+          ).hasMatch(source),
           isTrue,
           reason: '$widget must declare a const constructor',
         );

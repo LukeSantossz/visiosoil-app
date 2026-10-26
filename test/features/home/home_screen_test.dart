@@ -2,24 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
+import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/core/services/connectivity_service.dart';
 
 /// Home surfaces a failure of the shared records stream with an inline
 /// error+retry, while keeping the hero and the primary capture action visible
 /// (#9). Both home providers derive from `soilRecordsStreamProvider`, so the
 /// stream is the single seam these tests override.
 SoilRecord _record() => SoilRecord(
-      id: 1,
-      imagePath: 'x.png',
-      timestamp: '2026-06-26T12:00:00Z',
-      textureClass: 'Argilosa',
-      confidenceScore: 0.9,
-    );
+  id: 1,
+  imagePath: 'x.png',
+  timestamp: '2026-06-26T12:00:00Z',
+  textureClass: 'Argilosa',
+  confidenceScore: 0.9,
+);
 
 Widget _homeUnderTest(Stream<List<SoilRecord>> Function() streamFactory) {
   return ProviderScope(
     overrides: [
+      connectivityStatusProvider.overrideWith(
+        (ref) => Stream.value(ConnectivityStatus.online),
+      ),
       soilRecordsStreamProvider.overrideWith((ref) => streamFactory()),
     ],
     child: const MaterialApp(home: HomeScreen()),
@@ -27,27 +33,32 @@ Widget _homeUnderTest(Stream<List<SoilRecord>> Function() streamFactory) {
 }
 
 void main() {
-  testWidgets('home shows error and retry when the records stream fails',
-      (tester) async {
+  testWidgets('home shows error and retry when the records stream fails', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _homeUnderTest(() => Stream.error(Exception('boom'))),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Não foi possível carregar seus dados.'), findsOneWidget);
-    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(
+      find.text('Não foi possível carregar suas análises.'),
+      findsOneWidget,
+    );
+    expect(find.text('Tentar de novo'), findsOneWidget);
   });
 
-  testWidgets('home keeps the primary action and hides the stats on error',
-      (tester) async {
+  testWidgets('home keeps the primary action and hides the stats on error', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _homeUnderTest(() => Stream.error(Exception('boom'))),
     );
     await tester.pumpAndSettle();
 
     // The capture CTA stays available; the stats placeholder region is gone.
-    expect(find.text('Nova análise'), findsOneWidget);
-    expect(find.text('Análises'), findsNothing);
+    expect(find.text('Analisar solo'), findsOneWidget);
+    expect(find.text('análises'), findsNothing);
   });
 
   testWidgets('home retry re-subscribes and renders the data', (tester) async {
@@ -55,18 +66,35 @@ void main() {
     // creator can run more than once during the initial settle, so the failure
     // must depend on state we control, not on the invocation count.
     var fail = true;
-    await tester.pumpWidget(_homeUnderTest(
-      () => fail ? Stream.error(Exception('boom')) : Stream.value([_record()]),
-    ));
+    await tester.pumpWidget(
+      _homeUnderTest(
+        () =>
+            fail ? Stream.error(Exception('boom')) : Stream.value([_record()]),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(find.text('Tentar de novo'), findsOneWidget);
 
     fail = false;
-    await tester.tap(find.text('Tentar novamente'));
+    await tester.tap(find.text('Tentar de novo'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Não foi possível carregar seus dados.'), findsNothing);
-    expect(find.text('Análises'), findsOneWidget);
+    expect(find.text('Não foi possível carregar suas análises.'), findsNothing);
+    expect(find.text('análises'), findsOneWidget);
+  });
+
+  // The boot's logo Hero (redesign v11 §6.2/§6.4, SPEC 0193) needs a matching
+  // tag here to land on.
+  testWidgets('home carries the boot logo hero landing target', (tester) async {
+    await tester.pumpWidget(_homeUnderTest(() => Stream.value([_record()])));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Hero && w.tag == visioSoilLogoHeroTag && w.child is VisioSoilLogo,
+      ),
+      findsOneWidget,
+    );
   });
 }

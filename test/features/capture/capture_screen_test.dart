@@ -91,6 +91,10 @@ Future<void> _keepPickedFile(String _) async {}
 void main() {
   late String samplePath;
 
+  // Existing flow tests exercise business transitions without decorative time.
+  setUp(() => AppMotion.reduceMotion = true);
+  tearDown(() => AppMotion.reduceMotion = false);
+
   setUpAll(() {
     final dir = Directory.systemTemp.createTempSync('capture_screen_test');
     final file = File('${dir.path}/sample.png');
@@ -198,6 +202,33 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
     }
   }
+
+  testWidgets('real result settles before controls return and discard cancels settlement',
+      (tester) async {
+    AppMotion.reduceMotion = false;
+    final pending = Completer<InferenceResult?>();
+    await tester.pumpWidget(buildScreen(
+      pickFromCamera: () async => XFile(samplePath),
+      locate: () async => null,
+      classify: (_) => pending.future,
+    ));
+    await capture(tester);
+    expect(find.text('Resultado'), findsOneWidget);
+    expect(find.text(AppStrings.processingTitle), findsOneWidget);
+    pending.complete(const InferenceResult(textureClass: 'Argilosa', confidenceScore: .9));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1800));
+    expect(find.text('Argilosa'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 650));
+    await tester.pump();
+    expect(find.text('Argilosa'), findsOneWidget);
+    await tester.tap(find.byTooltip('Descartar'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text(AppStrings.processingTitle), findsNothing);
+    expect(find.textContaining('Argilosa'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('a camera picker failure shows a snackbar and keeps the screen',
       (tester) async {
@@ -388,7 +419,7 @@ void main() {
     ));
 
     await capture(tester);
-    await tester.tap(find.text('Descartar'));
+    await tester.tap(find.byTooltip('Descartar'));
     await tester.pump();
     await capture(tester);
 
@@ -484,7 +515,7 @@ void main() {
       ));
 
       await capture(tester);
-      await tester.tap(find.text('Descartar'));
+      await tester.tap(find.byTooltip('Descartar'));
       await tester.pump();
       await capture(tester);
 
@@ -591,7 +622,7 @@ void main() {
       await capture(tester);
       await settle(tester);
 
-      expect(saveButton(tester).onPressed, isNull);
+      expect(find.text('Salvar registro'), findsNothing);
 
       classifyGate.complete(null);
       await settle(tester);
@@ -1460,8 +1491,8 @@ void main() {
       await tester.pumpAndSettle();
       await captureFirst(tester);
 
-      expect(retakeButton(tester).onPressed, isNull,
-          reason: 'disabled while the classification runs');
+      expect(find.text('Tirar outra foto'), findsNothing,
+          reason: 'retake is unavailable while classification runs');
       gates[0].complete(null);
       await settle(tester);
       expect(retakeButton(tester).onPressed, isNotNull,
@@ -1469,7 +1500,7 @@ void main() {
 
       await retake(tester);
       expect(calls, 2);
-      expect(retakeButton(tester).onPressed, isNull);
+      expect(find.text('Tirar outra foto'), findsNothing);
       gates[1].complete(
           const InferenceResult(textureClass: 'Media', confidenceScore: 0.7));
       await settle(tester);

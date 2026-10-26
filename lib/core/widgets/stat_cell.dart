@@ -19,6 +19,8 @@ class StatCell extends StatelessWidget {
     this.icon,
     this.color,
     this.semanticLabel,
+    this.valueStyle,
+    this.labelStyle,
   }) : isSkeleton = false;
 
   /// A placeholder [StatCell] shown while the value it would show is still
@@ -29,6 +31,8 @@ class StatCell extends StatelessWidget {
         icon = null,
         color = null,
         semanticLabel = null,
+        valueStyle = null,
+        labelStyle = null,
         isSkeleton = true;
 
   final String value;
@@ -37,6 +41,8 @@ class StatCell extends StatelessWidget {
   final Color? color;
   final String? semanticLabel;
   final bool isSkeleton;
+  final TextStyle? valueStyle;
+  final TextStyle? labelStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +80,7 @@ class StatCell extends StatelessWidget {
             ],
             Text(
               value,
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: valueStyle ?? theme.textTheme.titleLarge?.copyWith(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -82,7 +88,7 @@ class StatCell extends StatelessWidget {
             ),
             Text(
               label,
-              style: theme.textTheme.labelSmall?.copyWith(
+              style: labelStyle ?? theme.textTheme.labelSmall?.copyWith(
                 color: palette.onSurfaceVariant,
               ),
             ),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
-import 'package:visiosoil_app/core/features/history/widgets/history_grid.dart';
+import 'package:visiosoil_app/core/features/history/widgets/history_list.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -131,34 +131,41 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (!mounted) return;
 
     final message = count == 1 ? 'registro excluído' : 'registros excluídos';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$count $message.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$count $message.')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          if (!_isSelectionMode)
-            HistoryFilterBar(
-              searchController: _searchController,
-              onSearchChanged: _onSearchChanged,
-              onClearSearch: _clearSearch,
-              onSelectTexture: _selectTextureFilter,
-            ),
-          Expanded(
-            child: HistoryGrid(
-              pageSize: _pageSize,
-              selectedIds: _selectedIds,
-              isSelectionMode: _isSelectionMode,
-              onTap: _handleTap,
-              onLongPress: _enterSelectionMode,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              children: [
+                if (!_isSelectionMode)
+                  HistoryFilterBar(
+                    searchController: _searchController,
+                    onSearchChanged: _onSearchChanged,
+                    onClearSearch: _clearSearch,
+                    onSelectTexture: _selectTextureFilter,
+                  ),
+                Expanded(
+                  child: HistoryList(
+                    pageSize: _pageSize,
+                    selectedIds: _selectedIds,
+                    isSelectionMode: _isSelectionMode,
+                    onTap: _handleTap,
+                    onLongPress: _enterSelectionMode,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -166,13 +173,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   VisioAppBar _buildAppBar() {
     final theme = Theme.of(context);
     final count = _selectedIds.length;
-    // The same branches as the grid: a reload or an error keeps the previous
-    // records in `value`, while the grid shows its spinner or its error.
-    final hasRecords = ref.watch(filteredRecordsProvider).when(
-      data: (records) => records.isNotEmpty,
-      error: (error, stackTrace) => false,
-      loading: () => false,
-    );
+    // A reload or an error may retain records in `value`; actions follow the
+    // state currently shown by the list.
+    final hasRecords = ref
+        .watch(filteredRecordsProvider)
+        .when(
+          data: (records) => records.isNotEmpty,
+          error: (error, stackTrace) => false,
+          loading: () => false,
+        );
 
     return VisioAppBar(
       title: switch ((_isSelectionMode, count)) {
@@ -195,10 +204,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 label: 'Comparar selecionados',
                 icon: Icons.compare_arrows,
                 onPressed: count == 2
-                    ? () => context.push(
-                          '/compare',
-                          extra: _selectedIds.toList(),
-                        )
+                    ? () =>
+                          context.push('/compare', extra: _selectedIds.toList())
                     : null,
               ),
               VisioIconButton(
@@ -209,7 +216,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
             ]
           : [
-              // The empty history has its own "Nova captura" in the grid
+              // The empty history has its own capture action
               // (SPEC 0146).
               if (hasRecords) ...[
                 VisioIconButton(

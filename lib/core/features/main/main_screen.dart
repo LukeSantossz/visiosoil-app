@@ -4,6 +4,10 @@ import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/features/profile/profile_screen.dart';
+import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
+import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 
 class MainScreen extends ConsumerWidget {
@@ -12,6 +16,8 @@ class MainScreen extends ConsumerWidget {
   static const List<Widget> _screens = [
     HomeScreen(),
     HistoryScreen(),
+    _TipsTab(),
+    ProfileScreen(),
   ];
 
   @override
@@ -27,10 +33,7 @@ class MainScreen extends ConsumerWidget {
       },
       child: LostCaptureRecovery(
         child: Scaffold(
-          body: IndexedStack(
-            index: currentIndex,
-            children: _screens,
-          ),
+          body: IndexedStack(index: currentIndex, children: _screens),
           bottomNavigationBar: NavigationBar(
             selectedIndex: currentIndex,
             onDestinationSelected: (index) {
@@ -48,9 +51,38 @@ class MainScreen extends ConsumerWidget {
                 selectedIcon: Icon(Icons.photo_library),
                 label: 'Histórico',
               ),
+              NavigationDestination(
+                icon: Icon(Icons.lightbulb_outline),
+                label: 'Dicas',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                label: 'Perfil',
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Reuses the existing record-based tips instead of inventing sample advice.
+class _TipsTab extends ConsumerWidget {
+  const _TipsTab();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final record = ref.watch(latestClassifiedSoilRecordProvider);
+    return SafeArea(
+      child: record.when(
+        loading: () => const Center(child: LoadingIndicator()),
+        error: (_, _) =>
+            const Center(child: Text('Não foi possível carregar as dicas.')),
+        data: (value) => value == null
+            ? const Center(child: Text('Sem dicas para esta classe ainda.'))
+            : SingleChildScrollView(
+                child: ManagementTipsSection(record: value),
+              ),
       ),
     );
   }
