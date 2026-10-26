@@ -515,7 +515,7 @@ class _Collection extends StatelessWidget {
   );
 }
 
-/// PNG 17: the empty history, its drawing 83 dp under the segmented
+/// PNG 17: the empty history, its drawing 74.5 dp under the segmented
 /// control, an 18 sp title, the 14/20 sentence and the action (SPEC 0210).
 class _NoRecords extends StatelessWidget {
   const _NoRecords();
@@ -582,7 +582,7 @@ class _NoRecords extends StatelessWidget {
   }
 
   /// From the list's top to the drawing's.
-  static const double top = 83;
+  static const double top = 74.5;
 }
 
 /// Two record cards behind a dashed one holding a sample and two lines, at

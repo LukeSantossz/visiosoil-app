@@ -388,7 +388,7 @@ class _ResultContentState extends State<ResultContent>
         footer != null &&
         (MediaQuery.sizeOf(context).height < 600 ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.3);
-    // 18 dp from the header to the tabs; the tab content starts on the rule.
+    // 17 dp from the header to the tabs; the tab content starts on the rule.
     final gaps = [classified ? 17.0 : 0.0, 0.0];
     // The lattice sits behind the app bar, fixed to the top of the screen;
     // the body starts below the bar, with the header 169 dp down and the
