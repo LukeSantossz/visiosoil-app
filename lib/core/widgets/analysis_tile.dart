@@ -126,12 +126,13 @@ class AnalysisTile extends StatelessWidget {
             onTap: onTap,
             onLongPress: onLongPress,
             child: Padding(
-              // Home's 64 dp row and history's 72 dp one, the history row
-              // flush with the list's margins (PNG 08 and 16, SPEC 0203).
+              // Home's rows every 64 dp with their rule, and history's 72 dp
+              // one, the history row flush with the list's margins (PNG 08
+              // and 16, SPEC 0203, SPEC 0210).
               padding: showSyncStatus
                   ? const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.md,
+                      vertical: 11.5,
                     )
                   : history
                   ? const EdgeInsets.symmetric(vertical: AppSpacing.sm)

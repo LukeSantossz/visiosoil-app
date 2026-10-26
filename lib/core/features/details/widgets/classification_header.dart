@@ -43,7 +43,7 @@ class ClassificationHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(record.displayTextureClass, style: theme.textTheme.headlineMedium),
         if (hasScore) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           _ConfidenceRow(score: record.confidenceScore!),
         ],
         if (showBanner) ...[
@@ -112,7 +112,7 @@ class _ConfidenceRow extends StatelessWidget {
             child: Text(
               '$pct%',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 13,
+                fontSize: 14,
                 color: context.palette.onSurfaceVariant,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -188,9 +188,9 @@ class _LevelBadge extends StatelessWidget {
           : 'Confiança ${level.label.toLowerCase()}, $percent por cento',
       child: ExcludeSemantics(
         child: Container(
+          // As wide as its label, as PNG 14 draws it (SPEC 0210).
           constraints: BoxConstraints(minHeight: palette.isSun ? 28 : 24),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: fill,
             borderRadius: BorderRadius.circular(6),
@@ -198,14 +198,18 @@ class _LevelBadge extends StatelessWidget {
                 ? Border.all(color: palette.onSurface, width: 2)
                 : null,
           ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontSize: palette.isSun ? 14 : 12,
-              height: 1.2,
-              letterSpacing: 0,
-              fontWeight: FontWeight.w600,
-              color: ink,
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: palette.isSun ? 14 : 12,
+                height: 1.2,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w600,
+                color: ink,
+              ),
             ),
           ),
         ),

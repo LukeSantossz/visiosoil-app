@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Density tokens for tap targets and component heights (Redesign v11 §1.4).
 ///
 /// [standard] is the default for light and dark themes: 48 dp tap targets,
-/// 52 dp buttons, 1 dp borders. [sun] is for the high-contrast Sun mode:
+/// 48 dp buttons as the mocks draw them (SPEC 0210), 1 dp borders. [sun] is for the high-contrast Sun mode:
 /// 56 dp tap targets, 56 dp buttons, 2 dp borders for visibility in sunlight.
 @immutable
 class AppDensity extends ThemeExtension<AppDensity> {
@@ -30,10 +30,10 @@ class AppDensity extends ThemeExtension<AppDensity> {
   /// Camera shutter button size in dp.
   final double shutter;
 
-  /// Standard density: 48 dp taps, 52 dp buttons, 1 dp borders.
+  /// Standard density: 48 dp taps, 48 dp buttons, 1 dp borders.
   static const standard = AppDensity(
     tap: 48,
-    buttonHeight: 52,
+    buttonHeight: 48,
     borderWidth: 1,
     navHeight: 80,
     shutter: 72,

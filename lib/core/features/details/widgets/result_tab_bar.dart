@@ -32,36 +32,42 @@ class ResultTabBar<T> extends StatelessWidget {
     return Semantics(
       container: true,
       label: semanticLabel,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
+      // The indicator sits on the rule, its bottom on the rule's (PNG 14,
+      // SPEC 0210).
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: palette.isSun ? 2 : 1,
+            child: ColoredBox(
+              key: const ValueKey('result-tab-rule'),
               color: palette.isSun
                   ? palette.onSurface
                   : palette.surfaceContainerHigh,
-              width: palette.isSun ? 2 : 1,
             ),
           ),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              for (final (tab, label) in tabs)
-                _Tab(
-                  label: label,
-                  selected: tab == value,
-                  style: style,
-                  onTap: () {
-                    if (tab == value) return;
-                    unawaited(AppHaptics.selection());
-                    onChanged(tab);
-                  },
-                ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                for (final (tab, label) in tabs)
+                  _Tab(
+                    label: label,
+                    selected: tab == value,
+                    style: style,
+                    onTap: () {
+                      if (tab == value) return;
+                      unawaited(AppHaptics.selection());
+                      onChanged(tab);
+                    },
+                  ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -99,6 +105,7 @@ class _Tab extends StatelessWidget {
             child: IntrinsicWidth(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(height: 12 + target - 48),

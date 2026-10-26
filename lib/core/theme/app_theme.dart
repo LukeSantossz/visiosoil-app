@@ -182,14 +182,15 @@ abstract final class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusLg),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      // 52 dp tall, the mocks' buttonHeight (§1.4, SPEC 0202).
+      // 48 dp tall, as PNG 05, 14 and 15 draw them (SPEC 0210); §1.4's
+      // 52 dp is not what the mocks show.
       style: ElevatedButton.styleFrom(
         backgroundColor: p.primary,
         foregroundColor: p.onPrimary,
         // Flat, as every mock draws it.
         elevation: 0,
-        minimumSize: const Size(64, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
         textStyle: AppTypography.v11LabelLarge,
       ),
@@ -197,8 +198,8 @@ abstract final class AppTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: p.primary,
-        minimumSize: const Size(64, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
         side: BorderSide(color: p.outlineVariant),
         textStyle: AppTypography.v11LabelLarge,

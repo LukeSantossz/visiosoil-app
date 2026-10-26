@@ -181,7 +181,7 @@ void main() {
       LucideIcons.layers,
       LucideIcons.sprout,
     ]);
-    expect(icons.every((icon) => icon.size == 20), isTrue);
+    expect(icons.every((icon) => icon.size == 18), isTrue);
     expect(tester.widgetList<StatCell>(cells).map((cell) => cell.value), [
       '2',
       '0/12',
@@ -222,7 +222,8 @@ void main() {
       find.descendant(of: row, matching: find.byKey(const Key('status-dot'))),
       findsOneWidget,
     );
-    expect(tester.getSize(row).height, 64);
+    // Rows every 64 dp, the rule included (PNG 08, SPEC 0210).
+    expect(tester.getSize(row).height, 63);
     expect(
       tester.getSize(
         find.descendant(
@@ -391,5 +392,31 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Filtrar dicas'), findsOneWidget);
+  });
+
+  // SPEC 0210: the page titles, and the empty history of PNG 17.
+  testWidgets('page_titles_are_29_sp', (tester) async {
+    _phone(tester);
+    await _pump(tester, home: const HomeScreen());
+    expect(tester.widget<Text>(find.text('Início')).style?.fontSize, 29);
+  });
+
+  testWidgets('empty_history_matches_the_mock', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, records: const []);
+    container.read(mainTabIndexProvider.notifier).select(1);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final title = find.text('Nenhuma análise ainda');
+    expect(tester.widget<Text>(title).style?.fontSize, 18);
+    expect(
+      find.ancestor(
+        of: find.byIcon(LucideIcons.camera),
+        matching: find.widgetWithText(ElevatedButton, 'Fazer primeira análise'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.inventory_2_outlined), findsNothing);
   });
 }

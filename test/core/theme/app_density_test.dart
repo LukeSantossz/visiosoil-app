@@ -11,7 +11,7 @@ void main() {
     });
 
     test('standard_has_52dp_button_height', () {
-      expect(AppDensity.standard.buttonHeight, 52);
+      expect(AppDensity.standard.buttonHeight, 48);
     });
 
     test('standard_has_1dp_border_width', () {
@@ -75,7 +75,7 @@ void main() {
   test('lerp_interpolates_all_values', () {
     final result = AppDensity.standard.lerp(AppDensity.sun, 0.5);
     expect(result.tap, 52);
-    expect(result.buttonHeight, 54);
+    expect(result.buttonHeight, 52);
     expect(result.borderWidth, 1.5);
     expect(result.navHeight, 84);
     expect(result.shutter, 76);
