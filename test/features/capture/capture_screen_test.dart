@@ -433,7 +433,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
     }
 
-    expect(find.text('Media'), findsOneWidget);
+    expect(find.text('Média'), findsOneWidget);
     expect(find.textContaining('Argilosa'), findsNothing);
   });
 
