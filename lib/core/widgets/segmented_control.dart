@@ -69,9 +69,14 @@ class SegmentedControl<T> extends StatelessWidget {
       label: semanticLabel,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final segmentWidth = compact
+          // A compact control wider than its room shrinks its segments, so
+          // the indicator and rules stay on the labels (review of #438).
+          final natural = compact
               ? _compactSegmentWidth(context)
               : constraints.maxWidth / options.length;
+          final segmentWidth = natural * options.length > constraints.maxWidth
+              ? constraints.maxWidth / options.length
+              : natural;
 
           final control = Stack(
             children: [
