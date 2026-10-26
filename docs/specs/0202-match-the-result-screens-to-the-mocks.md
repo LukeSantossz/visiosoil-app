@@ -121,6 +121,6 @@ Flutter 3.44.1, Dart 3.12.1. Run `flutter test`, `flutter analyze` and `mf check
 
 ## Risks and Assumptions
 
-- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente".
+- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente" ("faithfully and strictly").
 - Removing the draft's retake and the failure's rerun moves recovery to back plus a new capture, and to "Fotografar de novo".
 - The mock shows no Manejo or Detalhes tab, so those keep their content under the new header.
