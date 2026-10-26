@@ -12,8 +12,10 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera
 import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_denied_view.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
@@ -22,6 +24,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
+import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
@@ -101,6 +104,9 @@ class CaptureScreen extends ConsumerStatefulWidget {
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   String? _processingClass;
+
+  /// When the current result arrived: the draft result's time (SPEC 0196).
+  DateTime? _resultAt;
   Completer<void>? _settlement;
 
   static const Duration _locationTimeout = Duration(seconds: 20);
@@ -359,6 +365,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
       if (!mounted || generation != _state.generation) return;
     }
+    _resultAt = DateTime.now();
     setState(
       () => _state = _state.copyWith(
         classificationResult: report.result,
@@ -368,9 +375,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             : ClassificationStatus.failed,
       ),
     );
-    // A result arriving; a failure's chip names its cause instead.
-    if (report.outcome == ClassificationOutcome.ok) {
-      unawaited(AppHaptics.result());
+    // A result arriving, by its confidence (redesign v11 §3.14); a failure's
+    // chip names its cause instead.
+    final arrived = report.result;
+    if (report.outcome == ClassificationOutcome.ok && arrived != null) {
+      final low = ConfidenceLevel.fromScore(arrived.confidenceScore) ==
+          ConfidenceLevel.low;
+      unawaited(low ? AppHaptics.confirm() : AppHaptics.result());
     }
   }
 
@@ -493,7 +504,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       unawaited(_disposePickedFile(deletePicked, image.path));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro salvo com sucesso!')),
+          const SnackBar(content: Text(AppStrings.resultSavedSnackbar)),
         );
         // Capture is replaced, so back from details returns to whatever
         // opened it (SPEC 0132).
@@ -555,6 +566,71 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _pickImage();
   }
 
+  /// The result as it will be saved, with the guarded capture actions as its
+  /// footer and the bookmark as a second way to save (SPEC 0196).
+  Widget _draftResult(File image, InferenceResult result, bool hasImage) {
+    final draft = SoilRecord(
+      imagePath: image.path,
+      latitude: _state.latitude,
+      longitude: _state.longitude,
+      address: _state.address,
+      horizontalAccuracy: _state.horizontalAccuracy,
+      timestamp: (_resultAt ?? DateTime.now()).toIso8601String(),
+      textureClass: result.textureClass,
+      confidenceScore: result.confidenceScore,
+    );
+    return ResultContent(
+      key: ValueKey(_state.generation),
+      record: draft,
+      locating: _state.isLocating,
+      appBar: VisioAppBar(
+        title: AppStrings.resultTitle,
+        actions: [
+          VisioIconButton(
+            label: AppStrings.resultSave,
+            icon: Icons.bookmark_border,
+            onPressed: _state.isSaving ? null : _saveRecord,
+          ),
+        ],
+      ),
+      managementTab: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Text(
+          AppStrings.resultDraftManagement,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+      detailsTab: SizedBox(
+        height: 420,
+        child: CaptureImagePreview(
+          image: image,
+          sample: ref.watch(soilSampleProvider(image.path)).value,
+          isLoading: _state.isLocating,
+          isClassifying: false,
+          address: _state.address,
+          latitude: _state.latitude,
+          longitude: _state.longitude,
+          classificationResult: result,
+        ),
+      ),
+      footerBuilder: (context, _) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: CaptureActions(
+            hasImage: hasImage,
+            isBusy: _state.isSaving,
+            onCapture: _pickImage,
+            onSave: _saveRecord,
+            onRetake: _pickImage,
+            onDiscard: _discardImage,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Shows the permission denied screen if the camera was blocked
@@ -570,6 +646,18 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final selectedImage = ref.watch(imageProvider);
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
+
+    // A classified photograph is shown as the result it will be once saved
+    // (SPEC 0196); a failure keeps the preview with its cause and retry.
+    final result = _state.classificationResult;
+    if (image != null && result != null && !_state.isClassifying) {
+      return PopScope(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) _discardOnLeave();
+        },
+        child: _draftResult(image, result, hasImage),
+      );
+    }
 
     // A save replaces this route instead of popping it (SPEC 0132), so only
     // back runs this.

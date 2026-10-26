@@ -57,8 +57,10 @@ class CaptureActions extends StatelessWidget {
       );
     }
 
+    // Its own height only: it is also the result's footer (SPEC 0196).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         VisioButton(
           label: 'Salvar registro',

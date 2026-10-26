@@ -17,11 +17,14 @@ import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
+import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -319,7 +322,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
     }
 
-    expect(find.textContaining('Argilosa'), findsOneWidget);
+    expect(find.text('Argilosa'), findsOneWidget);
   });
 
   testWidgets(
@@ -430,7 +433,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
     }
 
-    expect(find.textContaining('Media'), findsOneWidget);
+    expect(find.text('Media'), findsOneWidget);
     expect(find.textContaining('Argilosa'), findsNothing);
   });
 
@@ -703,7 +706,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.createCalls.length, 1);
-    expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
+    expect(find.text(AppStrings.resultSavedSnackbar), findsOneWidget);
     expect(find.text('DETAILS_STUB 1'), findsOneWidget);
     expect(find.byType(CaptureScreen), findsNothing);
 
@@ -765,7 +768,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 10));
       }
       await tester.pumpAndSettle();
-      expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
+      expect(find.text(AppStrings.resultSavedSnackbar), findsOneWidget);
       expect(count(haptics, 'lightImpact'), 2);
     });
 
@@ -1154,7 +1157,7 @@ void main() {
       await openAndSave(tester);
 
       expect(repository.createCalls, hasLength(1));
-      expect(find.text('Registro salvo com sucesso!'), findsOneWidget);
+      expect(find.text(AppStrings.resultSavedSnackbar), findsOneWidget);
       expect(find.text('DETAILS_STUB 1'), findsOneWidget);
     });
 
@@ -1302,8 +1305,12 @@ void main() {
         (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
             as CaptureUiState;
 
+    // The preview sits in the result's Detalhes tab once a photograph is
+    // classified (SPEC 0196), so it is looked up there too.
     String? shownPath(WidgetTester tester) => tester
-        .widget<CaptureImagePreview>(find.byType(CaptureImagePreview))
+        .widget<CaptureImagePreview>(
+          find.byType(CaptureImagePreview, skipOffstage: false),
+        )
         .image
         ?.path;
 
@@ -2039,5 +2046,106 @@ void main() {
       // let that read finish before the file is deleted.
       await settleIo(tester);
     });
+  });
+
+  // The v11 result appears inside capture once the triangle settles, and the
+  // bookmark saves it (SPEC 0196).
+  group('in-capture result', () {
+    const result = InferenceResult(textureClass: 'Argilosa', confidenceScore: 0.82);
+
+    testWidgets('capture_shows_the_result_after_processing', (tester) async {
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Resultado'), findsOneWidget);
+      expect(find.text('Argilosa'), findsOneWidget);
+      expect(find.text('Confiança alta · 82%'), findsOneWidget);
+      expect(find.byType(SegmentedControl<ResultTab>), findsOneWidget);
+      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Tirar outra foto'), findsOneWidget);
+      expect(find.text('Descartar'), findsOneWidget);
+    });
+
+    testWidgets('bookmark_saves_the_draft', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+        repository: repository,
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Salvar'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+
+      expect(repository.createCalls.length, 1);
+      expect(find.text('Salvo no histórico'), findsOneWidget);
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    });
+
+    testWidgets('draft_manejo_asks_to_save', (tester) async {
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.descendant(
+        of: find.byType(SegmentedControl<ResultTab>),
+        matching: find.text('Manejo'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.resultDraftManagement), findsOneWidget);
+      expect(find.byType(ManagementTipsSection), findsNothing);
+    });
+
+    testWidgets('failure_keeps_the_preview', (tester) async {
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+      expect(find.byType(SegmentedControl<ResultTab>), findsNothing);
+    });
+
+    for (final (score, type) in [
+      (0.82, 'mediumImpact'),
+      (0.60, 'mediumImpact'),
+      (0.40, 'lightImpact'),
+    ]) {
+      testWidgets('entry_haptic_follows_the_level at $score', (tester) async {
+        final haptics = recordHaptics(tester);
+        await tester.pumpWidget(buildScreen(
+          pickFromCamera: () async => XFile(samplePath),
+          locate: () async => null,
+          classify: (_) async =>
+              InferenceResult(textureClass: 'Argilosa', confidenceScore: score),
+        ));
+        await capture(tester);
+        await tester.pumpAndSettle();
+
+        // The entry is the last haptic, after the shutter and the settle.
+        expect(haptics.last, 'HapticFeedbackType.$type');
+      });
+    }
   });
 }
