@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/google_sign_in_button.dart';
 import 'package:visiosoil_app/core/widgets/account_card.dart';
+import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -24,10 +28,15 @@ class ProfileScreen extends ConsumerWidget {
         : auth.value?.account;
     final records = ref.watch(soilRecordsStreamProvider);
     final list = records.value;
-    final classes = list
+    final held = list
         ?.where((record) => record.hasClassification)
-        .map((record) => record.textureClass)
-        .toSet()
+        .map((record) => record.textureClass!)
+        .toSet();
+    final classes = held?.length;
+    // The collection counts the twelve USDA reference classes, as Home and
+    // the history count them (SPEC 0203, SPEC 0204).
+    final collected = held
+        ?.intersection(SoilTextureColors.referenceClasses.keys.toSet())
         .length;
     final offline =
         ref.watch(connectivityStatusProvider).value ==
@@ -43,19 +52,35 @@ class ProfileScreen extends ConsumerWidget {
         );
       }
     });
+    final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
+            // Cards at 16 dp, the title 20 dp in and 12 dp below the safe
+            // area (PNG 21, SPEC 0204).
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
               children: [
-                Text(
-                  'Perfil',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                  ),
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'Perfil',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.lg),
                 AccountCard(
                   name: account?.displayName,
                   email: account?.email,
@@ -63,14 +88,33 @@ class ProfileScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (account == null) ...[
-                        const Text(
+                        Text(
                           'Vincule uma conta para salvar e sincronizar suas análises. Se trocar ou perder o aparelho, elas não se perdem.',
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        if (list != null)
-                          Text(
-                            '${list.length} análises e $classes classes guardadas neste aparelho',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: context.palette.onSurfaceVariant,
                           ),
+                        ),
+                        if (list != null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Icon(
+                                LucideIcons.smartphone,
+                                size: 20,
+                                color: context.palette.primaryText,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  '${list.length} análises e $classes classes guardadas neste aparelho',
+                                  style: SettingsRowFrame.subtitleStyle(
+                                    context,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.lg),
                         GoogleSignInButton(
                           isLoading: auth.isLoading,
@@ -85,20 +129,49 @@ class ProfileScreen extends ConsumerWidget {
                             'Sem conexão. Você pode vincular depois em Perfil.',
                           ),
                       ] else ...[
-                        const Text('Dados só neste aparelho'),
-                        // The sync foundation has no remote backend yet (ADR 0022).
-                        const TextButton(
-                          onPressed: null,
-                          child: Text('Sincronizar'),
+                        // The sync foundation has no remote backend yet
+                        // (ADR 0022), so the row says where the data is.
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.cloud,
+                              size: 20,
+                              color: context.palette.primaryText,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'Dados só neste aparelho',
+                                style: SettingsRowFrame.subtitleStyle(context),
+                              ),
+                            ),
+                            const TextButton(
+                              onPressed: null,
+                              child: Text('Sincronizar'),
+                            ),
+                          ],
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Neste aparelho',
-                  style: Theme.of(context).textTheme.titleMedium,
+                // Placed and set as Home's section titles (SPEC 0203).
+                const SizedBox(height: 28),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                  ),
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'Neste aparelho',
+                      style: AppTypography.resized(
+                        theme.textTheme.titleMedium!,
+                        17,
+                        height: 24 / 17,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (records.hasError) ...[
@@ -121,76 +194,64 @@ class ProfileScreen extends ConsumerWidget {
                       StatCell(
                         value: '${list!.length}',
                         label: 'análises',
-                        icon: Icons.crop_free,
+                        icon: LucideIcons.scan,
                       ),
                       StatCell(
-                        value: '$classes/12',
+                        value: '$collected/12',
                         label: 'coleção',
-                        icon: Icons.layers_outlined,
+                        icon: LucideIcons.layers,
+                        semanticLabel: '$collected de 12 classes na coleção',
                       ),
                       StatCell(
                         value:
                             '${account == null ? list.length : list.where((record) => record.syncStatus == 'synced').length}',
                         label: account == null ? 'só no aparelho' : 'enviadas',
-                        icon: Icons.cloud_done_outlined,
+                        icon: account == null
+                            ? LucideIcons.hardDriveDownload
+                            : LucideIcons.cloudCheck,
                       ),
                     ],
                   ),
                 const SizedBox(height: AppSpacing.xl),
-                Card(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.settings_outlined),
-                        title: const Text('Configurações'),
-                        subtitle: const Text(
-                          'Tema, câmera, dados e acessibilidade',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/settings'),
+                SettingsGroup(
+                  children: [
+                    SettingsTile(
+                      icon: LucideIcons.settings,
+                      title: 'Configurações',
+                      subtitle: 'Tema, câmera, dados e acessibilidade',
+                      onTap: () => context.push('/settings'),
+                    ),
+                    SettingsTile(
+                      icon: LucideIcons.circleHelp,
+                      title: 'Como fotografar a amostra',
+                      subtitle: 'Luz, distância e preparo',
+                      onTap: () => context.push('/capture-guide'),
+                    ),
+                    if (account != null)
+                      SettingsTile(
+                        icon: LucideIcons.logOut,
+                        title: 'Sair da conta',
+                        subtitle: 'As análises continuam neste aparelho',
+                        destructive: true,
+                        trailing: const SizedBox.shrink(),
+                        onTap: auth.isLoading
+                            ? null
+                            : () async {
+                                final confirmed = await confirmDestructiveAction(
+                                  context,
+                                  title: 'Sair da conta?',
+                                  message:
+                                      'As análises continuam neste aparelho.',
+                                  confirmLabel: 'Sair da conta',
+                                );
+                                if (confirmed && context.mounted) {
+                                  await ref
+                                      .read(authNotifierProvider.notifier)
+                                      .signOut();
+                                }
+                              },
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(Icons.help_outline),
-                        title: const Text('Como fotografar a amostra'),
-                        subtitle: const Text('Luz, distância e preparo'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/capture-guide'),
-                      ),
-                      if (account != null) ...[
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: Icon(
-                            Icons.logout,
-                            color: context.palette.error,
-                          ),
-                          title: Text(
-                            'Sair da conta',
-                            style: TextStyle(color: context.palette.error),
-                          ),
-                          subtitle: const Text(
-                            'As análises continuam neste aparelho',
-                          ),
-                          onTap: auth.isLoading
-                              ? null
-                              : () async {
-                                  final confirmed = await confirmDestructiveAction(
-                                    context,
-                                    title: 'Sair da conta?',
-                                    message:
-                                        'As análises continuam neste aparelho.',
-                                    confirmLabel: 'Sair da conta',
-                                  );
-                                  if (confirmed && context.mounted) {
-                                    await ref
-                                        .read(authNotifierProvider.notifier)
-                                        .signOut();
-                                  }
-                                },
-                        ),
-                      ],
-                    ],
-                  ),
+                  ],
                 ),
               ],
             ),
