@@ -8,6 +8,30 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 void main() {
   group('AppTheme.sun', () {
+    testWidgets('switches resolve black and white in both states', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.sun,
+          home: Scaffold(body: Switch(value: false, onChanged: (_) {})),
+        ),
+      );
+      final theme = Theme.of(tester.element(find.byType(Switch))).switchTheme;
+      for (final selected in [false, true]) {
+        final states = <WidgetState>{if (selected) WidgetState.selected};
+        expect(
+          theme.thumbColor?.resolve(states),
+          selected ? Colors.white : Colors.black,
+        );
+        expect(
+          theme.trackColor?.resolve(states),
+          selected ? Colors.black : Colors.white,
+        );
+        expect(theme.trackOutlineColor?.resolve(states), Colors.black);
+        expect(theme.trackOutlineWidth?.resolve(states), 2);
+      }
+    });
     test('carries the sun palette and density extensions', () {
       final theme = AppTheme.sun;
       expect(theme.extension<AppPalette>()?.isSun, isTrue);
@@ -56,10 +80,7 @@ void main() {
 
     test('the selected navigation icon is white, unselected is black', () {
       final iconTheme = AppTheme.sun.navigationBarTheme.iconTheme;
-      expect(
-        iconTheme?.resolve({WidgetState.selected})?.color,
-        Colors.white,
-      );
+      expect(iconTheme?.resolve({WidgetState.selected})?.color, Colors.white);
       expect(iconTheme?.resolve({})?.color, Colors.black);
     });
 
@@ -68,8 +89,7 @@ void main() {
     // those overrides shadow.
     test('Elevated, Outlined and TextButton use the sun-scaled labelLarge', () {
       final theme = AppTheme.sun;
-      final expected =
-          AppTypography.labelLarge.copyWith(fontSize: 17).fontSize;
+      final expected = AppTypography.labelLarge.copyWith(fontSize: 17).fontSize;
       expect(
         theme.elevatedButtonTheme.style?.textStyle?.resolve({})?.fontSize,
         expected,
@@ -90,23 +110,23 @@ void main() {
     // through `Theme.textTheme.labelLarge`, which `_build` already scales.
     testWidgets('FilledButton and SegmentedButton render at the sun-scaled'
         ' labelLarge', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.sun,
-        home: Scaffold(
-          body: Column(
-            children: [
-              FilledButton(onPressed: () {}, child: const Text('Filled')),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 0, label: Text('Seg')),
-                ],
-                selected: const {0},
-                onSelectionChanged: (_) {},
-              ),
-            ],
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.sun,
+          home: Scaffold(
+            body: Column(
+              children: [
+                FilledButton(onPressed: () {}, child: const Text('Filled')),
+                SegmentedButton<int>(
+                  segments: const [ButtonSegment(value: 0, label: Text('Seg'))],
+                  selected: const {0},
+                  onSelectionChanged: (_) {},
+                ),
+              ],
+            ),
           ),
         ),
-      ));
+      );
 
       double? renderedFontSize(String label) => tester
           .widget<RichText>(
@@ -129,10 +149,7 @@ void main() {
     // sun-scaled labelMedium (14 sp, §1.2).
     test('the navigation bar label uses the sun-scaled labelMedium', () {
       final labelTextStyle = AppTheme.sun.navigationBarTheme.labelTextStyle;
-      expect(
-        labelTextStyle?.resolve({WidgetState.selected})?.fontSize,
-        14,
-      );
+      expect(labelTextStyle?.resolve({WidgetState.selected})?.fontSize, 14);
       expect(labelTextStyle?.resolve({})?.fontSize, 14);
     });
 
@@ -153,7 +170,10 @@ void main() {
     test('light, dark and high-contrast themes are unaffected', () {
       expect(AppTheme.light.extension<AppPalette>()?.isSun, isFalse);
       expect(AppTheme.dark.extension<AppPalette>()?.isSun, isFalse);
-      expect(AppTheme.lightHighContrast.extension<AppPalette>()?.isSun, isFalse);
+      expect(
+        AppTheme.lightHighContrast.extension<AppPalette>()?.isSun,
+        isFalse,
+      );
       expect(AppTheme.darkHighContrast.extension<AppPalette>()?.isSun, isFalse);
       expect(AppTheme.light.extension<AppDensity>(), isNull);
     });

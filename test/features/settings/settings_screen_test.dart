@@ -23,6 +23,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -146,8 +147,7 @@ class _FakeErrorReportStore implements ErrorReportStore {
   Future<String> render({
     required String appVersion,
     required String osVersion,
-  }) async =>
-      'relatorio $appVersion';
+  }) async => 'relatorio $appVersion';
 
   @override
   Future<void> clear() async {
@@ -202,8 +202,9 @@ Widget _app(
   SoilRecordRepository? repository,
   ErrorReportStore? errorReport,
   ShareService? shareService,
-  ConnectivityService connectivity =
-      const _FakeConnectivityService(ConnectivityStatus.online),
+  ConnectivityService connectivity = const _FakeConnectivityService(
+    ConnectivityStatus.online,
+  ),
   Future<PackageInfo>? packageInfo,
   ThemeData? theme,
   CaptureGuideStore? captureGuide,
@@ -224,17 +225,20 @@ Widget _app(
       packageInfoProvider.overrideWith(
         (ref) =>
             packageInfo ??
-            Future.value(PackageInfo(
-              appName: 'VisioSoil',
-              packageName: 'app.visiosoil',
-              version: '2.0.0',
-              buildNumber: '2',
-            )),
+            Future.value(
+              PackageInfo(
+                appName: 'VisioSoil',
+                packageName: 'app.visiosoil',
+                version: '2.0.0',
+                buildNumber: '2',
+              ),
+            ),
       ),
       if (repository != null)
         soilRecordRepositoryProvider.overrideWithValue(repository),
-      errorReportStoreProvider
-          .overrideWithValue(errorReport ?? _FakeErrorReportStore()),
+      errorReportStoreProvider.overrideWithValue(
+        errorReport ?? _FakeErrorReportStore(),
+      ),
       if (shareService != null)
         shareServiceProvider.overrideWithValue(shareService),
       if (captureGuide != null)
@@ -257,47 +261,65 @@ void main() {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
 
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('settings_shows_account_when_signed_in', (tester) async {
     await tester.pumpWidget(
-      _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo')),
+      _app(
+        const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo'),
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Agro Nomo'), findsOneWidget);
+    expect(find.text('Conta Google'), findsOneWidget);
+    expect(find.text('agro@example.com'), findsOneWidget);
+    expect(find.text('Agro Nomo'), findsNothing);
     expect(find.text('Sair'), findsOneWidget);
   });
 
-  testWidgets('settings_shows_failure_snackbar_when_sign_in_throws',
-      (tester) async {
+  testWidgets('settings_shows_failure_snackbar_when_sign_in_throws', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(null, signInError: Exception('oauth failed')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pump(); // start sign-in (loading)
     await tester.pump(); // async throws -> error state -> listener fires
     await tester.pump(); // build the SnackBar
 
     expect(find.text(_failureMessage), findsOneWidget);
     // The tile stays on the sign-in affordance, so the user can retry.
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   // Signing in cannot reach Google without a connection, so the tap says so
   // instead of starting an attempt bound to fail (SPEC 0114).
-  testWidgets('signing_in_offline_names_the_missing_connection',
-      (tester) async {
+  testWidgets('signing_in_offline_names_the_missing_connection', (
+    tester,
+  ) async {
     final auth = _FakeAuthService(null);
-    await tester.pumpWidget(_app(
-      null,
-      auth: auth,
-      connectivity: const _FakeConnectivityService(ConnectivityStatus.offline),
-    ));
+    await tester.pumpWidget(
+      _app(
+        null,
+        auth: auth,
+        connectivity: const _FakeConnectivityService(
+          ConnectivityStatus.offline,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pump();
     await tester.pump();
 
@@ -306,44 +328,51 @@ void main() {
     expect(auth.signInCalls, 0);
   });
 
-  testWidgets('an_online_sign_in_failure_keeps_the_generic_message',
-      (tester) async {
-    await tester.pumpWidget(_app(
-      null,
-      signInError: Exception('oauth failed'),
-      connectivity: const _FakeConnectivityService(ConnectivityStatus.online),
-    ));
+  testWidgets('an_online_sign_in_failure_keeps_the_generic_message', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        null,
+        signInError: Exception('oauth failed'),
+        connectivity: const _FakeConnectivityService(ConnectivityStatus.online),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pumpAndSettle();
 
     expect(find.text(_failureMessage), findsOneWidget);
     expect(find.text(_offlineMessage), findsNothing);
   });
 
-  testWidgets('an_unreadable_connection_still_tries_to_sign_in',
-      (tester) async {
+  testWidgets('an_unreadable_connection_still_tries_to_sign_in', (
+    tester,
+  ) async {
     final auth = _FakeAuthService(null);
-    await tester.pumpWidget(_app(
-      null,
-      auth: auth,
-      connectivity: _FakeConnectivityService(
-        ConnectivityStatus.offline,
-        readError: Exception('plugin unavailable'),
+    await tester.pumpWidget(
+      _app(
+        null,
+        auth: auth,
+        connectivity: _FakeConnectivityService(
+          ConnectivityStatus.offline,
+          readError: Exception('plugin unavailable'),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Entrar com Google'));
+    await tester.tap(find.text('Conta'));
     await tester.pumpAndSettle();
 
     expect(auth.signInCalls, 1);
     expect(find.text(_offlineMessage), findsNothing);
   });
 
-  testWidgets('settings_shows_failure_snackbar_when_sign_out_throws',
-      (tester) async {
+  testWidgets('settings_shows_failure_snackbar_when_sign_out_throws', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(
         const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
@@ -361,36 +390,43 @@ void main() {
     expect(find.text(_failureMessage), findsOneWidget);
     // A failed sign-out that leaves credentials must not claim signed-out: the
     // tile keeps showing the account, not the sign-in affordance.
-    expect(find.text('Agro'), findsOneWidget);
+    expect(find.text('agro@example.com'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
-    expect(find.text('Entrar com Google'), findsNothing);
+    expect(find.text('Conta'), findsNothing);
   });
 
-  testWidgets('settings_shows_signed_out_when_sign_out_clears_then_remote_fails',
-      (tester) async {
-    await tester.pumpWidget(
-      _app(
-        const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
-        signOutError: Exception('revoke failed'),
-        signOutClearsBeforeError: true,
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Sair'), findsOneWidget);
+  testWidgets(
+    'settings_shows_signed_out_when_sign_out_clears_then_remote_fails',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
+          signOutError: Exception('revoke failed'),
+          signOutClearsBeforeError: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Sair'), findsOneWidget);
 
-    await tester.tap(find.text('Sair'));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
+      await tester.tap(find.text('Sair'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
-    expect(find.text(_failureMessage), findsOneWidget);
-    // Local credentials were cleared, so the tile reflects signed-out.
-    expect(find.text('Entrar com Google'), findsOneWidget);
-    expect(find.text('Sair'), findsNothing);
-  });
+      expect(find.text(_failureMessage), findsOneWidget);
+      // Local credentials were cleared, so the tile reflects signed-out.
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
+      expect(find.text('Sair'), findsNothing);
+    },
+  );
 
-  testWidgets('settings_no_failure_snackbar_on_successful_sign_out',
-      (tester) async {
+  testWidgets('settings_no_failure_snackbar_on_successful_sign_out', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro')),
     );
@@ -401,21 +437,26 @@ void main() {
     await tester.pump();
 
     expect(find.text(_failureMessage), findsNothing);
-    expect(find.text('Entrar com Google'), findsOneWidget);
+    expect(find.text('Conta'), findsOneWidget);
+    expect(
+      find.text('Não vinculada · dados só neste aparelho'),
+      findsOneWidget,
+    );
   });
 
   group('account deletion (SPEC 0113)', () {
     // The dialog's own button: the action that opens it is a TextButton too
     // since SPEC 0129.
     Finder confirmDeletion() => find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.widgetWithText(TextButton, 'Excluir conta'),
-        );
+      of: find.byType(AlertDialog),
+      matching: find.widgetWithText(TextButton, 'Excluir conta'),
+    );
 
     const agro = AuthAccount(email: 'agro@example.com', displayName: 'Agro');
 
-    testWidgets('settings_offers_account_deletion_only_when_signed_in',
-        (tester) async {
+    testWidgets('settings_offers_account_deletion_only_when_signed_in', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(agro));
       await tester.pumpAndSettle();
       expect(find.text('Excluir conta'), findsOneWidget);
@@ -425,22 +466,31 @@ void main() {
       expect(find.text('Excluir conta'), findsNothing);
     });
 
-    testWidgets('confirming_excluir_conta_deletes_the_account',
-        (tester) async {
+    testWidgets('confirming_excluir_conta_deletes_the_account', (tester) async {
       final auth = _FakeAuthService(agro);
       await tester.pumpWidget(_app(agro, auth: auth));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Excluir conta'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Apagar todos os dados'), findsWidgets,
-          reason: 'the confirmation names where the records are erased');
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.textContaining('use "Limpar dados do aparelho"'),
+        ),
+        findsOneWidget,
+        reason: 'the confirmation names where the records are erased',
+      );
       await tester.tap(confirmDeletion());
       await tester.pumpAndSettle();
 
       expect(auth.deleteAccountCalls, 1);
       expect(find.text('Conta excluída do VisioSoil.'), findsOneWidget);
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('cancelling excluir conta deletes nothing', (tester) async {
@@ -454,7 +504,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(auth.deleteAccountCalls, 0);
-      expect(find.text('Agro'), findsOneWidget);
+      expect(find.text('agro@example.com'), findsOneWidget);
     });
 
     testWidgets('a_failed_revoke_says_where_to_revoke', (tester) async {
@@ -470,15 +520,22 @@ void main() {
       await tester.tap(confirmDeletion());
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('myaccount.google.com/connections'),
-          findsOneWidget);
+      expect(
+        find.textContaining('myaccount.google.com/connections'),
+        findsOneWidget,
+      );
       expect(find.text(_failureMessage), findsNothing);
       expect(find.text('Conta excluída do VisioSoil.'), findsNothing);
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('any other failure keeps the account and the generic message',
-        (tester) async {
+    testWidgets('any other failure keeps the account and the generic message', (
+      tester,
+    ) async {
       final auth = _FakeAuthService(
         agro,
         deleteAccountError: Exception('secure storage delete failed'),
@@ -492,47 +549,99 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(_failureMessage), findsOneWidget);
-      expect(find.text('Agro'), findsOneWidget);
+      expect(find.text('agro@example.com'), findsOneWidget);
     });
   });
 
-  testWidgets('confirming apagar tudo deletes all records and shows a snackbar',
-      (tester) async {
-    final repository = FakeSoilRecordRepository();
-    await tester.pumpWidget(_app(null, repository: repository));
+  testWidgets('long email stays on one line at 411dp in Sun mode', (
+    tester,
+  ) async {
+    const email = 'agronomist.with.a.very.long.email.address@example.com';
+    tester.view.physicalSize = const Size(411, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() => tester.view.resetPhysicalSize());
+    await tester.pumpWidget(
+      _app(
+        const AuthAccount(email: email, displayName: 'Agro'),
+        theme: AppTheme.sun,
+      ),
+    );
     await tester.pumpAndSettle();
-
-    // Open the shared destructive dialog from the delete-all tile.
-    // Below the fold in the test view since SPEC 0130's switch.
-    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
-    await tester.tap(find.text('Apagar todos os dados'));
-    await tester.pumpAndSettle();
-
-    // Confirm; the delete-all runs and its own snackbar is shown.
-    await tester.tap(find.text('Apagar tudo'));
-    await tester.pumpAndSettle();
-
-    expect(repository.deleteAllCalls, 1);
-    expect(find.text('Todos os dados foram apagados.'), findsOneWidget);
+    final emailFinder = find.text(email);
+    final text = tester.widget<Text>(emailFinder);
+    expect(text.maxLines, 1);
+    expect(text.overflow, TextOverflow.ellipsis);
+    expect(text.softWrap, isFalse);
+    expect(
+      find.ancestor(of: emailFinder, matching: find.byType(Expanded)),
+      findsWidgets,
+    );
+    expect(find.text('Sair').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'confirming apagar tudo deletes all records and shows a snackbar',
+    (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(_app(null, repository: repository));
+      await tester.pumpAndSettle();
+
+      // Open the shared destructive dialog from the delete-all tile.
+      // Below the fold in the test view since SPEC 0130's switch.
+      await tester.scrollUntilVisible(
+        find.text('Limpar dados do aparelho').hitTestable(),
+        200,
+      );
+      await tester.tap(find.text('Limpar dados do aparelho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Limpar dados do aparelho?'), findsOneWidget);
+      expect(
+        find.text(
+          'Isso apaga as análises e fotos salvas neste aparelho. '
+          'Não dá para desfazer.',
+        ),
+        findsOneWidget,
+      );
+      final cancelFinder = find.widgetWithText(TextButton, 'Cancelar');
+      expect(tester.widget<TextButton>(cancelFinder).autofocus, isTrue);
+      expect(Focus.of(tester.element(find.text('Cancelar'))).hasFocus, isTrue);
+      final confirmFinder = find.widgetWithText(TextButton, 'Limpar dados');
+      final confirm = tester.widget<TextButton>(confirmFinder);
+      expect(
+        confirm.style!.foregroundColor!.resolve({}),
+        Theme.of(tester.element(confirmFinder)).colorScheme.error,
+      );
+
+      // Confirm; the delete-all runs and its own snackbar is shown.
+      await tester.tap(find.text('Limpar dados'));
+      await tester.pumpAndSettle();
+
+      expect(repository.deleteAllCalls, 1);
+      expect(find.text('Todos os dados foram apagados.'), findsOneWidget);
+    },
+  );
 
   testWidgets('erasing_all_data_clears_the_error_report', (tester) async {
     // SPEC 0110: the report is data the app keeps, so erasing everything
     // erases it too, and the row then has nothing to send.
     final report = _FakeErrorReportStore(empty: false);
-    await tester.pumpWidget(_app(
-      null,
-      repository: FakeSoilRecordRepository(),
-      errorReport: report,
-    ));
+    await tester.pumpWidget(
+      _app(null, repository: FakeSoilRecordRepository(), errorReport: report),
+    );
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.errorReportNothingToSend), findsNothing);
 
     // Below the fold in the test view since SPEC 0130's switch.
-    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
-    await tester.tap(find.text('Apagar todos os dados'));
+    await tester.scrollUntilVisible(
+      find.text('Limpar dados do aparelho').hitTestable(),
+      200,
+    );
+    await tester.tap(find.text('Limpar dados do aparelho'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Apagar tudo'));
+    await tester.tap(find.text('Limpar dados'));
     await tester.pumpAndSettle();
 
     expect(report.clearCalls, 1);
@@ -542,43 +651,53 @@ void main() {
   group('settings_shares_the_error_report', () {
     // SPEC 0110: the row shares the report as a text file when it holds an
     // entry, and is disabled, saying so, when it holds none.
-    testWidgets('with entries, the row shares the rendered report',
-        (tester) async {
+    testWidgets('with entries, the row shares the rendered report', (
+      tester,
+    ) async {
       final share = _RecordingShareService();
-      await tester.pumpWidget(_app(
-        null,
-        repository: FakeSoilRecordRepository(),
-        errorReport: _FakeErrorReportStore(empty: false),
-        shareService: share,
-      ));
+      await tester.pumpWidget(
+        _app(
+          null,
+          repository: FakeSoilRecordRepository(),
+          errorReport: _FakeErrorReportStore(empty: false),
+          shareService: share,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Below the fold since SPEC 0130's appearance switches.
       await tester.scrollUntilVisible(
-          find.text(AppStrings.errorReportTitle), 200);
+        find.text('Enviar comentário').hitTestable(),
+        200,
+      );
       expect(find.text(AppStrings.errorReportPrivacy), findsOneWidget);
-      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text('Enviar comentário'));
       await tester.pumpAndSettle();
 
       expect(share.sharedReport, 'relatorio 2.0.0+2');
     });
 
-    testWidgets('without entries, the row is disabled and says so',
-        (tester) async {
+    testWidgets('without entries, the row is disabled and says so', (
+      tester,
+    ) async {
       final share = _RecordingShareService();
-      await tester.pumpWidget(_app(
-        null,
-        repository: FakeSoilRecordRepository(),
-        errorReport: _FakeErrorReportStore(),
-        shareService: share,
-      ));
+      await tester.pumpWidget(
+        _app(
+          null,
+          repository: FakeSoilRecordRepository(),
+          errorReport: _FakeErrorReportStore(),
+          shareService: share,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Below the fold since SPEC 0130's appearance switches.
       await tester.scrollUntilVisible(
-          find.text(AppStrings.errorReportTitle), 200);
+        find.text('Enviar comentário').hitTestable(),
+        200,
+      );
       expect(find.text(AppStrings.errorReportNothingToSend), findsOneWidget);
-      await tester.tap(find.text(AppStrings.errorReportTitle));
+      await tester.tap(find.text('Enviar comentário'));
       await tester.pumpAndSettle();
 
       expect(share.sharedReport, isNull);
@@ -589,18 +708,22 @@ void main() {
       // exception never reaches the screen.
       final share = _RecordingShareService()
         ..failure = Exception('platform share failed');
-      await tester.pumpWidget(_app(
-        null,
-        repository: FakeSoilRecordRepository(),
-        errorReport: _FakeErrorReportStore(empty: false),
-        shareService: share,
-      ));
+      await tester.pumpWidget(
+        _app(
+          null,
+          repository: FakeSoilRecordRepository(),
+          errorReport: _FakeErrorReportStore(empty: false),
+          shareService: share,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Below the fold since SPEC 0130's appearance switches.
       await tester.scrollUntilVisible(
-          find.text(AppStrings.errorReportTitle), 200);
-      await tester.tap(find.text(AppStrings.errorReportTitle));
+        find.text('Enviar comentário').hitTestable(),
+        200,
+      );
+      await tester.tap(find.text('Enviar comentário'));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.errorReportShareFailed), findsOneWidget);
@@ -614,7 +737,9 @@ void main() {
     useLargeTextOnAPhone(tester);
 
     await tester.pumpWidget(
-      _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo')),
+      _app(
+        const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo'),
+      ),
     );
     await tester.pumpAndSettle();
     await scrollToTheEnd(tester);
@@ -630,6 +755,7 @@ void main() {
     );
     await tester.pump();
 
+    await tester.scrollUntilVisible(find.text('Versão').hitTestable(), 200);
     expect(tester.getSize(find.byType(LoadingIndicator)), const Size(16, 16));
   });
 
@@ -637,31 +763,38 @@ void main() {
   // settings tile in red (SPEC 0129).
   testWidgets('destructive_is_visually_distinct', (tester) async {
     await tester.pumpWidget(
-      _app(const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo')),
+      _app(
+        const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo'),
+      ),
     );
     await tester.pumpAndSettle();
 
     final tile = find.byWidgetPredicate(
       (widget) => widget.runtimeType.toString() == '_SettingsTile',
     );
-    for (final label in ['Excluir conta', 'Apagar todos os dados']) {
-      await tester.scrollUntilVisible(find.text(label), 200);
-      final button = find.ancestor(
-        of: find.text(label),
-        matching: find.byType(VisioButton),
-      );
-      expect(button, findsOneWidget, reason: label);
-      expect(
-        tester.widget<VisioButton>(button).variant,
-        VisioButtonVariant.destructive,
-        reason: label,
-      );
-      expect(
-        find.ancestor(of: find.text(label), matching: tile),
-        findsNothing,
-        reason: label,
-      );
-    }
+    await tester.scrollUntilVisible(
+      find.text('Excluir conta').hitTestable(),
+      200,
+    );
+    expect(
+      tester
+          .widget<VisioButton>(
+            find.ancestor(
+              of: find.text('Excluir conta'),
+              matching: find.byType(VisioButton),
+            ),
+          )
+          .variant,
+      VisioButtonVariant.destructive,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Limpar dados do aparelho').hitTestable(),
+      200,
+    );
+    expect(
+      find.ancestor(of: find.text('Limpar dados do aparelho'), matching: tile),
+      findsOneWidget,
+    );
   });
 
   testWidgets('cancelling apagar tudo deletes nothing', (tester) async {
@@ -673,8 +806,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Below the fold in the test view since SPEC 0130's switch.
-    await tester.scrollUntilVisible(find.text('Apagar todos os dados'), 200);
-    await tester.tap(find.text('Apagar todos os dados'));
+    await tester.scrollUntilVisible(
+      find.text('Limpar dados do aparelho').hitTestable(),
+      200,
+    );
+    await tester.tap(find.text('Limpar dados do aparelho'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Cancelar'));
@@ -690,22 +826,31 @@ void main() {
   for (final (name, theme) in appThemes) {
     testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
       final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(_app(
-        const AuthAccount(email: 'agro@example.com', displayName: 'Agro Nomo'),
-        theme: theme,
-      ));
+      await tester.pumpWidget(
+        _app(
+          const AuthAccount(
+            email: 'agro@example.com',
+            displayName: 'Agro Nomo',
+          ),
+          theme: theme,
+        ),
+      );
       await tester.pumpAndSettle();
       await expectMeetsGuidelines(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
       await tester.pumpAndSettle();
-      expect(find.text('Apagar todos os dados').hitTestable(), findsOneWidget);
+      expect(find.text('Versão').hitTestable(), findsOneWidget);
       await expectMeetsGuidelines(tester);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_app(null, theme: theme));
       await tester.pumpAndSettle();
-      expect(find.text('Entrar com Google'), findsOneWidget);
+      expect(find.text('Conta'), findsOneWidget);
+      expect(
+        find.text('Não vinculada · dados só neste aparelho'),
+        findsOneWidget,
+      );
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     });
@@ -733,8 +878,11 @@ void main() {
     await tester.pumpWidget(_app(null, captureGuide: store, router: router));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('Como capturar bem'), 200);
-    await tester.tap(find.text('Como capturar bem'));
+    await tester.scrollUntilVisible(
+      find.text('Como fotografar a amostra').hitTestable(),
+      200,
+    );
+    await tester.tap(find.text('Como fotografar a amostra'));
     await tester.pumpAndSettle();
     expect(find.byType(CaptureGuideScreen), findsOneWidget);
     expect(find.text('ONBOARDING_STUB'), findsNothing);
@@ -763,7 +911,10 @@ void main() {
     Future<void> tapThePolicy(WidgetTester tester) async {
       await tester.pumpWidget(_app(null));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text(_privacyPolicyLabel), 200);
+      await tester.scrollUntilVisible(
+        find.text(_privacyPolicyLabel).hitTestable(),
+        200,
+      );
       await tester.tap(find.text(_privacyPolicyLabel));
       await tester.pumpAndSettle();
     }
@@ -775,21 +926,25 @@ void main() {
       );
     });
 
-    testWidgets('settings_lists_the_privacy_policy_under_sobre',
-        (tester) async {
+    testWidgets('settings_lists_the_privacy_policy_under_sobre', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(null));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('AJUDA'), 200);
+      await tester.scrollUntilVisible(
+        find.text(_privacyPolicyLabel).hitTestable(),
+        200,
+      );
 
       double top(String text) => tester.getTopLeft(find.text(text)).dy;
       expect(find.text(_privacyPolicyLabel), findsOneWidget);
-      expect(top('SOBRE'), lessThan(top('Versão do app')));
-      expect(top('Versão do app'), lessThan(top(_privacyPolicyLabel)));
-      expect(top(_privacyPolicyLabel), lessThan(top('AJUDA')));
+      expect(top('SOBRE E AJUDA'), lessThan(top(_privacyPolicyLabel)));
+      expect(top(_privacyPolicyLabel), lessThan(top('Versão')));
     });
 
-    testWidgets('tapping_the_privacy_policy_opens_it_in_the_browser',
-        (tester) async {
+    testWidgets('tapping_the_privacy_policy_opens_it_in_the_browser', (
+      tester,
+    ) async {
       await tapThePolicy(tester);
 
       expect(launcher.launches, [
@@ -798,8 +953,7 @@ void main() {
       expect(find.text(_policyFailedMessage), findsNothing);
     });
 
-    testWidgets('a_launch_that_fails_says_so: no app opens it',
-        (tester) async {
+    testWidgets('a_launch_that_fails_says_so: no app opens it', (tester) async {
       launcher.result = false;
       await tapThePolicy(tester);
 
@@ -807,8 +961,9 @@ void main() {
       expect(find.byType(SettingsScreen), findsOneWidget);
     });
 
-    testWidgets('a_launch_that_fails_says_so: the platform throws',
-        (tester) async {
+    testWidgets('a_launch_that_fails_says_so: the platform throws', (
+      tester,
+    ) async {
       launcher.error = PlatformException(code: 'ACTIVITY_NOT_FOUND');
       await tapThePolicy(tester);
 
@@ -817,8 +972,9 @@ void main() {
     });
 
     // A build whose plugin did not register reaches no platform at all.
-    testWidgets('a_launch_that_fails_says_so: the plugin is missing',
-        (tester) async {
+    testWidgets('a_launch_that_fails_says_so: the plugin is missing', (
+      tester,
+    ) async {
       launcher.error = MissingPluginException('no url_launcher');
       await tapThePolicy(tester);
 
@@ -846,7 +1002,7 @@ class _RecordingUrlLauncher extends UrlLauncherPlatform {
   }
 }
 
-const _privacyPolicyLabel = 'Política de privacidade';
+const _privacyPolicyLabel = 'Privacidade e dados';
 
 /// Kept in step with the literal in `settings_screen.dart`.
 const _policyFailedMessage =
@@ -854,7 +1010,8 @@ const _policyFailedMessage =
 
 /// The pt-BR failure message the account tile surfaces on an auth error.
 /// Kept in step with the literal in `settings_screen.dart`.
-const _failureMessage = 'Não foi possível concluir a operação. Tente novamente.';
+const _failureMessage =
+    'Não foi possível concluir a operação. Tente novamente.';
 
 /// The pt-BR message a sign-in tap shows while offline (SPEC 0114).
 const _offlineMessage = 'Sem conexão. Entrar com Google precisa de internet.';

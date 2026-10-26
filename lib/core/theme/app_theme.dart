@@ -104,7 +104,18 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: const ChipThemeData(side: blackBorder),
-      switchTheme: const SwitchThemeData(
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.white
+              : Colors.black,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.black
+              : Colors.white,
+        ),
+        trackOutlineWidth: const WidgetStatePropertyAll(2),
         trackOutlineColor: WidgetStatePropertyAll(Colors.black),
       ),
       navigationBarTheme: base.navigationBarTheme.copyWith(
@@ -117,7 +128,9 @@ abstract final class AppTheme {
               fontWeight: FontWeight.w700,
             );
           }
-          return sunLabelMedium.copyWith(color: AppPalette.sun.onSurfaceVariant);
+          return sunLabelMedium.copyWith(
+            color: AppPalette.sun.onSurfaceVariant,
+          );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -141,141 +154,120 @@ abstract final class AppTheme {
   }
 
   static ThemeData _build(AppPalette p) => ThemeData(
-        useMaterial3: true,
-        brightness: p.brightness,
-        colorScheme: p.colorScheme,
-        textTheme: AppTypography.textThemeFor(p),
-        extensions: [p],
-        appBarTheme: AppBarTheme(
-          backgroundColor: p.surface,
-          foregroundColor: p.onSurface,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: AppTypography.titleLarge.copyWith(
-            color: p.onSurface,
-          ),
-        ),
-        scaffoldBackgroundColor: p.background,
-        cardTheme: CardThemeData(
-          color: p.surface,
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.borderRadiusLg,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: p.primary,
-            foregroundColor: p.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadius.borderRadiusPill,
-            ),
-            textStyle: AppTypography.labelLarge,
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: p.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadius.borderRadiusPill,
-            ),
-            side: BorderSide(color: p.outlineVariant),
-            textStyle: AppTypography.labelLarge,
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: p.primary,
-            textStyle: AppTypography.labelLarge,
-          ),
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: p.primary,
-          foregroundColor: p.onPrimary,
-        ),
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: p.surface,
-          selectedItemColor: p.primary,
-          unselectedItemColor: p.onSurfaceVariant,
-          selectedLabelStyle: AppTypography.labelMedium,
-          unselectedLabelStyle: AppTypography.labelMedium,
-          type: BottomNavigationBarType.fixed,
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: p.surface,
-          indicatorColor: p.primaryContainer,
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return AppTypography.labelMedium.copyWith(
-                color: p.primary,
-                fontWeight: FontWeight.w700,
-              );
-            }
-            return AppTypography.labelMedium.copyWith(
-              color: p.onSurfaceVariant,
-            );
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return IconThemeData(color: p.primary);
-            }
-            return IconThemeData(color: p.onSurfaceVariant);
-          }),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          backgroundColor: p.inverseSurface,
-          contentTextStyle: AppTypography.bodyMedium.copyWith(
-            color: p.onInverseSurface,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.borderRadiusSm,
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: p.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.borderRadiusXl,
-          ),
-          titleTextStyle: AppTypography.headlineSmall.copyWith(
-            color: p.onSurface,
-          ),
-          contentTextStyle: AppTypography.bodyMedium.copyWith(
-            color: p.onSurfaceVariant,
-          ),
-        ),
-        dividerTheme: DividerThemeData(
-          color: p.outlineVariant,
-          thickness: 1,
-        ),
-        // The selected segment uses the mock's green `selected` token, not
-        // M3's default secondaryContainer, which is brown in this palette and
-        // reads the same as every other control's accent (redesign v11 §1.1,
-        // SPEC 0184). Every other state (disabled, unselected) replicates the
-        // M3 default, since setting any state on this property replaces the
-        // default `WidgetStateProperty` wholesale rather than layering over it.
-        segmentedButtonTheme: SegmentedButtonThemeData(
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) return null;
-              if (states.contains(WidgetState.selected)) return p.selected;
-              return null;
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return p.onSurface.withValues(alpha: 0.38);
-              }
-              if (states.contains(WidgetState.selected)) {
-                return p.onPrimaryContainer;
-              }
-              return p.onSurface;
-            }),
-          ),
-        ),
-        progressIndicatorTheme: ProgressIndicatorThemeData(
-          color: p.primary,
-        ),
-      );
+    useMaterial3: true,
+    brightness: p.brightness,
+    colorScheme: p.colorScheme,
+    textTheme: AppTypography.textThemeFor(p),
+    extensions: [p],
+    appBarTheme: AppBarTheme(
+      backgroundColor: p.surface,
+      foregroundColor: p.onSurface,
+      elevation: 0,
+      centerTitle: true,
+      titleTextStyle: AppTypography.titleLarge.copyWith(color: p.onSurface),
+    ),
+    scaffoldBackgroundColor: p.background,
+    cardTheme: CardThemeData(
+      color: p.surface,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusLg),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: p.primary,
+        foregroundColor: p.onPrimary,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
+        textStyle: AppTypography.labelLarge,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: p.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),
+        side: BorderSide(color: p.outlineVariant),
+        textStyle: AppTypography.labelLarge,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: p.primary,
+        textStyle: AppTypography.labelLarge,
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: p.primary,
+      foregroundColor: p.onPrimary,
+    ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: p.surface,
+      selectedItemColor: p.primary,
+      unselectedItemColor: p.onSurfaceVariant,
+      selectedLabelStyle: AppTypography.labelMedium,
+      unselectedLabelStyle: AppTypography.labelMedium,
+      type: BottomNavigationBarType.fixed,
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: p.surface,
+      indicatorColor: p.primaryContainer,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AppTypography.labelMedium.copyWith(
+            color: p.primary,
+            fontWeight: FontWeight.w700,
+          );
+        }
+        return AppTypography.labelMedium.copyWith(color: p.onSurfaceVariant);
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return IconThemeData(color: p.primary);
+        }
+        return IconThemeData(color: p.onSurfaceVariant);
+      }),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: p.inverseSurface,
+      contentTextStyle: AppTypography.bodyMedium.copyWith(
+        color: p.onInverseSurface,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusSm),
+      behavior: SnackBarBehavior.floating,
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: p.surface,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusXl),
+      titleTextStyle: AppTypography.headlineSmall.copyWith(color: p.onSurface),
+      contentTextStyle: AppTypography.bodyMedium.copyWith(
+        color: p.onSurfaceVariant,
+      ),
+    ),
+    dividerTheme: DividerThemeData(color: p.outlineVariant, thickness: 1),
+    // The selected segment uses the mock's green `selected` token, not
+    // M3's default secondaryContainer, which is brown in this palette and
+    // reads the same as every other control's accent (redesign v11 §1.1,
+    // SPEC 0184). Every other state (disabled, unselected) replicates the
+    // M3 default, since setting any state on this property replaces the
+    // default `WidgetStateProperty` wholesale rather than layering over it.
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) return null;
+          if (states.contains(WidgetState.selected)) return p.selected;
+          return null;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return p.onSurface.withValues(alpha: 0.38);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return p.onPrimaryContainer;
+          }
+          return p.onSurface;
+        }),
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: p.primary),
+  );
 }

@@ -1,3 +1,8 @@
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
+import 'package:visiosoil_app/core/services/csv_export.dart';
+
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
@@ -27,10 +32,12 @@ class ShareService {
     try {
       final file = File('${tempDir.path}/$errorReportFileName');
       await file.writeAsString(text, flush: true);
-      await SharePlus.instance.share(ShareParams(
-        text: AppStrings.errorReportShareCaption,
-        files: [XFile(file.path, mimeType: 'text/plain')],
-      ));
+      await SharePlus.instance.share(
+        ShareParams(
+          text: AppStrings.errorReportShareCaption,
+          files: [XFile(file.path, mimeType: 'text/plain')],
+        ),
+      );
     } finally {
       try {
         await tempDir.delete(recursive: true);
@@ -43,12 +50,68 @@ class ShareService {
     }
   }
 
+  /// Shares only the columns and photographs the user explicitly selected.
+  Future<void> shareExport(
+    List<SoilRecord> records, {
+    required bool includeDate,
+    required bool includeLocation,
+    required bool includePhotos,
+  }) async {
+    final csv = utf8.encode(
+      CsvExport.render(
+        records,
+        includeDate: includeDate,
+        includeLocation: includeLocation,
+      ),
+    );
+    final directory = await Directory.systemTemp.createTemp('visiosoil_export');
+    try {
+      final file = File(
+        '${directory.path}/analises.${includePhotos ? 'zip' : 'csv'}',
+      );
+      if (includePhotos) {
+        final archive = Archive()
+          ..addFile(ArchiveFile('analises.csv', csv.length, csv));
+        for (var index = 0; index < records.length; index++) {
+          final bytes = await File(records[index].imagePath).readAsBytes();
+          archive.addFile(
+            ArchiveFile('fotos/amostra_${index + 1}.jpg', bytes.length, bytes),
+          );
+        }
+        await file.writeAsBytes(ZipEncoder().encode(archive));
+      } else {
+        await file.writeAsBytes(csv);
+      }
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              file.path,
+              mimeType: includePhotos ? 'application/zip' : 'text/csv',
+            ),
+          ],
+        ),
+      );
+    } finally {
+      try {
+        await directory.delete(recursive: true);
+      } on FileSystemException catch (error) {
+        developer.log(
+          'Export cleanup failed: ${error.runtimeType}',
+          name: 'ShareService',
+        );
+      }
+    }
+  }
+
   Future<void> shareRecord(
     SoilRecord record, {
     bool includeLocation = false,
   }) async {
-    final caption =
-        ShareContentBuilder.caption(record, includeLocation: includeLocation);
+    final caption = ShareContentBuilder.caption(
+      record,
+      includeLocation: includeLocation,
+    );
     final photoFile = File(record.imagePath);
 
     if (!await photoFile.exists()) {

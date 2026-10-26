@@ -11,6 +11,8 @@ import 'package:visiosoil_app/core/services/appearance_store.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
+import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
@@ -77,33 +79,38 @@ Future<void> _pumpSettings(
   _MemoryStore store,
   _RecordingSync sync,
 ) async {
+  SharedPreferences.setMockInitialValues({});
   // Reset AppHaptics.enabled before each test to ensure clean state
   AppHaptics.enabled = true;
 
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      initialBaseThemeModeProvider.overrideWithValue(store.base),
-      initialSunModeProvider.overrideWithValue(store.sun),
-      appearanceStoreProvider.overrideWithValue(store),
-      nightModeSyncProvider.overrideWithValue(sync),
-      initialVibrationProvider.overrideWithValue(store.vibration),
-      initialReduceMotionProvider.overrideWithValue(store.reduceMotion),
-      authServiceProvider.overrideWithValue(_SignedOut()),
-      packageInfoProvider.overrideWith(
-        (ref) async => PackageInfo(
-          appName: 'VisioSoil',
-          packageName: 'com.visiosoil.app',
-          version: '1.0.0',
-          buildNumber: '1',
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        initialBaseThemeModeProvider.overrideWithValue(store.base),
+        initialSunModeProvider.overrideWithValue(store.sun),
+        appearanceStoreProvider.overrideWithValue(store),
+        nightModeSyncProvider.overrideWithValue(sync),
+        initialVibrationProvider.overrideWithValue(store.vibration),
+        initialReduceMotionProvider.overrideWithValue(store.reduceMotion),
+        authServiceProvider.overrideWithValue(_SignedOut()),
+        packageInfoProvider.overrideWith(
+          (ref) async => PackageInfo(
+            appName: 'VisioSoil',
+            packageName: 'com.visiosoil.app',
+            version: '1.0.0',
+            buildNumber: '1',
+          ),
+        ),
+      ],
+      child: VisioSoilApp(
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const SettingsScreen()),
+          ],
         ),
       ),
-    ],
-    child: VisioSoilApp(
-      routerConfig: GoRouter(routes: [
-        GoRoute(path: '/', builder: (_, _) => const SettingsScreen()),
-      ]),
     ),
-  ));
+  );
   await tester.pumpAndSettle();
 }
 
@@ -118,7 +125,7 @@ void main() {
 
     // No stored choice yet: Sistema is selected and the test view's platform
     // is light.
-    expect(find.text('APARÊNCIA'), findsOneWidget);
+    expect(find.text('PREFERÊNCIAS'), findsOneWidget);
     expect(brightness(), Brightness.light);
 
     for (final (label, mode, expected) in [
@@ -139,39 +146,41 @@ void main() {
 
   // Modo Sol is a separate switch that overrides whichever base theme is
   // chosen, and turning it off returns to that base (SPEC 0184).
-  testWidgets('modo_sol_overrides_the_base_theme_and_turning_it_off_restores_it',
-      (tester) async {
-    final store = _MemoryStore();
-    final sync = _RecordingSync();
-    await _pumpSettings(tester, store, sync);
+  testWidgets(
+    'modo_sol_overrides_the_base_theme_and_turning_it_off_restores_it',
+    (tester) async {
+      final store = _MemoryStore();
+      final sync = _RecordingSync();
+      await _pumpSettings(tester, store, sync);
 
-    bool isSun() => tester.element(find.byType(SettingsScreen)).palette.isSun;
-    Brightness brightness() =>
-        Theme.of(tester.element(find.byType(SettingsScreen))).brightness;
+      bool isSun() => tester.element(find.byType(SettingsScreen)).palette.isSun;
+      Brightness brightness() =>
+          Theme.of(tester.element(find.byType(SettingsScreen))).brightness;
 
-    await tester.ensureVisible(find.text('Escuro'));
-    await tester.tap(find.text('Escuro'));
-    await tester.pumpAndSettle();
-    expect(brightness(), Brightness.dark);
+      await tester.ensureVisible(find.text('Escuro'));
+      await tester.tap(find.text('Escuro'));
+      await tester.pumpAndSettle();
+      expect(brightness(), Brightness.dark);
 
-    final sunSwitch = find.widgetWithText(SwitchListTile, 'Modo Sol');
-    await tester.ensureVisible(sunSwitch);
-    await tester.tap(sunSwitch);
-    await tester.pumpAndSettle();
+      final sunSwitch = find.widgetWithText(SettingsSwitchTile, 'Modo Sol');
+      await tester.ensureVisible(sunSwitch);
+      await tester.tap(sunSwitch);
+      await tester.pumpAndSettle();
 
-    expect(isSun(), isTrue);
-    expect(store.sun, isTrue);
-    expect(store.base, ThemeMode.dark);
-    expect(sync.applied.last, ThemeMode.light);
+      expect(isSun(), isTrue);
+      expect(store.sun, isTrue);
+      expect(store.base, ThemeMode.dark);
+      expect(sync.applied.last, ThemeMode.light);
 
-    await tester.tap(sunSwitch);
-    await tester.pumpAndSettle();
+      await tester.tap(sunSwitch);
+      await tester.pumpAndSettle();
 
-    expect(isSun(), isFalse);
-    expect(store.sun, isFalse);
-    expect(brightness(), Brightness.dark);
-    expect(sync.applied.last, ThemeMode.dark);
-  });
+      expect(isSun(), isFalse);
+      expect(store.sun, isFalse);
+      expect(brightness(), Brightness.dark);
+      expect(sync.applied.last, ThemeMode.dark);
+    },
+  );
 
   // There is no "Modo Sol" segment in the base selector: it is reached only
   // through its own switch (redesign v11 §3.11, SPEC 0184).
@@ -181,7 +190,7 @@ void main() {
     expect(find.text('Sistema'), findsOneWidget);
     expect(find.text('Claro'), findsOneWidget);
     expect(find.text('Escuro'), findsOneWidget);
-    expect(find.widgetWithText(SwitchListTile, 'Modo Sol'), findsOneWidget);
+    expect(find.widgetWithText(SettingsSwitchTile, 'Modo Sol'), findsOneWidget);
   });
 
   // The legacy "Alto contraste" switch is gone (SPEC 0184); the platform's
@@ -189,7 +198,10 @@ void main() {
   testWidgets('there_is_no_alto_contraste_switch', (tester) async {
     await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
 
-    expect(find.widgetWithText(SwitchListTile, 'Alto contraste'), findsNothing);
+    expect(
+      find.widgetWithText(SettingsSwitchTile, 'Alto contraste'),
+      findsNothing,
+    );
   });
 
   // Choosing a theme is a selection, confirmed by one click (SPEC 0126).
@@ -211,7 +223,7 @@ void main() {
     await _pumpSettings(tester, store, _RecordingSync());
 
     // Find the vibration toggle by its subtitle (spec copy: "Toques sutis...")
-    final toggle = find.widgetWithText(SwitchListTile, 'Vibração');
+    final toggle = find.widgetWithText(SettingsSwitchTile, 'Vibração');
     expect(toggle, findsOneWidget);
     expect(AppHaptics.enabled, isTrue);
     expect(store.vibration, isTrue);
@@ -241,7 +253,8 @@ void main() {
     final store = _MemoryStore();
     await _pumpSettings(tester, store, _RecordingSync());
 
-    final toggle = find.widgetWithText(SwitchListTile, 'Reduzir movimento');
+    final toggle = find.widgetWithText(SettingsSwitchTile, 'Reduzir movimento');
+    await tester.scrollUntilVisible(toggle, 250);
     expect(toggle, findsOneWidget);
     expect(store.reduceMotion, isFalse);
 
@@ -270,7 +283,7 @@ void main() {
     final haptics = recordHaptics(tester);
     await _pumpSettings(tester, _MemoryStore(), _RecordingSync());
 
-    final toggle = find.widgetWithText(SwitchListTile, 'Vibração');
+    final toggle = find.widgetWithText(SettingsSwitchTile, 'Vibração');
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
@@ -290,11 +303,7 @@ void main() {
   // than the platform's 48 dp androidTapTargetGuideline.
   testWidgets('sol_meets_the_56dp_tap_target_guideline', (tester) async {
     final semantics = tester.ensureSemantics();
-    await _pumpSettings(
-      tester,
-      _MemoryStore()..sun = true,
-      _RecordingSync(),
-    );
+    await _pumpSettings(tester, _MemoryStore()..sun = true, _RecordingSync());
 
     await expectLater(tester, meetsGuideline(sunTapTargetGuideline));
     semantics.dispose();

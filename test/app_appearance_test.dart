@@ -12,6 +12,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/main.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
+import 'package:visiosoil_app/providers/text_size_provider.dart';
 
 class _MemoryStore implements AppearanceStore {
   _MemoryStore({this.base = ThemeMode.system, this.sun = false});
@@ -104,6 +105,23 @@ class _AppWithControllersInitialized extends ConsumerWidget {
 }
 
 void main() {
+  for (final large in [false, true]) {
+    testWidgets('large_text_${large}_preserves_platform_scaling', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final scales = <double>[];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [initialLargeTextProvider.overrideWithValue(large)],
+          child: _app(ThemeMode.light, (context) {
+            scales.add(MediaQuery.textScalerOf(context).scale(20));
+          }),
+        ),
+      );
+      expect(scales.last, closeTo(large ? 46 : 40, 0.001));
+    });
+  }
+
   testWidgets('the_first_frame_is_in_the_stored_theme', (tester) async {
     final seen = <Brightness>[];
     await tester.pumpWidget(
