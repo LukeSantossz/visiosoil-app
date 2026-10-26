@@ -117,16 +117,19 @@ class StatCell extends StatelessWidget {
 /// Lays [cells] out in an equal-width row with the design system's spacing
 /// between them (redesign v11 §4 `StatsRow`).
 class StatsRow extends StatelessWidget {
-  const StatsRow({super.key, required this.cells});
+  const StatsRow({super.key, required this.cells, this.minHeight = 0});
 
   final List<StatCell> cells;
 
+  /// The row's least height: Início's PNG 08 draws its cards 120 dp tall,
+  /// Perfil's PNG 21 lets them take their content's 104 (SPEC 0203).
+  final double minHeight;
+
   @override
   Widget build(BuildContext context) {
-    // Every card takes the tallest one's height, and at least PNG 08's
-    // 120 dp (SPEC 0203).
+    // Every card takes the tallest one's height, and at least [minHeight].
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 120),
+      constraints: BoxConstraints(minHeight: minHeight),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
