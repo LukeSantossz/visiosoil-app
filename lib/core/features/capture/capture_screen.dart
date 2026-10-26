@@ -18,6 +18,7 @@ import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/core/services/gallery_saver.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
@@ -30,6 +31,7 @@ import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
@@ -398,6 +400,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   }
 
   Future<void> _fetchCurrentLocation(int generation) async {
+    // Configurações' "Registrar localização" off: no fix is asked for and the
+    // record saves without coordinates (SPEC 0208).
+    if (!ref.read(recordLocationProvider)) {
+      if (mounted && generation == _state.generation) {
+        setState(
+          () => _state = _state.copyWith(location: LocationStatus.unavailable),
+        );
+      }
+      return;
+    }
     if (mounted) {
       setState(
         () => _state = _state.copyWith(location: LocationStatus.loading),
@@ -458,6 +470,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // cleanup never touches `ref` or `widget` after the widget is disposed.
     final imageNotifier = ref.read(imageProvider.notifier);
     final deletePicked = _deletePickedFile;
+    final gallery = ref.read(saveToGalleryProvider)
+        ? ref.read(gallerySaverProvider)
+        : null;
+    final messenger = ScaffoldMessenger.of(context);
 
     setState(() => _state = _state.copyWith(isSaving: true));
 
@@ -525,6 +541,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       // The record points at its durable copy now. A failed save never gets
       // here, so its retry still has the photograph.
       unawaited(_disposePickedFile(deletePicked, image.path));
+      // The stored copy, already without EXIF, goes to the gallery; a refusal
+      // leaves the record as it is (SPEC 0208).
+      if (gallery != null) {
+        unawaited(_copyToGallery(gallery, created.imagePath, messenger));
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(AppStrings.resultSavedSnackbar)),
@@ -538,6 +559,21 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         // opened it (SPEC 0132).
         context.pushReplacement('/details', extra: created.id);
       }
+    }
+  }
+
+  Future<void> _copyToGallery(
+    GallerySaver gallery,
+    String imagePath,
+    ScaffoldMessengerState messenger,
+  ) async {
+    try {
+      await gallery.save(imagePath);
+    } on Object catch (e) {
+      developer.log('Gallery save failed: $e', name: 'CaptureScreen');
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.gallerySaveFailed)),
+      );
     }
   }
 

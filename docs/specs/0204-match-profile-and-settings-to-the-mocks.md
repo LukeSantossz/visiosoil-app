@@ -47,9 +47,9 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
     | Tema | `moon` |
     | Modo Sol | `sun` |
     | Vibração | `smartphone` |
-    | Unidades | `ruler` |
+    | Unidades | `rulerDimensionLine` |
     | Idioma | `languages` |
-    | Guia de enquadramento | `scanEye` |
+    | Guia de enquadramento | `focus` |
     | Salvar fotos na galeria | `image` |
     | Registrar localização | `mapPin` |
     | Backup na conta | `cloudUpload` |
@@ -64,7 +64,11 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
     | Versão | `info` |
     | Excluir conta | `userX` |
 
-  - Tema is one row whose end holds the compact Sistema | Claro | Escuro control. §2 keeps Sistema, which the mock leaves out.
+  - Tema is one row whose end holds a compact Claro | Escuro control, as PNG 23 draws it.
+    - Until a theme is chosen, the app follows the system, as §2 and decision 1 ask, and the control marks the brightness the system gives.
+    - Choosing one stores it. The stored Sistema choice is kept as the "nothing chosen" state, so an earlier Sistema choice still follows the system.
+  - Unidades and Idioma end in a chevron, as PNG 23 draws them. Each opens a sheet listing its one option today, "Centímetros (cm)" and "Português (Brasil)", marked chosen with a Lucide `check`.
+  - The three switches under "Câmera e análise" act on the capture (SPEC 0208).
   - Tamanho do texto takes the same row form.
 - **Perfil.**
   - The title is 20 dp in, its line 12 dp below the safe area, and the account card 16 dp under it. Cards sit at 16 dp margins.
@@ -88,7 +92,8 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
 
 ## Alternatives Considered
 
-- **Drop Sistema from Tema, as the PNG does.** Rejected: the design spec's §2 and decision 23 keep Sistema, and dropping it would remove a working preference. The control keeps three options in the mock's compact form.
+- **Keep Sistema as a third segment.** The design spec's §2 and decision 23 name Sistema | Claro | Escuro "como na tela 23", but PNG 23 draws Claro | Escuro. The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fidelity to the mock"), so the PNG wins. Following the system stays the default until a choice is made. What is lost is a way back to following the system after choosing.
+- **Leave Unidades and Idioma without a chevron**, since each has one option. Rejected for the same request: the mock draws the chevron, and the sheet it opens says honestly that there is one choice.
 - **Size compact segments to their own labels.** Rejected for now: the sliding indicator would need each segment's measured offset. Equal widths, set by the widest label, differ from the mock by a few dp.
 
 ## Scope
@@ -100,7 +105,8 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
 - Does NOT include:
   - The Dicas tab, which follows in its own change.
   - The export sheet's content (PNG 24), which already matches its copy.
-  - Settings that have no implementation behind them; they keep their current enabled or disabled state.
+  - What the capture switches do, which SPEC 0208 specifies.
+  - "Sincronizar só no Wi-Fi", which stays disabled until sync exists, as PNG 23 draws it.
 
 ## Acceptance Criteria
 
@@ -115,6 +121,12 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
 - `theme_row_holds_a_compact_control`:
   - the Tema row shows `LucideIcons.moon`, "Tema", and a 32 dp segmented pill on the same line;
   - choosing "Escuro" stores the dark theme.
+- `theme_selector_offers_claro_and_escuro`: the control has no "Sistema".
+- `theme_without_a_choice_shows_the_system_brightness`: with nothing stored and a dark platform, the control marks Escuro and the stored choice stays Sistema.
+- `units_and_language_open_their_choice`:
+  - Unidades shows `rulerDimensionLine`, Idioma `languages`, and Guia de enquadramento `focus`;
+  - Unidades and Idioma each end in a chevron;
+  - each opens a sheet with its one option and a check.
 - `segments_are_separated`: a segmented control of two options draws one separator rule.
 - `profile_account_card_matches_the_mock`:
   - the unlinked card has radius 24;

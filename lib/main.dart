@@ -15,6 +15,7 @@ import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
 
 Future<void> main() async {
@@ -41,6 +42,8 @@ Future<void> main() async {
   } catch (error) {
     developer.log('Text size preference restore failed: $error', name: 'main');
   }
+  // The capture switches, so the first capture already obeys them (SPEC 0208).
+  final capture = await restoreCapturePreferences();
   // Set static flags before the first frame builds any controllers.
   AppHaptics.enabled = vibration;
   AppMotion.reduceMotion = reduceMotion;
@@ -52,6 +55,9 @@ Future<void> main() async {
         initialLargeTextProvider.overrideWithValue(largeText),
         initialVibrationProvider.overrideWithValue(vibration),
         initialReduceMotionProvider.overrideWithValue(reduceMotion),
+        initialFrameGuideProvider.overrideWithValue(capture.frameGuide),
+        initialSaveToGalleryProvider.overrideWithValue(capture.saveToGallery),
+        initialRecordLocationProvider.overrideWithValue(capture.recordLocation),
         errorReportStoreProvider.overrideWithValue(errorReport),
       ],
       child: const VisioSoilApp(),

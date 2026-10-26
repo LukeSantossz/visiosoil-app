@@ -103,6 +103,10 @@ abstract final class AppStrings {
   /// The photo screen's title (redesign v11 §3.8, SPEC 0198).
   static const String photoTitle = 'Foto da amostra';
   static const String resultSavedSnackbar = 'Salvo no histórico';
+
+  /// The gallery refused the saved photograph; the record stays (SPEC 0208).
+  static const String gallerySaveFailed =
+      'Não foi possível salvar a foto na galeria.';
   static const String resultDraftManagement =
       'Salve a análise para ver as dicas de manejo desta amostra.';
   static const String resultTriangleTitle = 'No triângulo textural';
