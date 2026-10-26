@@ -11,10 +11,26 @@ import 'package:visiosoil_app/core/widgets/visio_button.dart';
 /// (redesign v11 §3.6 PNG 15, SPEC 0194): why, in the capture chip's words
 /// (SPEC 0173), and the two ways forward.
 class ResultErrorBlock extends StatelessWidget {
-  const ResultErrorBlock({super.key, required this.cause});
+  const ResultErrorBlock({
+    super.key,
+    required this.cause,
+    this.onRetake,
+    this.onCaptureTips,
+    this.onRetry,
+  });
 
   /// Null for a record saved before the cause was kept.
   final ClassificationFailureCause? cause;
+
+  /// What "Fotografar de novo" and "Ver dicas de captura" do; by default
+  /// they open capture and the capture guide. Capture passes its own retake
+  /// and guide (SPEC 0197).
+  final VoidCallback? onRetake;
+  final VoidCallback? onCaptureTips;
+
+  /// Reruns the classification on the same photograph; null hides it. Only
+  /// capture offers it, for a cause a rerun can change (SPEC 0105).
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -53,16 +69,28 @@ class ResultErrorBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+        if (onRetry != null) ...[
+          VisioButton(
+            key: const Key('retryClassification'),
+            label: AppStrings.resultRetry,
+            icon: Icons.refresh,
+            onPressed: onRetry,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         VisioButton(
           label: AppStrings.resultRetake,
           icon: Icons.photo_camera_outlined,
-          onPressed: () => context.push('/capture'),
+          variant: onRetry != null
+              ? VisioButtonVariant.secondary
+              : VisioButtonVariant.primary,
+          onPressed: onRetake ?? () => context.push('/capture'),
         ),
         const SizedBox(height: AppSpacing.sm),
         VisioButton(
           label: AppStrings.resultCaptureTips,
           variant: VisioButtonVariant.text,
-          onPressed: () => context.push('/capture-guide'),
+          onPressed: onCaptureTips ?? () => context.push('/capture-guide'),
         ),
       ],
     );

@@ -17,7 +17,9 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
+import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
+import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
 
@@ -152,7 +154,9 @@ void main() {
     await _pump(tester, _classified());
 
     expect(find.byIcon(Icons.bookmark), findsOneWidget);
-    expect(find.bySemanticsLabel('Salvo'), findsOneWidget);
+    // Filled, and a way to remove the record from the saved ones
+    // (SPEC 0197).
+    expect(find.byTooltip('Remover dos salvos'), findsOneWidget);
     semantics.dispose();
   });
 
@@ -176,6 +180,125 @@ void main() {
     expect(triangle.highlightClass, 'Argilosa');
     expect(triangle.mode, TextureTriangleMode.static);
     expect(find.text('A região Argilosa está destacada.'), findsOneWidget);
+  });
+
+  group('footer_moves_inline_on_a_short_or_large_text_screen', () {
+    Finder inScroll(String text) => find.descendant(
+          of: find.byType(CustomScrollView),
+          matching: find.text(text),
+        );
+
+    testWidgets('a tall screen at 1.0x keeps it fixed', (tester) async {
+      await _pump(tester, _classified());
+      expect(find.text('Corrigir'), findsOneWidget);
+      expect(inScroll('Corrigir'), findsNothing);
+    });
+
+    testWidgets('1.3x text moves it into the scroll view', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _pump(tester, _classified());
+      await tester.scrollUntilVisible(find.text('Corrigir'), 300);
+      expect(inScroll('Corrigir'), findsOneWidget);
+    });
+
+    testWidgets('a 568 dp tall screen moves it into the scroll view',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: _overrides(_classified()),
+        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+      ));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Corrigir'), 300);
+      expect(inScroll('Corrigir'), findsOneWidget);
+    });
+  });
+
+  group('saved_bookmark_pops_after_a_capture_save', () {
+    Future<ProviderContainer> pumpWithJustSaved(
+      WidgetTester tester,
+      int? justSaved,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(420, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final container = ProviderContainer(overrides: _overrides(_classified()));
+      addTearDown(container.dispose);
+      if (justSaved != null) {
+        container.read(justSavedRecordProvider.notifier).mark(justSaved);
+      }
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
+      ));
+      return container;
+    }
+
+    double scale(WidgetTester tester) => tester
+        .widget<ScaleTransition>(find.byKey(const ValueKey('saved-bookmark')))
+        .scale
+        .value;
+
+    testWidgets('the saved record pops', (tester) async {
+      final container = await pumpWithJustSaved(tester, 1);
+      await tester.pump();
+      await tester.pump();
+      var peak = 1.0;
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        if (scale(tester) > peak) peak = scale(tester);
+      }
+      expect(peak, greaterThan(1.2));
+      await tester.pumpAndSettle();
+      expect(scale(tester), 1.0);
+      expect(container.read(justSavedRecordProvider), isNull);
+    });
+
+    testWidgets('another record does not pop', (tester) async {
+      await pumpWithJustSaved(tester, 7);
+      await tester.pumpAndSettle();
+      expect(scale(tester), 1.0);
+    });
+  });
+
+  testWidgets('filled_bookmark_removes_from_saved', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = FakeSoilRecordRepository();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        ..._overrides(_classified()),
+        soilRecordRepositoryProvider.overrideWithValue(repository),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: '/details',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => const Scaffold(body: Text('HOME_STUB')),
+            ),
+            GoRoute(
+              path: '/details',
+              builder: (_, _) => const DetailsScreen(recordId: 1),
+            ),
+          ],
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Remover dos salvos'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.text('Excluir'));
+    await tester.pump();
+
+    expect(repository.deleteByIdCalls, [1]);
+    await tester.pumpAndSettle();
+    expect(find.text('HOME_STUB'), findsOneWidget);
   });
 
   group('about_class_copy_per_model_class', () {

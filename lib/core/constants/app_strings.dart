@@ -97,6 +97,8 @@ abstract final class AppStrings {
   /// The result's bookmark and the draft shown inside capture (SPEC 0196).
   static const String resultSave = 'Salvar';
   static const String resultSaved = 'Salvo';
+  static const String resultRemoveSaved = 'Remover dos salvos';
+  static const String resultRetry = 'Tentar de novo';
   static const String resultSavedSnackbar = 'Salvo no histórico';
   static const String resultDraftManagement =
       'Salve a análise para ver as dicas de manejo desta amostra.';

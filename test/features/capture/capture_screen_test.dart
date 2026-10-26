@@ -2136,6 +2136,51 @@ void main() {
       expect(find.byType(ManagementTipsSection), findsNothing);
     });
 
+    testWidgets('capture_failure_shows_the_error_layout', (tester) async {
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        failureCause: ClassificationFailureCause.sheetCropped,
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não deu para classificar'), findsOneWidget);
+      expect(
+        find.text('Folha cortada no quadro · tire outra foto'),
+        findsOneWidget,
+      );
+      expect(find.text('Fotografar de novo'), findsOneWidget);
+      expect(find.text('Ver dicas de captura'), findsOneWidget);
+      // Not retryable: a rerun of the same file cannot change the cause.
+      expect(find.byKey(const Key('retryClassification')), findsNothing);
+      await tester.scrollUntilVisible(find.text('Descartar'), 300);
+      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Descartar'), findsOneWidget);
+    });
+
+    testWidgets('retryable_failure_offers_retry', (tester) async {
+      var calls = 0;
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async {
+          calls++;
+          return calls == 1 ? null : result;
+        },
+      ));
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não deu para classificar'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('retryClassification')));
+      await tester.pumpAndSettle();
+
+      expect(calls, 2);
+      expect(find.text('Argilosa'), findsOneWidget);
+    });
+
     testWidgets('failure_keeps_the_preview', (tester) async {
       await tester.pumpWidget(buildScreen(
         pickFromCamera: () async => XFile(samplePath),

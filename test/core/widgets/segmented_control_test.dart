@@ -1,6 +1,7 @@
 // SegmentedControl (redesign v11 §4): a pill control whose indicator slides
 // to the selected option.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
@@ -176,5 +177,37 @@ void main() {
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     }
+  });
+
+  // A word that cannot wrap is scaled down to its segment, never clipped
+  // (SPEC 0197).
+  testWidgets('one_word_tab_labels_are_not_clipped', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(host(Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SegmentedControl<String>(
+        options: const [
+          SegmentedControlOption(value: 'a', label: 'Visão geral'),
+          SegmentedControlOption(value: 'b', label: 'Manejo'),
+          SegmentedControlOption(value: 'c', label: 'Detalhes'),
+        ],
+        value: 'a',
+        onChanged: (_) {},
+      ),
+    )));
+
+    const segment = (320 - 32) / 3;
+    for (final label in ['Visão geral', 'Manejo', 'Detalhes']) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+      // One line, and drawn no wider than its segment.
+      expect(paragraph.size.height, lessThan(45), reason: label);
+      expect(tester.getRect(find.text(label)).width,
+          lessThanOrEqualTo(segment), reason: label);
+    }
+    expect(tester.takeException(), isNull);
   });
 }
