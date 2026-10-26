@@ -163,6 +163,13 @@ void main() {
       expect(find.text('Argilosa'), findsWidgets);
     });
 
+    testWidgets('history_toggle_fits_the_list_pane', (tester) async {
+      _useSize(tester, const Size(1024, 900));
+      await _pump(tester, home: const HistoryScreen());
+
+      expect(tester.getRect(find.text('Coleção')).right, lessThan(360));
+    });
+
     testWidgets('history_pushes_below_840', (tester) async {
       _useSize(tester, const Size(600, 900));
       await _pump(tester, home: const HistoryScreen());

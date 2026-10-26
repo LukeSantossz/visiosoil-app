@@ -53,6 +53,7 @@ Today the app draws the phone layout at every width:
 - `rail_from_600dp`: at 599 dp `MainScreen` shows a `NavigationBar` and no rail. At 600 dp it shows a `NavigationRail` with the four labels, and selecting "Histórico" there shows the history.
 - `home_content_is_capped_at_560`: at 1024 dp, the home content is at most 560 dp wide and centred.
 - `history_is_master_detail_from_840`: at 1024 dp the pane first reads "Selecione uma análise para ver os detalhes.". Tapping a record shows its class in the detail pane without pushing a route, and the list stays visible.
+- `history_toggle_fits_the_list_pane`: at 1024 dp the Análises | Coleção toggle fits the 360 dp list, because it is sized from the list's width, not the screen's.
 - `history_pushes_below_840`: at 600 dp, tapping a record pushes `/details`.
 - `history_clears_a_vanished_selection`: when the selected record leaves the list, the pane reads the placeholder again.
 - `result_overview_has_two_columns_from_600`: at 600 dp of width the triangle card and the "Sobre a classe" card sit side by side. At 400 dp they are stacked.

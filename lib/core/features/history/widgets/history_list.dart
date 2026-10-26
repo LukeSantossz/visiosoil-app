@@ -65,30 +65,34 @@ class _HistoryListState extends ConsumerState<HistoryList> {
         SliverPadding(
           padding: const EdgeInsets.all((AppSpacing.lg + AppSpacing.xs)),
           sliver: SliverToBoxAdapter(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: (MediaQuery.sizeOf(context).width.clamp(0, 560) - 40)
-                    .clamp(
-                      280 * MediaQuery.textScalerOf(context).scale(1),
-                      double.infinity,
-                    )
-                    .toDouble(),
-                child: SegmentedControl<bool>(
-                  options: const [
-                    SegmentedControlOption(
-                      value: false,
-                      label: 'Análises',
-                      icon: Icons.history,
-                    ),
-                    SegmentedControlOption(
-                      value: true,
-                      label: 'Coleção',
-                      icon: Icons.layers_outlined,
-                    ),
-                  ],
-                  value: _collection,
-                  onChanged: (value) => setState(() => _collection = value),
+            // The width the list has, not the screen's: beside a detail pane
+            // the list is narrower than the screen (SPEC 0200).
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: constraints.maxWidth
+                      .clamp(
+                        280 * MediaQuery.textScalerOf(context).scale(1),
+                        double.infinity,
+                      )
+                      .toDouble(),
+                  child: SegmentedControl<bool>(
+                    options: const [
+                      SegmentedControlOption(
+                        value: false,
+                        label: 'Análises',
+                        icon: Icons.history,
+                      ),
+                      SegmentedControlOption(
+                        value: true,
+                        label: 'Coleção',
+                        icon: Icons.layers_outlined,
+                      ),
+                    ],
+                    value: _collection,
+                    onChanged: (value) => setState(() => _collection = value),
+                  ),
                 ),
               ),
             ),
