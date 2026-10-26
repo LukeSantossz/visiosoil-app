@@ -11,6 +11,7 @@ import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -216,10 +217,10 @@ class _RecordFacts extends StatelessWidget {
                     child: Text(
                       value,
                       textAlign: TextAlign.end,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
+                      style: AppTypography.resized(
+                        theme.textTheme.bodyLarge!,
+                        15,
+                      ).copyWith(color: Colors.white),
                     ),
                   ),
                 ],

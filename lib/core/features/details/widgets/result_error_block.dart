@@ -6,6 +6,7 @@ import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 
 /// What the result screen shows for a record saved without a classification
@@ -59,7 +60,7 @@ class ResultErrorBlock extends StatelessWidget {
           Text(
             AppStrings.resultErrorTitle,
             textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+            style: AppTypography.resized(theme.textTheme.titleMedium!, 18),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
