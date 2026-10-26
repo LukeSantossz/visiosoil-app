@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
@@ -144,6 +145,37 @@ void main() {
     await _selectTab(tester, 'Manejo');
 
     expect(tester.state(find.byType(ManagementTipsSection)), same(tips));
+  });
+
+  testWidgets('details_shows_a_filled_saved_bookmark', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, _classified());
+
+    expect(find.byIcon(Icons.bookmark), findsOneWidget);
+    expect(find.bySemanticsLabel('Salvo'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  // Opening a saved record announces nothing on its own (SPEC 0196).
+  testWidgets('a_saved_result_is_not_a_live_region', (tester) async {
+    await _pump(tester, _classified());
+
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.liveRegion == true,
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('overview_shows_the_triangle_card', (tester) async {
+    await _pump(tester, _classified());
+
+    expect(find.text('No triângulo textural'), findsOneWidget);
+    final triangle = tester.widget<TextureTriangle>(find.byType(TextureTriangle));
+    expect(triangle.highlightClass, 'Argilosa');
+    expect(triangle.mode, TextureTriangleMode.static);
+    expect(find.text('A região Argilosa está destacada.'), findsOneWidget);
   });
 
   group('about_class_copy_per_model_class', () {

@@ -82,6 +82,7 @@ abstract final class AppStrings {
       'Faixa típica da classe, não medição desta amostra.';
   static const String resultSampleTitle = 'Amostra';
   static const String resultSampleUnlocated = 'Sem localização registrada';
+  static const String resultSampleLocating = 'Localizando...';
   static const String resultLabNotice =
       'Estimativa por imagem. Para laudo, confirme com análise '
       'granulométrica em laboratório.';
@@ -92,5 +93,15 @@ abstract final class AppStrings {
       'Não foi possível analisar esta foto. Fotografe a amostra de novo, '
       'seguindo as dicas de captura.';
   static const String resultRetake = 'Fotografar de novo';
+
+  /// The result's bookmark and the draft shown inside capture (SPEC 0196).
+  static const String resultSave = 'Salvar';
+  static const String resultSaved = 'Salvo';
+  static const String resultSavedSnackbar = 'Salvo no histórico';
+  static const String resultDraftManagement =
+      'Salve a análise para ver as dicas de manejo desta amostra.';
+  static const String resultTriangleTitle = 'No triângulo textural';
+  static String resultTriangleHighlight(String textureClass) =>
+      'A região $textureClass está destacada.';
   static const String resultCaptureTips = 'Ver dicas de captura';
 }

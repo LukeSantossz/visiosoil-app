@@ -99,7 +99,127 @@ class _DetailsContent extends ConsumerStatefulWidget {
   ConsumerState<_DetailsContent> createState() => _DetailsContentState();
 }
 
-class _DetailsContentState extends ConsumerState<_DetailsContent>
+class _DetailsContentState extends ConsumerState<_DetailsContent> {
+  /// Asks for the labels and writes them, then re-reads the record; a failed
+  /// write says so and leaves the labels as they were (SPEC 0149).
+  Future<void> _editLabels() async {
+    final record = widget.record;
+    final labels = await showLabelsDialog(context, record);
+    if (labels == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(soilRecordRepositoryProvider)
+          .updateLabels(
+            widget.recordId,
+            fieldName: labels.fieldName,
+            sampleLabel: labels.sampleLabel,
+          );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar a identificação.'),
+        ),
+      );
+      return;
+    }
+    if (mounted) ref.invalidate(soilRecordByIdProvider(widget.recordId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final record = widget.record;
+    return ResultContent(
+      record: record,
+      appBar: VisioAppBar(
+        title: AppStrings.resultTitle,
+        // Reads "Voltar" whatever the locale (SPEC 0118).
+        leading: Navigator.canPop(context)
+            ? VisioIconButton(
+                label: 'Voltar',
+                icon: Icons.arrow_back,
+                onPressed: () => Navigator.maybePop(context),
+              )
+            : null,
+        actions: [
+          // A saved record's bookmark is filled (SPEC 0196).
+          const _SavedBookmark(),
+          // The next sample starts here, in view on the page a save opens
+          // (SPEC 0146).
+          VisioIconButton(
+            label: 'Nova captura',
+            icon: Icons.add_a_photo_outlined,
+            onPressed: () => context.push('/capture'),
+          ),
+        ],
+      ),
+      managementTab: ManagementTipsSection(record: record),
+      detailsTab: _DetailsTab(record: record, onEditLabels: _editLabels),
+      footerBuilder: (context, selectTab) => _ResultFooter(
+        onCorrect: _editLabels,
+        onManagementTips: () => selectTab(ResultTab.management),
+      ),
+    );
+  }
+}
+
+/// The filled bookmark of a saved record: a state, not an action.
+class _SavedBookmark extends StatelessWidget {
+  const _SavedBookmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: AppStrings.resultSaved,
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: Icon(Icons.bookmark, color: context.palette.primary),
+      ),
+    );
+  }
+}
+
+/// The result layout (redesign v11 §3.6, SPEC 0194): the header, the
+/// Visão geral, Manejo and Detalhes tabs and their entrance, or, for an
+/// unclassified record, why it was not classified above its details. Its
+/// hosts supply what differs between a saved record and the draft capture
+/// shows before saving (SPEC 0196).
+class ResultContent extends StatefulWidget {
+  const ResultContent({
+    super.key,
+    required this.record,
+    required this.appBar,
+    required this.managementTab,
+    required this.detailsTab,
+    this.footerBuilder,
+    this.locating = false,
+    this.announce = false,
+  });
+
+  final SoilRecord record;
+
+  /// The record's location is still being read (SPEC 0196).
+  final bool locating;
+
+  /// Announces the header to a screen reader when it appears: capture's
+  /// draft, which replaces the processing view (SPEC 0196).
+  final bool announce;
+  final PreferredSizeWidget appBar;
+  final Widget managementTab;
+  final Widget detailsTab;
+
+  /// The classified footer; [selectTab] switches the visible tab.
+  final Widget Function(
+    BuildContext context,
+    ValueChanged<ResultTab> selectTab,
+  )? footerBuilder;
+
+  @override
+  State<ResultContent> createState() => _ResultContentState();
+}
+
+class _ResultContentState extends State<ResultContent>
     with SingleTickerProviderStateMixin {
   /// The blocks that rise in: the header, the tab control and the tab, or
   /// the error block and the details below it.
@@ -147,41 +267,19 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
     super.dispose();
   }
 
-  /// Asks for the labels and writes them, then re-reads the record; a failed
-  /// write says so and leaves the labels as they were (SPEC 0149).
-  Future<void> _editLabels() async {
-    final record = widget.record;
-    final labels = await showLabelsDialog(context, record);
-    if (labels == null || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref
-          .read(soilRecordRepositoryProvider)
-          .updateLabels(
-            widget.recordId,
-            fieldName: labels.fieldName,
-            sampleLabel: labels.sampleLabel,
-          );
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível salvar a identificação.'),
-        ),
-      );
-      return;
-    }
-    if (mounted) ref.invalidate(soilRecordByIdProvider(widget.recordId));
-  }
-
   @override
   Widget build(BuildContext context) {
     final record = widget.record;
-    final details = _DetailsTab(record: record, onEditLabels: _editLabels);
+    final details = widget.detailsTab;
     final classified = record.hasClassification;
+    final footerBuilder = widget.footerBuilder;
 
     final List<Widget> blocks = classified
         ? [
-            ClassificationHeader(record: record),
+            Semantics(
+              liveRegion: widget.announce,
+              child: ClassificationHeader(record: record),
+            ),
             SegmentedControl<ResultTab>(
               semanticLabel: 'Seções do resultado',
               value: _tab,
@@ -207,8 +305,11 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final (tab, content) in [
-                  (ResultTab.overview, ResultOverview(record: record)),
-                  (ResultTab.management, ManagementTipsSection(record: record)),
+                  (
+                    ResultTab.overview,
+                    ResultOverview(record: record, locating: widget.locating),
+                  ),
+                  (ResultTab.management, widget.managementTab),
                   (ResultTab.details, details),
                 ])
                   Visibility(
@@ -224,32 +325,9 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
         : [ResultErrorBlock(cause: record.classificationFailure), details];
 
     return Scaffold(
-      appBar: VisioAppBar(
-        title: AppStrings.resultTitle,
-        // Reads "Voltar" whatever the locale (SPEC 0118).
-        leading: Navigator.canPop(context)
-            ? VisioIconButton(
-                label: 'Voltar',
-                icon: Icons.arrow_back,
-                onPressed: () => Navigator.maybePop(context),
-              )
-            : null,
-        // The next sample starts here, in view on the page a save opens
-        // (SPEC 0146).
-        actions: [
-          VisioIconButton(
-            label: 'Nova captura',
-            icon: Icons.add_a_photo_outlined,
-            onPressed: () => context.push('/capture'),
-          ),
-        ],
-      ),
-      bottomNavigationBar: classified
-          ? _ResultFooter(
-              onCorrect: _editLabels,
-              onManagementTips: () =>
-                  setState(() => _tab = ResultTab.management),
-            )
+      appBar: widget.appBar,
+      bottomNavigationBar: classified && footerBuilder != null
+          ? footerBuilder(context, (tab) => setState(() => _tab = tab))
           : null,
       body: CustomScrollView(
         slivers: [
