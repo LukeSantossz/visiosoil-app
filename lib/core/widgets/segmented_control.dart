@@ -194,10 +194,18 @@ class SegmentedControl<T> extends StatelessWidget {
       selected: isSelected,
       label: option.label,
       onTap: select,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        excludeFromSemantics: true,
-        onTap: select,
+      // An InkWell, so a keyboard or D-pad can focus the segment and Enter
+      // selects it. Its press ink is off: it would spread over the hit area,
+      // which runs past the pill (review of #437).
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          excludeFromSemantics: true,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          onTap: select,
+        ),
       ),
     );
   }

@@ -233,11 +233,14 @@ class AnalysisTile extends StatelessWidget {
                     final stackTrailing =
                         !showSyncStatus && !history && needsStack;
                     // History moves its trailing content below the row,
-                    // aligned to the end, instead of into the text column.
+                    // aligned to the end, instead of into the text column;
+                    // a pending row also does when its pill leaves the text
+                    // too little room, as Modo Sol's can (review of #437).
                     final stackBelow =
                         history &&
                         (constraints.maxWidth < 300 ||
-                            textScaler.scale(1) >= 1.3);
+                            textScaler.scale(1) >= 1.3 ||
+                            (isPending && failure == null && needsStack));
                     final wrapText = stackTrailing || stackBelow;
                     final trailing = history && !isPending && failure == null
                         ? Icon(
