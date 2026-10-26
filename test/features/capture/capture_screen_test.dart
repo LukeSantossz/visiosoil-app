@@ -388,20 +388,20 @@ void main() {
       ));
 
       await capture(tester);
-      expect(find.text('Classificando...'), findsOneWidget);
+      expect(_phase('Classificando...'), findsOneWidget);
 
       // Each phase crossfades into the next over AppMotion.base (SPEC 0134).
       inference.phaseCallbacks.single!(ClassificationPhase.findingSheet);
       await settle(tester);
       await tester.pump(AppMotion.base);
-      expect(find.text('Procurando a folha A4...'), findsOneWidget);
-      expect(find.text('Classificando...'), findsNothing);
+      expect(_phase('Procurando a folha A4...'), findsOneWidget);
+      expect(_phase('Classificando...'), findsNothing);
 
       inference.phaseCallbacks.single!(ClassificationPhase.describingTexture);
       await settle(tester);
       await tester.pump(AppMotion.base);
-      expect(find.text('Descrevendo a textura...'), findsOneWidget);
-      expect(find.text('Procurando a folha A4...'), findsNothing);
+      expect(_phase('Descrevendo a textura...'), findsOneWidget);
+      expect(_phase('Procurando a folha A4...'), findsNothing);
 
       gate.complete(null);
       await settle(tester);
@@ -422,11 +422,11 @@ void main() {
       await settle(tester);
 
       expect(
-        find.ancestor(
-          of: find.text('Calculando a classe...'),
-          matching: find.byWidgetPredicate(
-            (widget) => widget is Semantics && widget.properties.liveRegion == true,
-          ),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.liveRegion == true &&
+              widget.properties.label == 'Calculando a classe...',
         ),
         findsOneWidget,
       );
@@ -456,11 +456,11 @@ void main() {
 
       inference.phaseCallbacks.first!(ClassificationPhase.scoring);
       await settle(tester);
-      expect(find.text('Calculando a classe...'), findsNothing);
+      expect(_phase('Calculando a classe...'), findsNothing);
 
       inference.phaseCallbacks.last!(ClassificationPhase.findingSheet);
       await settle(tester);
-      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+      expect(_phase('Procurando a folha A4...'), findsOneWidget);
 
       first.complete(null);
       second.complete(null);
@@ -2261,3 +2261,8 @@ void main() {
     }
   });
 }
+
+/// The processing screen's phase, read aloud and not drawn (SPEC 0211).
+Finder _phase(String label) => find.byWidgetPredicate(
+  (widget) => widget is Semantics && widget.properties.label == label,
+);

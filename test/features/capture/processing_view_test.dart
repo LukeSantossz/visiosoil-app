@@ -55,7 +55,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('Diagrama ilustrativo'), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
       expect(
         find.bySemanticsLabel('Diagrama do triângulo textural'),
         findsOneWidget,

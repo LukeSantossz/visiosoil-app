@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 
 /// Static diagrams never schedule frames or emit settlement events.
@@ -138,7 +139,13 @@ class _TextureTriangleState extends State<TextureTriangle>
           builder: (context, constraints) {
             final side = math.min(constraints.maxWidth, 300.0);
             final palette = context.palette;
-            final textStyle = Theme.of(context).textTheme.bodySmall!;
+            // 12 sp in every theme: PNG 26 and 38 keep Modo Sol's labels at
+            // the light theme's size (SPEC 0211).
+            final textStyle = AppTypography.resized(
+              Theme.of(context).textTheme.bodySmall!,
+              12,
+              height: 16 / 12,
+            );
             final textScaler = MediaQuery.textScalerOf(context);
             final inputs = (
               side,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
@@ -16,7 +17,7 @@ void main() {
       (tester) async {
         final semantics = tester.ensureSemantics();
         final h = await openGuidedCamera(tester, theme: entry.value);
-        for (final label in ['Trocar câmera', 'Como fotografar', 'Voltar']) {
+        for (final label in ['Trocar câmera', 'Como fotografar', 'Fechar']) {
           final button = find.byWidgetPredicate(
             (widget) => widget is IconButton && widget.tooltip == label,
           );
@@ -37,10 +38,10 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(48));
           expect(size.height, greaterThanOrEqualTo(48));
         }
-        expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+        expect(find.byIcon(LucideIcons.x), findsOneWidget);
         expect(find.byTooltip('Galeria'), findsNothing);
         expect(find.byTooltip('Flash'), findsNothing);
-        await tester.tap(find.byTooltip('Voltar'));
+        await tester.tap(find.byTooltip('Fechar'));
         await tester.pumpAndSettle();
         expect(h.popped.single, isA<GuidedCaptureCancelled>());
         semantics.dispose();
