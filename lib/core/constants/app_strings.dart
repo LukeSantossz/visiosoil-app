@@ -69,7 +69,7 @@ abstract final class AppStrings {
   /// The saved record laid out as the result screen (redesign v11 §3.6,
   /// SPEC 0194).
   static const String resultTitle = 'Resultado';
-  static const String resultOverline = 'Classe textural';
+  static const String resultOverline = 'Classe textural (triângulo USDA)';
   static const String resultTabOverview = 'Visão geral';
   static const String resultTabManagement = 'Manejo';
   static const String resultTabDetails = 'Detalhes';

@@ -9,6 +9,7 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.actions,
     this.centerTitle = false,
+    this.backgroundColor,
   }) : assert(
          title == null || titleWidget == null,
          'Não é possível usar title e titleWidget ao mesmo tempo',
@@ -25,6 +26,10 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// Widgets on the right.
   final List<Widget>? actions;
+
+  /// Overrides the theme's; a [WidgetStateColor] can resolve differently
+  /// when content scrolls under the bar.
+  final Color? backgroundColor;
 
   /// Whether to center the title. Default: false, start-aligned as in the
   /// redesign mocks (SPEC 0201).
@@ -43,6 +48,7 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       centerTitle: centerTitle,
       titleSpacing: centerTitle ? null : (hasLeading ? 4 : 16),
+      backgroundColor: backgroundColor,
     );
   }
 

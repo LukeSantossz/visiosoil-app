@@ -12,7 +12,8 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_bar.dart';
-import 'package:visiosoil_app/core/widgets/segmented_control.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
@@ -86,11 +87,18 @@ Future<void> _pump(
 
 Future<void> _selectTab(WidgetTester tester, String label) async {
   await tester.tap(find.descendant(
-    of: find.byType(SegmentedControl<ResultTab>),
+    of: find.byType(ResultTabBar<ResultTab>),
     matching: find.text(label),
   ));
   await tester.pumpAndSettle();
 }
+
+// The page's own vertical scroll; the tab bar scrolls sideways.
+final _page = find
+    .byWidgetPredicate(
+      (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+    )
+    .first;
 
 void main() {
   testWidgets('result_header_shows_class_and_confidence', (tester) async {
@@ -98,16 +106,115 @@ void main() {
 
     expect(find.text('Resultado'), findsOneWidget);
     expect(find.text('22/10/2026 · 10:42'), findsOneWidget);
-    expect(find.text('Classe textural'), findsOneWidget);
+    expect(find.text('Classe textural (triângulo USDA)'), findsOneWidget);
     expect(find.text('Argilosa'), findsOneWidget);
-    expect(find.text('Confiança alta · 82%'), findsOneWidget);
-    expect(find.byType(ConfidenceBar), findsOneWidget);
+    expect(find.text('Confiança alta'), findsOneWidget);
+    expect(find.text('82%'), findsOneWidget);
+    expect(find.byType(SegmentedConfidenceBar), findsOneWidget);
+  });
+
+  // PNG 14 as SPEC 0202 measures it.
+  testWidgets('header_matches_the_mock', (tester) async {
+    await _pump(tester, _classified());
+
+    // No colour dot beside the class, and no icon in the badge.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).shape == BoxShape.circle &&
+            w.constraints?.maxWidth == 14,
+      ),
+      findsNothing,
+    );
+    final badge = find.ancestor(
+      of: find.text('Confiança alta'),
+      matching: find.byType(Container),
+    );
+    expect(
+      find.descendant(of: badge.first, matching: find.byType(Icon)),
+      findsNothing,
+    );
+    // Five segments, four filled at 0.82, and the percent right of the bar.
+    final palette = AppPalette.light;
+    final segments = [
+      for (var i = 0; i < 5; i++)
+        tester.widget<Container>(find.byKey(ValueKey('confidence-segment-$i'))),
+    ];
+    final filled = segments
+        .where((c) => (c.decoration! as BoxDecoration).color == palette.primary)
+        .length;
+    expect(filled, 4);
+    expect(
+      tester.getTopLeft(find.text('82%')).dx,
+      greaterThan(
+        tester.getTopRight(find.byKey(const ValueKey('confidence-segment-4'))).dx,
+      ),
+    );
+  });
+
+  testWidgets('tabs_are_underlined', (tester) async {
+    await _pump(tester, _classified());
+    Offset indicator() =>
+        tester.getCenter(find.byKey(const ValueKey('result-tab-indicator')));
+    final overview = tester.getCenter(find.text('Visão geral'));
+    expect(indicator().dx, closeTo(overview.dx, 1));
+    expect(find.byKey(const ValueKey('result-tab-indicator')), findsOneWidget);
+
+    await _selectTab(tester, 'Manejo');
+    expect(
+      indicator().dx,
+      closeTo(tester.getCenter(find.text('Manejo')).dx, 1),
+    );
+    // The labels share one row.
+    expect(
+      tester.getCenter(find.text('Visão geral')).dy,
+      tester.getCenter(find.text('Detalhes')).dy,
+    );
+  });
+
+  testWidgets('footer_fits_one_line', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(
+      overrides: _overrides(_classified()),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: const DetailsScreen(recordId: 1),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // One line each, scaled down rather than wrapped, side by side.
+    for (final label in ['Corrigir', 'Dicas de manejo']) {
+      expect(tester.widget<Text>(find.text(label)).maxLines, 1, reason: label);
+    }
+    final correct = tester.getRect(find.text('Corrigir'));
+    final tips = tester.getRect(find.text('Dicas de manejo'));
+    expect(correct.center.dy, closeTo(tips.center.dy, 1));
+    expect(tips.left, greaterThan(correct.right));
+  });
+
+  testWidgets('app_bar_shares', (tester) async {
+    await _pump(tester, _classified());
+    expect(find.byTooltip('Compartilhar'), findsOneWidget);
+    expect(find.byTooltip('Nova captura'), findsNothing);
+  });
+
+  testWidgets('lattice_only_outside_sun', (tester) async {
+    await _pump(tester, _classified());
+    expect(find.byKey(const ValueKey('result-lattice')), findsOneWidget);
+    // A fresh tree: the themes' button styles cannot be interpolated.
+    await tester.pumpWidget(const SizedBox());
+    await _pump(tester, _classified(), theme: AppTheme.sun);
+    expect(find.byKey(const ValueKey('result-lattice')), findsNothing);
   });
 
   testWidgets('result_tabs_switch_content', (tester) async {
     await _pump(tester, _classified());
 
-    expect(find.byType(SegmentedControl<ResultTab>), findsOneWidget);
+    expect(find.byType(ResultTabBar<ResultTab>), findsOneWidget);
     expect(
       find.text('O modelo estima a classe textural pela foto. A confiança '
           'indica o quanto ele está seguro dessa classe.'),
@@ -198,7 +305,7 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _pump(tester, _classified());
-      await tester.scrollUntilVisible(find.text('Corrigir'), 300);
+      await tester.scrollUntilVisible(find.text('Corrigir'), 300, scrollable: _page);
       expect(inScroll('Corrigir'), findsOneWidget);
     });
 
@@ -212,7 +319,7 @@ void main() {
         child: const MaterialApp(home: DetailsScreen(recordId: 1)),
       ));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Corrigir'), 300);
+      await tester.scrollUntilVisible(find.text('Corrigir'), 300, scrollable: _page);
       expect(inScroll('Corrigir'), findsOneWidget);
     });
   });
@@ -370,8 +477,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ManagementTipsSection), findsOneWidget);
-      final control = tester.widget<SegmentedControl<ResultTab>>(
-        find.byType(SegmentedControl<ResultTab>),
+      final control = tester.widget<ResultTabBar<ResultTab>>(
+        find.byType(ResultTabBar<ResultTab>),
       );
       expect(control.value, ResultTab.management);
     });
@@ -420,11 +527,14 @@ void main() {
         expect(find.text(message), findsOneWidget);
         expect(find.text('Fotografar de novo'), findsOneWidget);
         expect(find.text('Ver dicas de captura'), findsOneWidget);
-        expect(find.byType(SegmentedControl<ResultTab>), findsNothing);
+        expect(find.byType(ResultTabBar<ResultTab>), findsNothing);
         expect(find.text('Corrigir'), findsNothing);
         expect(find.text('Dicas de manejo'), findsNothing);
-        expect(find.text('Compartilhar'), findsOneWidget);
-        expect(find.text('Excluir registro'), findsOneWidget);
+        // Only the block (PNG 15, SPEC 0202): no photograph, and the record
+        // is shared from the app bar.
+        expect(find.bySemanticsLabel('Ampliar foto'), findsNothing);
+        expect(find.byTooltip('Compartilhar'), findsOneWidget);
+        expect(find.text('Excluir registro'), findsNothing);
       });
     }
 

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
@@ -83,32 +84,34 @@ class _PreviewContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The photograph, then what the app knows about it (redesign v11 §3.8,
-    // SPEC 0198), on the viewer's black canvas.
-    final height = MediaQuery.sizeOf(context).height;
+    // SPEC 0198), on a black canvas with a square photograph as wide as the
+    // screen (PNG 19, SPEC 0202).
+    final width = MediaQuery.sizeOf(context).width;
     return Theme(
       data: AppTheme.dark,
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: VisioAppBar(
           title: AppStrings.photoTitle,
-          centerTitle: false,
+          backgroundColor: Colors.black,
           leading: VisioIconButton(
             label: 'Fechar',
-            icon: Icons.arrow_back,
+            icon: LucideIcons.arrowLeft,
             onPressed: () => Navigator.maybePop(context),
           ),
           actions: [
             VisioIconButton(
               label: 'Compartilhar',
-              icon: Icons.share_outlined,
+              icon: LucideIcons.share2,
               onPressed: () => shareRecordWithConsent(context, ref, record),
             ),
+            const SizedBox(width: AppSpacing.xs),
           ],
         ),
         body: ListView(
           children: [
             SizedBox(
-              height: height * 0.6,
+              height: width,
               child: _ImageViewer(record: record),
             ),
             _RecordFacts(record: record),
@@ -116,7 +119,7 @@ class _PreviewContent extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: VisioButton(
                 label: 'Excluir registro',
-                icon: Icons.delete_outline,
+                icon: LucideIcons.trash2,
                 variant: VisioButtonVariant.destructive,
                 onPressed: () => confirmAndDeleteRecord(context, ref, record),
               ),
@@ -144,12 +147,11 @@ class _ImageViewer extends StatelessWidget {
           tag: recordPhotoHeroTag(record.id),
           child: Image.file(
             File(record.imagePath),
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Icon(
-              Icons.broken_image,
-              color: Colors.white54,
-              size: 64,
-            ),
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
           ),
         ),
       ),
@@ -157,8 +159,11 @@ class _ImageViewer extends StatelessWidget {
   }
 }
 
-/// One row per fact the app knows; a fact it does not measure, such as the
-/// mock's lux or distance, has no row (SPEC 0198).
+/// The rows PNG 19 lists, for the facts the app knows: a fact it does not
+/// measure, such as the mock's lux or distance, has no row (SPEC 0198), and
+/// the accuracy and the address are left to the result's Detalhes tab
+/// (SPEC 0202). Each row is 56 dp, a 14 sp label in grey and a 15 sp value
+/// in white, over a #333 rule.
 class _RecordFacts extends StatelessWidget {
   const _RecordFacts({required this.record});
 
@@ -179,10 +184,11 @@ class _RecordFacts extends StatelessWidget {
           ),
       ],
       ('Data e hora', Formatters.timestampDotted(record.timestamp)),
-      if (record.hasCoordinates) ('Coordenadas', record.formattedCoordinates),
-      if (record.horizontalAccuracy != null)
-        ('Precisão', record.formattedHorizontalAccuracy),
-      if (record.hasValidAddress) ('Endereço', record.displayAddress),
+      if (record.hasCoordinates)
+        (
+          'Coordenadas',
+          Formatters.coordinatesShort(record.latitude!, record.longitude!),
+        ),
       if (model != null) ('Modelo', 'no aparelho · v$model'),
     ];
     final theme = Theme.of(context);
@@ -192,25 +198,28 @@ class _RecordFacts extends StatelessWidget {
         children: [
           for (final (label, value) in rows)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              constraints: const BoxConstraints(minHeight: 56),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.white24)),
+                border: Border(bottom: BorderSide(color: Color(0xFF333333))),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.white70),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFFC8C8C8),
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
                       value,
                       textAlign: TextAlign.end,
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(color: Colors.white),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: 15,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],

@@ -61,6 +61,7 @@ void main() {
     await pumpHeader(tester, 0.95);
 
     expect(find.text('Argilosa'), findsOneWidget);
-    expect(find.text('Confiança alta · 95%'), findsOneWidget);
+    expect(find.text('Confiança alta'), findsOneWidget);
+    expect(find.text('95%'), findsOneWidget);
   });
 }

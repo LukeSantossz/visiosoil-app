@@ -135,7 +135,7 @@ void main() {
     ));
 
     await openAndCapture(tester);
-    await tester.tap(find.text('Salvar registro'));
+    await tester.tap(find.byTooltip('Salvar'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }

@@ -58,11 +58,10 @@ void main() {
     test('details_screen snaps its content padding', () {
       final src = _packed('lib/core/features/details/details_screen.dart');
       expect(src, isNot(contains('fromLTRB(20,')));
-      expect(
-        src,
-        contains('fromLTRB(AppSpacing.lg,AppSpacing.lg,AppSpacing.lg,'
-            'AppSpacing.xxl)'),
-      );
+      // The blocks carry their own 16 dp gutter since SPEC 0202, and the
+      // page ends on the xxl gap.
+      expect(src, contains('symmetric(horizontal:AppSpacing.lg)'));
+      expect(src, contains('bottom:AppSpacing.xxl'));
     });
 
     test('confidence_badge snaps its badge padding to sm/xs', () {

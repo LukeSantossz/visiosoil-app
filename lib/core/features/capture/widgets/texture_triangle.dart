@@ -256,9 +256,12 @@ class _TrianglePainter extends CustomPainter {
         TextPainter(
           text: TextSpan(
             text: label,
+            // The labels are part of the drawing, so they scale with it, as
+            // the mocks draw them (SPEC 0202).
             style: textStyle.copyWith(
               color: palette.isSun ? palette.onSurface : palette.textTertiary,
               fontWeight: FontWeight.w600,
+              fontSize: (textStyle.fontSize ?? 12) * side / 300,
             ),
           ),
           textDirection: TextDirection.ltr,

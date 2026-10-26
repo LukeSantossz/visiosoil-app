@@ -21,6 +21,7 @@ class VisioButton extends StatelessWidget {
     this.loadingLabel,
     this.variant = VisioButtonVariant.primary,
     this.expanded = false,
+    this.singleLine = false,
   }) : assert(leading == null || icon == null);
 
   /// Button text.
@@ -53,6 +54,10 @@ class VisioButton extends StatelessWidget {
 
   /// If true, expands to fill all available width.
   final bool expanded;
+
+  /// Keeps the label on one line, scaled down where it does not fit, as the
+  /// result's side-by-side footer needs (SPEC 0202).
+  final bool singleLine;
 
   @override
   Widget build(BuildContext context) {
@@ -141,13 +146,18 @@ class VisioButton extends StatelessWidget {
           leading ?? Icon(icon, size: 20),
           SizedBox(width: leading != null ? 10 : 8),
           // Wraps at large text instead of running past the button (SPEC 0121).
-          Flexible(
-            child: Text(label, textAlign: TextAlign.center, style: labelStyle),
-          ),
+          Flexible(child: _label()),
         ],
       );
     }
 
-    return Text(label, style: labelStyle);
+    return _label();
   }
+
+  Widget _label() => singleLine
+      ? FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(label, maxLines: 1, style: labelStyle),
+        )
+      : Text(label, textAlign: TextAlign.center, style: labelStyle);
 }
