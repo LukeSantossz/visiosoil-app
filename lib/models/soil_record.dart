@@ -1,4 +1,5 @@
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/models/class_score.dart';
@@ -162,9 +163,11 @@ class SoilRecord {
   /// Indicates whether the record has a texture classification.
   bool get hasClassification => textureClass != null && textureClass!.isNotEmpty;
 
-  /// Returns the texture class or a default message.
-  String get displayTextureClass =>
-      hasClassification ? textureClass! : 'Não classificado';
+  /// Returns the texture class as it reads on screen (SPEC 0195), or a
+  /// default message.
+  String get displayTextureClass => hasClassification
+      ? SoilTextureReference.labelFor(textureClass!)
+      : 'Não classificado';
 
   /// Returns the confidence score formatted as a percentage.
   String get formattedConfidence => confidenceScore != null

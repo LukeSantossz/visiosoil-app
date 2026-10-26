@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -139,7 +140,7 @@ class HistoryFilterBar extends ConsumerWidget {
                     ...classes.map((textureClass) => Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.xs),
                           child: _FilterChip(
-                            label: textureClass,
+                            label: SoilTextureReference.labelFor(textureClass),
                             isSelected: selectedFilter == textureClass,
                             onSelected: () => onSelectTexture(textureClass),
                           ),
