@@ -7,6 +7,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 
@@ -176,6 +177,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       backgroundColor: palette.bootBackground,
       body: Stack(
         children: [
+          // Two clusters of contour rings, still under the grains (PNG 01,
+          // SPEC 0207); Modo Sol draws no decoration.
+          if (!palette.isSun)
+            const Positioned.fill(
+              child: CustomPaint(
+                key: Key('boot-contours'),
+                painter: _BootContoursPainter(),
+              ),
+            ),
           if (!_reduceMotion)
             Positioned.fill(
               child: RepaintBoundary(
@@ -202,7 +212,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     foregroundColor: Colors.white,
                     minimumSize: const Size(48, 48),
                   ),
-                  child: const Text('Pular'),
+                  child: Text(
+                    'Pular',
+                    style: AppTypography.resized(
+                      theme.textTheme.labelLarge!,
+                      17,
+                    ).copyWith(color: Colors.white, letterSpacing: 0),
+                  ),
                 ),
               ),
             ),
@@ -243,12 +259,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         const SizedBox(height: AppSpacing.lg),
                         Text(
                           'VisioSoil',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontVariations: [FontVariation('wght', 800)],
-                            letterSpacing: -0.5,
-                          ),
+                          style: AppTypography.weighted(
+                            theme.textTheme.headlineLarge!,
+                            700,
+                          ).copyWith(color: Colors.white, letterSpacing: -0.8),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
@@ -256,9 +270,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           // Opaque, not a translucent white: against the
                           // boot's own green fills a 70 %-alpha white reads
                           // under 4.5 : 1 (SPEC 0133's contrast guideline).
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                          ),
+                          style: AppTypography.resized(
+                            theme.textTheme.bodyLarge!,
+                            16,
+                            height: 24 / 16,
+                          ).copyWith(color: Colors.white),
                         ),
                       ],
                     ),
@@ -268,6 +284,64 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
   }
+}
+
+/// Two clusters of irregular contour rings in white at 12 %, and a few dots,
+/// as PNG 01 draws them (SPEC 0207).
+class _BootContoursPainter extends CustomPainter {
+  const _BootContoursPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pen = Paint()
+      ..color = Colors.white.withValues(alpha: .12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final (centre, rings, seed) in [
+      (Offset(size.width * .77, size.height * .17), 12, 0.4),
+      (Offset(size.width * .10, size.height * .90), 10, 1.7),
+    ]) {
+      for (var ring = 1; ring <= rings; ring++) {
+        final radius = 16.0 + ring * 24;
+        final path = Path();
+        const points = 72;
+        for (var i = 0; i <= points; i++) {
+          final angle = i / points * 2 * pi;
+          final wobble =
+              1 +
+              .09 * sin(3 * angle + seed + ring * .25) +
+              .05 * sin(5 * angle + seed * 2);
+          final point =
+              centre +
+              Offset(
+                cos(angle) * radius * wobble,
+                sin(angle) * radius * wobble * 1.1,
+              );
+          if (i == 0) {
+            path.moveTo(point.dx, point.dy);
+          } else {
+            path.lineTo(point.dx, point.dy);
+          }
+        }
+        canvas.drawPath(path..close(), pen);
+      }
+    }
+    final random = Random(207);
+    final dot = Paint()..color = Colors.white.withValues(alpha: .15);
+    for (var i = 0; i < 14; i++) {
+      canvas.drawCircle(
+        Offset(
+          random.nextDouble() * size.width,
+          random.nextDouble() * size.height,
+        ),
+        2,
+        dot,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BootContoursPainter oldDelegate) => false;
 }
 
 /// A single grain's pre-generated fall, relative to the mesh's centre and
