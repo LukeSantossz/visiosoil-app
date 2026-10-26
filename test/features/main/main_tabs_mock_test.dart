@@ -423,4 +423,60 @@ void main() {
     );
     expect(find.byIcon(Icons.inventory_2_outlined), findsNothing);
   });
+
+  // SPEC 0213: Início in Modo Sol as PNG 25 measures it.
+  testWidgets('sun_home_matches_the_mock', (tester) async {
+    // Under 600 dp, so the bar stays a bar, and wide enough for the test
+    // font's square glyphs.
+    tester.view.physicalSize = const Size(590, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester, theme: AppTheme.sun);
+    final sun = AppPalette.sun;
+
+    expect(tester.widget<Text>(find.text('análises')).style?.fontSize, 12);
+    await tester.scrollUntilVisible(
+      find.byType(AnalysisTile).first,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final row = find.byType(AnalysisTile).first;
+    final title = tester.widget<Text>(
+      find.descendant(of: row, matching: find.byType(Text)).first,
+    );
+    expect(title.style?.fontSize, 16);
+    expect(tester.getSize(row).height, 63);
+    final seeAll = tester.widget<Text>(find.text('Ver todas'));
+    final seeAllStyle = DefaultTextStyle.of(
+      tester.element(find.text('Ver todas')),
+    ).style.merge(seeAll.style);
+    expect(seeAllStyle.fontSize, 14);
+    expect(seeAllStyle.color, sun.onSurface);
+    expect(
+      tester
+          .getSize(
+            find.ancestor(
+              of: find.text('Ver todas'),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .height,
+      48,
+    );
+    final selected = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Início'),
+      ),
+    );
+    final navStyle = DefaultTextStyle.of(
+      tester.element(
+        find.descendant(
+          of: find.byType(NavigationBar),
+          matching: find.text('Início'),
+        ),
+      ),
+    ).style.merge(selected.style);
+    expect(navStyle.color, sun.onSurface);
+  });
 }

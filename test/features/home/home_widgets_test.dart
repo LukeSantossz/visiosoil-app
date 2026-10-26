@@ -78,7 +78,8 @@ void main() {
         value.style?.fontVariations,
         contains(const FontVariation('wght', 650)),
       );
-      expect(label.style?.fontSize, entry.key == 'sun' ? 14 : 12);
+      // 12 sp in Modo Sol too, as PNG 25 draws it (SPEC 0213).
+      expect(label.style?.fontSize, 12);
       expect(
         value.style?.fontFamily,
         theme.textTheme.headlineMedium?.fontFamily,
