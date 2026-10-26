@@ -17,6 +17,7 @@ class SettingsTile extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.destructive = false,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -29,10 +30,15 @@ class SettingsTile extends StatelessWidget {
   /// Draws the icon and the title in `error`.
   final bool destructive;
 
+  /// False greys the title and the line, as PNG 23 draws a row that needs a
+  /// linked account; the icon keeps its colour (SPEC 0216).
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final trailing = this.trailing;
+    final onTap = enabled ? this.onTap : null;
 
     return Material(
       type: MaterialType.transparency,
@@ -41,7 +47,7 @@ class SettingsTile extends StatelessWidget {
         child: SettingsRowFrame(
           icon: Icon(
             icon,
-            size: 22,
+            size: SettingsRowFrame.iconSize,
             color: destructive
                 ? palette.error
                 : SettingsRowFrame.iconColor(context),
@@ -50,6 +56,7 @@ class SettingsTile extends StatelessWidget {
           titleColor: destructive ? palette.error : null,
           subtitle: subtitle,
           subtitleMaxLines: subtitleMaxLines,
+          dimmed: !enabled,
           trailing:
               trailing ??
               (onTap == null
@@ -77,6 +84,7 @@ class SettingsRowFrame extends StatelessWidget {
     this.subtitle,
     this.subtitleMaxLines,
     this.trailing,
+    this.dimmed = false,
   });
 
   final Widget? icon;
@@ -85,6 +93,15 @@ class SettingsRowFrame extends StatelessWidget {
   final String? subtitle;
   final int? subtitleMaxLines;
   final Widget? trailing;
+
+  /// Draws the title and the line at 55 %, as PNG 23 greys an unavailable
+  /// row (SPEC 0216).
+  final bool dimmed;
+
+  /// A row's icon: 20 dp at the start of a 22 dp slot, so the text keeps its
+  /// place (PNG 23, 35 and 36, SPEC 0216).
+  static const double iconSize = 20;
+  static const double _iconSlot = 22;
 
   /// The 15 sp title, 17 sp in Modo Sol (PNG 36), and the 13 sp line under
   /// it.
@@ -109,6 +126,8 @@ class SettingsRowFrame extends StatelessWidget {
     height: 18 / 13,
   ).copyWith(color: context.palette.onSurfaceVariant);
 
+  Color _dim(Color color) => dimmed ? color.withValues(alpha: 0.55) : color;
+
   @override
   Widget build(BuildContext context) {
     final trailing = this.trailing;
@@ -126,7 +145,14 @@ class SettingsRowFrame extends StatelessWidget {
           builder: (context, constraints) => Row(
             children: [
               if (icon != null) ...[
-                icon!,
+                SizedBox(
+                  width: _iconSlot,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    heightFactor: 1,
+                    child: icon,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.md),
               ],
               // Only the text is padded; a control is centred in the row's
@@ -140,7 +166,9 @@ class SettingsRowFrame extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: titleStyle(context).copyWith(color: titleColor),
+                        style: titleStyle(context).copyWith(
+                          color: _dim(titleColor ?? context.palette.onSurface),
+                        ),
                       ),
                       if (subtitle != null)
                         Text(
@@ -150,7 +178,9 @@ class SettingsRowFrame extends StatelessWidget {
                           overflow: subtitleMaxLines == null
                               ? null
                               : TextOverflow.ellipsis,
-                          style: subtitleStyle(context),
+                          style: subtitleStyle(context).copyWith(
+                            color: _dim(context.palette.onSurfaceVariant),
+                          ),
                         ),
                     ],
                   ),

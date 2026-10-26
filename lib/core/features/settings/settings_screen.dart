@@ -44,6 +44,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final pkgAsync = ref.watch(packageInfoProvider);
+    final linked = ref.watch(authNotifierProvider).value?.account != null;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Configurações'),
@@ -139,10 +140,11 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsTile(
                     icon: LucideIcons.cloudUpload,
                     title: 'Backup na conta',
-                    subtitle:
-                        ref.watch(authNotifierProvider).value?.account == null
-                        ? 'Requer conta vinculada'
-                        : 'Dados só neste aparelho',
+                    subtitle: linked
+                        ? 'Dados só neste aparelho'
+                        : 'Requer conta vinculada',
+                    // Greyed until an account is linked (PNG 23, SPEC 0216).
+                    enabled: linked,
                   ),
                   const SettingsSwitchTile(
                     icon: LucideIcons.wifi,
@@ -179,7 +181,7 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsRowFrame(
                     icon: Icon(
                       LucideIcons.aLargeSmall,
-                      size: 22,
+                      size: SettingsRowFrame.iconSize,
                       color: SettingsRowFrame.iconColor(context),
                     ),
                     title: 'Tamanho do texto',
@@ -490,7 +492,7 @@ class _ThemeChoiceSelector extends ConsumerWidget {
       key: const Key('theme-row'),
       icon: Icon(
         LucideIcons.moon,
-        size: 22,
+        size: SettingsRowFrame.iconSize,
         color: SettingsRowFrame.iconColor(context),
       ),
       title: 'Tema',

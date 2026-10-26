@@ -59,7 +59,7 @@ class SettingsSwitchTile extends StatelessWidget {
                   ? null
                   : Icon(
                       icon,
-                      size: 22,
+                      size: SettingsRowFrame.iconSize,
                       color: SettingsRowFrame.iconColor(context),
                     ),
               title: title,
