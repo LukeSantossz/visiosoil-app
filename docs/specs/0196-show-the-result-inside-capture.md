@@ -18,7 +18,7 @@ Extract the classified layout of `DetailsScreen` into a public `ResultContent` w
 When a classification succeeds and the triangle settles, `CaptureScreen` hosts `ResultContent` for a draft `SoilRecord` built from its state:
 
 - The draft carries the photograph, the location read so far, the class and score, and the time the result arrived.
-- The app bar reads "Resultado". Its outlined bookmark, labelled "Salvar", runs the existing `_saveRecord`.
+- The app bar reads "Resultado". It keeps "Como capturar" (SPEC 0142), and its outlined bookmark, labelled "Salvar", runs the existing `_saveRecord`.
 - The footer is the existing `CaptureActions`, so Salvar registro, Tirar outra foto, Descartar and every guard on them (SPEC 0117, SPEC 0132, SPEC 0146, SPEC 0147) are unchanged.
 - The Manejo tab says the tips appear once the analysis is saved, because tips are cached against a saved record's uuid.
 - The Detalhes tab shows the photograph and the location and time read so far.

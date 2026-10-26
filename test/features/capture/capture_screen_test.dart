@@ -2124,13 +2124,20 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('retryClassification')), findsOneWidget);
+      // The harness's failures are timeouts, whose chip names the retry.
+      expect(
+        find.text('Análise não terminou · tocar para tentar de novo'),
+        findsOneWidget,
+      );
       expect(find.byType(SegmentedControl<ResultTab>), findsNothing);
     });
 
-    for (final (score, type) in [
-      (0.82, 'mediumImpact'),
-      (0.60, 'mediumImpact'),
-      (0.40, 'lightImpact'),
+    // The shutter and the triangle's settle each play a light impact first,
+    // so the entry is counted rather than read off the end.
+    for (final (score, medium, light) in [
+      (0.82, 1, 2),
+      (0.60, 1, 2),
+      (0.40, 0, 3),
     ]) {
       testWidgets('entry_haptic_follows_the_level at $score', (tester) async {
         final haptics = recordHaptics(tester);
@@ -2143,8 +2150,14 @@ void main() {
         await capture(tester);
         await tester.pumpAndSettle();
 
-        // The entry is the last haptic, after the shutter and the settle.
-        expect(haptics.last, 'HapticFeedbackType.$type');
+        expect(
+          haptics.where((h) => h == 'HapticFeedbackType.mediumImpact'),
+          hasLength(medium),
+        );
+        expect(
+          haptics.where((h) => h == 'HapticFeedbackType.lightImpact'),
+          hasLength(light),
+        );
       });
     }
   });

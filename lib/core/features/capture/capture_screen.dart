@@ -586,6 +586,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       appBar: VisioAppBar(
         title: AppStrings.resultTitle,
         actions: [
+          // The protocol on demand, as before the result (SPEC 0142).
+          VisioIconButton(
+            label: 'Como capturar',
+            icon: Icons.help_outline,
+            onPressed: () => context.push('/capture-guide'),
+          ),
           VisioIconButton(
             label: AppStrings.resultSave,
             icon: Icons.bookmark_border,
