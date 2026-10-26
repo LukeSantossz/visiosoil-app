@@ -66,9 +66,13 @@ class _ProcessingViewState extends State<ProcessingView> {
             ),
           ),
           const SizedBox(height: _chipGap),
-          // 24 dp, plus Modo Sol's 2 dp rule above and below (PNG 38).
-          SizedBox(
-            height: 24 + (palette.isSun ? 2 * context.density.borderWidth : 0),
+          // 24 dp, plus Modo Sol's 2 dp rule above and below (PNG 38). A
+          // minimum rather than a height, so enlarged text grows the chip.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight:
+                  24 + (palette.isSun ? 2 * context.density.borderWidth : 0),
+            ),
             child: _settled && widget.highlightClass != null
                 ? Center(
                     child: Container(
