@@ -28,13 +28,14 @@ SPEC 0204 left all three disabled, at 38 % opacity, because nothing stood behind
   - the shutter is always enabled.
 
   The photograph is still classified, and a photograph without a readable sheet is still refused by name (ADR 0017). The guide only stops helping; the reader keeps judging.
-- **Salvar fotos na galeria.** When on, saving a record also hands the stored photograph to the device gallery through `gal` 2.3.3, in an album named "VisioSoil".
+- **Salvar fotos na galeria.** When on, saving a record also hands the stored photograph to the device gallery through `gal` 2.3.3. It files no album, because an album would need read/write Photos access on iOS and legacy storage on Android 10, while a plain save needs neither (review of #438).
   - The copy is the stored file, which `ImageStorageService` has already stripped of EXIF, so the gallery receives no coordinates.
   - The save is behind a `GallerySaver` interface, so tests replace it.
   - A gallery that refuses the photograph does not undo the record. The screen says "Não foi possível salvar a foto na galeria." once.
   - Android needs no permission from API 29.
     - Android 9 and older would need `WRITE_EXTERNAL_STORAGE`, which SPEC 0165 removes from the merged manifest for the Play Data safety answers (#293). The manifest stays as it is, so on those versions the save fails and the failure line says so.
   - iOS gets `NSPhotoLibraryAddUsageDescription`: "O VisioSoil salva na galeria as fotos das amostras, quando você ativa essa opção."
+  - iOS also gets `NSPhotoLibraryUsageDescription`: "O VisioSoil precisa do acesso às fotos para salvar nelas as fotos das amostras, quando você ativa essa opção." iOS 13, the deployment target, asks for read/write access even for a plain save, and a missing description ends the app.
 - **Registrar localização.** When off, a capture asks for no location and saves no coordinates. The location state goes straight to `unavailable`, as when the GPS gives up.
 
 ## Alternatives Considered
@@ -59,6 +60,8 @@ SPEC 0204 left all three disabled, at 38 % opacity, because nothing stood behind
 
 ## Acceptance Criteria
 
+- `plugin_saver_files_no_album`: `PluginGallerySaver` asks for access and saves with no album.
+- `ios_declares_both_photo_descriptions`: the iOS plist declares both Photos usage descriptions.
 - `capture_switches_are_live`: Configurações' three switches are enabled and reflect their providers; tapping one flips its provider.
 - `capture_preferences_persist`: each controller writes its key, and `restoreCapturePreferences` reads it back, with the defaults above when nothing is stored.
 - `guide_off_hides_the_guide`: with the guide off, the guided camera shows no quality chip and no "Captura liberada" line, and its shutter is enabled before any reading.
