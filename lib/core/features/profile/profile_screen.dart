@@ -77,7 +77,7 @@ class ProfileScreen extends ConsumerWidget {
                     header: true,
                     child: Text(
                       'Perfil',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: AppTypography.pageTitle(context),
                     ),
                   ),
                 ),
