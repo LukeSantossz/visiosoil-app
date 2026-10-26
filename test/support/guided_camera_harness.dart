@@ -78,6 +78,7 @@ Future<GuidedCameraHarness> openGuidedCamera(
   WidgetTester tester, {
   GuidedCameraHarness? harness,
   ThemeData? theme,
+  List<Override> overrides = const [],
 }) async {
   final h = harness ?? GuidedCameraHarness();
   // A platform call with no handler never answers inside a widget test, and
@@ -100,6 +101,7 @@ Future<GuidedCameraHarness> openGuidedCamera(
   await tester.pumpWidget(ProviderScope(
     overrides: [
       ...guidedCameraOverrides(h),
+      ...overrides,
     ],
     child: MaterialApp(
       theme: theme ?? AppTheme.light,

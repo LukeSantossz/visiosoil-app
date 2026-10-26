@@ -71,6 +71,7 @@ dependencies:
   # Tilt for the guided camera's level (SPEC 0165)
   sensors_plus: ^7.1.1
   lucide_icons_flutter: ^4.0.1
+  gal: 2.3.3
 
 dev_dependencies:
   flutter_test:

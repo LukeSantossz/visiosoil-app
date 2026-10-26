@@ -216,4 +216,28 @@ void main() {
       expect(coverage.landUseLayerPresent, isTrue);
     });
   });
+
+  // A tip's optional title and crop phase (SPEC 0209).
+  test('tips_carry_title_and_phase', () {
+    final tip = ManagementTip.fromJson({
+      'text': 'Entre com máquinas abaixo do ponto de friabilidade.',
+      'citations': [0],
+      'title': 'Evite tráfego com solo úmido',
+      'phase': 'sowing',
+    });
+
+    expect(tip.title, 'Evite tráfego com solo úmido');
+    expect(tip.phase, TipPhase.sowing);
+    final again = ManagementTip.fromJson(tip.toJson());
+    expect(again.title, tip.title);
+    expect(again.phase, tip.phase);
+    expect(
+      ManagementTip.fromJson({
+        'text': 't',
+        'citations': [0],
+        'phase': 'harvest',
+      }).phase,
+      isNull,
+    );
+  });
 }

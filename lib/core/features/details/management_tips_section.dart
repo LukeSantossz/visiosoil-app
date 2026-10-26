@@ -14,6 +14,8 @@ import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
+import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -30,9 +32,14 @@ class ManagementTipsSection extends ConsumerStatefulWidget {
     super.key,
     required this.record,
     this.asPage = false,
+    this.hiddenCategories = const {},
   });
 
   final SoilRecord record;
+
+  /// Categories the Dicas tab's filter turned off (SPEC 0209). A tip without
+  /// a category counts as [TipCategory.other].
+  final Set<TipCategory> hiddenCategories;
 
   /// The Dicas tab: the record heads the page in place of the section's
   /// title (PNG 20, SPEC 0205).
@@ -119,6 +126,7 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
                   textureLabel: _record.displayTextureClass,
                   showCount: !widget.asPage,
                   result: result,
+                  hiddenCategories: widget.hiddenCategories,
                   generating: _generating,
                   onRefresh: _generate,
                 );
@@ -139,9 +147,12 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
         uuid != null &&
         _lastError != null &&
         !_generating;
-    final count = uuid == null
+    final cached = uuid == null
         ? null
-        : ref.watch(cachedManagementTipsProvider(uuid)).value?.tips.length;
+        : ref.watch(cachedManagementTipsProvider(uuid)).value;
+    final count = cached == null
+        ? null
+        : shownTips(cached.tips, widget.hiddenCategories).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -219,6 +230,7 @@ class _TipsData extends StatelessWidget {
     required this.textureLabel,
     required this.showCount,
     required this.result,
+    required this.hiddenCategories,
     required this.generating,
     required this.onRefresh,
   });
@@ -228,6 +240,7 @@ class _TipsData extends StatelessWidget {
   /// The class and count line; the Dicas tab's header says it instead.
   final bool showCount;
   final ManagementTipsResult result;
+  final Set<TipCategory> hiddenCategories;
   final bool generating;
   final Future<void> Function() onRefresh;
 
@@ -236,6 +249,7 @@ class _TipsData extends StatelessWidget {
     final theme = Theme.of(context);
     final abstained =
         result.status == ManagementTipsStatus.abstained || result.tips.isEmpty;
+    final tips = shownTips(result.tips, hiddenCategories);
 
     // The disclaimer leads, as PNG 20 draws it (SPEC 0205).
     return Column(
@@ -255,14 +269,23 @@ class _TipsData extends StatelessWidget {
           if (showCount) ...[
             // The class and how many tips it has (redesign v11 §3.9).
             Text(
-              '$textureLabel · ${result.tips.length} dicas',
+              '$textureLabel · ${tips.length} dicas',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: context.palette.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          _TipsTimeline(tips: result.tips, sources: result.sources),
+          if (tips.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Text(
+                'Nenhuma dica nas categorias escolhidas.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            )
+          else
+            _TipsTimeline(tips: tips, sources: result.sources),
         ],
         if (result.sources.isNotEmpty) ...[
           _SourcesList(sources: result.sources),
@@ -294,40 +317,145 @@ class _TipsData extends StatelessWidget {
   }
 }
 
-/// The tips grouped by category on a timeline (redesign v11 §3.9,
-/// SPEC 0198). Tips carry a category, not a crop phase, so the groups are the
-/// categories, in a fixed order.
+/// [tips] without the categories in [hidden], a tip without a category
+/// counting as [TipCategory.other] (SPEC 0209).
+List<ManagementTip> shownTips(
+  List<ManagementTip> tips,
+  Set<TipCategory> hidden,
+) => hidden.isEmpty
+    ? tips
+    : [
+        for (final tip in tips)
+          if (!hidden.contains(tip.category ?? TipCategory.other)) tip,
+      ];
+
+/// The category headings, in the timeline's order.
+const Map<TipCategory, String> tipCategoryLabels = {
+  TipCategory.preparation: 'Preparo do solo',
+  TipCategory.crops: 'Culturas',
+  TipCategory.water: 'Água',
+  TipCategory.other: 'Outras práticas',
+};
+
+/// The Dicas tab's filter: one switch per category [present], on unless in
+/// [hidden]. Each change hands the new hidden set to [onChanged] (SPEC 0209).
+Future<void> showTipsFilterSheet(
+  BuildContext context, {
+  required Set<TipCategory> present,
+  required Set<TipCategory> hidden,
+  required ValueChanged<Set<TipCategory>> onChanged,
+}) => showModalBottomSheet<void>(
+  context: context,
+  showDragHandle: true,
+  isScrollControlled: true,
+  builder: (_) =>
+      _TipsFilterSheet(present: present, hidden: hidden, onChanged: onChanged),
+);
+
+class _TipsFilterSheet extends StatefulWidget {
+  const _TipsFilterSheet({
+    required this.present,
+    required this.hidden,
+    required this.onChanged,
+  });
+
+  final Set<TipCategory> present;
+  final Set<TipCategory> hidden;
+  final ValueChanged<Set<TipCategory>> onChanged;
+
+  @override
+  State<_TipsFilterSheet> createState() => _TipsFilterSheetState();
+}
+
+class _TipsFilterSheetState extends State<_TipsFilterSheet> {
+  late Set<TipCategory> _hidden = {...widget.hidden};
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Filtrar dicas', style: theme.textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.sm),
+            if (widget.present.isEmpty)
+              Text(
+                'Estas dicas não têm categorias para filtrar.',
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              SettingsGroup(
+                children: [
+                  for (final MapEntry(key: category, value: label)
+                      in tipCategoryLabels.entries)
+                    if (widget.present.contains(category))
+                      SettingsSwitchTile(
+                        icon: _TipCard.iconFor(category),
+                        title: label,
+                        value: !_hidden.contains(category),
+                        onChanged: (on) {
+                          setState(
+                            () => _hidden = on
+                                ? ({..._hidden}..remove(category))
+                                : {..._hidden, category},
+                          );
+                          widget.onChanged(_hidden);
+                        },
+                      ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The tips on a timeline (redesign v11 §3.9, SPEC 0198, SPEC 0209). When
+/// every tip names its crop phase, the groups are the phases in crop order,
+/// the first marked "Agora" and the second "Próximo". Otherwise they are the
+/// categories, in a fixed order, unmarked.
 class _TipsTimeline extends StatelessWidget {
   const _TipsTimeline({required this.tips, required this.sources});
 
   final List<ManagementTip> tips;
   final List<TipSource> sources;
 
-  static const List<(TipCategory?, String)> _groups = [
-    (TipCategory.preparation, 'Preparo do solo'),
-    (TipCategory.crops, 'Culturas'),
-    (TipCategory.water, 'Água'),
-    (TipCategory.other, 'Outras práticas'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final theme = Theme.of(context);
-    final groups = [
-      for (final (category, heading) in _groups)
-        (
-          heading,
-          tips
-              .where(
-                (tip) =>
-                    tip.category == category ||
-                    // A tip without a known category reads as "other".
-                    (category == TipCategory.other && tip.category == null),
-              )
-              .toList(),
-        ),
-    ].where((group) => group.$2.isNotEmpty).toList();
+    final byPhase = tips.every((tip) => tip.phase != null);
+    final groups = byPhase
+        ? [
+            for (final phase in TipPhase.values)
+              (phase.label, tips.where((tip) => tip.phase == phase).toList()),
+          ].where((group) => group.$2.isNotEmpty).toList()
+        : [
+            for (final MapEntry(key: category, value: heading)
+                in tipCategoryLabels.entries)
+              (
+                heading,
+                tips
+                    .where(
+                      (tip) =>
+                          tip.category == category ||
+                          // A tip without a known category reads as "other".
+                          (category == TipCategory.other &&
+                              tip.category == null),
+                    )
+                    .toList(),
+              ),
+          ].where((group) => group.$2.isNotEmpty).toList();
 
     // A 24 dp gutter with a 12 dp dot, the first filled; 17 sp titles
     // 12 dp after it; 16 dp between groups (PNG 20, SPEC 0205).
@@ -375,13 +503,24 @@ class _TipsTimeline extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          groups[g].$1,
-                          style: AppTypography.resized(
-                            theme.textTheme.titleMedium!,
-                            17,
-                            height: 24 / 17,
-                          ),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: AppSpacing.sm,
+                          children: [
+                            Text(
+                              groups[g].$1,
+                              style: AppTypography.resized(
+                                theme.textTheme.titleMedium!,
+                                17,
+                                height: 24 / 17,
+                              ),
+                            ),
+                            if (byPhase && g < 2)
+                              _PhaseChip(
+                                boxKey: Key('tips-phase-chip-$g'),
+                                now: g == 0,
+                              ),
+                          ],
                         ),
                         for (final tip in groups[g].$2) ...[
                           const SizedBox(height: AppSpacing.sm),
@@ -399,13 +538,52 @@ class _TipsTimeline extends StatelessWidget {
   }
 }
 
+/// "Agora" on the first phase, "Próximo" on the second (PNG 20, SPEC 0209).
+class _PhaseChip extends StatelessWidget {
+  const _PhaseChip({required this.boxKey, required this.now});
+
+  final Key boxKey;
+  final bool now;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Container(
+      key: boxKey,
+      // 24 dp: the 16 dp line and 4 dp above and below it.
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: now ? palette.selected : palette.surfaceContainer,
+        borderRadius: BorderRadius.circular(6),
+        border: palette.highContrast
+            ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
+            : null,
+      ),
+      child: Text(
+        now ? 'Agora' : 'Próximo',
+        style: AppTypography.weighted(
+          AppTypography.resized(
+            Theme.of(context).textTheme.labelMedium!,
+            12,
+            height: 16 / 12,
+          ),
+          600,
+        ).copyWith(color: now ? palette.primaryText : palette.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
 class _TipCard extends StatelessWidget {
   const _TipCard({required this.tip, required this.sources});
 
   final ManagementTip tip;
   final List<TipSource> sources;
 
-  static IconData _iconFor(TipCategory? category) => switch (category) {
+  static IconData iconFor(TipCategory? category) => switch (category) {
     TipCategory.preparation => LucideIcons.tractor,
     TipCategory.crops => LucideIcons.sprout,
     TipCategory.water => LucideIcons.droplets,
@@ -457,7 +635,7 @@ class _TipCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              _iconFor(tip.category),
+              iconFor(tip.category),
               size: 20,
               color: palette.onSurfaceVariant,
             ),
@@ -467,13 +645,34 @@ class _TipCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // A titled tip sets its title over the text in
+                // `onSurfaceVariant` (PNG 20, SPEC 0209).
+                if (tip.title != null) ...[
+                  Text(
+                    tip.title!,
+                    style: AppTypography.weighted(
+                      AppTypography.resized(
+                        theme.textTheme.titleMedium!,
+                        16,
+                        height: 22 / 16,
+                      ),
+                      600,
+                    ).copyWith(color: palette.onSurface),
+                  ),
+                  const SizedBox(height: 2),
+                ],
                 Text(
                   tip.text,
-                  style: AppTypography.resized(
-                    theme.textTheme.bodyMedium!,
-                    15,
-                    height: 20 / 15,
-                  ),
+                  style:
+                      AppTypography.resized(
+                        theme.textTheme.bodyMedium!,
+                        15,
+                        height: 20 / 15,
+                      ).copyWith(
+                        color: tip.title == null
+                            ? null
+                            : palette.onSurfaceVariant,
+                      ),
                 ),
                 if (source != null) ...[
                   const SizedBox(height: AppSpacing.sm),

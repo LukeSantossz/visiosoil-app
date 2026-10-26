@@ -200,6 +200,44 @@ void main() {
     });
   });
 
+  // A tip's title and crop phase reach the result (SPEC 0209).
+  test('composer_passes_title_and_phase', () {
+    final corpus = Corpus.fromJson(
+      {
+        'corpusVersion': 'phases',
+        'disclaimer': 'x',
+        'substance': {
+          'Argilosa|tb_oxidic': {
+            'status': 'grounded',
+            'disclaimer': 'x',
+            'tips': [
+              {
+                'text': 'Entre com máquinas abaixo do ponto de friabilidade.',
+                'citations': [0],
+                'title': 'Evite tráfego com solo úmido',
+                'phase': 'before_planting',
+              },
+            ],
+            'sources': [
+              {'title': 'Guia', 'url': 'https://a'},
+            ],
+          },
+        },
+      },
+      fetchedAt: fetchedAt,
+    );
+
+    final result = const CorpusComposer().compose(
+      corpus: corpus,
+      textureClass: 'Argilosa',
+      site: const SiteKey(clayActivity: ClayActivity.tbOxidic),
+      landUse: null,
+    );
+
+    expect(result.tips.single.title, 'Evite tráfego com solo úmido');
+    expect(result.tips.single.phase, TipPhase.beforePlanting);
+  });
+
   group('corpus parsing', () {
     test('a_corpus_without_optional_sections_parses', () {
       final corpus = Corpus.fromJson(

@@ -468,10 +468,17 @@ void main() {
           retrievedAt: DateTime.utc(2026, 6, 26, 12),
         );
 
-    Future<void> pumpPage(WidgetTester tester, {bool asPage = true}) async {
-      await tester.binding.setSurfaceSize(const Size(390, 2400));
+    Future<void> pumpPage(
+      WidgetTester tester, {
+      bool asPage = true,
+      ManagementTipsResult? result,
+      Set<TipCategory> hiddenCategories = const {},
+      double width = 390,
+    }) async {
+      await tester.binding.setSurfaceSize(Size(width, 2400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      final repo = FakeManagementTipsRepository()..seed('rec-1', twoGroups());
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', result ?? twoGroups());
       await tester.pumpWidget(ProviderScope(
         overrides: [
           managementTipsRepositoryProvider.overrideWithValue(repo),
@@ -485,6 +492,7 @@ void main() {
             body: SingleChildScrollView(
               child: ManagementTipsSection(
                 asPage: asPage,
+                hiddenCategories: hiddenCategories,
                 record: tipsRecord().copyWith(
                   fieldName: 'Talhão 3',
                   sampleLabel: 'Amostra 2',
@@ -556,6 +564,144 @@ void main() {
             ?.fontSize,
         15,
       );
+    });
+
+    // SPEC 0209: phases, titles and the filter.
+    ManagementTipsResult phased() => ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: const [
+            ManagementTip(
+              title: 'Ajuste a lâmina de irrigação',
+              text: 'Prefira turnos mais espaçados.',
+              citations: [0],
+              category: TipCategory.water,
+              phase: TipPhase.sowing,
+            ),
+            ManagementTip(
+              title: 'Evite tráfego com solo úmido',
+              text: 'Entre com máquinas abaixo do ponto de friabilidade.',
+              citations: [0],
+              category: TipCategory.preparation,
+              phase: TipPhase.beforePlanting,
+            ),
+            ManagementTip(
+              title: 'Monitore o encharcamento',
+              text: 'Observe as baixadas após chuvas fortes.',
+              citations: [0],
+              category: TipCategory.water,
+              phase: TipPhase.cropCycle,
+            ),
+          ],
+          sources: const [TipSource(title: 'Guia de solos', url: 'https://a')],
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    testWidgets('phases_group_the_timeline', (tester) async {
+      // Wide enough for the test font to keep each title and its chip on
+      // one line.
+      await pumpPage(tester, result: phased(), width: 800);
+
+      final before = tester.getTopLeft(find.text('Antes do plantio')).dy;
+      final sowing = tester.getTopLeft(find.text('Semeadura')).dy;
+      final cycle = tester.getTopLeft(find.text('Ciclo da cultura')).dy;
+      expect(before, lessThan(sowing));
+      expect(sowing, lessThan(cycle));
+      expect(find.text('Preparo do solo'), findsNothing);
+
+      final now = find.byKey(const Key('tips-phase-chip-0'));
+      final next = find.byKey(const Key('tips-phase-chip-1'));
+      expect(find.descendant(of: now, matching: find.text('Agora')), findsOneWidget);
+      expect(
+        find.descendant(of: next, matching: find.text('Próximo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('tips-phase-chip-2')), findsNothing);
+      expect(tester.getSize(now).height, 24);
+      final nowBox = tester.widget<Container>(now).decoration! as BoxDecoration;
+      final nextBox = tester.widget<Container>(next).decoration! as BoxDecoration;
+      expect(nowBox.color, AppPalette.light.selected);
+      expect(nextBox.color, AppPalette.light.surfaceContainer);
+      final label = tester.widget<Text>(find.text('Agora'));
+      expect(label.style?.fontSize, 12);
+      expect(label.style?.color, AppPalette.light.primaryText);
+      expect(
+        tester.getTopLeft(now).dx -
+            tester.getTopRight(find.text('Antes do plantio')).dx,
+        8,
+      );
+    });
+
+    testWidgets('categories_group_without_phases', (tester) async {
+      await pumpPage(tester);
+
+      expect(find.text('Preparo do solo'), findsOneWidget);
+      expect(find.text('Agora'), findsNothing);
+      expect(find.text('Próximo'), findsNothing);
+    });
+
+    testWidgets('titled_card_matches_the_mock', (tester) async {
+      await pumpPage(tester, result: phased());
+
+      final title = tester.widget<Text>(find.text('Evite tráfego com solo úmido'));
+      expect(title.style?.fontSize, 16);
+      expect(title.style?.fontWeight, FontWeight.w600);
+      expect(title.style?.color, AppPalette.light.onSurface);
+      final body = tester.widget<Text>(
+        find.text('Entre com máquinas abaixo do ponto de friabilidade.'),
+      );
+      expect(body.style?.fontSize, 15);
+      expect(body.style?.color, AppPalette.light.onSurfaceVariant);
+      expect(
+        tester
+                .getTopLeft(
+                  find.text('Entre com máquinas abaixo do ponto de friabilidade.'),
+                )
+                .dy -
+            tester.getBottomLeft(find.text('Evite tráfego com solo úmido')).dy,
+        2,
+      );
+    });
+
+    testWidgets('filter_hides_a_category', (tester) async {
+      await pumpPage(
+        tester,
+        result: phased(),
+        hiddenCategories: const {TipCategory.water},
+      );
+
+      expect(find.text('Evite tráfego com solo úmido'), findsOneWidget);
+      expect(find.text('Ajuste a lâmina de irrigação'), findsNothing);
+      expect(find.text('Monitore o encharcamento'), findsNothing);
+      expect(find.text('1 dicas'), findsOneWidget);
+    });
+
+    testWidgets('filter_sheet_toggles_a_category', (tester) async {
+      Set<TipCategory>? chosen;
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showTipsFilterSheet(
+              context,
+              present: const {TipCategory.preparation, TipCategory.water},
+              hidden: const {},
+              onChanged: (hidden) => chosen = hidden,
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filtrar dicas'), findsOneWidget);
+      expect(find.text('Preparo do solo'), findsOneWidget);
+      await tester.tap(find.text('Água'));
+      await tester.pumpAndSettle();
+
+      expect(chosen, {TipCategory.water});
     });
   });
 }

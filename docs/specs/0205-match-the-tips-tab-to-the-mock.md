@@ -32,7 +32,7 @@ Measured on the 2× PNG 20, 2 px to the dp.
 - **Timeline.**
   - A 24 dp gutter holds a 12 dp dot centred 12 dp in: the first group's dot is filled with `primary`, the others are `surface` with a 2 dp `outline` ring. A 1 dp `divider` rule joins the dots.
   - Group titles are 17 sp weight 600, 12 dp after the gutter, with 8 dp to their first card and 16 dp between groups.
-  - The mock's "Agora" and "Próximo" chips are left out. Tips carry a category, not a crop phase (SPEC 0198), and §11 forbids inventing one.
+  - The mock's "Agora" and "Próximo" chips, its titled cards and its filter follow in SPEC 0209, which gives a tip an optional title and crop phase. On category groups the chips stay out, since a category is not a crop phase (SPEC 0198) and §11 forbids inventing one.
 - **Tip card.**
   - On `surface`, radius 16, with a 1 dp `divider` border (2 dp `cardBorder` in Modo Sol) and 12 dp padding. Cards are 8 dp apart.
   - A 40 dp `surfaceContainer` tile with radius 10 holds a 20 dp Lucide icon in `onSurfaceVariant`: `tractor` (preparo), `sprout` (culturas), `droplets` (água) or `lightbulb` (outras).
