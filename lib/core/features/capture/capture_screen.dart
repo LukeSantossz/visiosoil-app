@@ -606,6 +606,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   ({String fieldName, String sampleLabel})? _draftLabels;
 
   Future<void> _editDraftLabels(SoilRecord draft) async {
+    // A save has already taken the labels it writes (review of #436).
+    if (_state.isSaving) return;
     final labels = await showLabelsDialog(context, draft);
     if (labels == null || !mounted) return;
     setState(() => _draftLabels = labels);

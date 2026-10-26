@@ -520,7 +520,9 @@ class ResultFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stacked = MediaQuery.textScalerOf(context).scale(1) >= 1.3;
+    // Stacked from 1.3x text and at 360 dp or less, where the labels would
+    // otherwise shrink (§8, §10; review of #436).
+    final stacked = resultStacks(context);
     final correct = VisioButton(
       label: AppStrings.resultCorrect,
       icon: LucideIcons.pencil,
