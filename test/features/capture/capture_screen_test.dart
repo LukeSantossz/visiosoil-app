@@ -670,7 +670,7 @@ void main() {
         pickFromCamera: () async => XFile(samplePath),
         locate: () async => null,
         classify: (_) async => null,
-        repository: FakeSoilRecordRepository(),
+        repository: _StoringRepository(),
         overrides: [
           initialSaveToGalleryProvider.overrideWithValue(true),
           gallerySaverProvider.overrideWithValue(gallery),
@@ -679,8 +679,8 @@ void main() {
 
       await captureAndSave(tester);
 
-      // The fake repository keeps the path it was given as the stored one.
-      expect(gallery.saved, [samplePath]);
+      // The stored copy, not the picker's file (review of #438).
+      expect(gallery.saved, [_StoringRepository.storedPath]);
     });
 
     testWidgets('gallery_off_copies_nothing', (tester) async {
@@ -2260,4 +2260,14 @@ void main() {
       });
     }
   });
+}
+
+/// Saves each record under another path, as the image store does, so a test
+/// can tell the stored photograph from the picker's file.
+class _StoringRepository extends FakeSoilRecordRepository {
+  static const storedPath = '/stored/sample.jpg';
+
+  @override
+  Future<SoilRecord> create(SoilRecord record) =>
+      super.create(record.copyWith(imagePath: storedPath));
 }
