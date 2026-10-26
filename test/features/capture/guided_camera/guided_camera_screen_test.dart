@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
-import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 import '../../../support/guided_camera_harness.dart';
 
@@ -190,12 +189,14 @@ void main() {
     expect(h.popped, [isNull]);
   });
 
-  testWidgets('the_banner_uses_each_roles_container', (tester) async {
+  // PNG 10 draws one neutral pill whatever the guidance says; the tone
+  // stays in the chips, the brackets and the level (SPEC 0211).
+  testWidgets('the_pill_is_neutral_in_every_tone', (tester) async {
     final h = await openGuidedCamera(tester);
-    final palette = AppPalette.light;
-    Color background() => tester
-        .widget<Container>(find.byKey(const ValueKey('guided-camera-banner')))
-        .color!;
+    Color? background() => (tester
+            .widget<Container>(find.byKey(const ValueKey('guided-camera-banner')))
+            .decoration as BoxDecoration?)
+        ?.color;
     Color ink() => tester
         .widget<Text>(find.descendant(
           of: find.byKey(const ValueKey('guided-camera-banner')),
@@ -204,15 +205,10 @@ void main() {
         .style!
         .color!;
 
-    expect((background(), ink()),
-        (palette.surfaceVariant, palette.onSurfaceVariant));
-    for (final (degrees, container, onContainer) in [
-      (0.0, palette.primaryContainer, palette.onPrimaryContainer),
-      (8.0, palette.warningContainer, palette.onWarningContainer),
-      (20.0, palette.errorContainer, palette.onErrorContainer),
-    ]) {
+    for (final degrees in [0.0, 8.0, 20.0]) {
       await tiltTo(tester, h, degrees);
-      expect((background(), ink()), (container, onContainer), reason: '$degrees');
+      expect((background(), ink()), (const Color(0xD1000000), Colors.white),
+          reason: '$degrees');
     }
   });
 

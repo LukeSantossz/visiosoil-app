@@ -25,8 +25,8 @@ const _originY = (844 - _shownHeight) / 2;
 
 final _layout = CaptureGuideLayout.compute(
   _screen,
-  topInset: GuidedCameraScreen.bannerHeight,
-  bottomInset: GuidedCameraScreen.footerHeight,
+  topInset: GuidedCameraScreen.topInset,
+  bottomInset: GuidedCameraScreen.bottomInset,
   preview: const Rect.fromLTWH(0, _originY, 390, _shownHeight),
 );
 final _outline = _layout.outline;

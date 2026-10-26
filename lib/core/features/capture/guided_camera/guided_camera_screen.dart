@@ -7,6 +7,7 @@ import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_quality.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
@@ -29,6 +30,7 @@ import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
@@ -42,8 +44,16 @@ import 'package:visiosoil_app/providers/guided_camera_provider.dart';
 class GuidedCameraScreen extends ConsumerStatefulWidget {
   const GuidedCameraScreen({super.key});
 
-  static const double bannerHeight = 72;
-  static const double footerHeight = 140;
+  /// The bar, then the guidance pill and 12 dp either side of it, above the
+  /// outline (SPEC 0211).
+  static const double topInset = barHeight + pillGap + pillHeight + pillGap;
+
+  /// The black panel holding the chips, the shutter row and the caption.
+  static const double bottomInset = 215;
+
+  static const double barHeight = 64;
+  static const double pillHeight = 28;
+  static const double pillGap = 12;
 
   @override
   ConsumerState<GuidedCameraScreen> createState() => _GuidedCameraScreenState();
@@ -53,7 +63,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   LiveQuality? _quality;
   LiveQuality? _shownQuality;
-  Map<String, String>? _failures;
+  ({List<String> causes, List<String> corrections})? _failures;
   Set<String> _failedChips = {};
   Timer? _alertTimer;
   Timer? _flashTimer;
@@ -521,8 +531,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       // The overlay is laid out inside the safe area.
       layout: CaptureGuideLayout.compute(
         padding.deflateSize(screen),
-        topInset: GuidedCameraScreen.bannerHeight,
-        bottomInset: GuidedCameraScreen.footerHeight,
+        topInset: GuidedCameraScreen.topInset,
+        bottomInset: GuidedCameraScreen.bottomInset,
         preview: preview,
       ),
       // The preview is drawn whole, so leaving it is leaving the frame.
@@ -762,7 +772,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }) => VisioIconButton(
     label: label,
     icon: icon,
-    overPhoto: true,
+    // White on the scrim or its own disc, without the photo scrim (PNG 10).
+    color: Colors.white,
     onPressed: _shooting || _controlsBusy ? null : onPressed,
   );
 
@@ -887,26 +898,34 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       unawaited(_shoot());
       return;
     }
-    final failures = <String, String>{};
+    // The causes in the chips' order, the corrections as PNG 12 lists them:
+    // light, distance, focus.
+    final causes = <String>[];
+    final corrections = <String>[];
     final chips = <String>{};
     if (_quality != null && !_quality!.lightOk) {
-      failures[_quality!.tooBright ? 'Luz excessiva' : 'Pouca luz'] =
-          'Procure sombra clara';
+      causes.add(_quality!.tooBright ? 'Luz excessiva' : 'Pouca luz');
+      corrections.add('Procure sombra clara');
       chips.add('Luz');
     }
     if (_quality != null && !_quality!.focusOk) {
-      failures['fora de foco'] = 'segure firme';
+      causes.add('fora de foco');
       chips.add('Foco');
     }
     if (_shownReading != null && row != GuidanceRow.ready) {
       final close =
           row == GuidanceRow.sheetCropped ||
           _shownAlignment?.fix == MisalignmentFix.farther;
-      failures[close ? 'perto demais' : 'longe demais'] = close
-          ? 'afaste até a folha caber na moldura'
-          : 'aproxime até a amostra preencher a moldura';
+      causes.add(close ? 'perto demais' : 'longe demais');
+      corrections.add(
+        close
+            ? 'afaste até a folha caber na moldura'
+            : 'aproxime até a amostra preencher a moldura',
+      );
       chips.add('Distância');
     }
+    if (chips.contains('Foco')) corrections.add('segure firme');
+    final failures = (causes: causes, corrections: corrections);
     setState(() {
       _failures = failures;
       _failedChips = chips;
@@ -949,6 +968,13 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     final alignment = _shownAlignment;
     final croppedSides = croppedSidesOf(reading, alignment);
     final cropped = reading is LiveSheetCropped || croppedSides.isNotEmpty;
+    final previewRect = camera == null
+        ? null
+        : previewRectOnOverlay(
+            previewSize: camera.previewSize,
+            screenSize: MediaQuery.sizeOf(context),
+            safePadding: MediaQuery.paddingOf(context),
+          );
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -973,18 +999,30 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                 color: Color(0x8CFFFFFF),
               ),
             ),
+          // PNG 10's scrim under the bar: black at 90 % fading out by 135 dp.
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 135,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xE6000000), Color(0x00000000)],
+                  ),
+                ),
+              ),
+            ),
+          ),
           if (_guide)
             SafeArea(
               child: CaptureGuideOverlay(
-                preview: camera == null
-                    ? null
-                    : previewRectOnOverlay(
-                        previewSize: camera.previewSize,
-                        screenSize: MediaQuery.sizeOf(context),
-                        safePadding: MediaQuery.paddingOf(context),
-                      ),
-                topInset: GuidedCameraScreen.bannerHeight,
-                bottomInset: GuidedCameraScreen.footerHeight,
+                preview: previewRect,
+                topInset: GuidedCameraScreen.topInset,
+                bottomInset: GuidedCameraScreen.bottomInset,
                 tilt: _tilt,
                 direction: _smoother.direction,
                 brackets: cropped
@@ -1002,115 +1040,131 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                 warning: cropped ? croppedWarning(croppedSides) : null,
               ),
             ),
+          // The pill keeps PNG 10's place against the frame: 12 dp above it.
+          if (_guide)
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final layout = CaptureGuideLayout.compute(
+                    constraints.biggest,
+                    topInset: GuidedCameraScreen.topInset,
+                    bottomInset: GuidedCameraScreen.bottomInset,
+                    preview: previewRect,
+                  );
+                  return Stack(
+                    children: [
+                      Positioned(
+                        left: AppSpacing.lg,
+                        right: AppSpacing.lg,
+                        bottom:
+                            constraints.maxHeight -
+                            layout.outline.top +
+                            GuidedCameraScreen.pillGap,
+                        child: Center(child: _GuidancePill(guidance: guidance)),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           SafeArea(
             child: Column(
               children: [
-                ColoredBox(
-                  color: Colors.black54,
+                SizedBox(
+                  height: GuidedCameraScreen.barHeight,
                   child: Row(
                     children: [
-                      VisioIconButton(
-                        key: const ValueKey('guided-camera-close'),
-                        label: 'Voltar',
-                        icon: Icons.arrow_back,
-                        overPhoto: true,
-                        onPressed: () =>
-                            _pop(const GuidedCaptureResult.cancelled()),
+                      SizedBox(
+                        width: 56,
+                        child: Center(
+                          child: VisioIconButton(
+                            key: const ValueKey('guided-camera-close'),
+                            label: 'Fechar',
+                            icon: LucideIcons.x,
+                            color: Colors.white,
+                            onPressed: () =>
+                                _pop(const GuidedCaptureResult.cancelled()),
+                          ),
+                        ),
                       ),
-                      const Expanded(
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
                         child: Text(
                           'Nova análise',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          key: const ValueKey('guided-camera-title'),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleLarge?.copyWith(color: Colors.white),
                         ),
                       ),
                       _control(
                         label: 'Como fotografar',
-                        icon: Icons.info_outline,
+                        icon: LucideIcons.info,
                         onPressed: _openGuide,
                       ),
+                      const SizedBox(width: AppSpacing.xs),
                     ],
                   ),
                 ),
-                if (_guide) _GuidanceBanner(guidance: guidance),
                 Expanded(
                   child: Align(
                     alignment: Alignment.bottomCenter,
+                    // Unclipped, so the refusal card can float above the
+                    // panel over the preview (PNG 12).
                     child: SingleChildScrollView(
-                      child: Container(
-                        color: Colors.black,
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 560),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_failures != null) ...[
-                                  CaptureAlert(failures: _failures!),
-                                  const SizedBox(height: AppSpacing.sm),
-                                ],
-                                if (_guide) ...[
-                                  _qualityChips(shown.row),
-                                  const SizedBox(height: AppSpacing.lg),
-                                ],
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
+                      clipBehavior: Clip.none,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            color: Colors.black,
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 560,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    AnimatedBuilder(
-                                      animation: _shake,
-                                      builder: (context, child) =>
-                                          Transform.translate(
-                                            key: const ValueKey(
-                                              'guided-camera-shake',
-                                            ),
-                                            offset: Offset(
-                                              math.sin(
-                                                    _shake.value * math.pi * 6,
-                                                  ) *
-                                                  8 *
-                                                  (1 - _shake.value),
-                                              0,
-                                            ),
-                                            child: child,
-                                          ),
-                                      child: _Shutter(
-                                        enabled:
-                                            _camera != null &&
-                                            !_shooting &&
-                                            !_controlsBusy &&
-                                            _canCapture(shown.row),
-                                        shooting: _shooting,
-                                        onTap: () => _onShutter(shown.row),
-                                        windowOpenedAt: _trigger.windowOpenedAt,
-                                        clock: _clock,
+                                    if (_guide) ...[
+                                      _qualityChips(shown.row),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    _shutterRow(shown.row, camera),
+                                    if (_guide) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      const Text(
+                                        'Captura liberada quando os 3 itens estiverem ok',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: _CameraInk.muted,
+                                          fontSize: 12,
+                                          height: 16 / 12,
+                                        ),
                                       ),
-                                    ),
-                                    _control(
-                                      label: 'Trocar câmera',
-                                      icon: Icons.flip_camera_ios_outlined,
-                                      onPressed: camera?.canSwitchCamera == true
-                                          ? () => _changeCamera()
-                                          : null,
-                                    ),
+                                    ],
                                   ],
                                 ),
-                                if (_guide) ...[
-                                  const SizedBox(height: AppSpacing.sm),
-                                  const Text(
-                                    'Captura liberada quando os 3 itens estiverem ok',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                          // Floats 7 dp above the chips, over the preview (PNG 12).
+                          if (_failures != null)
+                            Positioned(
+                              left: AppSpacing.lg,
+                              right: AppSpacing.lg,
+                              top: 9,
+                              child: FractionalTranslation(
+                                translation: const Offset(0, -1),
+                                child: CaptureAlert(
+                                  causes: _failures!.causes,
+                                  corrections: _failures!.corrections,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -1122,35 +1176,93 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       ),
     );
   }
+
+  /// The shutter centred, the camera switch centred 64 dp from the right
+  /// edge (PNG 10). The gallery slot on the left stays empty: capture is
+  /// camera-only (SPEC 0211).
+  Widget _shutterRow(GuidanceRow row, CaptureCamera? camera) {
+    final shutter = AnimatedBuilder(
+      animation: _shake,
+      builder: (context, child) => Transform.translate(
+        key: const ValueKey('guided-camera-shake'),
+        offset: Offset(
+          math.sin(_shake.value * math.pi * 6) * 8 * (1 - _shake.value),
+          0,
+        ),
+        child: child,
+      ),
+      child: _Shutter(
+        enabled:
+            _camera != null && !_shooting && !_controlsBusy && _canCapture(row),
+        shooting: _shooting,
+        onTap: () => _onShutter(row),
+        windowOpenedAt: _trigger.windowOpenedAt,
+        clock: _clock,
+      ),
+    );
+    return SizedBox(
+      height: context.density.shutter,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          OverflowBox(maxWidth: 92, maxHeight: 92, child: shutter),
+          // 64 dp from the screen's edge is 48 dp from the panel's.
+          Positioned(
+            right: 48 - 24,
+            child: Container(
+              key: const ValueKey('guided-camera-switch'),
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: _CameraInk.control,
+              ),
+              child: _control(
+                label: 'Trocar câmera',
+                icon: LucideIcons.refreshCw,
+                onPressed: camera?.canSwitchCamera == true
+                    ? () => _changeCamera()
+                    : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _GuidanceBanner extends StatelessWidget {
-  const _GuidanceBanner({required this.guidance});
+/// The camera's own dark chrome, measured on PNG 10 to 12 (SPEC 0211). The
+/// camera draws it in every theme, as it draws its black panel.
+abstract final class _CameraInk {
+  static const muted = Color(0xFFBDBDBD);
+  static const control = Color(0xFF262626);
+  static const pill = Color(0xD1000000);
+}
+
+class _GuidancePill extends StatelessWidget {
+  const _GuidancePill({required this.guidance});
 
   final Guidance guidance;
 
   @override
   Widget build(BuildContext context) {
-    final colours = guidanceColors(guidance.tone, context.palette);
     return Container(
       key: const ValueKey('guided-camera-banner'),
-      height: GuidedCameraScreen.bannerHeight,
-      color: colours.background,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Icon(guidance.icon, color: colours.foreground),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              guidance.message,
-              style: TextStyle(
-                color: colours.foreground,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: _CameraInk.pill,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        guidance.message,
+        textAlign: TextAlign.center,
+        style: AppTypography.resized(
+          Theme.of(context).textTheme.bodyMedium!,
+          14,
+          height: 20 / 14,
+        ).copyWith(color: Colors.white),
       ),
     );
   }
@@ -1233,22 +1345,49 @@ class _Shutter extends StatelessWidget {
                     ? .86
                     : 1,
                 duration: AppMotion.durationOf(context, AppMotion.instant),
-                child: Container(
-                  width: context.density.shutter,
-                  height: context.density.shutter,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: enabled || shooting ? Colors.white : Colors.grey,
-                    border: Border.all(
-                      color: enabled ? context.palette.primary : Colors.white70,
-                      width: 4,
-                    ),
-                  ),
+                child: _ShutterFace(
+                  size: context.density.shutter,
+                  lit: enabled || shooting,
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// PNG 10's shutter: a 4 dp ring, a 4 dp gap and the disc, grey while held
+/// and white once enabled (SPEC 0211).
+class _ShutterFace extends StatelessWidget {
+  const _ShutterFace({required this.size, required this.lit});
+
+  final double size;
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('guided-camera-shutter-ring'),
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: lit ? Colors.white : const Color(0xFF666666),
+          width: 4,
+        ),
+      ),
+      child: Container(
+        key: const ValueKey('guided-camera-shutter-disc'),
+        width: size - 16,
+        height: size - 16,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: lit ? Colors.white : const Color(0xFF555555),
+        ),
       ),
     );
   }

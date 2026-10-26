@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
@@ -377,6 +378,23 @@ void main() {
       }
     }
 
+    // PNG 13 draws the result's lattice behind the bar while it classifies
+    // (SPEC 0211).
+    testWidgets('processing_draws_the_result_lattice', (tester) async {
+      final gate = Completer<InferenceResult?>();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) => gate.future,
+      ));
+
+      await capture(tester);
+      expect(find.byType(ResultLattice), findsOneWidget);
+
+      gate.complete(null);
+      await settle(tester);
+    });
+
     testWidgets('phases_are_named', (tester) async {
       final gate = Completer<InferenceResult?>();
       final inference = _FakeInference((_) => gate.future);
@@ -388,20 +406,20 @@ void main() {
       ));
 
       await capture(tester);
-      expect(find.text('Classificando...'), findsOneWidget);
+      expect(_phase('Classificando...'), findsOneWidget);
 
       // Each phase crossfades into the next over AppMotion.base (SPEC 0134).
       inference.phaseCallbacks.single!(ClassificationPhase.findingSheet);
       await settle(tester);
       await tester.pump(AppMotion.base);
-      expect(find.text('Procurando a folha A4...'), findsOneWidget);
-      expect(find.text('Classificando...'), findsNothing);
+      expect(_phase('Procurando a folha A4...'), findsOneWidget);
+      expect(_phase('Classificando...'), findsNothing);
 
       inference.phaseCallbacks.single!(ClassificationPhase.describingTexture);
       await settle(tester);
       await tester.pump(AppMotion.base);
-      expect(find.text('Descrevendo a textura...'), findsOneWidget);
-      expect(find.text('Procurando a folha A4...'), findsNothing);
+      expect(_phase('Descrevendo a textura...'), findsOneWidget);
+      expect(_phase('Procurando a folha A4...'), findsNothing);
 
       gate.complete(null);
       await settle(tester);
@@ -422,11 +440,11 @@ void main() {
       await settle(tester);
 
       expect(
-        find.ancestor(
-          of: find.text('Calculando a classe...'),
-          matching: find.byWidgetPredicate(
-            (widget) => widget is Semantics && widget.properties.liveRegion == true,
-          ),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.liveRegion == true &&
+              widget.properties.label == 'Calculando a classe...',
         ),
         findsOneWidget,
       );
@@ -456,11 +474,11 @@ void main() {
 
       inference.phaseCallbacks.first!(ClassificationPhase.scoring);
       await settle(tester);
-      expect(find.text('Calculando a classe...'), findsNothing);
+      expect(_phase('Calculando a classe...'), findsNothing);
 
       inference.phaseCallbacks.last!(ClassificationPhase.findingSheet);
       await settle(tester);
-      expect(find.text('Procurando a folha A4...'), findsOneWidget);
+      expect(_phase('Procurando a folha A4...'), findsOneWidget);
 
       first.complete(null);
       second.complete(null);
@@ -2261,6 +2279,11 @@ void main() {
     }
   });
 }
+
+/// The processing screen's phase, read aloud and not drawn (SPEC 0211).
+Finder _phase(String label) => find.byWidgetPredicate(
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 /// Saves each record under another path, as the image store does, so a test
 /// can tell the stored photograph from the picker's file.

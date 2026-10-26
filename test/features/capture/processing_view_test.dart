@@ -55,7 +55,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('Diagrama ilustrativo'), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
       expect(
         find.bySemanticsLabel('Diagrama do triângulo textural'),
         findsOneWidget,
@@ -118,6 +118,27 @@ void main() {
         semantics.dispose();
       },
     );
+    testWidgets('${entry.key} class chip grows with large text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: entry.value,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              textScaler: TextScaler.linear(2),
+              disableAnimations: true,
+            ),
+            child: const Scaffold(
+              body: ProcessingView(highlightClass: 'Argilosa'),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      // The label's 16 dp line doubles; a fixed 24 dp chip cut it to 16.
+      expect(tester.getSize(find.text('Argilosa')).height, 32);
+    });
   }
   testWidgets('enabling the application motion preference stops particles', (
     tester,

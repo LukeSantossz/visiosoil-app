@@ -16,6 +16,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/capture_image_previe
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/gallery_saver.dart';
@@ -790,95 +791,114 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) _discardOnLeave();
       },
-      child: Scaffold(
-        appBar: VisioAppBar(
-          title: _state.isClassifying ? 'Resultado' : 'Nova captura',
-          centerTitle: !_state.isClassifying,
-          leading: _state.isClassifying
-              ? VisioIconButton(
-                  label: 'Descartar',
-                  icon: Icons.arrow_back,
-                  onPressed: _discardImage,
-                )
-              : null,
-          actions: _state.isClassifying
-              ? []
-              : [
-                  // The protocol on demand; it returns here and opens no camera
-                  // (SPEC 0142).
-                  VisioIconButton(
-                    label: 'Como capturar',
-                    icon: Icons.help_outline,
-                    onPressed: () => context.push('/capture-guide'),
-                  ),
-                ],
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _state.isClassifying
-                      ? ProcessingView(
-                          key: ValueKey(_state.generation),
-                          highlightClass: _processingClass,
-                          phaseLabel: switch (_state.classificationPhase) {
-                            null => 'Classificando...',
-                            ClassificationPhase.readingPhotograph =>
-                              'Lendo a foto...',
-                            ClassificationPhase.findingSheet =>
-                              'Procurando a folha A4...',
-                            ClassificationPhase.describingTexture =>
-                              'Descrevendo a textura...',
-                            ClassificationPhase.scoring =>
-                              'Calculando a classe...',
-                          },
-                          onSettled: () {
-                            final settlement = _settlement;
-                            if (settlement != null && !settlement.isCompleted) {
-                              settlement.complete();
-                            }
-                          },
-                        )
-                      : CaptureImagePreview(
-                          image: image,
-                          // Cut once the classification is done, so the two do not
-                          // compete for the phone (SPEC 0172).
-                          sample: image == null || _state.isClassifying
-                              ? null
-                              : ref.watch(soilSampleProvider(image.path)).value,
-                          isLoading: _state.isLocating,
-                          isClassifying: _state.isClassifying,
-                          classificationPhase: _state.classificationPhase,
-                          address: _state.address,
-                          latitude: _state.latitude,
-                          longitude: _state.longitude,
-                          classificationResult: _state.classificationResult,
-                          classificationFailed: _state.classificationFailed,
-                          classificationFailureCause:
-                              _state.classificationFailureCause,
-                          onRetryClassification: _retryClassification,
-                        ),
+      child: Stack(
+        children: [
+          // PNG 13 draws the result's lattice behind the bar while the
+          // photograph is classified (SPEC 0211).
+          if (_state.isClassifying) ...[
+            Positioned.fill(
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+              ),
+            ),
+            const Positioned(top: 0, left: 0, right: 0, child: ResultLattice()),
+          ],
+          Scaffold(
+            backgroundColor: _state.isClassifying ? Colors.transparent : null,
+            appBar: VisioAppBar(
+              backgroundColor: _state.isClassifying ? Colors.transparent : null,
+              title: _state.isClassifying ? 'Resultado' : 'Nova captura',
+              centerTitle: !_state.isClassifying,
+              leading: _state.isClassifying
+                  ? VisioIconButton(
+                      label: 'Descartar',
+                      icon: Icons.arrow_back,
+                      onPressed: _discardImage,
+                    )
+                  : null,
+              actions: _state.isClassifying
+                  ? []
+                  : [
+                      // The protocol on demand; it returns here and opens no camera
+                      // (SPEC 0142).
+                      VisioIconButton(
+                        label: 'Como capturar',
+                        icon: Icons.help_outline,
+                        onPressed: () => context.push('/capture-guide'),
+                      ),
+                    ],
+            ),
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _state.isClassifying
+                          ? ProcessingView(
+                              key: ValueKey(_state.generation),
+                              highlightClass: _processingClass,
+                              phaseLabel: switch (_state.classificationPhase) {
+                                null => 'Classificando...',
+                                ClassificationPhase.readingPhotograph =>
+                                  'Lendo a foto...',
+                                ClassificationPhase.findingSheet =>
+                                  'Procurando a folha A4...',
+                                ClassificationPhase.describingTexture =>
+                                  'Descrevendo a textura...',
+                                ClassificationPhase.scoring =>
+                                  'Calculando a classe...',
+                              },
+                              onSettled: () {
+                                final settlement = _settlement;
+                                if (settlement != null &&
+                                    !settlement.isCompleted) {
+                                  settlement.complete();
+                                }
+                              },
+                            )
+                          : CaptureImagePreview(
+                              image: image,
+                              // Cut once the classification is done, so the two do not
+                              // compete for the phone (SPEC 0172).
+                              sample: image == null || _state.isClassifying
+                                  ? null
+                                  : ref
+                                        .watch(soilSampleProvider(image.path))
+                                        .value,
+                              isLoading: _state.isLocating,
+                              isClassifying: _state.isClassifying,
+                              classificationPhase: _state.classificationPhase,
+                              address: _state.address,
+                              latitude: _state.latitude,
+                              longitude: _state.longitude,
+                              classificationResult: _state.classificationResult,
+                              classificationFailed: _state.classificationFailed,
+                              classificationFailureCause:
+                                  _state.classificationFailureCause,
+                              onRetryClassification: _retryClassification,
+                            ),
+                    ),
+                    if (!_state.isClassifying) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      CaptureActions(
+                        hasImage: hasImage,
+                        // Location is optional, so Save does not wait for it; a record
+                        // saved first has no coordinates (SPEC 0117).
+                        isBusy: _state.isClassifying || _state.isSaving,
+                        onCapture: _pickImage,
+                        onSave: _saveRecord,
+                        onRetake: _pickImage,
+                        onDiscard: _discardImage,
+                      ),
+                    ],
+                  ],
                 ),
-                if (!_state.isClassifying) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  CaptureActions(
-                    hasImage: hasImage,
-                    // Location is optional, so Save does not wait for it; a record
-                    // saved first has no coordinates (SPEC 0117).
-                    isBusy: _state.isClassifying || _state.isSaving,
-                    onCapture: _pickImage,
-                    onSave: _saveRecord,
-                    onRetake: _pickImage,
-                    onDiscard: _discardImage,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
