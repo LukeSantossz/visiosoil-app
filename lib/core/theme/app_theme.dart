@@ -34,9 +34,9 @@ abstract final class AppTheme {
     // which carry an explicit `textStyle` the ambient `TextTheme` cannot
     // reach — read the sun sizes too, not the base (unscaled) ones.
     final sunLabelLarge = WidgetStatePropertyAll(
-      AppTypography.labelLarge.copyWith(fontSize: 17),
+      AppTypography.resized(AppTypography.labelLarge, 17),
     );
-    final sunLabelMedium = AppTypography.labelMedium.copyWith(fontSize: 14);
+    final sunLabelMedium = AppTypography.resized(AppTypography.labelMedium, 14);
     return base.copyWith(
       extensions: [AppPalette.sun, AppDensity.sun],
       materialTapTargetSize: MaterialTapTargetSize.padded,

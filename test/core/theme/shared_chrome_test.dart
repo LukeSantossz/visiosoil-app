@@ -39,19 +39,56 @@ void main() {
   // The bundled static Inter has no single-storey "a" (cv11); the mocks
   // set it, so every role reads InterVariable at an optical size equal to
   // its font size, as a browser sets it (SPEC 0201).
+  // Modo Sol's larger sizes recompute the axis too (review of #435).
+  void expectOpticalSize(TextStyle? style, String reason) {
+    expect(style?.fontFamily, 'InterVariable', reason: reason);
+    expect(
+      style?.fontVariations,
+      contains(FontVariation('opsz', style!.fontSize!.clamp(14, 32))),
+      reason: reason,
+    );
+  }
+
   test('every_style_is_the_variable_inter_at_its_optical_size', () {
-    final theme = AppTypography.textThemeFor(AppPalette.light);
-    for (final style in [
-      theme.headlineMedium,
-      theme.titleLarge,
-      theme.bodyMedium,
-      theme.labelSmall,
+    for (final palette in [
+      AppPalette.light,
+      AppPalette.lightHighContrast,
+      AppPalette.sun,
     ]) {
-      expect(style?.fontFamily, 'InterVariable');
-      expect(
-        style?.fontVariations,
-        contains(FontVariation('opsz', style!.fontSize!.clamp(14, 32))),
-      );
+      final theme = AppTypography.textThemeFor(palette);
+      for (final (name, style) in [
+        ('displaySmall', theme.displaySmall),
+        ('headlineLarge', theme.headlineLarge),
+        ('headlineMedium', theme.headlineMedium),
+        ('headlineSmall', theme.headlineSmall),
+        ('titleLarge', theme.titleLarge),
+        ('titleMedium', theme.titleMedium),
+        ('titleSmall', theme.titleSmall),
+        ('bodyLarge', theme.bodyLarge),
+        ('bodyMedium', theme.bodyMedium),
+        ('bodySmall', theme.bodySmall),
+        ('labelLarge', theme.labelLarge),
+        ('labelMedium', theme.labelMedium),
+        ('labelSmall', theme.labelSmall),
+      ]) {
+        expectOpticalSize(style, '${palette.brightness} $name');
+      }
+    }
+  });
+
+  test('sun_button_and_navigation_labels_are_at_their_optical_size', () {
+    final sun = AppTheme.sun;
+    for (final (name, style) in [
+      ('elevated', sun.elevatedButtonTheme.style?.textStyle?.resolve({})),
+      ('outlined', sun.outlinedButtonTheme.style?.textStyle?.resolve({})),
+      ('text', sun.textButtonTheme.style?.textStyle?.resolve({})),
+      ('nav', sun.navigationBarTheme.labelTextStyle?.resolve({})),
+      (
+        'nav selected',
+        sun.navigationBarTheme.labelTextStyle?.resolve({WidgetState.selected}),
+      ),
+    ]) {
+      expectOpticalSize(style, name);
     }
   });
 

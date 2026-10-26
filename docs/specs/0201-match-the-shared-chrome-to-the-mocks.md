@@ -13,6 +13,7 @@ The Developer asked on 2026-10-26 that every screen follow the redesign v11 mock
 - **Typography.** Every `AppTypography` style uses the bundled InterVariable, and Manrope is retired.
   - The mocks set Inter's single-storey "a" (`cv11`), which the bundled static Inter files do not carry. They are also rendered at an optical size equal to the font size, as a browser does.
   - Each style therefore sets the `opsz` axis to its size, clamped to 14–32, and its weight through `fontWeight`, which the engine maps to the `wght` axis.
+  - A style resized from another, as Modo Sol's larger sizes are, moves `opsz` with it through `AppTypography.resized`.
   - Only a weight between the named ones (650) names `wght` itself, and `AppTypography.weighted` sets such a weight on a derived style.
   - Measured against the mocks this way, text widths match within 1 %.
   - `headlineLarge` and `headlineSmall` move to Inter at weight 650, 32/40 and 22/28, with tracking −0.025 em.
@@ -64,5 +65,5 @@ Flutter 3.44.1, Dart 3.12.1. Run `flutter test`, `flutter analyze` and `mf check
 
 ## Risks and Assumptions
 
-- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente".
+- The Developer asked on 2026-10-26 for the screens to follow the mocks "fielmente e estritamente" ("faithfully and strictly").
 - The sizes are read from the 2× mock PNGs and matched against Inter's metrics, so they can be a sub-pixel off.
