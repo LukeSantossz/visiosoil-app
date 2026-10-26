@@ -180,7 +180,7 @@ class SettingsScreen extends ConsumerWidget {
                     icon: Icon(
                       LucideIcons.aLargeSmall,
                       size: 22,
-                      color: context.palette.primaryText,
+                      color: SettingsRowFrame.iconColor(context),
                     ),
                     title: 'Tamanho do texto',
                     trailing: SegmentedControl<bool>(
@@ -491,7 +491,7 @@ class _ThemeChoiceSelector extends ConsumerWidget {
       icon: Icon(
         LucideIcons.moon,
         size: 22,
-        color: context.palette.primaryText,
+        color: SettingsRowFrame.iconColor(context),
       ),
       title: 'Tema',
       trailing: SegmentedControl<ThemeMode>(
@@ -655,14 +655,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 12 sp weight 600 in textTertiary, 16 dp in (PNG 23, SPEC 0204).
+    // 12 sp weight 600 in textTertiary, 16 dp in (PNG 23, SPEC 0204), on a
+    // 16 dp line in every theme (PNG 36, SPEC 0215).
+    final style = Theme.of(context).textTheme.labelMedium!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        style: style.copyWith(
           fontWeight: FontWeight.w600,
           letterSpacing: 0.6,
+          height: 16 / style.fontSize!,
           color: context.palette.textTertiary,
         ),
       ),

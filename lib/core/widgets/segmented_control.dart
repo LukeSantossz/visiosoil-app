@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 /// One choice in a [SegmentedControl].
 class SegmentedControlOption<T> {
@@ -41,8 +42,9 @@ class SegmentedControl<T> extends StatelessWidget {
   /// each segment already names itself.
   final String? semanticLabel;
 
-  /// A 32 dp pill sized to its labels, for the end of a settings row
-  /// (PNG 23, SPEC 0204); every segment takes the widest label's width.
+  /// A pill sized to its labels, for the end of a settings row: 32 dp, or
+  /// 44 dp in Modo Sol, each segment its own label's width (PNG 35 and 36,
+  /// SPEC 0215).
   final bool compact;
 
   @override
@@ -54,15 +56,15 @@ class SegmentedControl<T> extends StatelessWidget {
     // Modo Sol draws the pill at its 56 dp target.
     final target = context.density.tap;
     final pillHeight = compact
-        ? 32.0
+        ? (palette.isSun ? 44.0 : 32.0)
         : palette.isSun
         ? target
         : 40.0;
-    final reach = target - pillHeight;
-    // A compact pill reaches as far above as below, centred in its row.
+    // A compact pill reaches 8 dp above and below, centred in its row: 48 dp
+    // in light, 60 dp in Modo Sol, each at least its target (SPEC 0215).
     final padding = compact
-        ? EdgeInsets.symmetric(vertical: reach / 2)
-        : EdgeInsets.only(bottom: reach);
+        ? const EdgeInsets.symmetric(vertical: AppSpacing.sm)
+        : EdgeInsets.only(bottom: target - pillHeight);
 
     return Semantics(
       container: true,
@@ -72,11 +74,17 @@ class SegmentedControl<T> extends StatelessWidget {
           // A compact control wider than its room shrinks its segments, so
           // the indicator and rules stay on the labels (review of #438).
           final natural = compact
-              ? _compactSegmentWidth(context)
-              : constraints.maxWidth / options.length;
-          final segmentWidth = natural * options.length > constraints.maxWidth
-              ? constraints.maxWidth / options.length
+              ? _compactSegmentWidths(context)
+              : List.filled(
+                  options.length,
+                  constraints.maxWidth / options.length,
+                );
+          final total = natural.fold(0.0, (sum, width) => sum + width);
+          final widths = total > constraints.maxWidth
+              ? [for (final w in natural) w * constraints.maxWidth / total]
               : natural;
+          double startOf(int index) =>
+              widths.take(index).fold(0.0, (sum, width) => sum + width);
 
           final control = Stack(
             children: [
@@ -109,10 +117,10 @@ class SegmentedControl<T> extends StatelessWidget {
                               AppMotion.base,
                             ),
                             curve: AppMotion.standard,
-                            left: segmentWidth * selectedIndex,
+                            left: startOf(selectedIndex),
                             top: 0,
                             bottom: 0,
-                            width: segmentWidth,
+                            width: widths[selectedIndex],
                             child: Container(
                               color: palette.isSun
                                   ? Colors.black
@@ -122,7 +130,7 @@ class SegmentedControl<T> extends StatelessWidget {
                         // A rule between segments (PNG 16 and 23).
                         for (var i = 1; i < options.length; i++)
                           Positioned(
-                            left: segmentWidth * i - palette.edgeWidth / 2,
+                            left: startOf(i) - palette.edgeWidth / 2,
                             top: 0,
                             bottom: 0,
                             width: palette.edgeWidth,
@@ -135,7 +143,10 @@ class SegmentedControl<T> extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             for (var i = 0; i < options.length; i++)
-                              Expanded(child: _buildLabel(context, i)),
+                              SizedBox(
+                                width: widths[i],
+                                child: _buildLabel(context, i),
+                              ),
                           ],
                         ),
                       ],
@@ -147,38 +158,47 @@ class SegmentedControl<T> extends StatelessWidget {
                 child: Row(
                   children: [
                     for (var i = 0; i < options.length; i++)
-                      Expanded(child: _buildTarget(i)),
+                      SizedBox(width: widths[i], child: _buildTarget(i)),
                   ],
                 ),
               ),
             ],
           );
           return compact
-              ? SizedBox(width: segmentWidth * options.length, child: control)
+              ? SizedBox(width: startOf(options.length), child: control)
               : control;
         },
       ),
     );
   }
 
-  TextStyle? _labelStyle(BuildContext context) => Theme.of(
-    context,
-  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500);
+  TextStyle? _labelStyle(BuildContext context) {
+    final style = Theme.of(context).textTheme.titleSmall!;
+    if (!compact) return style.copyWith(fontWeight: FontWeight.w500);
+    // 12.5 sp at weight 500, or 14.5 sp at weight 600 in Modo Sol (PNG 35
+    // and 36, SPEC 0215).
+    final sun = context.palette.isSun;
+    return AppTypography.weighted(
+      AppTypography.resized(style, sun ? 14.5 : 12.5),
+      sun ? 600 : 500,
+    );
+  }
 
-  /// The widest label, 12 dp either side of it.
-  double _compactSegmentWidth(BuildContext context) {
-    var widest = 0.0;
-    for (final option in options) {
-      final painter = TextPainter(
-        text: TextSpan(text: option.label, style: _labelStyle(context)),
-        textDirection: Directionality.of(context),
-        textScaler: MediaQuery.textScalerOf(context),
-        maxLines: 1,
-      )..layout();
-      if (painter.width > widest) widest = painter.width;
-      painter.dispose();
-    }
-    return widest.ceilToDouble() + 2 * AppSpacing.md;
+  /// Each label's width, 13 dp either side of it (PNG 35 and 36).
+  List<double> _compactSegmentWidths(BuildContext context) => [
+    for (final option in options) _labelWidth(context, option.label) + 26,
+  ];
+
+  double _labelWidth(BuildContext context, String label) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: _labelStyle(context)),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width;
   }
 
   Widget _buildTarget(int index) {
