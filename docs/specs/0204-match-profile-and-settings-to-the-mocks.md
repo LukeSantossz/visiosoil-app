@@ -79,7 +79,13 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
     - Perfil's copy below is 14/20 in `onSurfaceVariant`, 14 dp under the header.
     - Then, 12 dp lower, a 20 dp Lucide `smartphone` in `primaryText`, then the count line at 13/18, 8 dp after it.
     - Then the Google button, 16 dp lower.
-    - When linked, the sync row keeps its honest copy, "Dados só neste aparelho" and a disabled "Sincronizar", behind a Lucide `cloud`.
+    - When linked (PNG 22):
+      - the initials are 20 sp weight 650 in `primaryText` on `primaryContainer`;
+      - a full-width `divider` rule sits 16 dp under the header;
+      - 6 dp lower comes the sync row: a 20 dp Lucide `cloud` in `primaryText`, 8 dp before the 14/20 line in `onSurfaceVariant`, and at its end "Sincronizar" at 14 sp weight 600 in `primaryText`, in a 48 dp target 4 dp in from the edge;
+      - the card's bottom padding is 12 dp, so the action's text sits 20 dp from the edge, as the mock draws it.
+    - The line keeps its honest copy, "Dados só neste aparelho", behind `cloud` rather than the mock's `cloudCheck` and "Sincronizado hoje, 10:45": no sync backend exists (ADR 0022), and the mock's line is example data, like its name.
+    - "Sincronizar" is live, as the mock draws it. Until sync exists, it says so: "A sincronização com a conta ainda não está disponível. As análises seguem neste aparelho."
   - **`GoogleSignInButton`** (shared with the onboarding). It follows Google's brand button:
     - a 48 dp pill;
     - a white fill with a #747775 1 dp rule, or Google's dark variant #131314 with #8E918F in the dark theme;
@@ -137,6 +143,12 @@ The values below are measured on the 2× PNGs, as in SPEC 0203.
   - it is 48 dp tall.
 - `profile_collection_counts_reference_classes`: with records of "Argila" and "Argilosa", the collection stat reads "1/12".
 - `profile_links_use_the_settings_row`: Perfil's links are `SettingsTile`s inside a `SettingsGroup`.
+- `linked_card_matches_the_mock`:
+  - the initials are 20 sp in `primaryText`;
+  - the rule sits 16 dp under the avatar, inside the card;
+  - the sync icon's centre is 36 dp above the card's edge;
+  - "Sincronizar" is 14 sp weight 600 in `primaryText`, in a target at least 48 dp tall;
+  - tapping it says that sync is not available yet.
 - Existing tests pass. They are updated only where they pinned the old icons, sizes, `ListTile`s, `Card`s or the full-width Tema control.
 
 ## Reproducibility

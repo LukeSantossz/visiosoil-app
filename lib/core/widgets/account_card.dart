@@ -6,11 +6,21 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 /// Shared anonymous/linked identity header; callers supply account actions.
 class AccountCard extends StatelessWidget {
-  const AccountCard({super.key, this.name, this.email, required this.child});
+  const AccountCard({
+    super.key,
+    this.name,
+    this.email,
+    required this.child,
+    this.bottomPadding = AppSpacing.lg + AppSpacing.xs,
+  });
 
   final String? name;
   final String? email;
   final Widget child;
+
+  /// Less than the card's 20 dp when [child] ends in a row whose 48 dp
+  /// target reaches past its visible content (PNG 22).
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +39,12 @@ class AccountCard extends StatelessWidget {
     // title 14 dp after it (PNG 21 and 22, SPEC 0204).
     return Container(
       key: const Key('account-card'),
-      padding: const EdgeInsets.all(AppSpacing.lg + AppSpacing.xs),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg + AppSpacing.xs,
+        AppSpacing.lg + AppSpacing.xs,
+        AppSpacing.lg + AppSpacing.xs,
+        bottomPadding,
+      ),
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(24),
@@ -63,11 +78,17 @@ class AccountCard extends StatelessWidget {
                             size: 28,
                             color: palette.onSurfaceVariant,
                           )
+                        // 20 sp weight 650 in `primaryText` (PNG 22).
                         : Text(
                             initials,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: palette.onPrimaryContainer,
-                            ),
+                            style: AppTypography.weighted(
+                              AppTypography.resized(
+                                theme.textTheme.titleMedium!,
+                                20,
+                                height: 1,
+                              ),
+                              650,
+                            ).copyWith(color: palette.primaryText),
                           ),
                   ),
                   const SizedBox(width: 14),
