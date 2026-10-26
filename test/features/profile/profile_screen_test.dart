@@ -164,15 +164,17 @@ void main() {
   // line sits beside a phone, and the links are settings rows.
   Future<void> pumpProfile(
     WidgetTester tester,
-    List<SoilRecord> records,
-  ) async {
-    tester.view.physicalSize = const Size(390, 1400);
+    List<SoilRecord> records, {
+    AuthAccount? account,
+    double width = 390,
+  }) async {
+    tester.view.physicalSize = Size(width, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authServiceProvider.overrideWithValue(_Auth(null)),
+          authServiceProvider.overrideWithValue(_Auth(account)),
           soilRecordsStreamProvider.overrideWith(
             (ref) => Stream.value(records),
           ),
@@ -221,5 +223,59 @@ void main() {
         findsOneWidget,
       );
     }
+  });
+
+  // PNG 22: the initials in `primaryText`, a rule under the header, and the
+  // sync row with its action live (SPEC 0204).
+  testWidgets('linked_card_matches_the_mock', (tester) async {
+    await pumpProfile(
+      tester,
+      const [],
+      account: const AuthAccount(
+        email: 'ana.ribeiro@exemplo.com',
+        displayName: 'Ana Ribeiro',
+      ),
+      // The test font's wide glyphs would wrap the sync line at 390 dp.
+      width: 800,
+    );
+
+    final initials = tester.widget<Text>(find.text('AR'));
+    expect(initials.style?.fontSize, 20);
+    expect(initials.style?.color, const Color(0xFF3B6A49));
+
+    final card = find.byKey(const Key('account-card'));
+    final avatar = find.byKey(const Key('account-avatar'));
+    final rule = find.byKey(const Key('account-sync-rule'));
+    expect(find.descendant(of: card, matching: rule), findsOneWidget);
+    expect(tester.getTopLeft(rule).dy - tester.getBottomLeft(avatar).dy, 16);
+    final icon = find.byIcon(LucideIcons.cloud);
+    expect(
+      tester.getBottomLeft(card).dy - tester.getCenter(icon).dy,
+      closeTo(36, 1),
+    );
+
+    final action = tester.widget<Text>(find.text('Sincronizar'));
+    expect(action.style?.fontSize, 14);
+    expect(action.style?.fontWeight, FontWeight.w600);
+    expect(action.style?.color, const Color(0xFF3B6A49));
+    expect(
+      tester.getSize(
+        find.ancestor(
+          of: find.text('Sincronizar'),
+          matching: find.byType(TextButton),
+        ),
+      ).height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.tap(find.text('Sincronizar'));
+    await tester.pump();
+    expect(
+      find.text(
+        'A sincronização com a conta ainda não está disponível. '
+        'As análises seguem neste aparelho.',
+      ),
+      findsOneWidget,
+    );
   });
 }

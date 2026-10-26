@@ -25,6 +25,7 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/appearance_provider.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
+import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/text_size_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -77,42 +78,56 @@ class SettingsScreen extends ConsumerWidget {
                         ref.read(sunModeProvider.notifier).select(on),
                   ),
                   const _VibrationSwitch(),
-                  const SettingsTile(
-                    icon: LucideIcons.ruler,
+                  SettingsTile(
+                    icon: LucideIcons.rulerDimensionLine,
                     title: 'Unidades',
                     subtitle: 'Distância em cm',
+                    onTap: () => _showOnlyChoice(
+                      context,
+                      title: 'Unidades',
+                      option: 'Centímetros (cm)',
+                    ),
                   ),
-                  const SettingsTile(
+                  SettingsTile(
                     icon: LucideIcons.languages,
                     title: 'Idioma',
                     subtitle: 'Português (Brasil)',
+                    onTap: () => _showOnlyChoice(
+                      context,
+                      title: 'Idioma',
+                      option: 'Português (Brasil)',
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
               const _SectionHeader(title: 'CÂMERA E ANÁLISE'),
               const SizedBox(height: AppSpacing.sm),
-              const SettingsGroup(
+              // Each switch acts on the capture (SPEC 0208).
+              SettingsGroup(
                 children: [
                   SettingsSwitchTile(
-                    icon: LucideIcons.scanEye,
+                    icon: LucideIcons.focus,
                     title: 'Guia de enquadramento',
                     subtitle: 'Moldura e checagem de luz, foco e distância',
-                    value: true,
-                    onChanged: null,
+                    value: ref.watch(frameGuideProvider),
+                    onChanged: (on) =>
+                        ref.read(frameGuideProvider.notifier).select(on),
                   ),
                   SettingsSwitchTile(
                     icon: LucideIcons.image,
                     title: 'Salvar fotos na galeria',
-                    value: false,
-                    onChanged: null,
+                    value: ref.watch(saveToGalleryProvider),
+                    onChanged: (on) =>
+                        ref.read(saveToGalleryProvider.notifier).select(on),
                   ),
                   SettingsSwitchTile(
                     icon: LucideIcons.mapPin,
                     title: 'Registrar localização',
                     subtitle: 'Aproximada, opcional',
-                    value: false,
-                    onChanged: null,
+                    value: ref.watch(recordLocationProvider),
+                    onChanged: (on) =>
+                        ref.read(recordLocationProvider.notifier).select(on),
                   ),
                 ],
               ),
@@ -216,6 +231,55 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Unidades and Idioma each have one option today; the sheet shows it,
+  /// chosen (SPEC 0204).
+  void _showOnlyChoice(
+    BuildContext context, {
+    required String title,
+    required String option,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final palette = sheetContext.palette;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(sheetContext).textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.sm),
+                SettingsGroup(
+                  children: [
+                    Semantics(
+                      selected: true,
+                      child: SettingsRowFrame(
+                        title: option,
+                        trailing: Icon(
+                          LucideIcons.check,
+                          size: 20,
+                          color: palette.primaryText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -411,24 +475,38 @@ class _ThemeChoiceSelector extends ConsumerWidget {
   const _ThemeChoiceSelector();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => SettingsRowFrame(
-    // One row, the compact control at its end (PNG 23, SPEC 0204).
-    key: const Key('theme-row'),
-    icon: Icon(LucideIcons.moon, size: 22, color: context.palette.primaryText),
-    title: 'Tema',
-    trailing: SegmentedControl<ThemeMode>(
-      compact: true,
-      semanticLabel: 'Tema',
-      value: ref.watch(baseThemeModeProvider),
-      options: const [
-        SegmentedControlOption(value: ThemeMode.system, label: 'Sistema'),
-        SegmentedControlOption(value: ThemeMode.light, label: 'Claro'),
-        SegmentedControlOption(value: ThemeMode.dark, label: 'Escuro'),
-      ],
-      onChanged: (choice) =>
-          ref.read(baseThemeModeProvider.notifier).select(choice),
-    ),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // PNG 23 offers Claro | Escuro. Until one is chosen the theme follows the
+    // system, and the control marks the brightness the system gives
+    // (SPEC 0204).
+    final base = ref.watch(baseThemeModeProvider);
+    final shown = base != ThemeMode.system
+        ? base
+        : MediaQuery.platformBrightnessOf(context) == Brightness.dark
+        ? ThemeMode.dark
+        : ThemeMode.light;
+    return SettingsRowFrame(
+      // One row, the compact control at its end (PNG 23, SPEC 0204).
+      key: const Key('theme-row'),
+      icon: Icon(
+        LucideIcons.moon,
+        size: 22,
+        color: context.palette.primaryText,
+      ),
+      title: 'Tema',
+      trailing: SegmentedControl<ThemeMode>(
+        compact: true,
+        semanticLabel: 'Tema',
+        value: shown,
+        options: const [
+          SegmentedControlOption(value: ThemeMode.light, label: 'Claro'),
+          SegmentedControlOption(value: ThemeMode.dark, label: 'Escuro'),
+        ],
+        onChanged: (choice) =>
+            ref.read(baseThemeModeProvider.notifier).select(choice),
+      ),
+    );
+  }
 }
 
 /// Vibration toggle: subtle haptic feedback on capture, save, and complete

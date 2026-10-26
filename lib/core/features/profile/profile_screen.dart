@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -84,6 +85,11 @@ class ProfileScreen extends ConsumerWidget {
                 AccountCard(
                   name: account?.displayName,
                   email: account?.email,
+                  // The sync action's 48 dp target ends 12 dp above the
+                  // card's edge, its text 20 dp, as PNG 22 draws it.
+                  bottomPadding: account == null
+                      ? AppSpacing.lg + AppSpacing.xs
+                      : AppSpacing.md,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -129,8 +135,18 @@ class ProfileScreen extends ConsumerWidget {
                             'Sem conexão. Você pode vincular depois em Perfil.',
                           ),
                       ] else ...[
-                        // The sync foundation has no remote backend yet
-                        // (ADR 0022), so the row says where the data is.
+                        // PNG 22: a rule 16 dp under the header, then the
+                        // sync row. The sync foundation has no remote backend
+                        // yet (ADR 0022), so the row says where the data is,
+                        // and its action says why it cannot sync.
+                        const SizedBox(height: 2),
+                        Divider(
+                          key: const Key('account-sync-rule'),
+                          height: context.palette.edgeWidth,
+                          thickness: context.palette.edgeWidth,
+                          color: context.palette.divider,
+                        ),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Icon(
@@ -142,12 +158,42 @@ class ProfileScreen extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 'Dados só neste aparelho',
-                                style: SettingsRowFrame.subtitleStyle(context),
+                                style:
+                                    AppTypography.resized(
+                                      theme.textTheme.bodyMedium!,
+                                      14,
+                                      height: 20 / 14,
+                                    ).copyWith(
+                                      color: context.palette.onSurfaceVariant,
+                                    ),
                               ),
                             ),
-                            const TextButton(
-                              onPressed: null,
-                              child: Text('Sincronizar'),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 48),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.xs,
+                                ),
+                              ),
+                              onPressed: () =>
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        AppStrings.syncNotAvailable,
+                                      ),
+                                    ),
+                                  ),
+                              child: Text(
+                                'Sincronizar',
+                                style: AppTypography.weighted(
+                                  AppTypography.resized(
+                                    theme.textTheme.labelLarge!,
+                                    14,
+                                    height: 20 / 14,
+                                  ),
+                                  600,
+                                ).copyWith(color: context.palette.primaryText),
+                              ),
                             ),
                           ],
                         ),
