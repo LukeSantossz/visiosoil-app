@@ -1030,6 +1030,14 @@ void main() {
     expect(label.style?.letterSpacing, 0.6);
     expect(label.style?.color, AppPalette.light.textTertiary);
   });
+
+  // SPEC 0215: PNG 36 spaces the section labels on light mode's line.
+  testWidgets('section_label_sits_on_a_16_dp_line', (tester) async {
+    await tester.pumpWidget(_app(null, theme: AppTheme.sun));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.text('PREFERÊNCIAS')).height, 16);
+  });
 }
 
 /// Records each launch, and answers with [result] or throws [error].

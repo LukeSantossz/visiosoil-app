@@ -350,6 +350,10 @@ void main() {
     expect(toggle, findsOneWidget);
     expect(store.reduceMotion, isFalse);
 
+    // The list estimates the rows it has not built yet, so the first pass
+    // can stop short of the row; a second lands on it.
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
