@@ -149,7 +149,7 @@ class _TipsTabState extends ConsumerState<_TipsTab> {
               const <ManagementTip>[];
     showTipsFilterSheet(
       context,
-      present: {for (final tip in tips) tip.category ?? TipCategory.other},
+      present: filterableCategories(tips),
       hidden: _hidden,
       onChanged: (hidden) => setState(() => _hidden = hidden),
     );

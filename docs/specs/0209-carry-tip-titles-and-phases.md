@@ -31,6 +31,7 @@ The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fideli
   - It opens a sheet titled "Filtrar dicas", with one `SettingsSwitchTile` per category the tips carry, all on at first.
   - Turning one off hides that category's tips. The "N dicas" chip counts the tips shown.
   - When no tip carries a category, the sheet says "Estas dicas não têm categorias para filtrar."
+  - A tip without a category is not filed under "Outras práticas": the sheet offers only the categories tips carry, and no switch hides an uncategorised tip.
   - The choice lasts while the tab is open.
 
 ## Alternatives Considered
@@ -56,6 +57,7 @@ The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fideli
 - `phases_group_the_timeline`: tips with phases are grouped "Antes do plantio", "Semeadura", "Ciclo da cultura", with "Agora" on the first group and "Próximo" on the second.
 - `categories_group_without_phases`: tips without a phase keep the category groups and draw no chip.
 - `titled_card_matches_the_mock`: a titled tip shows its title at 15 sp weight 600 and, directly under it, its text at 14 sp in `onSurfaceVariant`.
+- `uncategorised_tips_are_not_filterable`: tips without a category offer no switch, and hiding "Outras práticas" keeps them.
 - `filter_hides_a_category`: turning off "Água" in the filter sheet removes the water tip and the count reads one fewer.
 - `corpus/tests`:
   - `build_cell_payload` keeps `title` and `phase`;

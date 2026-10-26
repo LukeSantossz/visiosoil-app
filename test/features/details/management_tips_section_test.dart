@@ -703,5 +703,23 @@ void main() {
 
       expect(chosen, {TipCategory.water});
     });
+  
+    // A tip without a category is not filed under "Outras práticas": the
+    // sheet offers only categories the tips carry, and no switch hides an
+    // uncategorised tip (SPEC 0209; review of #439).
+    test('uncategorised_tips_are_not_filterable', () {
+      const loose = ManagementTip(text: 'Sem categoria', citations: [0]);
+      const water = ManagementTip(
+        text: 'Água',
+        citations: [0],
+        category: TipCategory.water,
+      );
+      expect(filterableCategories(const [loose]), isEmpty);
+      expect(filterableCategories(const [loose, water]), {TipCategory.water});
+      expect(
+        shownTips(const [loose, water], const {TipCategory.other}),
+        const [loose, water],
+      );
+    });
   });
 }
