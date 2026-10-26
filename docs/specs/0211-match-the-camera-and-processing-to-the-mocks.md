@@ -92,7 +92,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, as in SPEC 0210.
 ### Processing
 
 - **The lattice.**
-  - A `ProcessingLattice` painter behind the capture screen's bar while it classifies, at the measured geometry, fading as measured.
+  - The result's `ResultLattice` (SPEC 0202) behind the capture screen's bar while it classifies: PNG 13 draws the same grid as PNG 14, within the half dp the two measurements differ by.
   - The bar turns transparent over it.
   - Modo Sol draws no lattice, as §1.5 draws no decoration and PNG 38 shows.
 - **`ProcessingView`.**
@@ -126,7 +126,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, as in SPEC 0210.
 - Includes:
   - `GuidedCameraScreen`'s top bar, pill, panel, shutter and switch;
   - `QualityChip` and `CaptureAlert`;
-  - `ProcessingView`, the new `ProcessingLattice`, `TextureTriangle`'s label size, and the capture screen's bar while it classifies;
+  - `ProcessingView`, `TextureTriangle`'s label size, and the capture screen's bar while it classifies;
   - their tests.
 - Does NOT include:
   - `CaptureGuideOverlay`'s brackets, target and level, which SPEC 0169 sets;
@@ -157,7 +157,7 @@ Each value below is read from the 2× PNG, 2 px to the dp, as in SPEC 0210.
   - the class chip's text is 12 sp weight 600;
   - no `LinearProgressIndicator` is drawn;
   - the phase is a live region with no visible text.
-- `lattice_draws_outside_sun_mode`: `ProcessingLattice` paints in the light theme and paints nothing in Modo Sol.
+- `processing_draws_the_result_lattice`: the capture screen draws `ResultLattice` while it classifies.
 - Existing tests pass, updated where they pinned the replaced measures.
 
 ## Reproducibility

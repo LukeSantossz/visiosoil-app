@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/capture/capture_ui_state.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/routes/app_router.dart';
@@ -376,6 +377,23 @@ void main() {
         await tester.pump(const Duration(milliseconds: 10));
       }
     }
+
+    // PNG 13 draws the result's lattice behind the bar while it classifies
+    // (SPEC 0211).
+    testWidgets('processing_draws_the_result_lattice', (tester) async {
+      final gate = Completer<InferenceResult?>();
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) => gate.future,
+      ));
+
+      await capture(tester);
+      expect(find.byType(ResultLattice), findsOneWidget);
+
+      gate.complete(null);
+      await settle(tester);
+    });
 
     testWidgets('phases_are_named', (tester) async {
       final gate = Completer<InferenceResult?>();

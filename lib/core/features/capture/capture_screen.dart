@@ -16,7 +16,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/capture_image_previe
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
-import 'package:visiosoil_app/core/features/capture/widgets/processing_lattice.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/gallery_saver.dart';
@@ -793,15 +793,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       },
       child: Stack(
         children: [
-          // PNG 13's lattice runs behind the bar while the photograph is
-          // classified (SPEC 0211).
+          // PNG 13 draws the result's lattice behind the bar while the
+          // photograph is classified (SPEC 0211).
           if (_state.isClassifying) ...[
             Positioned.fill(
               child: ColoredBox(
                 color: Theme.of(context).scaffoldBackgroundColor,
               ),
             ),
-            const Positioned.fill(child: ProcessingLattice()),
+            const Positioned(top: 0, left: 0, right: 0, child: ResultLattice()),
           ],
           Scaffold(
             backgroundColor: _state.isClassifying ? Colors.transparent : null,
