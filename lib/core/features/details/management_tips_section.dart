@@ -317,8 +317,8 @@ class _TipsData extends StatelessWidget {
   }
 }
 
-/// [tips] without the categories in [hidden], a tip without a category
-/// counting as [TipCategory.other] (SPEC 0209).
+/// [tips] without the categories in [hidden]; a tip without a category is
+/// never hidden (SPEC 0209).
 List<ManagementTip> shownTips(
   List<ManagementTip> tips,
   Set<TipCategory> hidden,
@@ -326,8 +326,15 @@ List<ManagementTip> shownTips(
     ? tips
     : [
         for (final tip in tips)
-          if (!hidden.contains(tip.category ?? TipCategory.other)) tip,
+          if (tip.category == null || !hidden.contains(tip.category)) tip,
       ];
+
+/// The categories the filter sheet offers: those [tips] carry. A tip without
+/// one is not filed under "Outras práticas", so tips that carry none leave
+/// nothing to filter (SPEC 0209).
+Set<TipCategory> filterableCategories(List<ManagementTip> tips) => {
+  for (final tip in tips) ?tip.category,
+};
 
 /// The category headings, in the timeline's order.
 const Map<TipCategory, String> tipCategoryLabels = {
