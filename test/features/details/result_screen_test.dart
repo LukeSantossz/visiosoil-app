@@ -7,12 +7,15 @@ import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dar
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
+import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -768,6 +771,101 @@ void main() {
     expect(
       tester.getBottomLeft(find.byKey(const ValueKey('result-tab-indicator'))).dy,
       tester.getBottomLeft(find.byKey(const ValueKey('result-tab-rule'))).dy,
+    );
+  });
+
+  // SPEC 0212: the bar's actions, the overview's triangle, and the result in
+  // Modo Sol as PNG 26 measures it.
+  testWidgets('bar_actions_are_4_dp_apart', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.light);
+
+    // Two 48 dp targets 4 dp apart: their centres 52 dp apart.
+    expect(
+      tester.getCenter(find.byTooltip('Compartilhar')).dx -
+          tester.getCenter(find.byTooltip(AppStrings.resultRemoveSaved)).dx,
+      52,
+    );
+  });
+
+  testWidgets('sun_leading_slot_is_64_dp', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.sun,
+      home: Scaffold(
+        appBar: VisioAppBar(
+          title: 'Resultado',
+          leading: VisioIconButton(
+            label: 'Voltar',
+            icon: Icons.arrow_back,
+            onPressed: () {},
+          ),
+        ),
+      ),
+    ));
+
+    expect(tester.getCenter(find.byTooltip('Voltar')).dx, 32);
+    expect(tester.getTopLeft(find.text('Resultado')).dx, 68);
+  });
+
+  testWidgets('sun_header_matches_the_mock', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.sun);
+    final sun = AppPalette.sun;
+
+    final date = tester.widget<Text>(find.text('22/10/2026 · 10:42')).style!;
+    expect(date.fontSize, 12.5);
+    expect(date.fontWeight, FontWeight.w500);
+    expect(
+      tester.widget<Text>(find.text(AppStrings.confidenceHigh)).style?.color,
+      sun.onSurface,
+    );
+    final first = find.byKey(const ValueKey('confidence-segment-0'));
+    final second = find.byKey(const ValueKey('confidence-segment-1'));
+    expect(tester.getSize(first).height, 10);
+    expect(tester.getTopLeft(second).dx - tester.getTopRight(first).dx, 2);
+    final empty = tester
+        .widget<Container>(find.byKey(const ValueKey('confidence-segment-4')))
+        .decoration! as BoxDecoration;
+    expect(empty.color, sun.surface);
+    expect(empty.border!.top.color, sun.onSurface);
+    expect(empty.border!.top.width, 1);
+    expect(tester.widget<Text>(find.text('82%')).style?.fontSize, 15);
+  });
+
+  testWidgets('sun_tabs_keep_their_place', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.sun);
+
+    // PNG 26: the rule's bottom 74.5 dp under the segments' bottom.
+    final rule = find.byKey(const ValueKey('result-tab-rule'));
+    expect(
+      tester.getBottomLeft(rule).dy -
+          tester
+              .getBottomLeft(find.byKey(const ValueKey('confidence-segment-0')))
+              .dy,
+      closeTo(74.5, 1),
+    );
+    final label = find.descendant(
+      of: find.byType(ResultTabBar<ResultTab>),
+      matching: find.text('Visão geral'),
+    );
+    final style = tester.widget<Text>(label).style!;
+    expect(style.fontSize, 15.5);
+    expect(style.color, AppPalette.sun.onSurface);
+    expect(
+      tester.getBottomLeft(find.byKey(const ValueKey('result-tab-indicator'))).dy,
+      tester.getBottomLeft(rule).dy,
+    );
+  });
+
+  testWidgets('overview_triangle_sits_3_5_dp_higher', (tester) async {
+    await _pump(tester, _classified(), theme: AppTheme.light);
+
+    final heading = find.text(AppStrings.resultTriangleTitle);
+    final triangle = find.descendant(
+      of: find.byType(ResultOverview),
+      matching: find.byType(TextureTriangle),
+    );
+    expect(
+      tester.getTopLeft(triangle).dy - tester.getBottomLeft(heading).dy,
+      12 - 3.5,
     );
   });
 }

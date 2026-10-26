@@ -74,6 +74,8 @@ class SegmentedConfidenceBar extends StatelessWidget {
   static const int segments = 5;
   static const double _height = 6;
   static const double _gap = 2.5;
+  static const double _sunHeight = 10;
+  static const double _sunGap = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -85,20 +87,28 @@ class SegmentedConfidenceBar extends StatelessWidget {
       ConfidenceLevel.moderate => context.palette.warningText,
       ConfidenceLevel.low => context.palette.error,
     };
+    final palette = context.palette;
+    final sun = palette.isSun;
     return ExcludeSemantics(
       child: Row(
         children: [
           for (var i = 0; i < segments; i++) ...[
-            if (i > 0) const SizedBox(width: _gap),
+            if (i > 0) SizedBox(width: sun ? _sunGap : _gap),
             Expanded(
               child: Container(
                 key: ValueKey('confidence-segment-$i'),
-                height: _height,
+                height: sun ? _sunHeight : _height,
                 decoration: BoxDecoration(
                   // Square-ended segments on a `divider` track (PNG 14,
-                  // SPEC 0210).
-                  color: i < filled ? fillColor : context.palette.divider,
-                  borderRadius: BorderRadius.circular(1.5),
+                  // SPEC 0210); in Modo Sol each inside a 1 dp ink rule,
+                  // the empty ones white (PNG 26, SPEC 0212).
+                  color: i < filled
+                      ? fillColor
+                      : (sun ? palette.surface : palette.divider),
+                  border: sun
+                      ? Border.all(color: palette.onSurface, width: 1)
+                      : null,
+                  borderRadius: BorderRadius.circular(sun ? 2 : 1.5),
                 ),
               ),
             ),

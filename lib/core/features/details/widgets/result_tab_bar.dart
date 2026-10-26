@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 /// The result's underlined tabs (redesign v11 PNG 14, SPEC 0202): the labels
 /// side by side from the start, 14 sp Inter 500 with 12 dp padding each
@@ -26,9 +27,11 @@ class ResultTabBar<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final style = Theme.of(
-      context,
-    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500);
+    // Modo Sol sets the labels at 15.5/22 (PNG 26, SPEC 0212).
+    final base = Theme.of(context).textTheme.titleSmall!;
+    final style = palette.isSun
+        ? AppTypography.resized(base, 15.5, height: 22 / 15.5)
+        : base.copyWith(fontWeight: FontWeight.w500);
     return Semantics(
       container: true,
       label: semanticLabel,
@@ -112,11 +115,17 @@ class _Tab extends StatelessWidget {
                   Text(
                     label,
                     maxLines: 1,
-                    style: style?.copyWith(
-                      color: selected
-                          ? palette.primaryText
-                          : palette.onSurfaceVariant,
-                    ),
+                    style: palette.isSun
+                        // Ink, the selected one at weight 600 (PNG 26).
+                        ? AppTypography.weighted(
+                            style!,
+                            selected ? 600 : 500,
+                          ).copyWith(color: palette.onSurface)
+                        : style?.copyWith(
+                            color: selected
+                                ? palette.primaryText
+                                : palette.onSurfaceVariant,
+                          ),
                   ),
                   const SizedBox(height: 11),
                   Container(

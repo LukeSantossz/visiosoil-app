@@ -16,6 +16,7 @@ import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart
 import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -389,7 +390,9 @@ class _ResultContentState extends State<ResultContent>
         (MediaQuery.sizeOf(context).height < 600 ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.3);
     // 17 dp from the header to the tabs; the tab content starts on the rule.
-    final gaps = [classified ? 17.0 : 0.0, 0.0];
+    // Modo Sol's taller tab target takes its extra height from the gap
+    // above, so the labels keep light mode's place (PNG 26, SPEC 0212).
+    final gaps = [classified ? 17.0 - (context.density.tap - 48) : 0.0, 0.0];
     // The lattice sits behind the app bar, fixed to the top of the screen;
     // the body starts below the bar, with the header 169 dp down and the
     // error block's disc 44 dp down (PNGs 14 and 15, SPEC 0202).
@@ -493,8 +496,11 @@ PreferredSizeWidget resultAppBar(
             onPressed: () => Navigator.maybePop(context),
           )
         : null,
+    // 4 dp between the actions, as PNG 13, 14, 26 and 32 draw them
+    // (SPEC 0212).
     actions: [
       bookmark,
+      const SizedBox(width: AppSpacing.xs),
       VisioIconButton(
         label: 'Compartilhar',
         icon: LucideIcons.share2,

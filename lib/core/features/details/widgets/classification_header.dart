@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
@@ -68,26 +69,34 @@ class _DateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // onSurface at 75 % with white tabular figures (PNG 14, SPEC 0202).
+    // onSurface at 75 % with white tabular figures (PNG 14, SPEC 0202); in
+    // Modo Sol at 67 %, the figures kept at weight 500 against Modo Sol's
+    // heavier axis (PNG 26, SPEC 0212).
+    final sun = context.palette.isSun;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: context.palette.onSurface.withValues(alpha: 0.75),
+        color: context.palette.onSurface.withValues(alpha: sun ? 0.67 : 0.75),
         borderRadius: AppRadius.borderRadiusSm,
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0,
-          height: 15 / 12.5,
-          color: context.palette.background,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+        style:
+            AppTypography.weighted(
+              AppTypography.resized(
+                Theme.of(context).textTheme.labelMedium!,
+                12.5,
+                height: 15 / 12.5,
+              ),
+              500,
+            ).copyWith(
+              letterSpacing: 0,
+              color: context.palette.background,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
       ),
     );
   }
@@ -112,7 +121,8 @@ class _ConfidenceRow extends StatelessWidget {
             child: Text(
               '$pct%',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 14,
+                // 15 sp in Modo Sol (PNG 26, SPEC 0212).
+                fontSize: context.palette.isSun ? 15 : 14,
                 color: context.palette.onSurfaceVariant,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -208,7 +218,8 @@ class _LevelBadge extends StatelessWidget {
                 height: 1.2,
                 letterSpacing: 0,
                 fontWeight: FontWeight.w600,
-                color: ink,
+                // Ink on white in Modo Sol (PNG 26, SPEC 0212).
+                color: palette.isSun ? palette.onSurface : ink,
               ),
             ),
           ),

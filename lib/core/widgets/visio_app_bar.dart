@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 
 /// Standardized VisioSoil AppBar.
 class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -48,6 +49,9 @@ class VisioAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       centerTitle: centerTitle,
       titleSpacing: centerTitle ? null : (hasLeading ? 4 : 16),
+      // The target plus 8 dp: 56 dp, and 64 dp for Modo Sol's 56 dp target,
+      // as PNG 26 and 38 centre its arrow 32 dp in (SPEC 0212).
+      leadingWidth: context.density.tap + 8,
       backgroundColor: backgroundColor,
     );
   }
