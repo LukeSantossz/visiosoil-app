@@ -1038,6 +1038,17 @@ void main() {
 
     expect(tester.getSize(find.text('PREFERÊNCIAS')).height, 16);
   });
+
+  // SPEC 0216: PNG 23 greys the backup row until an account is linked.
+  testWidgets('backup_is_unavailable_without_an_account', (tester) async {
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    final backup = find.widgetWithText(SettingsTile, 'Backup na conta');
+    await tester.scrollUntilVisible(backup, 200);
+    final tile = tester.widget<SettingsTile>(backup);
+    expect(tile.enabled, isFalse);
+  });
 }
 
 /// Records each launch, and answers with [result] or throws [error].

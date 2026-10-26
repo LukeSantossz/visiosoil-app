@@ -101,4 +101,15 @@ void main() {
     expect(find.text('90%'), findsOneWidget);
     expect(find.text('coleção'), findsOneWidget);
   });
+
+  // SPEC 0216: the cards take their content's height, 104 dp in PNG 09.
+  testWidgets('stats_cards_take_their_content_height', (tester) async {
+    // Wide enough for the test font's square glyphs to keep one line.
+    await tester.binding.setSurfaceSize(const Size(1600, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      host(const StatsGrid(recordsAsync: AsyncValue.data(<SoilRecord>[]))),
+    );
+    expect(tester.getSize(find.byType(StatsGrid)).height, 104);
+  });
 }

@@ -95,4 +95,45 @@ void main() {
       greaterThanOrEqualTo(56),
     );
   });
+
+  // SPEC 0216: the icons are 20 dp at the start of a 22 dp slot.
+  testWidgets('settings_row_icons_are_20_dp', (tester) async {
+    _wide(tester);
+    await tester.pumpWidget(_group(AppTheme.light));
+    final icon = find.byIcon(LucideIcons.ruler);
+    expect(tester.widget<Icon>(icon).size, 20);
+    final row = tester.getTopLeft(find.byKey(const Key('unidades')));
+    expect(tester.getTopLeft(icon).dx - row.dx, 16);
+    expect(tester.getTopLeft(find.text('Unidades')).dx - row.dx, 16 + 22 + 12);
+  });
+
+  testWidgets('unavailable_row_is_greyed', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(
+          body: SettingsTile(
+            icon: LucideIcons.cloudUpload,
+            title: 'Backup na conta',
+            subtitle: 'Requer conta vinculada',
+            enabled: false,
+          ),
+        ),
+      ),
+    );
+    final palette = AppPalette.light;
+    expect(
+      tester.widget<Text>(find.text('Backup na conta')).style?.color,
+      palette.onSurface.withValues(alpha: 0.55),
+    );
+    expect(
+      tester.widget<Text>(find.text('Requer conta vinculada')).style?.color,
+      palette.onSurfaceVariant.withValues(alpha: 0.55),
+    );
+    expect(
+      tester.widget<Icon>(find.byIcon(LucideIcons.cloudUpload)).color,
+      palette.primaryText,
+    );
+    expect(find.byIcon(LucideIcons.chevronRight), findsNothing);
+  });
 }
