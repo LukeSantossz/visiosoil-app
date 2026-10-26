@@ -535,7 +535,7 @@ void main() {
       await pumpPage(tester);
 
       expect(tester.widget<Text>(find.text('Preparo do solo')).style?.fontSize,
-          17);
+          16);
       BoxDecoration dot(int i) =>
           tester.widget<Container>(find.byKey(Key('tips-dot-$i'))).decoration!
               as BoxDecoration;
@@ -562,7 +562,7 @@ void main() {
       expect(
         tester.widget<Text>(find.text('Evite tráfego com solo úmido.')).style
             ?.fontSize,
-        15,
+        14,
       );
     });
 
@@ -645,13 +645,13 @@ void main() {
       await pumpPage(tester, result: phased());
 
       final title = tester.widget<Text>(find.text('Evite tráfego com solo úmido'));
-      expect(title.style?.fontSize, 16);
+      expect(title.style?.fontSize, 15);
       expect(title.style?.fontWeight, FontWeight.w600);
       expect(title.style?.color, AppPalette.light.onSurface);
       final body = tester.widget<Text>(
         find.text('Entre com máquinas abaixo do ponto de friabilidade.'),
       );
-      expect(body.style?.fontSize, 15);
+      expect(body.style?.fontSize, 14);
       expect(body.style?.color, AppPalette.light.onSurfaceVariant);
       expect(
         tester
@@ -660,7 +660,7 @@ void main() {
                 )
                 .dy -
             tester.getBottomLeft(find.text('Evite tráfego com solo úmido')).dy,
-        2,
+        0,
       );
     });
 

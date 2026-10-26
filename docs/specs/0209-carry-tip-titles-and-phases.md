@@ -5,7 +5,7 @@
 The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fidelity to the mock"). PNG 20 and the design spec's §3.9 draw three things the Dicas tab cannot show, because a tip carries neither a title nor a crop phase:
 
 - **A timeline by crop phase.** The groups are "Antes do plantio · Agora", "Semeadura · Próximo" and "Ciclo da cultura". SPEC 0205 groups by category instead: Preparo do solo, Culturas, Água, Outras práticas.
-- **A titled tip card.** Each card has a 16 sp title in `onSurface` over its text in `onSurfaceVariant`. SPEC 0205's card has the text alone, in `onSurface`.
+- **A titled tip card.** Each card has a 15 sp title in `onSurface` over its text in `onSurfaceVariant`. SPEC 0205's card has the text alone, in `onSurface`.
 - **A filter action.** The app bar ends in a Lucide `slidersHorizontal`. SPEC 0205 draws no action there.
 
 ## Design Decision
@@ -24,7 +24,7 @@ The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fideli
     - "Próximo": the same size in `onSurfaceVariant` on `surfaceContainer`.
     - Both are 24 dp tall, 8 dp in from each side, radius 6, and sit 8 dp after the phase title.
 - **The tip card.**
-  - With a title, the title is 16/22 weight 600 in `onSurface`, and 2 dp under it the text is 15/20 in `onSurfaceVariant`.
+  - With a title, the title is 15/22 weight 600 in `onSurface`, directly over the text at 14/20 in `onSurfaceVariant`.
   - Without one, the text keeps SPEC 0205's form.
 - **The filter.**
   - The Dicas tab's app bar ends in a `VisioIconButton` labelled "Filtrar", with Lucide `slidersHorizontal`.
@@ -55,7 +55,7 @@ The Developer asked on 2026-10-26 for "100% de fidelidade ao mock" ("100% fideli
 - `composer_passes_title_and_phase`: a corpus cell's tip with both keeps them in the composed result.
 - `phases_group_the_timeline`: tips with phases are grouped "Antes do plantio", "Semeadura", "Ciclo da cultura", with "Agora" on the first group and "Próximo" on the second.
 - `categories_group_without_phases`: tips without a phase keep the category groups and draw no chip.
-- `titled_card_matches_the_mock`: a titled tip shows its title at 16 sp weight 600 and its text at 15 sp in `onSurfaceVariant`.
+- `titled_card_matches_the_mock`: a titled tip shows its title at 15 sp weight 600 and, directly under it, its text at 14 sp in `onSurfaceVariant`.
 - `filter_hides_a_category`: turning off "Água" in the filter sheet removes the water tip and the count reads one fewer.
 - `corpus/tests`:
   - `build_cell_payload` keeps `title` and `phase`;

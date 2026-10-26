@@ -511,8 +511,8 @@ class _TipsTimeline extends StatelessWidget {
                               groups[g].$1,
                               style: AppTypography.resized(
                                 theme.textTheme.titleMedium!,
-                                17,
-                                height: 24 / 17,
+                                16,
+                                height: 24 / 16,
                               ),
                             ),
                             if (byPhase && g < 2)
@@ -653,21 +653,20 @@ class _TipCard extends StatelessWidget {
                     style: AppTypography.weighted(
                       AppTypography.resized(
                         theme.textTheme.titleMedium!,
-                        16,
-                        height: 22 / 16,
+                        15,
+                        height: 22 / 15,
                       ),
                       600,
                     ).copyWith(color: palette.onSurface),
                   ),
-                  const SizedBox(height: 2),
                 ],
                 Text(
                   tip.text,
                   style:
                       AppTypography.resized(
                         theme.textTheme.bodyMedium!,
-                        15,
-                        height: 20 / 15,
+                        14,
+                        height: 20 / 14,
                       ).copyWith(
                         color: tip.title == null
                             ? null
@@ -675,7 +674,7 @@ class _TipCard extends StatelessWidget {
                       ),
                 ),
                 if (source != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Icon(
@@ -689,8 +688,8 @@ class _TipCard extends StatelessWidget {
                           source,
                           style: AppTypography.resized(
                             theme.textTheme.bodySmall!,
-                            13,
-                            height: 18 / 13,
+                            12,
+                            height: 16 / 12,
                           ).copyWith(color: palette.textTertiary),
                         ),
                       ),
@@ -800,8 +799,8 @@ class _DisclaimerBanner extends StatelessWidget {
               text,
               style: AppTypography.resized(
                 theme.textTheme.bodyMedium!,
-                15,
-                height: 20 / 15,
+                14,
+                height: 20 / 14,
               ).copyWith(color: palette.onWarningContainer),
             ),
           ),
