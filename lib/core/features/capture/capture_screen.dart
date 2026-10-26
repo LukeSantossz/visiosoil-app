@@ -548,8 +548,21 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         unawaited(_copyToGallery(gallery, created.imagePath, messenger));
       }
       if (mounted) {
+        // Led by PNG 33's light green check (SPEC 0218).
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(AppStrings.resultSavedSnackbar)),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  LucideIcons.check,
+                  size: 20,
+                  color: context.palette.inversePrimary,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(child: Text(AppStrings.resultSavedSnackbar)),
+              ],
+            ),
+          ),
         );
         // Details pops its bookmark for this record (SPEC 0197).
         final createdId = created.id;

@@ -253,11 +253,16 @@ abstract final class AppTheme {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: p.inverseSurface,
+      // Even leading centres the line as PNG 33 does (SPEC 0218).
       contentTextStyle: AppTypography.bodyMedium.copyWith(
         color: p.onInverseSurface,
+        leadingDistribution: TextLeadingDistribution.even,
       ),
       shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusSm),
       behavior: SnackBarBehavior.floating,
+      // 16 dp from the sides and 19 dp above the footer, as PNG 33 floats it
+      // (SPEC 0218).
+      insetPadding: const EdgeInsets.fromLTRB(16, 5, 16, 19),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: p.surface,
