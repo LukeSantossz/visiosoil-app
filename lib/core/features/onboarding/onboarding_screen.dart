@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visiosoil_app/core/constants/capture_protocol.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_panel.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -87,19 +86,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         description:
             'Destorroe uma porção da camada de 0–20 cm e enquadre na moldura. '
             'O app checa luz, foco e distância antes de liberar a foto.',
-        // The protocol the A4-sheet reader assumes, from the list the capture
-        // guide reads too (SPEC 0104, SPEC 0142). PNG 05 leaves it out; it
-        // stays for the reader's sake (SPEC 0206).
-        extra: Column(
-          children: [
-            for (final step in captureProtocolSteps)
-              _ListRow(
-                icon: step.icon,
-                title: step.title,
-                description: step.description,
-              ),
-          ],
-        ),
+        // PNG 05 draws no list: the A4-sheet protocol is taught by the
+        // capture guide, shown before the first camera launch (SPEC 0142,
+        // SPEC 0206).
         actions: [
           _primary('Continuar', _next),
           _textAction('Pular', _complete),
@@ -219,7 +208,14 @@ class _AccountStep extends ConsumerWidget {
         description:
             'Suas análises vão sincronizar sozinhas quando houver internet.',
         actions: [
-          _LinkedAccountRow(name: account.displayName, email: account.email),
+          // 16 dp above "Continuar", as PNG 04 draws it.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _LinkedAccountRow(
+              name: account.displayName,
+              email: account.email,
+            ),
+          ),
           _primary('Continuar', onNext),
         ],
       );
@@ -318,7 +314,8 @@ class _LinkedAccountRow extends StatelessWidget {
             child: Text(
               initials,
               style: theme.textTheme.titleSmall?.copyWith(
-                color: palette.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+                color: palette.primaryText,
               ),
             ),
           ),
@@ -341,20 +338,19 @@ class _LinkedAccountRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Icon(LucideIcons.cloudCheck, color: palette.onSurface),
+          Icon(LucideIcons.cloudCheck, size: 20, color: palette.onSurface),
         ],
       ),
     );
   }
 }
 
-/// One row of a step's list: a 20 dp icon, an optional title, and a sentence
-/// at 14/20 (SPEC 0206).
+/// One row of a step's list: a 20 dp icon and a sentence at 14/20
+/// (SPEC 0206).
 class _ListRow extends StatelessWidget {
-  const _ListRow({required this.icon, this.title, required this.description});
+  const _ListRow({required this.icon, required this.description});
 
   final IconData icon;
-  final String? title;
   final String description;
 
   @override
@@ -368,18 +364,11 @@ class _ListRow extends StatelessWidget {
           Icon(icon, size: 20, color: context.palette.primaryText),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (title != null)
-                  Text(title!, style: theme.textTheme.titleSmall),
-                Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: context.palette.onSurfaceVariant,
-                  ),
-                ),
-              ],
+            child: Text(
+              description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: context.palette.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -486,10 +475,12 @@ class _StepPage extends StatelessWidget {
             ),
           ),
         ),
+        // The content scrolls to 8 dp above the actions, so step 4's list
+        // ends where PNG 07 ends it.
         Padding(
           padding: EdgeInsets.fromLTRB(
             AppSpacing.xl,
-            AppSpacing.lg,
+            AppSpacing.sm,
             AppSpacing.xl,
             AppSpacing.xl + bottom,
           ),

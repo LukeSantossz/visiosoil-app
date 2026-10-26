@@ -186,6 +186,8 @@ abstract final class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: p.primary,
         foregroundColor: p.onPrimary,
+        // Flat, as every mock draws it.
+        elevation: 0,
         minimumSize: const Size(64, 52),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusPill),

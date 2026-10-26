@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 
 /// What a step's panel draws (PNG 02 to 07, SPEC 0206).
 enum OnboardingArt { account, linked, photograph, triangle, camera }
@@ -20,7 +21,9 @@ class OnboardingPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final sun = palette.isSun;
-    final height = 376 + MediaQuery.paddingOf(context).top;
+    final inset = MediaQuery.paddingOf(context).top;
+    final height = 376 + inset;
+    final width = MediaQuery.sizeOf(context).width;
     return Container(
       key: const Key('onboarding-panel'),
       height: height,
@@ -42,31 +45,54 @@ class OnboardingPanel extends StatelessWidget {
                 palette.primaryText.withValues(alpha: .17),
               ),
             ),
-          Align(
-            // The art sits a little under the panel's middle, as the mocks
-            // place it.
-            alignment: const Alignment(0, 0.03),
-            child: ExcludeSemantics(child: _art(palette)),
-          ),
+          // The art sits on a 200 × 180 dp canvas whose top left is 100 dp
+          // left of the panel's centre and 76 dp under the safe area, so each
+          // drawing keeps the coordinates measured on the mocks (SPEC 0206).
+          if (art == OnboardingArt.triangle)
+            Positioned(
+              left: width / 2 - 100 + _triangleOffset.dx,
+              top: inset + 76 + _triangleOffset.dy,
+              width: _triangleWidth,
+              child: const ExcludeSemantics(
+                child: TextureTriangle(
+                  highlightClass: SoilTextureColors.exampleClass,
+                ),
+              ),
+            )
+          else
+            Positioned(
+              left: width / 2 - 100,
+              top: inset + 76,
+              width: 200,
+              height: 180,
+              child: ExcludeSemantics(child: _art(palette)),
+            ),
         ],
       ),
     );
   }
 
+  /// Where the triangle's widget sits on the canvas, and how wide, so its
+  /// outline spans 26.75 to 172.75 dp with the apex at 15.75 dp, as PNG 06
+  /// draws it: the widget draws its outline from 65 to 235 of 300 units.
+  static const double _triangleWidth = 146 / 170 * 300;
+  static const Offset _triangleOffset = Offset(
+    26.75 - 65 * 146 / 170,
+    15.75 - 25 * 146 / 170,
+  );
+
   Widget _art(AppPalette palette) {
-    if (art == OnboardingArt.triangle) {
-      return const SizedBox(
-        width: 150,
-        child: TextureTriangle(highlightClass: 'Média'),
-      );
-    }
     final (fill, ink) = artColors(palette);
     return CustomPaint(
-      size: const Size(160, 124),
+      size: const Size(200, 180),
       painter: _ArtPainter(
         art: art,
         ink: ink,
         fill: fill,
+        squareFill: palette.highContrast
+            ? fill
+            : palette.primaryContainer.withValues(alpha: .7),
+        ring: palette.highContrast ? ink : palette.textTertiary,
         badge: palette.primary,
       ),
     );
@@ -137,25 +163,31 @@ class _ContoursPainter extends CustomPainter {
       color != oldDelegate.color;
 }
 
-/// The steps' line art: fills at half `primaryContainer`, 2 dp strokes in
-/// `primaryText`, and the check badge in `primary`.
+/// The steps' line art, in the canvas coordinates measured on PNG 02 to 07
+/// (SPEC 0206): fills at half `primaryContainer`, 2 dp strokes in
+/// `primaryText`, the camera's outer ring in `textTertiary`, and the check
+/// badge in `primary`.
 class _ArtPainter extends CustomPainter {
   const _ArtPainter({
     required this.art,
     required this.ink,
     required this.fill,
+    required this.squareFill,
+    required this.ring,
     required this.badge,
   });
 
   final OnboardingArt art;
   final Color ink;
   final Color fill;
+  final Color squareFill;
+  final Color ring;
   final Color badge;
 
-  Paint get _stroke => Paint()
+  Paint _stroke([double width = 2]) => Paint()
     ..color = ink
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2
+    ..strokeWidth = width
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round;
 
@@ -165,82 +197,105 @@ class _ArtPainter extends CustomPainter {
 
   void _shape(Canvas canvas, Path path) {
     canvas.drawPath(path, _fill);
-    canvas.drawPath(path, _stroke);
+    canvas.drawPath(path, _stroke());
   }
 
-  Path _cloud(Rect box) {
-    final w = box.width;
-    final h = box.height;
-    final path = Path()
-      ..moveTo(box.left + w * .22, box.bottom)
-      ..arcToPoint(
-        Offset(box.left + w * .22, box.top + h * .38),
-        radius: Radius.circular(h * .31),
-      )
-      ..arcToPoint(
-        Offset(box.left + w * .78, box.top + h * .4),
-        radius: Radius.circular(w * .3),
-      )
-      ..arcToPoint(
-        Offset(box.left + w * .78, box.bottom),
-        radius: Radius.circular(h * .3),
-      )
-      ..close();
-    return path;
+  /// The mocks' cloud: three lobes over a flat base, fitted to [box] (the
+  /// stroke's centre line).
+  static Path cloud(Rect box) {
+    final k = box.width / 106.5;
+    Offset at(double x, double y) => box.topLeft + Offset(x * k, y * k);
+    Path circle(double x, double y, double r) =>
+        Path()..addOval(Rect.fromCircle(center: at(x, y), radius: r * k));
+    var path = Path.combine(
+      PathOperation.union,
+      circle(26, 41.25, 26),
+      circle(55.75, 27.25, 28),
+    );
+    path = Path.combine(PathOperation.union, path, circle(81.75, 42.25, 25));
+    return Path.combine(
+      PathOperation.union,
+      path,
+      Path()..addRect(Rect.fromPoints(at(26, 27.25), at(81.75, 67.25))),
+    );
   }
 
   void _dashed(Canvas canvas, Path path) {
-    final pen = _stroke..strokeWidth = 1.5;
+    final pen = _stroke(1.5)..strokeCap = StrokeCap.butt;
     for (final metric in path.computeMetrics()) {
-      for (var d = 0.0; d < metric.length; d += 7) {
-        canvas.drawPath(metric.extractPath(d, d + 3.5), pen);
+      for (var d = 0.0; d < metric.length; d += 7.5) {
+        canvas.drawPath(metric.extractPath(d, d + 3), pen);
       }
     }
   }
 
-  void _check(Canvas canvas, Offset centre, double size, Paint pen) {
-    canvas.drawPath(
-      Path()
-        ..moveTo(centre.dx - size * .5, centre.dy)
-        ..lineTo(centre.dx - size * .12, centre.dy + size * .38)
-        ..lineTo(centre.dx + size * .55, centre.dy - size * .35),
-      pen,
-    );
+  void _dots(Canvas canvas, List<(double, double, double)> dots) {
+    for (final (x, y, r) in dots) {
+      canvas.drawCircle(Offset(x, y), r, _dot);
+    }
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     switch (art) {
       case OnboardingArt.account:
-        final phone = RRect.fromRectAndRadius(
-          const Rect.fromLTWH(8, 14, 50, 92),
-          const Radius.circular(8),
+        _shape(
+          canvas,
+          Path()..addRRect(
+            RRect.fromLTRBR(
+              33.75,
+              51.75,
+              82.75,
+              140.75,
+              const Radius.circular(8),
+            ),
+          ),
         );
-        _shape(canvas, Path()..addRRect(phone));
-        canvas.drawCircle(const Offset(26, 46), 3, _dot);
-        canvas.drawCircle(const Offset(37, 54), 3, _dot);
-        canvas.drawLine(const Offset(25, 92), const Offset(41, 92), _stroke);
-        _shape(canvas, _cloud(const Rect.fromLTWH(78, 8, 76, 52)));
+        _dots(canvas, const [
+          (50.75, 85.5, 3.25),
+          (64.75, 89.75, 2.25),
+          (56.25, 101.5, 1.75),
+        ]);
+        canvas.drawLine(
+          const Offset(51.25, 130.25),
+          const Offset(65.25, 130.25),
+          _stroke(1.5),
+        );
+        _shape(
+          canvas,
+          cloud(const Rect.fromLTRB(104.25, 57.25, 174.75, 102.25)),
+        );
         _dashed(
           canvas,
           Path()
-            ..moveTo(60, 28)
-            ..quadraticBezierTo(68, 6, 90, 14),
+            ..moveTo(88, 67)
+            ..quadraticBezierTo(106, 40, 124, 63),
         );
         _dashed(
           canvas,
           Path()
-            ..moveTo(112, 64)
-            ..quadraticBezierTo(104, 100, 60, 96),
+            ..moveTo(127, 116)
+            ..quadraticBezierTo(106, 144, 88, 126),
         );
-        canvas.drawCircle(const Offset(60, 28), 3, _dot);
-        canvas.drawCircle(const Offset(112, 64), 3, _dot);
+        _dots(canvas, const [(86, 72.75, 3), (127.25, 115.25, 2.75)]);
       case OnboardingArt.linked:
-        _shape(canvas, _cloud(const Rect.fromLTWH(26, 14, 108, 70)));
-        _check(canvas, const Offset(80, 56), 30, _stroke);
+        _shape(canvas, cloud(const Rect.fromLTRB(46.25, 52.75, 152.75, 120)));
+        canvas.drawPath(
+          Path()
+            ..moveTo(87.25, 95.75)
+            ..lineTo(95.75, 104.25)
+            ..lineTo(114.25, 85.75),
+          _stroke(),
+        );
       case OnboardingArt.photograph:
-        const box = Rect.fromLTWH(20, 0, 120, 120);
-        final corners = _stroke..strokeWidth = 2.5;
+        canvas.drawRRect(
+          RRect.fromLTRBR(52.5, 42.5, 147.5, 137.5, const Radius.circular(12)),
+          Paint()..color = squareFill,
+        );
+        final corners = _stroke()
+          ..strokeCap = StrokeCap.square
+          ..strokeJoin = StrokeJoin.miter;
+        const box = Rect.fromLTRB(40.25, 30.25, 159.25, 149.25);
         for (final (corner, dx, dy) in [
           (box.topLeft, 1.0, 1.0),
           (box.topRight, -1.0, 1.0),
@@ -249,59 +304,62 @@ class _ArtPainter extends CustomPainter {
         ]) {
           canvas.drawPath(
             Path()
-              ..moveTo(corner.dx, corner.dy + dy * 20)
+              ..moveTo(corner.dx, corner.dy + dy * 19)
               ..lineTo(corner.dx, corner.dy)
-              ..lineTo(corner.dx + dx * 20, corner.dy),
+              ..lineTo(corner.dx + dx * 19, corner.dy),
             corners,
           );
         }
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(box.deflate(14), const Radius.circular(8)),
-          _fill,
-        );
-        for (final dot in const [
-          Offset(56, 36),
-          Offset(84, 30),
-          Offset(100, 46),
-          Offset(72, 58),
-          Offset(58, 76),
-          Offset(92, 72),
-          Offset(104, 86),
-        ]) {
-          canvas.drawCircle(dot, 3.5, _dot);
-        }
-        canvas.drawCircle(const Offset(136, 110), 16, Paint()..color = badge);
-        _check(
-          canvas,
-          const Offset(136, 110),
-          14,
-          _stroke
-            ..color = Colors.white
-            ..strokeWidth = 2.5,
+        _dots(canvas, const [
+          (104.5, 68.25, 2.5),
+          (76, 73.25, 4.25),
+          (121.25, 85, 3.5),
+          (90.25, 96.75, 2.25),
+          (111.75, 108.75, 4.25),
+          (78.5, 111, 3),
+          (125.75, 115.75, 1.75),
+        ]);
+        canvas.drawCircle(const Offset(152, 142), 16, Paint()..color = badge);
+        canvas.drawPath(
+          Path()
+            ..moveTo(145.25, 142.25)
+            ..lineTo(150, 147)
+            ..lineTo(158.75, 138.25),
+          _stroke(2.5)..color = Colors.white,
         );
       case OnboardingArt.camera:
         _shape(
           canvas,
-          Path()..addRRect(
-            RRect.fromRectAndRadius(
-              const Rect.fromLTWH(18, 24, 124, 86),
-              const Radius.circular(10),
+          Path.combine(
+            PathOperation.union,
+            Path()..addRRect(
+              RRect.fromLTRBR(
+                38.25,
+                66.5,
+                161.25,
+                138.75,
+                const Radius.circular(8),
+              ),
             ),
+            Path()..addPolygon(const [
+              Offset(72.25, 67.5),
+              Offset(80.75, 53.75),
+              Offset(119.25, 53.75),
+              Offset(127.75, 67.5),
+            ], true),
           ),
         );
-        canvas.drawPath(
-          Path()
-            ..moveTo(52, 24)
-            ..lineTo(58, 12)
-            ..lineTo(102, 12)
-            ..lineTo(108, 24),
-          _stroke,
+        canvas.drawCircle(
+          const Offset(99.75, 100.25),
+          31.5,
+          _stroke(1.5)..color = ring,
         );
-        canvas.drawCircle(const Offset(80, 67), 30, _stroke);
-        canvas.drawCircle(const Offset(80, 67), 22, _stroke);
-        canvas.drawCircle(const Offset(75, 62), 3.5, _dot);
-        canvas.drawCircle(const Offset(86, 64), 3.5, _dot);
-        canvas.drawCircle(const Offset(80, 74), 3.5, _dot);
+        canvas.drawCircle(const Offset(99.75, 100.25), 23.25, _stroke());
+        _dots(canvas, const [
+          (93.25, 96.25, 3.25),
+          (105, 100.25, 2.5),
+          (98.75, 108.75, 1.75),
+        ]);
       case OnboardingArt.triangle:
         break;
     }
@@ -312,5 +370,7 @@ class _ArtPainter extends CustomPainter {
       art != oldDelegate.art ||
       ink != oldDelegate.ink ||
       fill != oldDelegate.fill ||
+      squareFill != oldDelegate.squareFill ||
+      ring != oldDelegate.ring ||
       badge != oldDelegate.badge;
 }

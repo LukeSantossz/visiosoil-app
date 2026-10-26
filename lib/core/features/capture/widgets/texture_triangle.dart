@@ -213,7 +213,16 @@ class _TrianglePainter extends CustomPainter {
       ..color = palette.outline
       ..style = PaintingStyle.stroke
       ..strokeWidth = palette.isSun ? 1.4 : 1;
-    _fill = Paint()..color = palette.primary;
+    // PNG 06 and 14 fill the class at 85 % under a 2 dp edge in `primary`.
+    _fill = Paint()
+      ..color = palette.highContrast
+          ? palette.primary
+          : palette.primary.withValues(alpha: .85);
+    _regionEdge = Paint()
+      ..color = palette.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeJoin = StrokeJoin.round;
     _grain = Paint()
       ..color = textureClass == null
           ? palette.secondary
@@ -262,6 +271,8 @@ class _TrianglePainter extends CustomPainter {
               color: palette.isSun ? palette.onSurface : palette.textTertiary,
               fontWeight: FontWeight.w600,
               fontSize: (textStyle.fontSize ?? 12) * side / 300,
+              // The mocks set the labels with Inter's two-storey "a".
+              fontFeatures: const [FontFeature('ss01')],
             ),
           ),
           textDirection: TextDirection.ltr,
@@ -269,7 +280,7 @@ class _TrianglePainter extends CustomPainter {
         )..layout(),
     ];
     _labelOffsets = [
-      Offset(150 * _scale - _labels[0].width / 2, 0),
+      Offset(150 * _scale - _labels[0].width / 2, 3 * _scale),
       Offset(60 * _scale, 190 * _scale),
       Offset(240 * _scale - _labels[2].width, 190 * _scale),
     ];
@@ -286,7 +297,7 @@ class _TrianglePainter extends CustomPainter {
   final bool static;
   late final bool _hasClass;
   late final Path _region, _outline, _lines;
-  late final Paint _edge, _grid, _fill, _grain;
+  late final Paint _edge, _grid, _fill, _regionEdge, _grain;
   late final double _scale;
   late final List<_Particle> _particles;
   late final List<TextPainter> _labels;
@@ -355,6 +366,7 @@ class _TrianglePainter extends CustomPainter {
       canvas.scale(pulse);
       canvas.translate(-150, -120);
       canvas.drawPath(_region, _fill);
+      canvas.drawPath(_region, _regionEdge);
       canvas.restore();
     }
     canvas.drawPath(_outline, _edge);

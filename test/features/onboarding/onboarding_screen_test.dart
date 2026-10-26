@@ -243,23 +243,7 @@ void main() {
     });
   });
 
-  // The photograph step still teaches the capture protocol the A4-sheet
-  // reader assumes (ADR 0017, SPEC 0104): a photograph taken any other way
-  // is refused by name.
   group('copy', () {
-    const steps = [
-      (
-        'Folha A4',
-        'Use uma folha A4 branca, sem nada escrito, sobre uma superfície '
-            'mais escura que o papel. Não coloque mais nada sobre ela.',
-      ),
-      ('Amostra', 'Espalhe o solo em um círculo de 8 a 10 cm no meio da folha.'),
-      (
-        'Foto',
-        'Fotografe de cima, com a folha inteira no quadro e uma margem em '
-            'volta, em luz difusa e sem flash.',
-      ),
-    ];
 
     // Pumps the onboarding and returns the text of each page, in order.
     Future<List<List<String>>> pageTexts(WidgetTester tester) async {
@@ -288,16 +272,17 @@ void main() {
       }
     });
 
-    testWidgets('photo_step_teaches_the_sheet_protocol', (tester) async {
+    // PNG 05 shows the step's sentence alone. The protocol the A4-sheet
+    // reader assumes (ADR 0017) is taught by the capture guide before the
+    // first camera launch (SPEC 0142, SPEC 0206).
+    testWidgets('photo_step_is_the_sentence_alone', (tester) async {
       final page = (await pageTexts(tester))[1];
 
       expect(page, contains('Fotografe a amostra de solo'));
-      final protocol = [for (final s in steps) ...[s.$1, s.$2]];
-      expect(protocol, [
-        for (final s in captureProtocolSteps) ...[s.title, s.description],
-      ]);
-      final shown = page.where(protocol.contains).toList();
-      expect(shown, protocol);
+      for (final s in captureProtocolSteps) {
+        expect(page, isNot(contains(s.title)));
+        expect(page, isNot(contains(s.description)));
+      }
     });
 
     testWidgets('class_step_shows_the_triangle', (tester) async {

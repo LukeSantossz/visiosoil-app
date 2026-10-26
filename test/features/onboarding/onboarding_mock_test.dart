@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/capture_protocol.dart';
+import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
@@ -126,18 +127,71 @@ void main() {
       find.descendant(of: row, matching: find.byIcon(LucideIcons.cloudCheck)),
       findsOneWidget,
     );
+    // 16 dp above "Continuar", as PNG 04 draws it.
     expect(
-      tester.getBottomLeft(row).dy,
-      lessThan(tester.getTopLeft(find.text('Continuar').first).dy),
+      tester.getTopLeft(find.text('Continuar').first).dy -
+          tester.getBottomLeft(row).dy,
+      greaterThanOrEqualTo(16),
+    );
+    final continuar = find.ancestor(
+      of: find.text('Continuar'),
+      matching: find.byType(ElevatedButton),
+    );
+    expect(
+      tester.getTopLeft(continuar).dy - tester.getBottomLeft(row).dy,
+      16,
+    );
+    final icon = tester.widget<Icon>(
+      find.descendant(of: row, matching: find.byIcon(LucideIcons.cloudCheck)),
+    );
+    expect(icon.size, 20);
+  });
+
+  // PNG 06 marks the medium class, and the triangle spans 146 dp.
+  testWidgets('class_step_highlights_the_class', (tester) async {
+    await _pump(tester);
+    await _toStep2(tester);
+    await tester.tap(find.text('Continuar').first);
+    await tester.pumpAndSettle();
+
+    final triangle = find.byType(TextureTriangle);
+    expect(tester.widget<TextureTriangle>(triangle).highlightClass, 'Media');
+    expect(tester.getSize(triangle).width, closeTo(146 / 170 * 300, .01));
+  });
+
+  // PNG 07's list ends above the actions without being cut.
+  testWidgets('camera_step_list_is_not_cut', (tester) async {
+    await _pump(tester);
+    await _toStep2(tester);
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.text('Continuar').first);
+      await tester.pumpAndSettle();
+    }
+
+    // The content scrolls to 8 dp above the first action.
+    final content = find.ancestor(
+      of: find.text('Permita o acesso à câmera'),
+      matching: find.byType(SingleChildScrollView),
+    );
+    final allow = find.ancestor(
+      of: find.text('Permitir câmera'),
+      matching: find.byType(ElevatedButton),
+    );
+    expect(
+      tester.getTopLeft(allow).dy - tester.getBottomLeft(content).dy,
+      8,
     );
   });
 
-  testWidgets('protocol_list_stays', (tester) async {
+  // PNG 05 has no list; the capture guide teaches the protocol before the
+  // first camera launch (SPEC 0142).
+  testWidgets('photo_step_has_no_protocol_list', (tester) async {
     await _pump(tester);
     await _toStep2(tester);
 
+    expect(find.text('Fotografe a amostra de solo'), findsOneWidget);
     for (final step in captureProtocolSteps) {
-      expect(find.text(step.title), findsOneWidget);
+      expect(find.text(step.title), findsNothing);
     }
   });
 }
