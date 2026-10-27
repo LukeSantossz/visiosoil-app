@@ -281,6 +281,7 @@ class _BootFrame extends StatelessWidget {
                         painter: _BootMarkPainter(ms: ms),
                       ),
                     ),
+                    // The prototype's 20 dp under the mark (SPEC 0217).
                     const SizedBox(height: 20),
                     _Rise(
                       t: name,
@@ -292,7 +293,7 @@ class _BootFrame extends StatelessWidget {
                         ).copyWith(color: Colors.white, letterSpacing: -0.8),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     _Rise(
                       t: tagline,
                       child: Text(
