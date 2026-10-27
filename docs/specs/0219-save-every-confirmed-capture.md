@@ -55,6 +55,11 @@ The Developer ran a field session on 2026-10-27. Three samples of each class wer
   - Capture keeps the photograph and says that the record could not be saved.
   - It shows the photograph with the existing "Salvar registro", "Tirar outra foto" and "Descartar" actions.
   - "Salvar registro" retries the same create.
+- **A failed result write.** When writing the classification into the created record throws while capture is shown, capture asks before going on.
+  - The dialog "Não foi possível salvar o resultado" says the photograph is in the history, and that without the result it stays unclassified.
+  - "Tentar de novo" writes the same classification again.
+  - "Continuar sem resultado" opens `/details` for the record as it is, without settling the triangle on a class the record does not hold.
+  - A barrier tap does not dismiss it, so the choice is always made.
 - **Removed from capture:**
   - the draft result and the failed draft result;
   - the draft's labels and its "Corrigir";
@@ -100,6 +105,10 @@ The Developer ran a field session on 2026-10-27. Three samples of each class wer
   - opens `/details` for that record;
   - shows "Salvo no histórico".
 - `capture_writes_a_failed_classification`: a classification that fails writes its cause to the record and opens `/details`.
+- `failed_result_write_offers_a_retry`: when `updateClassification` throws, capture:
+  - shows "Não foi possível salvar o resultado" and neither opens `/details` nor shows "Salvo no histórico";
+  - writes the class when "Tentar de novo" is tapped and the write then succeeds, and opens `/details`.
+- `declined_result_write_opens_the_record`: "Continuar sem resultado" opens `/details` for the record without a class, after one write attempt.
 - `leaving_while_classifying_keeps_the_record`: popping capture while classifying:
   - deletes no record;
   - still writes the classification when it ends.
