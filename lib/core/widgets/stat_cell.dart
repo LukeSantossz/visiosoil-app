@@ -101,11 +101,15 @@ class StatCell extends StatelessWidget {
             ),
             Text(
               label,
+              // 12/16 in every theme: PNG 25 keeps Modo Sol's labels at the
+              // light size (SPEC 0213).
               style:
                   labelStyle ??
-                  theme.textTheme.bodySmall?.copyWith(
-                    color: palette.onSurfaceVariant,
-                  ),
+                  AppTypography.resized(
+                    theme.textTheme.bodySmall!,
+                    12,
+                    height: 16 / 12,
+                  ).copyWith(color: palette.onSurfaceVariant),
             ),
           ],
         ),
