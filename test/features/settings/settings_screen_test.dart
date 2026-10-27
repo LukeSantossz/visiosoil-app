@@ -1039,6 +1039,29 @@ void main() {
     expect(tester.getSize(find.text('PREFERÊNCIAS')).height, 16);
   });
 
+  // SPEC 0216: the backup row follows the account tile on an auth error.
+  testWidgets(
+    'backup_stays_available_when_sign_out_fails_leaving_the_account',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
+          signOutError: Exception('revoke failed'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Sair'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      final backup = find.widgetWithText(SettingsTile, 'Backup na conta');
+      await tester.scrollUntilVisible(backup, 200);
+      expect(tester.widget<SettingsTile>(backup).enabled, isTrue);
+    },
+  );
+
   // SPEC 0216: PNG 23 greys the backup row until an account is linked.
   testWidgets('backup_is_unavailable_without_an_account', (tester) async {
     await tester.pumpWidget(_app(null));
