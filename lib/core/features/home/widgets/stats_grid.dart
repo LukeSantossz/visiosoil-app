@@ -68,7 +68,8 @@ class StatsGrid extends StatelessWidget {
       );
     }
     // The cards take the tallest one's content: 104 dp in PNG 09, and 120 dp
-    // in PNG 08, where "última confiança" wraps (SPEC 0216).
-    return StatsRow(cells: cells);
+    // in PNG 08, where "última confiança" wraps (SPEC 0216). The skeleton holds
+    // the empty height, so "Recentes" does not move when the data arrives.
+    return StatsRow(cells: cells, minHeight: loading ? 104 : 0);
   }
 }

@@ -51,7 +51,8 @@ class OfflineBanner extends StatelessWidget {
                     bar: palette.isSun
                         ? palette.onSurface
                         : palette.textTertiary,
-                    slash: palette.error,
+                    // Modo Sol draws every line in ink, the slash too (SPEC 0216).
+                    slash: palette.isSun ? palette.onSurface : palette.error,
                   ),
                 ),
               ),

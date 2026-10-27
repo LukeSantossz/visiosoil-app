@@ -44,7 +44,13 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final pkgAsync = ref.watch(packageInfoProvider);
-    final linked = ref.watch(authNotifierProvider).value?.account != null;
+    // The same account the account tile shows: on an auth error, the
+    // service's own snapshot, as a sign-out that kept the credentials leaves
+    // the account in place (SPEC 0216).
+    final authAsync = ref.watch(authNotifierProvider);
+    final linked = authAsync.hasError
+        ? ref.read(authServiceProvider).currentAccount != null
+        : authAsync.value?.account != null;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Configurações'),
