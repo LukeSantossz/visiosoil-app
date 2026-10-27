@@ -13,8 +13,9 @@ import 'package:visiosoil_app/providers/onboarding_store_provider.dart';
 import '../../support/guidelines.dart';
 import '../../support/haptics_recorder.dart';
 
-/// Guards the boot "Peneira" redesign (v11 §3.1, §6.2, §7, PR 14, SPEC 0193):
-/// the ≤1.6 s entrance, "Pular", reduced motion, the Hero hand-off to Home,
+/// Guards the boot "Peneira" (v11 §3.1, §6.2, §7, PR 14, SPEC 0193) as the
+/// prototype times it (SPEC 0217): the green reveal, the sieve's ripple, the
+/// mark's assembly, the text, the slide-up hand-off, "Pular", reduced motion,
 /// and that boot never vibrates.
 void main() {
   GoRouter router(bool completed) => GoRouter(
@@ -23,24 +24,17 @@ void main() {
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(
         path: '/',
-        builder: (_, _) => const Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Hero(
-                  tag: visioSoilLogoHeroTag,
-                  child: VisioSoilLogo(size: 32, color: Colors.black),
-                ),
-                Text('HOME_STUB'),
-              ],
-            ),
-          ),
+        pageBuilder: (_, state) => bootHandOffPage(
+          state,
+          const Scaffold(body: Center(child: Text('HOME_STUB'))),
         ),
       ),
       GoRoute(
         path: '/onboarding',
-        builder: (_, _) => const Scaffold(body: Text('ONBOARDING_STUB')),
+        pageBuilder: (_, state) => bootHandOffPage(
+          state,
+          const Scaffold(body: Text('ONBOARDING_STUB')),
+        ),
       ),
     ],
   );
@@ -71,6 +65,8 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   }
 
+  Duration ms(int value) => Duration(milliseconds: value);
+
   bool hasBootPainter(WidgetTester tester) => find
       .byWidgetPredicate(
         (w) =>
@@ -81,21 +77,19 @@ void main() {
       .evaluate()
       .isNotEmpty;
 
-  Finder heroLogo() => find.byWidgetPredicate(
-    (w) =>
-        w is Hero && w.tag == visioSoilLogoHeroTag && w.child is VisioSoilLogo,
-  );
+  double opacityOf(WidgetTester tester, String text) => tester
+      .widget<Opacity>(
+        find
+            .ancestor(of: find.text(text), matching: find.byType(Opacity))
+            .first,
+      )
+      .opacity;
 
-  // SplashScreen.heroDelay is the controller's own duration, so the
-  // entrance commits to navigating at exactly this mark — comfortably inside
-  // the ≤1.6 s budget. (The route's own push/Hero transition runs after this,
-  // the same chrome every navigation in the app pays — see `_settle` in
-  // `home_navigation_test.dart` for the precedent of not bounding that part.)
+  // The boot routes on at this mark, comfortably inside the ≤1.6 s budget.
+  // The hand-off's slide runs after it, as every route's transition does.
   test('the_entrance_commits_to_navigating_well_within_the_1_6s_budget', () {
-    expect(
-      SplashScreen.heroDelay,
-      lessThanOrEqualTo(const Duration(milliseconds: 1600)),
-    );
+    expect(SplashScreen.handOffAt, ms(1400));
+    expect(SplashScreen.handOffAt, lessThanOrEqualTo(ms(1600)));
   });
 
   // PNG 01 as SPEC 0207 measures it.
@@ -108,7 +102,9 @@ void main() {
       expect(title.style?.fontSize, 32);
       expect(title.style?.fontWeight, FontWeight.w700);
       expect(
-        tester.widget<Text>(find.text('Análise de textura do solo')).style
+        tester
+            .widget<Text>(find.text('Análise de textura do solo'))
+            .style
             ?.fontSize,
         16,
       );
@@ -137,10 +133,147 @@ void main() {
     }
   });
 
+  testWidgets('boot_starts_on_the_background_and_opens_green', (tester) async {
+    for (final (name, theme, palette) in [
+      ('light', AppTheme.light, AppPalette.light),
+      ('dark', AppTheme.dark, AppPalette.dark),
+      ('sun', AppTheme.sun, AppPalette.sun),
+    ]) {
+      await pumpSplash(tester, theme: theme);
+      final screen = tester.getSize(find.byType(SplashScreen));
+      Path reveal() => tester
+          .widget<ClipPath>(find.byKey(const Key('boot-reveal')))
+          .clipper!
+          .getClip(screen);
+
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+        palette.background,
+        reason: name,
+      );
+      expect(
+        tester.widget<ColoredBox>(find.byKey(const Key('boot-green'))).color,
+        palette.bootBackground,
+        reason: name,
+      );
+      expect(reveal().getBounds().isEmpty, isTrue, reason: name);
+
+      await tester.pump(ms(420));
+      final opened = reveal();
+      for (final corner in [
+        const Offset(.5, .5),
+        Offset(screen.width - .5, .5),
+        Offset(.5, screen.height - .5),
+        Offset(screen.width - .5, screen.height - .5),
+      ]) {
+        expect(opened.contains(corner), isTrue, reason: '$name $corner');
+      }
+
+      await unmount(tester);
+    }
+  });
+
+  testWidgets('boot_sieve_dots_ripple_and_clear', (tester) async {
+    await pumpSplash(tester);
+    final sieve = find.byKey(const Key('boot-sieve'));
+
+    await tester.pump(ms(600));
+    expect(tester.renderObject(sieve), paints..circle());
+
+    await tester.pump(ms(800));
+    expect(tester.renderObject(sieve), isNot(paints..circle()));
+
+    await unmount(tester);
+  });
+
+  testWidgets('boot_mark_assembles', (tester) async {
+    await pumpSplash(tester);
+    final mark = find.byKey(const Key('boot-mark'));
+    final screen = tester.getSize(find.byType(SplashScreen));
+
+    final rect = tester.getRect(mark);
+    expect(rect.size, const Size.square(88));
+    expect(rect.top, screen.height / 2 - 96);
+    expect(rect.center.dx, screen.width / 2);
+
+    await tester.pump(ms(500));
+    expect(tester.renderObject(mark), isNot(paints..arc()));
+    expect(
+      tester.renderObject(mark),
+      isNot(paints..circle(style: PaintingStyle.stroke)),
+    );
+
+    await tester.pump(ms(600));
+    expect(
+      tester.renderObject(mark),
+      paints
+        ..circle(style: PaintingStyle.stroke)
+        ..circle(style: PaintingStyle.fill)
+        ..circle(style: PaintingStyle.fill)
+        ..circle(style: PaintingStyle.fill)
+        ..line(),
+    );
+
+    await unmount(tester);
+  });
+
+  testWidgets('boot_text_rises_after_the_mark', (tester) async {
+    await pumpSplash(tester);
+
+    await tester.pump(ms(900));
+    expect(opacityOf(tester, 'VisioSoil'), 0);
+    expect(opacityOf(tester, 'Análise de textura do solo'), 0);
+
+    await tester.pump(ms(400));
+    expect(opacityOf(tester, 'VisioSoil'), 1);
+
+    await unmount(tester);
+  });
+
+  testWidgets('pular_fades_in_and_turns_white_with_the_green', (tester) async {
+    await pumpSplash(tester);
+
+    expect(opacityOf(tester, 'Pular'), 0);
+    expect(
+      tester.widget<Text>(find.text('Pular')).style?.color,
+      AppPalette.light.primaryText,
+    );
+
+    await tester.pump(ms(500));
+    expect(opacityOf(tester, 'Pular'), 1);
+    expect(tester.widget<Text>(find.text('Pular')).style?.color, Colors.white);
+
+    await unmount(tester);
+  });
+
+  testWidgets('boot_hands_off_by_sliding_up', (tester) async {
+    await pumpSplash(tester);
+
+    await tester.pump(SplashScreen.handOffAt);
+    // GoRouter parses the new location asynchronously: two frames.
+    await tester.pump(ms(1));
+    await tester.pump(ms(1));
+    expect(find.text('HOME_STUB'), findsOneWidget);
+
+    await tester.pump(ms(200));
+    final curtain = find.byKey(const Key('boot-curtain'));
+    expect(tester.getRect(curtain).top, lessThan(0));
+    final risingTop = tester.getTopLeft(find.text('HOME_STUB')).dy;
+
+    await tester.pump(ms(340));
+    await tester.pump();
+    expect(curtain, findsNothing);
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(
+      risingTop,
+      greaterThan(tester.getTopLeft(find.text('HOME_STUB')).dy),
+    );
+  });
+
   testWidgets('boot_navigates_home_within_the_1_6s_budget', (tester) async {
     await pumpSplash(tester);
 
-    await tester.pump(SplashScreen.heroDelay);
+    await tester.pump(SplashScreen.handOffAt);
     await tester.pumpAndSettle();
 
     expect(find.text('HOME_STUB'), findsOneWidget);
@@ -152,7 +285,7 @@ void main() {
   ) async {
     await pumpSplash(tester, completed: false);
 
-    await tester.pump(SplashScreen.heroDelay);
+    await tester.pump(SplashScreen.handOffAt);
     await tester.pumpAndSettle();
 
     expect(find.text('ONBOARDING_STUB'), findsOneWidget);
@@ -162,10 +295,14 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester);
+    await tester.pump(ms(500));
 
     await tester.tap(find.text('Pular'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('boot-curtain')), findsOneWidget);
 
+    await tester.pumpAndSettle();
     expect(find.text('HOME_STUB'), findsOneWidget);
   });
 
@@ -173,24 +310,24 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester);
+    await tester.pump(ms(500));
 
     await tester.tap(find.text('Pular'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    // The entrance's own 1.2 s mark, had Pular not already left: must not
+    // The entrance's own hand-off mark, had Pular not already left: must not
     // throw or navigate a second time (the splash is gone, undisposed timer
     // would also fail the test on its own).
-    await tester.pump(SplashScreen.heroDelay);
+    await tester.pump(SplashScreen.handOffAt);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the_logo_carries_the_shared_hero_tag_during_the_entrance', (
-    tester,
-  ) async {
+  // Home draws no logo (PNG 08), so the boot has nothing to fly a Hero to.
+  testWidgets('boot_carries_no_logo_hero', (tester) async {
     await pumpSplash(tester);
 
-    expect(heroLogo(), findsOneWidget);
+    expect(find.byType(Hero), findsNothing);
 
     await unmount(tester);
   });
@@ -206,10 +343,10 @@ void main() {
       addTearDown(() => AppMotion.reduceMotion = false);
 
       await pumpSplash(tester);
-      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pump(ms(60));
 
       expect(hasBootPainter(tester), isFalse);
-      expect(heroLogo(), findsOneWidget);
+      expect(find.byType(VisioSoilLogo), findsOneWidget);
       expect(find.text('VisioSoil'), findsNothing);
       expect(find.text('Análise de textura do solo'), findsNothing);
       // "Pular" is a control, not motion: it stays even with motion reduced.
@@ -225,36 +362,21 @@ void main() {
       );
       expect(fade.opacity.value, closeTo(60 / 150, 0.05));
 
-      // The fade — and the boot — finish at 150 ms, well under the full
-      // entrance's 1.2 s.
-      await tester.pump(const Duration(milliseconds: 90));
-      await tester.pumpAndSettle();
+      // The fade — and the boot — finish at 150 ms, and the route changes
+      // with no transition: no curtain slides.
+      await tester.pump(ms(90));
+      // GoRouter parses the new location asynchronously.
+      await tester.pump(ms(1));
+      await tester.pump(ms(1));
+      expect(find.byKey(const Key('boot-curtain')), findsNothing);
       expect(find.byType(SplashScreen), findsNothing);
+      expect(find.text('HOME_STUB'), findsOneWidget);
     },
   );
 
-  testWidgets('reduce_motion_disables_the_hero_flight_for_the_boot_logo', (
-    tester,
-  ) async {
-    AppMotion.reduceMotion = true;
-    addTearDown(() => AppMotion.reduceMotion = false);
-
+  testWidgets('full_motion_renders_the_sieve_painter', (tester) async {
     await pumpSplash(tester);
-    await tester.pump(const Duration(milliseconds: 60));
-
-    final heroMode = tester.widget<HeroMode>(
-      find.ancestor(of: heroLogo(), matching: find.byType(HeroMode)).first,
-    );
-    expect(heroMode.enabled, isFalse);
-
-    await unmount(tester);
-  });
-
-  testWidgets('full_motion_renders_the_sieve_mesh_and_grains_painter', (
-    tester,
-  ) async {
-    await pumpSplash(tester);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(ms(300));
 
     expect(hasBootPainter(tester), isTrue);
 
@@ -267,7 +389,7 @@ void main() {
     final haptics = recordHaptics(tester);
     await pumpSplash(tester);
 
-    await tester.pump(SplashScreen.heroDelay);
+    await tester.pump(SplashScreen.handOffAt);
     await tester.pumpAndSettle();
 
     expect(haptics, isEmpty);
@@ -283,32 +405,14 @@ void main() {
     expect(haptics, isEmpty);
   });
 
-  testWidgets('boot_background_matches_each_theme', (tester) async {
-    for (final (name, theme, expected) in [
-      ('light', AppTheme.light, AppPalette.light.primary),
-      ('dark', AppTheme.dark, AppPalette.dark.onPrimary),
-      ('sun', AppTheme.sun, AppPalette.sun.primary),
-    ]) {
-      await pumpSplash(tester, theme: theme);
-
-      expect(
-        tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-        expected,
-        reason: name,
-      );
-
-      await unmount(tester);
-    }
-  });
-
-  // The boot passes Flutter's four accessibility guidelines (SPEC 0133), with
-  // the entrance's fade settled so the logo and name are in the render tree
-  // at full opacity, not transparent.
+  // The boot passes Flutter's four accessibility guidelines (SPEC 0133),
+  // just before it routes on, with the mark, the name, the tagline and
+  // "Pular" all in at full opacity on the green.
   for (final (name, theme) in appThemes) {
     testWidgets('screens_meet_guidelines in the $name theme', (tester) async {
       final semantics = tester.ensureSemantics();
       await pumpSplash(tester, theme: theme);
-      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(ms(1390));
 
       await expectMeetsGuidelines(tester);
 
