@@ -74,35 +74,24 @@ class _HistoryListState extends ConsumerState<HistoryList> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           sliver: SliverToBoxAdapter(
             // The width the list has, not the screen's: beside a detail pane
-            // the list is narrower than the screen (SPEC 0200).
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: constraints.maxWidth
-                      .clamp(
-                        280 * MediaQuery.textScalerOf(context).scale(1),
-                        double.infinity,
-                      )
-                      .toDouble(),
-                  child: SegmentedControl<bool>(
-                    options: const [
-                      SegmentedControlOption(
-                        value: false,
-                        label: 'Análises',
-                        icon: LucideIcons.history,
-                      ),
-                      SegmentedControlOption(
-                        value: true,
-                        label: 'Coleção',
-                        icon: LucideIcons.layers,
-                      ),
-                    ],
-                    value: _collection,
-                    onChanged: (value) => setState(() => _collection = value),
-                  ),
+            // the list is narrower than the screen (SPEC 0200). At any text
+            // size it stays within it, its labels shrinking to fit their
+            // segment (SPEC 0197, SPEC 0222).
+            child: SegmentedControl<bool>(
+              options: const [
+                SegmentedControlOption(
+                  value: false,
+                  label: 'Análises',
+                  icon: LucideIcons.history,
                 ),
-              ),
+                SegmentedControlOption(
+                  value: true,
+                  label: 'Coleção',
+                  icon: LucideIcons.layers,
+                ),
+              ],
+              value: _collection,
+              onChanged: (value) => setState(() => _collection = value),
             ),
           ),
         ),
