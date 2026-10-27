@@ -1,3 +1,5 @@
+import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Persistence contract for [SoilRecord].
@@ -30,6 +32,31 @@ abstract class SoilRecordRepository {
     int id, {
     String? fieldName,
     String? sampleLabel,
+  });
+
+  /// Writes what classifying the record with the given [id] produced and
+  /// marks it for sync (SPEC 0219): the result, or the [classificationFailure]
+  /// when nothing was classified. No-op if the record does not exist or is
+  /// deleted.
+  Future<void> updateClassification(
+    int id, {
+    String? textureClass,
+    double? confidenceScore,
+    List<ClassScore>? classDistribution,
+    String? modelVersion,
+    String? datasetVersion,
+    ClassificationFailureCause? classificationFailure,
+  });
+
+  /// Writes the location reading of the record with the given [id] and marks
+  /// it for sync (SPEC 0219). No-op if the record does not exist or is
+  /// deleted.
+  Future<void> updateLocation(
+    int id, {
+    required double latitude,
+    required double longitude,
+    double? horizontalAccuracy,
+    required String address,
   });
 
   /// Deletes the record with the given [id]. No-op if it does not exist.

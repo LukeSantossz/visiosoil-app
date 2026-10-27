@@ -14,8 +14,6 @@ import 'package:visiosoil_app/core/features/capture/widgets/camera_permission_de
 import 'package:visiosoil_app/core/features/capture/widgets/capture_actions.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/capture_image_preview.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
-import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
-import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/processing_view.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
@@ -112,8 +110,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   String? _processingClass;
 
-  /// When the current result arrived: the draft result's time (SPEC 0196).
-  DateTime? _resultAt;
   Completer<void>? _settlement;
 
   static const Duration _locationTimeout = Duration(seconds: 20);
@@ -298,24 +294,121 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     return mounted && confirmed == true;
   }
 
-  /// Shows the photograph at [path] as the capture and runs location and
-  /// classification on it, whether it was just picked or recovered after a
-  /// restart.
+  /// Shows the photograph at [path] as the capture and saves it, whether it
+  /// was just picked or recovered after a restart.
   Future<void> _useCapturedImage(String path) async {
     ref.read(imageProvider.notifier).setImage(File(path));
 
     // Tags this capture so late results from a superseded one are ignored.
     final generation = _state.generation + 1;
-    setState(() {
-      _state = _state.startingCapture(generation);
-      // A new photograph starts without the last draft's labels.
-      _draftLabels = null;
-    });
+    setState(() => _state = _state.startingCapture(generation));
 
-    // Runs location and classification in parallel (they are independent)
+    await _saveCapture(path, generation);
+  }
+
+  /// Saves the photograph at [path] as a record before anything else is known
+  /// about it, then writes its classification and location into that record
+  /// as they arrive, whether or not the screen is still there (SPEC 0219).
+  Future<void> _saveCapture(String path, int generation) async {
+    // A retry tapped in the same frame as the first attempt (SPEC 0117).
+    if (_state.isSaving) return;
+
+    // Read before the first await: the writes outlive the screen.
+    final repository = ref.read(soilRecordRepositoryProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final inference = ref.read(inferenceServiceProvider);
+    final recordLocation = ref.read(recordLocationProvider);
+    final imageNotifier = ref.read(imageProvider.notifier);
+    final deletePicked = _deletePickedFile;
+    final gallery = ref.read(saveToGalleryProvider)
+        ? ref.read(gallerySaverProvider)
+        : null;
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(
+      () => _state = _state.copyWith(
+        isSaving: true,
+        classification: ClassificationStatus.running,
+        classificationPhase: null,
+      ),
+    );
+
+    final SoilRecord created;
+    try {
+      created = await repository.create(
+        SoilRecord(
+          imagePath: path,
+          address: AppStrings.addressUnavailable,
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
+    } catch (e) {
+      // Keeps the photograph so "Salvar registro" can retry the write.
+      developer.log('Save failed: $e', name: 'CaptureScreen');
+      if (!mounted) {
+        // Nobody is left to retry; the picker's file still carries its EXIF.
+        unawaited(_disposePickedFile(deletePicked, path));
+        return;
+      }
+      setState(
+        () => _state = _state.copyWith(
+          isSaving: false,
+          classification: ClassificationStatus.idle,
+        ),
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar o registro. Tente novamente.'),
+        ),
+      );
+      return;
+    }
+
+    final id = created.id!;
+    // The record holds the durable copy now (SPEC 0094).
+    imageNotifier.clearIfPath(path);
+    unawaited(_disposePickedFile(deletePicked, path));
+    // The stored copy, already without EXIF, goes to the gallery; a refusal
+    // leaves the record as it is (SPEC 0208).
+    if (gallery != null) {
+      unawaited(_copyToGallery(gallery, created.imagePath, messenger));
+    }
+    if (mounted) setState(() => _state = _state.copyWith(isSaving: false));
+
+    void written() => container.invalidate(soilRecordByIdProvider(id));
+    // Runs location and classification in parallel (they are independent).
+    // The copy's pixels and orientation are the picked file's (ADR 0005).
     await Future.wait([
-      _fetchCurrentLocation(generation),
-      _classifySoilTexture(path, generation),
+      _fetchCurrentLocation(
+        generation,
+        recordLocation: recordLocation,
+        write: (reading) => repository.updateLocation(
+          id,
+          latitude: reading.latitude,
+          longitude: reading.longitude,
+          horizontalAccuracy: reading.accuracy,
+          address: reading.address,
+        ),
+        written: written,
+      ),
+      _classifySoilTexture(
+        created.imagePath,
+        generation,
+        inference: inference,
+        write: (report) => repository.updateClassification(
+          id,
+          textureClass: report.result?.textureClass,
+          confidenceScore: report.result?.confidenceScore,
+          classDistribution: report.result?.classDistribution,
+          modelVersion: report.result?.modelVersion,
+          datasetVersion: report.result?.datasetVersion,
+          // The cause the chip named, kept for the record (SPEC 0173).
+          classificationFailure: report.result == null ? report.cause : null,
+        ),
+        written: written,
+        recordId: id,
+        container: container,
+      ),
     ]);
   }
 
@@ -326,24 +419,23 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _processingClass = null;
   }
 
-  Future<void> _classifySoilTexture(String imagePath, int generation) async {
+  Future<void> _classifySoilTexture(
+    String imagePath,
+    int generation, {
+    required InferenceService inference,
+    required Future<void> Function(ClassificationReport report) write,
+    required void Function() written,
+    required int recordId,
+    required ProviderContainer container,
+  }) async {
     _cancelSettlement();
-    if (mounted) {
-      setState(
-        () => _state = _state.copyWith(
-          classification: ClassificationStatus.running,
-          classificationPhase: null,
-        ),
-      );
-    }
 
     ClassificationReport report;
     try {
-      final inferenceService = ref.read(inferenceServiceProvider);
       // No deadline here: `classify` owns the only one, because it holds the
       // isolate handle and can stop the work. A second timeout at this layer
       // would abandon the future while the isolate kept running.
-      report = await inferenceService.classify(
+      report = await inference.classify(
         imagePath,
         onPhase: (phase) {
           // A superseded capture's isolate may still be reporting.
@@ -353,7 +445,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       );
     } catch (e) {
       // `classify` reports its failures rather than throwing, so this is a
-      // defect in it; the screen still lands in the failed state.
+      // defect in it; the record still gets a cause.
       developer.log('Classification threw: $e', name: 'CaptureScreen');
       report = const ClassificationReport.failed(
         ClassificationFailureCause.computationError,
@@ -366,10 +458,27 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       );
     }
 
+    // Written before anything waits on the screen, so leaving loses nothing.
+    // A failed write is offered again while capture is shown, and a result
+    // the record does not hold is never settled on.
+    var saved = false;
+    while (!saved) {
+      try {
+        await write(report);
+        written();
+        saved = true;
+      } catch (e) {
+        developer.log('Classification write failed: $e', name: 'CaptureScreen');
+        if (!mounted || generation != _state.generation) return;
+        if (!await _askToRetryResultWrite()) break;
+      }
+    }
+
     if (!mounted || generation != _state.generation) return;
-    if (report.result != null) {
+    final result = saved ? report.result : null;
+    if (result != null) {
       final settlement = _settlement = Completer<void>();
-      setState(() => _processingClass = report.result!.textureClass);
+      setState(() => _processingClass = result.textureClass);
       await settlement.future;
       if (!mounted || generation != _state.generation) return;
       if (!context.palette.isSun &&
@@ -378,32 +487,76 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         await Future<void>.delayed(AppMotion.slow);
       }
       if (!mounted || generation != _state.generation) return;
-    }
-    _resultAt = DateTime.now();
-    setState(
-      () => _state = _state.copyWith(
-        classificationResult: report.result,
-        classificationFailureCause: report.cause,
-        classification: report.outcome == ClassificationOutcome.ok
-            ? ClassificationStatus.done
-            : ClassificationStatus.failed,
-      ),
-    );
-    // A result arriving, by its confidence (redesign v11 §3.14); a failure's
-    // chip names its cause instead.
-    final arrived = report.result;
-    if (report.outcome == ClassificationOutcome.ok && arrived != null) {
+      // A result arriving, by its confidence (redesign v11 §3.14); a failure's
+      // error block names its cause instead.
       final low =
-          ConfidenceLevel.fromScore(arrived.confidenceScore) ==
+          ConfidenceLevel.fromScore(result.confidenceScore) ==
           ConfidenceLevel.low;
       unawaited(low ? AppHaptics.confirm() : AppHaptics.result());
     }
+
+    // Details opens with the record loaded, in the processing view's place.
+    try {
+      await container.read(soilRecordByIdProvider(recordId).future);
+    } catch (_) {
+      // Details shows its own retryable error.
+    }
+    if (!mounted || generation != _state.generation) return;
+    // Led by PNG 33's light green check (SPEC 0218).
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              LucideIcons.check,
+              size: 20,
+              color: context.palette.inversePrimary,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            const Expanded(child: Text(AppStrings.resultSavedSnackbar)),
+          ],
+        ),
+      ),
+    );
+    // Details pops its bookmark for this record (SPEC 0197).
+    ref.read(justSavedRecordProvider.notifier).mark(recordId);
+    // Capture is replaced, so back from details returns to whatever opened it
+    // (SPEC 0132).
+    context.pushReplacement('/details', extra: CapturedRecord(recordId));
   }
 
-  Future<void> _fetchCurrentLocation(int generation) async {
+  /// Resolves to true when the agronomist asks to write the result again.
+  Future<bool> _askToRetryResultWrite() async {
+    final retry = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.resultWriteFailedTitle),
+        content: const Text(AppStrings.resultWriteFailedMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.resultWriteSkip),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.resultRetry),
+          ),
+        ],
+      ),
+    );
+    return retry ?? false;
+  }
+
+  Future<void> _fetchCurrentLocation(
+    int generation, {
+    required bool recordLocation,
+    required Future<void> Function(LocationReading reading) write,
+    required void Function() written,
+  }) async {
     // Configurações' "Registrar localização" off: no fix is asked for and the
-    // record saves without coordinates (SPEC 0208).
-    if (!ref.read(recordLocationProvider)) {
+    // record keeps no coordinates (SPEC 0208).
+    if (!recordLocation) {
       if (mounted && generation == _state.generation) {
         setState(
           () => _state = _state.copyWith(location: LocationStatus.unavailable),
@@ -424,8 +577,19 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         onTimeout: () => null,
       );
     } catch (_) {
-      // Location is optional: the record can be saved without coordinates.
+      // Location is optional: the record keeps no coordinates.
       reading = null;
+    }
+
+    // Written whether or not the screen is still there (SPEC 0219); without a
+    // reading the record keeps the unavailable address it was created with.
+    if (reading != null) {
+      try {
+        await write(reading);
+        written();
+      } catch (e) {
+        developer.log('Location write failed: $e', name: 'CaptureScreen');
+      }
     }
 
     if (!mounted || generation != _state.generation) return;
@@ -444,136 +608,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     });
   }
 
-  void _retryClassification() {
-    // Mirrors the `_isCapturing`/`_isSaving` guards. The retry chip is only
-    // rendered once a classification has failed, so a second tap is already
-    // improbable; this closes the same-frame window where two taps hit the
-    // chip before the rebuild removes it, each spawning its own isolate.
-    if (_state.isClassifying) return;
+  /// "Salvar registro" after a failed save: the same write again.
+  void _retrySave() {
     final image = ref.read(imageProvider).file;
-    if (image == null) return;
-    _classifySoilTexture(image.path, _state.generation);
-  }
-
-  Future<void> _saveRecord() async {
-    // Guard against double-tap, and against a save tapped in the same frame
-    // as a retry: the button's callback is from the last build, so it checks
-    // the state it runs against (SPEC 0117). A save tapped while the camera is
-    // open for a retake does nothing, as the photograph is about to change
+    // A save tapped while the camera is open for a retake does nothing
     // (SPEC 0147).
-    if (_state.isSaving || _state.isClassifying || _state.isCapturing) return;
-
-    final selectedImage = ref.read(imageProvider);
-    final image = selectedImage.file;
-    if (image == null) return;
-
-    // Capture the notifier and the deleter before the await so the post-save
-    // cleanup never touches `ref` or `widget` after the widget is disposed.
-    final imageNotifier = ref.read(imageProvider.notifier);
-    final deletePicked = _deletePickedFile;
-    final gallery = ref.read(saveToGalleryProvider)
-        ? ref.read(gallerySaverProvider)
-        : null;
-    final messenger = ScaffoldMessenger.of(context);
-
-    setState(() => _state = _state.copyWith(isSaving: true));
-
-    SoilRecord? created;
-    try {
-      final String finalAddress =
-          _state.address ?? AppStrings.addressUnavailable;
-      final labelled = _draftRecord(image, null);
-      final double? finalLatitude = _state.latitude;
-      final double? finalLongitude = _state.longitude;
-
-      created = await ref
-          .read(soilRecordRepositoryProvider)
-          .create(
-            SoilRecord(
-              imagePath: image.path,
-              latitude: finalLatitude,
-              longitude: finalLongitude,
-              address: finalAddress,
-              timestamp: DateTime.now().toIso8601String(),
-              textureClass: _state.classificationResult?.textureClass,
-              confidenceScore: _state.classificationResult?.confidenceScore,
-              classDistribution: _state.classificationResult?.classDistribution,
-              modelVersion: _state.classificationResult?.modelVersion,
-              datasetVersion: _state.classificationResult?.datasetVersion,
-              horizontalAccuracy: _state.horizontalAccuracy,
-              // What "Corrigir" named on the draft (SPEC 0202).
-              fieldName: labelled.fieldName,
-              sampleLabel: labelled.sampleLabel,
-              // The cause the chip named, kept for the record (SPEC 0173).
-              classificationFailure: _state.classificationResult == null
-                  ? _state.classificationFailureCause
-                  : null,
-            ),
-          );
-    } catch (e) {
-      // A repository write failure must not leave the user without feedback:
-      // surface it and keep the image (no clearImage, no navigation) so they
-      // can retry.
-      developer.log('Save failed: $e', name: 'CaptureScreen');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não foi possível salvar o registro. Tente novamente.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _state = _state.copyWith(isSaving: false));
-      }
-    }
-
-    // Only after a confirmed write, and outside the try so a post-save UI error
-    // is never mis-reported as a save failure (which would prompt a retry and
-    // write a duplicate). Clear via the captured notifier — even if the screen
-    // was disposed mid-save — but only if the provider still holds the photo we
-    // saved, so a slow write finishing after a newer capture does not wipe it.
-    // Only the snackbar and the navigation need the widget still mounted.
-    if (created != null) {
-      unawaited(AppHaptics.confirm());
-      imageNotifier.clearIfPath(image.path);
-      // The record points at its durable copy now. A failed save never gets
-      // here, so its retry still has the photograph.
-      unawaited(_disposePickedFile(deletePicked, image.path));
-      // The stored copy, already without EXIF, goes to the gallery; a refusal
-      // leaves the record as it is (SPEC 0208).
-      if (gallery != null) {
-        unawaited(_copyToGallery(gallery, created.imagePath, messenger));
-      }
-      if (mounted) {
-        // Led by PNG 33's light green check (SPEC 0218).
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  LucideIcons.check,
-                  size: 20,
-                  color: context.palette.inversePrimary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                const Expanded(child: Text(AppStrings.resultSavedSnackbar)),
-              ],
-            ),
-          ),
-        );
-        // Details pops its bookmark for this record (SPEC 0197).
-        final createdId = created.id;
-        if (createdId != null) {
-          ref.read(justSavedRecordProvider.notifier).mark(createdId);
-        }
-        // Capture is replaced, so back from details returns to whatever
-        // opened it (SPEC 0132).
-        context.pushReplacement('/details', extra: created.id);
-      }
-    }
+    if (image == null || _state.isCapturing) return;
+    _saveCapture(image.path, _state.generation);
   }
 
   Future<void> _copyToGallery(
@@ -597,20 +638,17 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Invalidates any in-flight location/classification work for this capture.
     final generation = _state.generation + 1;
     ref.read(imageProvider.notifier).clearImage();
-    setState(() {
-      _state = _state.startingCapture(generation);
-      // A new photograph starts without the last draft's labels.
-      _draftLabels = null;
-    });
+    setState(() => _state = _state.startingCapture(generation));
     // A save in flight may still be copying the file; it deletes the file
-    // itself once it succeeds.
+    // itself once it settles.
     if (picked != null && !_state.isSaving) {
       unawaited(_disposePickedFile(_deletePickedFile, picked.path));
     }
   }
 
-  /// Leaving capture discards its photograph, as "Descartar" does
-  /// (SPEC 0146). It clears only once the page has left, so the photograph
+  /// Leaving capture discards a photograph that could not be saved, as
+  /// "Descartar" does (SPEC 0146); a saved one is already the record's
+  /// (SPEC 0219). It clears only once the page has left, so the photograph
   /// does not blank while it slides out, and with what it reads now, since the
   /// screen is disposed by then.
   void _discardOnLeave() {
@@ -618,7 +656,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     if (picked == null) return;
     final imageNotifier = ref.read(imageProvider.notifier);
     final deletePicked = _deletePickedFile;
-    // A save in flight deletes the file itself once it succeeds.
+    // A save in flight deletes the file itself once it settles.
     final saving = _state.isSaving;
     final left = ModalRoute.of(context)?.completed ?? Future<void>.value();
     unawaited(
@@ -652,113 +690,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _pickImage();
   }
 
-  /// The labels "Corrigir" gave the draft, kept for the save (SPEC 0202).
-  ({String fieldName, String sampleLabel})? _draftLabels;
-
-  Future<void> _editDraftLabels(SoilRecord draft) async {
-    // A save has already taken the labels it writes (review of #436).
-    if (_state.isSaving) return;
-    final labels = await showLabelsDialog(context, draft);
-    if (labels == null || !mounted) return;
-    setState(() => _draftLabels = labels);
-  }
-
-  /// The record capture shows before a save: classified, or naming the cause
-  /// it was not (SPEC 0196, SPEC 0202).
-  SoilRecord _draftRecord(File image, InferenceResult? result) {
-    final labels = _draftLabels;
-    String? trimmed(String? text) =>
-        text == null || text.trim().isEmpty ? null : text.trim();
-    return SoilRecord(
-      imagePath: image.path,
-      latitude: _state.latitude,
-      longitude: _state.longitude,
-      address: _state.address,
-      horizontalAccuracy: _state.horizontalAccuracy,
-      timestamp: (_resultAt ?? DateTime.now()).toIso8601String(),
-      textureClass: result?.textureClass,
-      confidenceScore: result?.confidenceScore,
-      fieldName: trimmed(labels?.fieldName),
-      sampleLabel: trimmed(labels?.sampleLabel),
-      classificationFailure: result == null
-          ? _state.classificationFailureCause
-          : null,
-    );
-  }
-
-  /// The draft's outlined bookmark, which saves it (SPEC 0196).
-  Widget _saveBookmark() => VisioIconButton(
-    label: AppStrings.resultSave,
-    icon: LucideIcons.bookmark,
-    color: context.palette.onSurface,
-    onPressed: _state.isSaving ? null : _saveRecord,
-  );
-
-  /// The result as it will be saved (PNG 32, SPEC 0202): the saved result's
-  /// app bar and footer; the bookmark saves and back discards.
-  Widget _draftResult(File image, InferenceResult result) {
-    final draft = _draftRecord(image, result);
-    return ResultContent(
-      key: ValueKey(_state.generation),
-      record: draft,
-      locating: _state.isLocating,
-      announce: true,
-      appBar: resultAppBar(
-        context,
-        bookmark: _saveBookmark(),
-        onShare: () => shareRecordWithConsent(context, ref, draft),
-      ),
-      managementTab: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: Text(
-          AppStrings.resultDraftManagement,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ),
-      detailsTab: SizedBox(
-        height: 420,
-        child: CaptureImagePreview(
-          image: image,
-          sample: ref.watch(soilSampleProvider(image.path)).value,
-          isLoading: _state.isLocating,
-          isClassifying: false,
-          address: _state.address,
-          latitude: _state.latitude,
-          longitude: _state.longitude,
-          classificationResult: result,
-        ),
-      ),
-      footerBuilder: (context, selectTab) => ResultFooter(
-        onCorrect: () => _editDraftLabels(draft),
-        onManagementTips: () => selectTab(ResultTab.management),
-      ),
-    );
-  }
-
-  /// A photograph that was not classified, as PNG 15 shows it (SPEC 0202):
-  /// why and how to try again; the bookmark still saves it (SPEC 0173).
-  Widget _failedResult(File image) {
-    final draft = _draftRecord(image, null);
-    return ResultContent(
-      key: ValueKey(_state.generation),
-      record: draft,
-      announce: true,
-      appBar: resultAppBar(
-        context,
-        bookmark: _saveBookmark(),
-        onShare: () => shareRecordWithConsent(context, ref, draft),
-      ),
-      errorBlock: ResultErrorBlock(
-        cause: _state.classificationFailureCause,
-        onRetake: _pickImage,
-        onCaptureTips: () => context.push('/capture-guide'),
-      ),
-      managementTab: const SizedBox.shrink(),
-      detailsTab: const SizedBox.shrink(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Shows the permission denied screen if the camera was blocked
@@ -775,31 +706,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
 
-    // A classified photograph is shown as the result it will be once saved
-    // (SPEC 0196); a failure keeps the preview with its cause and retry.
-    final result = _state.classificationResult;
-    if (image != null && result != null && !_state.isClassifying) {
-      return PopScope(
-        onPopInvokedWithResult: (didPop, _) {
-          if (didPop) _discardOnLeave();
-        },
-        child: _draftResult(image, result),
-      );
-    }
-
-    // A failure reads as the v11 error result (SPEC 0197): why, how to try
-    // again, and the photograph, which can still be saved (SPEC 0173).
-    if (image != null && _state.classificationFailed && !_state.isClassifying) {
-      return PopScope(
-        onPopInvokedWithResult: (didPop, _) {
-          if (didPop) _discardOnLeave();
-        },
-        child: _failedResult(image),
-      );
-    }
-
-    // A save replaces this route instead of popping it (SPEC 0132), so only
-    // back runs this.
+    // Handing the saved record to details replaces this route instead of
+    // popping it (SPEC 0132), so only back runs this.
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) _discardOnLeave();
@@ -823,10 +731,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               title: _state.isClassifying ? 'Resultado' : 'Nova captura',
               centerTitle: !_state.isClassifying,
               leading: _state.isClassifying
+                  // The capture is saved, so back leaves it to finish
+                  // (SPEC 0219).
                   ? VisioIconButton(
-                      label: 'Descartar',
+                      label: 'Voltar',
                       icon: Icons.arrow_back,
-                      onPressed: _discardImage,
+                      onPressed: () => Navigator.maybePop(context),
                     )
                   : null,
               actions: _state.isClassifying
@@ -890,18 +800,17 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                               classificationFailed: _state.classificationFailed,
                               classificationFailureCause:
                                   _state.classificationFailureCause,
-                              onRetryClassification: _retryClassification,
                             ),
                     ),
                     if (!_state.isClassifying) ...[
                       const SizedBox(height: AppSpacing.lg),
                       CaptureActions(
                         hasImage: hasImage,
-                        // Location is optional, so Save does not wait for it; a record
-                        // saved first has no coordinates (SPEC 0117).
+                        // With a photograph only once its save has failed;
+                        // Save retries it (SPEC 0219).
                         isBusy: _state.isClassifying || _state.isSaving,
                         onCapture: _pickImage,
-                        onSave: _saveRecord,
+                        onSave: _retrySave,
                         onRetake: _pickImage,
                         onDiscard: _discardImage,
                       ),

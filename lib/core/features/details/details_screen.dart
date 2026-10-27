@@ -32,6 +32,14 @@ import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 
+/// What capture hands `/details` once the record it saved is ready to show
+/// (SPEC 0219).
+class CapturedRecord {
+  const CapturedRecord(this.id);
+
+  final int id;
+}
+
 class DetailsScreen extends ConsumerWidget {
   const DetailsScreen({super.key, required this.recordId});
 

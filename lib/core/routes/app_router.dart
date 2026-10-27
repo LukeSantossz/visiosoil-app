@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
@@ -39,10 +40,20 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/details',
-      builder: (context, state) {
+      // A record capture just saved replaces the processing view in place, as
+      // its result did before it was saved (SPEC 0219).
+      pageBuilder: (context, state) {
         final extra = state.extra;
-        final id = extra is int ? extra : -1;
-        return DetailsScreen(recordId: id);
+        if (extra is CapturedRecord) {
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: DetailsScreen(recordId: extra.id),
+          );
+        }
+        return MaterialPage(
+          key: state.pageKey,
+          child: DetailsScreen(recordId: extra is int ? extra : -1),
+        );
       },
     ),
     GoRoute(

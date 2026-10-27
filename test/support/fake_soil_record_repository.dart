@@ -1,8 +1,12 @@
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
-/// Test double for [SoilRecordRepository]. The capture-screen tests only
-/// exercise `create`; the other methods return trivial values.
+/// Test double for [SoilRecordRepository]. It keeps what [create] and the
+/// content updates wrote, so [getById] reads a created record back the way
+/// details does after capture hands over (SPEC 0219); the list reads return
+/// trivial values.
 class FakeSoilRecordRepository implements SoilRecordRepository {
   /// When true, [create] throws to simulate a repository write failure.
   bool throwOnCreate = false;
@@ -17,11 +21,81 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
     if (throwOnCreate) {
       throw Exception('forced create failure');
     }
-    return record.copyWith(id: createCalls.length);
+    final created = record.copyWith(id: createCalls.length);
+    stored[created.id!] = created;
+    return created;
   }
 
+  /// Every record [create] wrote, by id, as the updates have since left it.
+  final Map<int, SoilRecord> stored = <int, SoilRecord>{};
+
   @override
-  Future<SoilRecord?> getById(int id) async => null;
+  Future<SoilRecord?> getById(int id) async => stored[id];
+
+  /// Every [updateClassification] call's id, in order — including attempts
+  /// that then throw.
+  final List<int> updateClassificationCalls = <int>[];
+
+  /// When true, [updateClassification] throws instead of writing.
+  bool throwOnUpdateClassification = false;
+
+  @override
+  Future<void> updateClassification(
+    int id, {
+    String? textureClass,
+    double? confidenceScore,
+    List<ClassScore>? classDistribution,
+    String? modelVersion,
+    String? datasetVersion,
+    ClassificationFailureCause? classificationFailure,
+  }) async {
+    updateClassificationCalls.add(id);
+    if (throwOnUpdateClassification) {
+      throw Exception('forced updateClassification failure');
+    }
+    final record = stored[id];
+    if (record == null) return;
+    stored[id] = SoilRecord(
+      id: record.id,
+      uuid: record.uuid,
+      imagePath: record.imagePath,
+      latitude: record.latitude,
+      longitude: record.longitude,
+      address: record.address,
+      timestamp: record.timestamp,
+      horizontalAccuracy: record.horizontalAccuracy,
+      fieldName: record.fieldName,
+      sampleLabel: record.sampleLabel,
+      textureClass: textureClass,
+      confidenceScore: confidenceScore,
+      classDistribution: classDistribution,
+      modelVersion: modelVersion,
+      datasetVersion: datasetVersion,
+      classificationFailure: classificationFailure,
+    );
+  }
+
+  /// Every [updateLocation] call's id, in order.
+  final List<int> updateLocationCalls = <int>[];
+
+  @override
+  Future<void> updateLocation(
+    int id, {
+    required double latitude,
+    required double longitude,
+    double? horizontalAccuracy,
+    required String address,
+  }) async {
+    updateLocationCalls.add(id);
+    final record = stored[id];
+    if (record == null) return;
+    stored[id] = record.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+      horizontalAccuracy: horizontalAccuracy,
+      address: address,
+    );
+  }
 
   @override
   Stream<List<SoilRecord>> watchAll() => Stream.value(const <SoilRecord>[]);
