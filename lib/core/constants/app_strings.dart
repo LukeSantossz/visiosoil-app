@@ -103,6 +103,15 @@ abstract final class AppStrings {
   static const String photoTitle = 'Foto da amostra';
   static const String resultSavedSnackbar = 'Salvo no histórico';
 
+  /// Asked when the classification could not be written into the record
+  /// capture created (SPEC 0219).
+  static const String resultWriteFailedTitle =
+      'Não foi possível salvar o resultado';
+  static const String resultWriteFailedMessage =
+      'A foto está salva no histórico. Sem o resultado, ela fica sem '
+      'classificação.';
+  static const String resultWriteSkip = 'Continuar sem resultado';
+
   /// Perfil's "Sincronizar" while no sync backend exists (ADR 0022,
   /// SPEC 0204).
   static const String syncNotAvailable =

@@ -459,15 +459,23 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
 
     // Written before anything waits on the screen, so leaving loses nothing.
-    try {
-      await write(report);
-      written();
-    } catch (e) {
-      developer.log('Classification write failed: $e', name: 'CaptureScreen');
+    // A failed write is offered again while capture is shown, and a result
+    // the record does not hold is never settled on.
+    var saved = false;
+    while (!saved) {
+      try {
+        await write(report);
+        written();
+        saved = true;
+      } catch (e) {
+        developer.log('Classification write failed: $e', name: 'CaptureScreen');
+        if (!mounted || generation != _state.generation) return;
+        if (!await _askToRetryResultWrite()) break;
+      }
     }
 
     if (!mounted || generation != _state.generation) return;
-    final result = report.result;
+    final result = saved ? report.result : null;
     if (result != null) {
       final settlement = _settlement = Completer<void>();
       setState(() => _processingClass = result.textureClass);
@@ -515,6 +523,29 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // Capture is replaced, so back from details returns to whatever opened it
     // (SPEC 0132).
     context.pushReplacement('/details', extra: CapturedRecord(recordId));
+  }
+
+  /// Resolves to true when the agronomist asks to write the result again.
+  Future<bool> _askToRetryResultWrite() async {
+    final retry = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.resultWriteFailedTitle),
+        content: const Text(AppStrings.resultWriteFailedMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.resultWriteSkip),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.resultRetry),
+          ),
+        ],
+      ),
+    );
+    return retry ?? false;
   }
 
   Future<void> _fetchCurrentLocation(
