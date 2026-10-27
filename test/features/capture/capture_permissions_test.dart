@@ -12,6 +12,7 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/capture_screen.dart';
+import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -76,7 +77,9 @@ void main() {
           path: '/details',
           builder: (_, state) => Scaffold(
             appBar: AppBar(),
-            body: Text('DETAILS_STUB ${state.extra}'),
+            body: Text(
+              'DETAILS_STUB ${(state.extra as CapturedRecord).id}',
+            ),
           ),
         ),
       ],
@@ -87,8 +90,8 @@ void main() {
         captureGuideStoreProvider
             .overrideWithValue(FakeCaptureGuideStore(seen: true)),
         inferenceServiceProvider.overrideWithValue(_FailingInference()),
-        if (repository != null)
-          soilRecordRepositoryProvider.overrideWithValue(repository),
+        soilRecordRepositoryProvider
+            .overrideWithValue(repository ?? FakeSoilRecordRepository()),
       ],
       child: MaterialApp.router(routerConfig: router),
     );
@@ -135,16 +138,13 @@ void main() {
     ));
 
     await openAndCapture(tester);
-    await tester.tap(find.byTooltip('Salvar'));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 10));
-    }
     await tester.pumpAndSettle();
 
     final saved = repository.createCalls.single;
     expect(saved.latitude, isNull);
     expect(saved.longitude, isNull);
     expect(saved.address, AppStrings.addressUnavailable);
+    expect(repository.updateLocationCalls, isEmpty);
     expect(find.text('DETAILS_STUB 1'), findsOneWidget);
   });
 }
