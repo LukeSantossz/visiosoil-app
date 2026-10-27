@@ -32,4 +32,25 @@ void main() {
     expect(line.fontSize, 13);
     expect(line.color, palette.onSurfaceVariant);
   });
+
+  // SPEC 0216: Modo Sol draws the whole illustration in ink, the slash too.
+  testWidgets('offline_slash_is_error_in_light_and_ink_in_sun', (tester) async {
+    for (final (theme, palette) in [
+      (AppTheme.light, AppPalette.light),
+      (AppTheme.sun, AppPalette.sun),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: const Scaffold(body: OfflineBanner(pendingCount: 1)),
+        ),
+      );
+      final art = tester.widget<CustomPaint>(
+        find.byKey(const ValueKey('offline-art')),
+      );
+      final slash = (art.painter! as dynamic).slash as Color;
+      expect(slash, palette.isSun ? palette.onSurface : palette.error);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
 }

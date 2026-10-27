@@ -32,6 +32,11 @@ Measured on the 2× PNGs, 2 px to the dp.
   - The cards take the tallest card's content height: 104 dp in PNG 09, and 120 dp in PNG 08, where a label wraps.
   - `StatsRow` keeps its `minHeight`, for callers that need one.
 
+- **Review follow-ups** (#444, CodeRabbit).
+  - The stat skeleton holds 104 dp, so "Recentes" does not move when the data arrives.
+  - Backup na conta reads the account the account tile shows, so an auth error that leaves the account in place keeps it available.
+  - The offline card's slash is ink in Modo Sol, which draws every line in ink, and `error` in the other themes.
+
 ## Alternatives Considered
 
 - **Grey the icon too.** Rejected: PNG 23 keeps the backup row's icon in `primaryText`.
@@ -50,6 +55,9 @@ Measured on the 2× PNGs, 2 px to the dp.
   - has no chevron.
 - `backup_is_unavailable_without_an_account`: Configurações with no account draws Backup na conta unavailable.
 - `stats_cards_take_their_content_height`: Início's stat row is 104 dp when no label wraps.
+- `loading_stats_hold_the_empty_height`: the loading stat row is 104 dp.
+- `backup_stays_available_when_sign_out_fails_leaving_the_account`: Backup na conta stays available after a failed sign-out that keeps the account.
+- `offline_slash_is_error_in_light_and_ink_in_sun`: the slash is `error` in light and `onSurface` in Modo Sol.
 - Existing tests pass, with SPEC 0203's 120 dp minimum replaced by the content height.
 
 ## Reproducibility

@@ -112,4 +112,15 @@ void main() {
     );
     expect(tester.getSize(find.byType(StatsGrid)).height, 104);
   });
+
+  // SPEC 0216: the skeleton holds the empty cards' 104 dp, so "Recentes" does
+  // not move when the data arrives.
+  testWidgets('loading_stats_hold_the_empty_height', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      host(const StatsGrid(recordsAsync: AsyncValue.loading())),
+    );
+    expect(tester.getSize(find.byType(StatsGrid)).height, 104);
+  });
 }
