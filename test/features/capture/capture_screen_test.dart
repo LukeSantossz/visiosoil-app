@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
@@ -26,6 +27,7 @@ import 'package:visiosoil_app/core/services/gallery_saver.dart';
 import 'package:visiosoil_app/core/services/inference_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
+import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
@@ -2138,6 +2140,40 @@ void main() {
       expect(repository.createCalls.length, 1);
       expect(find.text('Salvo no histórico'), findsOneWidget);
       expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+    });
+
+    // PNG 33 leads the saved snackbar with a light green check (SPEC 0218).
+    testWidgets('saved_snackbar_leads_with_a_check', (tester) async {
+      await tester.pumpWidget(buildRouted(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => result,
+        repository: FakeSoilRecordRepository(),
+      ));
+      await tester.tap(find.text('open capture'));
+      await tester.pumpAndSettle();
+      await capture(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Salvar'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pumpAndSettle();
+
+      final check = find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.byIcon(LucideIcons.check),
+      );
+      expect(check, findsOneWidget);
+      final icon = tester.widget<Icon>(check);
+      expect(icon.size, 20);
+      expect(icon.color, AppPalette.light.inversePrimary);
+      expect(
+        tester.getTopLeft(find.text(AppStrings.resultSavedSnackbar)).dx -
+            tester.getTopRight(check).dx,
+        12,
+      );
     });
 
     testWidgets('draft_manejo_asks_to_save', (tester) async {
