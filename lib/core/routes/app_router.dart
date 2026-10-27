@@ -18,7 +18,11 @@ final appRouter = GoRouter(
       RouteErrorView(onGoHome: () => context.go('/')),
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
-    GoRoute(path: '/', builder: (context, state) => const MainScreen()),
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) =>
+          bootHandOffPage(state, const MainScreen()),
+    ),
     GoRoute(
       path: '/capture',
       // A photograph recovered after a restart arrives as the extra (SPEC 0096).
@@ -76,7 +80,8 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/onboarding',
-      builder: (context, state) => const OnboardingScreen(),
+      pageBuilder: (context, state) =>
+          bootHandOffPage(state, const OnboardingScreen()),
     ),
     GoRoute(
       path: '/settings',

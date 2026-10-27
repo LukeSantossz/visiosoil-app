@@ -116,15 +116,15 @@ void main() {
 
   group('splash and history reference the token scale', () {
     // The boot "Peneira" redesign (v11 §3.1/§6.2, SPEC 0193) replaced the
-    // tile-and-shadow splash SPEC 0089 pinned here; its own layout spacing
-    // (around the "Pular" button, between the logo and the name) is what
-    // stays on the token scale now.
+    // tile-and-shadow splash SPEC 0089 pinned here, and SPEC 0217 set its
+    // gaps to the prototype's: 20 dp under the mark, which is no token, and
+    // 4 dp under the name. The "Pular" padding and the tagline's gap stay on
+    // the token scale.
     test('splash snaps its skip-button and name spacing to tokens', () {
       final src = _packed('lib/core/features/splash/splash_screen.dart');
       expect(src, isNot(contains('EdgeInsets.all(10)')));
       expect(src, contains('EdgeInsets.all(AppSpacing.sm)'));
-      expect(src, contains('SizedBox(height:AppSpacing.lg)'));
-      expect(src, contains('SizedBox(height:AppSpacing.sm)'));
+      expect(src, contains('SizedBox(height:AppSpacing.xs)'));
     });
 
     test('history_grid tokenizes its thumbnail radius to md', () {

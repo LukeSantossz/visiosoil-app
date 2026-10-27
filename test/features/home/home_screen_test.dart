@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
-import 'package:visiosoil_app/core/widgets/visio_soil_logo.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
@@ -82,19 +81,5 @@ void main() {
 
     expect(find.text('Não foi possível carregar suas análises.'), findsNothing);
     expect(find.text('análises'), findsOneWidget);
-  });
-
-  // PNG 08 draws no logo on Home, so the boot's logo Hero has nowhere to
-  // land and the boot ends as its reduced-motion path does (SPEC 0203).
-  testWidgets('home carries no boot logo hero', (tester) async {
-    await tester.pumpWidget(_homeUnderTest(() => Stream.value([_record()])));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is Hero && w.tag == visioSoilLogoHeroTag,
-      ),
-      findsNothing,
-    );
   });
 }

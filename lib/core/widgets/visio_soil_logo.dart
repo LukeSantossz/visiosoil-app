@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shared [Hero] tag for the boot screen's logo flight into the Home app bar
-/// (redesign v11 §6.2/§6.4, SPEC 0193). Lives beside the mark rather than in
-/// either feature, since both `splash_screen.dart` and `home_screen.dart` read
-/// it and neither owns the other.
-const String visioSoilLogoHeroTag = 'visio-soil-logo-hero';
-
 /// The official VisioSoil brand mark: a minimalist magnifying glass holding
 /// three decreasing soil grains — vision and inspection fused with the texture
 /// being measured.
@@ -21,8 +15,8 @@ class VisioSoilLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Center so a fixed-size (tight-constraint) parent — like the splash and
-    // hero containers — cannot stretch the mark past its declared [size].
+    // Center so a fixed-size (tight-constraint) parent cannot stretch the
+    // mark past its declared [size].
     return Semantics(
       label: 'VisioSoil',
       image: true,
