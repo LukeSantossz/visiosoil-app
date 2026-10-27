@@ -94,8 +94,7 @@ abstract final class AppStrings {
       'seguindo as dicas de captura.';
   static const String resultRetake = 'Fotografar de novo';
 
-  /// The result's bookmark and the draft shown inside capture (SPEC 0196).
-  static const String resultSave = 'Salvar';
+  /// The result's bookmark (SPEC 0196).
   static const String resultSaved = 'Salvo';
   static const String resultRemoveSaved = 'Remover dos salvos';
   static const String resultRetry = 'Tentar de novo';
@@ -113,8 +112,6 @@ abstract final class AppStrings {
   /// The gallery refused the saved photograph; the record stays (SPEC 0208).
   static const String gallerySaveFailed =
       'Não foi possível salvar a foto na galeria.';
-  static const String resultDraftManagement =
-      'Salve a análise para ver as dicas de manejo desta amostra.';
   static const String resultTriangleTitle = 'No triângulo textural';
   static String resultTriangleHighlight(String textureClass) =>
       'A região $textureClass está destacada.';

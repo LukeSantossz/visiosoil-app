@@ -7,7 +7,9 @@ import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart
 import 'package:visiosoil_app/core/data/sync/sync_operation.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
 import 'package:visiosoil_app/core/database/soil_record_mapper.dart';
+import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/services/image_storage_service.dart';
+import 'package:visiosoil_app/models/class_score.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Drift/SQLite-based implementation of [SoilRecordRepository].
@@ -74,6 +76,9 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                 modelVersion: Value(record.modelVersion),
                 datasetVersion: Value(record.datasetVersion),
                 horizontalAccuracy: Value(record.horizontalAccuracy),
+                // Stored as `updateLabels` stores them (SPEC 0219).
+                fieldName: Value(_storedLabel(record.fieldName)),
+                sampleLabel: Value(_storedLabel(record.sampleLabel)),
                 classificationFailure:
                     Value(record.classificationFailure?.name),
               ),
@@ -152,6 +157,67 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         SoilRecordsCompanion(
           fieldName: Value(_storedLabel(fieldName)),
           sampleLabel: Value(_storedLabel(sampleLabel)),
+          syncStatus: const Value('pending'),
+          updatedAt: Value(now),
+        ),
+      );
+      await _enqueue(row.uuid, SyncOperation.upsert, now);
+    });
+  }
+
+  @override
+  Future<void> updateClassification(
+    int id, {
+    String? textureClass,
+    double? confidenceScore,
+    List<ClassScore>? classDistribution,
+    String? modelVersion,
+    String? datasetVersion,
+    ClassificationFailureCause? classificationFailure,
+  }) =>
+      _updateContent(
+        id,
+        SoilRecordsCompanion(
+          textureClass: Value(textureClass),
+          confidenceScore: Value(confidenceScore),
+          classDistribution: Value(encodeClassDistribution(classDistribution)),
+          modelVersion: Value(modelVersion),
+          datasetVersion: Value(datasetVersion),
+          classificationFailure: Value(classificationFailure?.name),
+        ),
+      );
+
+  @override
+  Future<void> updateLocation(
+    int id, {
+    required double latitude,
+    required double longitude,
+    double? horizontalAccuracy,
+    required String address,
+  }) =>
+      _updateContent(
+        id,
+        SoilRecordsCompanion(
+          latitude: Value(latitude),
+          longitude: Value(longitude),
+          horizontalAccuracy: Value(horizontalAccuracy),
+          address: Value(address),
+        ),
+      );
+
+  /// Writes [content] into the live record [id] and marks it for sync, as
+  /// [updateLabels] does; a missing or deleted record is left as it is.
+  Future<void> _updateContent(int id, SoilRecordsCompanion content) async {
+    final now = _now();
+    await _db.transaction(() async {
+      final row = await (_db.select(_db.soilRecords)
+            ..where((t) => t.id.equals(id) & t.deleted.equals(false)))
+          .getSingleOrNull();
+      if (row == null) return;
+
+      await (_db.update(_db.soilRecords)..where((t) => t.id.equals(id)))
+          .write(
+        content.copyWith(
           syncStatus: const Value('pending'),
           updatedAt: Value(now),
         ),
