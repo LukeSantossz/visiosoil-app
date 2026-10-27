@@ -32,8 +32,12 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
   @override
   Future<SoilRecord?> getById(int id) async => stored[id];
 
-  /// Every [updateClassification] call's id, in order.
+  /// Every [updateClassification] call's id, in order — including attempts
+  /// that then throw.
   final List<int> updateClassificationCalls = <int>[];
+
+  /// When true, [updateClassification] throws instead of writing.
+  bool throwOnUpdateClassification = false;
 
   @override
   Future<void> updateClassification(
@@ -46,6 +50,9 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
     ClassificationFailureCause? classificationFailure,
   }) async {
     updateClassificationCalls.add(id);
+    if (throwOnUpdateClassification) {
+      throw Exception('forced updateClassification failure');
+    }
     final record = stored[id];
     if (record == null) return;
     stored[id] = SoilRecord(

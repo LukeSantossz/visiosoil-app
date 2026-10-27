@@ -335,6 +335,60 @@ void main() {
       expect(find.text('CAUSE sheetNotFound'), findsOneWidget);
     });
 
+    testWidgets('failed_result_write_offers_a_retry', (tester) async {
+      final repository = FakeSoilRecordRepository()
+        ..throwOnUpdateClassification = true;
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Argilosa', confidenceScore: 0.82),
+        repository: repository,
+      ));
+
+      await capture(tester);
+      await handOver(tester);
+
+      // Nothing claims the result was saved, and capture stays.
+      expect(find.text('Não foi possível salvar o resultado'), findsOneWidget);
+      expect(find.text(AppStrings.resultSavedSnackbar), findsNothing);
+      expect(find.text('DETAILS_STUB 1'), findsNothing);
+      expect(repository.stored[1]!.textureClass, isNull);
+
+      repository.throwOnUpdateClassification = false;
+      await tester.tap(find.text('Tentar de novo'));
+      await handOver(tester);
+
+      expect(repository.updateClassificationCalls, [1, 1]);
+      expect(repository.stored[1]!.textureClass, 'Argilosa');
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+      expect(find.text('CLASS Argilosa'), findsOneWidget);
+      expect(find.text(AppStrings.resultSavedSnackbar), findsOneWidget);
+    });
+
+    testWidgets('declined_result_write_opens_the_record', (tester) async {
+      final repository = FakeSoilRecordRepository()
+        ..throwOnUpdateClassification = true;
+      await tester.pumpWidget(buildScreen(
+        pickFromCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async =>
+            const InferenceResult(textureClass: 'Argilosa', confidenceScore: 0.82),
+        repository: repository,
+      ));
+
+      await capture(tester);
+      await handOver(tester);
+      await tester.tap(find.text('Continuar sem resultado'));
+      await handOver(tester);
+
+      // The record keeps the photograph, without the result.
+      expect(repository.updateClassificationCalls, [1]);
+      expect(repository.stored[1]!.textureClass, isNull);
+      expect(find.text('DETAILS_STUB 1'), findsOneWidget);
+      expect(find.text('CLASS null'), findsOneWidget);
+    });
+
     testWidgets('leaving_while_classifying_keeps_the_record', (tester) async {
       final repository = FakeSoilRecordRepository();
       final gate = Completer<InferenceResult?>();

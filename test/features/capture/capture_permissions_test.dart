@@ -140,7 +140,8 @@ void main() {
     await openAndCapture(tester);
     await tester.pumpAndSettle();
 
-    final saved = repository.createCalls.single;
+    expect(repository.createCalls, hasLength(1));
+    final saved = repository.stored[1]!;
     expect(saved.latitude, isNull);
     expect(saved.longitude, isNull);
     expect(saved.address, AppStrings.addressUnavailable);
