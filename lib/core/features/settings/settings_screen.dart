@@ -44,6 +44,13 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final pkgAsync = ref.watch(packageInfoProvider);
+    // The same account the account tile shows: on an auth error, the
+    // service's own snapshot, as a sign-out that kept the credentials leaves
+    // the account in place (SPEC 0216).
+    final authAsync = ref.watch(authNotifierProvider);
+    final linked = authAsync.hasError
+        ? ref.read(authServiceProvider).currentAccount != null
+        : authAsync.value?.account != null;
 
     return Scaffold(
       appBar: const VisioAppBar(title: 'Configurações'),
@@ -139,10 +146,11 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsTile(
                     icon: LucideIcons.cloudUpload,
                     title: 'Backup na conta',
-                    subtitle:
-                        ref.watch(authNotifierProvider).value?.account == null
-                        ? 'Requer conta vinculada'
-                        : 'Dados só neste aparelho',
+                    subtitle: linked
+                        ? 'Dados só neste aparelho'
+                        : 'Requer conta vinculada',
+                    // Greyed until an account is linked (PNG 23, SPEC 0216).
+                    enabled: linked,
                   ),
                   const SettingsSwitchTile(
                     icon: LucideIcons.wifi,
@@ -179,8 +187,8 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsRowFrame(
                     icon: Icon(
                       LucideIcons.aLargeSmall,
-                      size: 22,
-                      color: context.palette.primaryText,
+                      size: SettingsRowFrame.iconSize,
+                      color: SettingsRowFrame.iconColor(context),
                     ),
                     title: 'Tamanho do texto',
                     trailing: SegmentedControl<bool>(
@@ -490,8 +498,8 @@ class _ThemeChoiceSelector extends ConsumerWidget {
       key: const Key('theme-row'),
       icon: Icon(
         LucideIcons.moon,
-        size: 22,
-        color: context.palette.primaryText,
+        size: SettingsRowFrame.iconSize,
+        color: SettingsRowFrame.iconColor(context),
       ),
       title: 'Tema',
       trailing: SegmentedControl<ThemeMode>(
@@ -655,14 +663,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 12 sp weight 600 in textTertiary, 16 dp in (PNG 23, SPEC 0204).
+    // 12 sp weight 600 in textTertiary, 16 dp in (PNG 23, SPEC 0204), on a
+    // 16 dp line in every theme (PNG 36, SPEC 0215).
+    final style = Theme.of(context).textTheme.labelMedium!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        style: style.copyWith(
           fontWeight: FontWeight.w600,
           letterSpacing: 0.6,
+          height: 16 / style.fontSize!,
           color: context.palette.textTertiary,
         ),
       ),

@@ -39,7 +39,8 @@ void main() {
 
     expect(tester.getSize(find.byType(SettingsTile)).height, 56);
     final icon = tester.widget<Icon>(find.byIcon(LucideIcons.ruler));
-    expect(icon.size, 22);
+    // 20 dp in a 22 dp slot (SPEC 0216).
+    expect(icon.size, 20);
     expect(icon.color, AppPalette.light.primaryText);
     final title = tester.widget<Text>(find.text('Unidades'));
     expect(title.style?.fontSize, 15);

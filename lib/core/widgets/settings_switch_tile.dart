@@ -43,8 +43,6 @@ class SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     return Semantics(
       toggled: value,
       enabled: _enabled,
@@ -59,7 +57,11 @@ class SettingsSwitchTile extends StatelessWidget {
             child: SettingsRowFrame(
               icon: icon == null
                   ? null
-                  : Icon(icon, size: 22, color: palette.primaryText),
+                  : Icon(
+                      icon,
+                      size: SettingsRowFrame.iconSize,
+                      color: SettingsRowFrame.iconColor(context),
+                    ),
               title: title,
               subtitle: subtitle,
               trailing: _Thumb(value: value, enabled: _enabled),
