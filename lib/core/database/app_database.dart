@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/database/tables/management_tips_table.dart';
 import 'package:visiosoil_app/core/database/tables/soil_records_table.dart';
 import 'package:visiosoil_app/core/database/tables/sync_queue_table.dart';
@@ -21,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -90,8 +91,51 @@ class AppDatabase extends _$AppDatabase {
             await migrator.addColumn(
                 soilRecords, soilRecords.classificationFailure);
           }
+          if (from < 11) {
+            // v10 -> v11: the sample's true class (SPEC 0220). Nullable, and
+            // filled from a label that names a class.
+            await migrator.addColumn(soilRecords, soilRecords.trueTextureClass);
+            await _backfillTrueTextureClass();
+          }
         },
       );
+
+  /// Gives each live record whose field or sample label names one of the
+  /// model's classes that class (SPEC 0220). A label names a class when,
+  /// trimmed and case-insensitively, it equals the class's contract name or
+  /// its display label. Labels naming two different classes give none, and
+  /// the labels themselves are left as they are. Nothing is enqueued: the
+  /// class is read off content the record already synced.
+  Future<void> _backfillTrueTextureClass() async {
+    String? named(String? label) {
+      if (label == null) return null;
+      final key = label.trim().toLowerCase();
+      for (final textureClass in SoilTextureReference.modelClasses) {
+        if (key == textureClass.toLowerCase() ||
+            key == SoilTextureReference.labelFor(textureClass).toLowerCase()) {
+          return textureClass;
+        }
+      }
+      return null;
+    }
+
+    final rows = await customSelect(
+      'SELECT id, field_name, sample_label FROM soil_records '
+      'WHERE deleted = 0 '
+      'AND (field_name IS NOT NULL OR sample_label IS NOT NULL)',
+    ).get();
+    for (final row in rows) {
+      final classes = {
+        named(row.read<String?>('field_name')),
+        named(row.read<String?>('sample_label')),
+      }.whereType<String>();
+      if (classes.length != 1) continue;
+      await customStatement(
+        'UPDATE soil_records SET true_texture_class = ? WHERE id = ?',
+        [classes.single, row.read<int>('id')],
+      );
+    }
+  }
 
   /// Erases the content of every tombstoned record and drops its cached tips,
   /// as a delete has done since SPEC 0093, so a tombstone keeps only what sync

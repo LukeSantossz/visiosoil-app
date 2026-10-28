@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
 import 'package:visiosoil_app/core/features/details/widgets/classification_header.dart';
 import 'package:visiosoil_app/core/features/details/widgets/info_section.dart';
-import 'package:visiosoil_app/core/features/details/widgets/labels_dialog.dart';
+import 'package:visiosoil_app/core/features/details/widgets/correction_dialog.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_error_block.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
@@ -116,20 +116,21 @@ class _DetailsContent extends ConsumerStatefulWidget {
 }
 
 class _DetailsContentState extends ConsumerState<_DetailsContent> {
-  /// Asks for the labels and writes them, then re-reads the record; a failed
-  /// write says so and leaves the labels as they were (SPEC 0149).
+  /// Asks for the correction and writes it, then re-reads the record; a
+  /// failed write says so and leaves the record as it was (SPEC 0149,
+  /// SPEC 0220).
   Future<void> _editLabels() async {
     final record = widget.record;
-    final labels = await showLabelsDialog(context, record);
-    if (labels == null || !mounted) return;
+    final correction = await showCorrectionDialog(context, record);
+    if (correction == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref
           .read(soilRecordRepositoryProvider)
-          .updateLabels(
+          .updateCorrection(
             widget.recordId,
-            fieldName: labels.fieldName,
-            sampleLabel: labels.sampleLabel,
+            trueTextureClass: correction.trueTextureClass,
+            sampleLabel: correction.sampleLabel,
           );
     } catch (_) {
       messenger.showSnackBar(

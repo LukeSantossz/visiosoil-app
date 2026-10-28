@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/data/sync/sync_operation.dart';
 import 'package:visiosoil_app/core/database/app_database.dart';
@@ -76,9 +77,10 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                 modelVersion: Value(record.modelVersion),
                 datasetVersion: Value(record.datasetVersion),
                 horizontalAccuracy: Value(record.horizontalAccuracy),
-                // Stored as `updateLabels` stores them (SPEC 0219).
+                // Stored as `updateCorrection` stores them (SPEC 0219).
                 fieldName: Value(_storedLabel(record.fieldName)),
                 sampleLabel: Value(_storedLabel(record.sampleLabel)),
+                trueTextureClass: Value(record.trueTextureClass),
                 classificationFailure:
                     Value(record.classificationFailure?.name),
               ),
@@ -138,11 +140,19 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
   }
 
   @override
-  Future<void> updateLabels(
+  Future<void> updateCorrection(
     int id, {
-    String? fieldName,
+    String? trueTextureClass,
     String? sampleLabel,
   }) async {
+    if (trueTextureClass != null &&
+        !SoilTextureReference.modelClasses.contains(trueTextureClass)) {
+      throw ArgumentError.value(
+        trueTextureClass,
+        'trueTextureClass',
+        'not a class the model classifies',
+      );
+    }
     final now = _now();
     await _db.transaction(() async {
       final row = await (_db.select(_db.soilRecords)
@@ -150,12 +160,12 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
           .getSingleOrNull();
       if (row == null) return;
 
-      // A label is record content, so the edit is marked for sync as a
-      // create is.
+      // A correction is record content, so the edit is marked for sync as a
+      // create is. The field label is not written (SPEC 0220).
       await (_db.update(_db.soilRecords)..where((t) => t.id.equals(id)))
           .write(
         SoilRecordsCompanion(
-          fieldName: Value(_storedLabel(fieldName)),
+          trueTextureClass: Value(trueTextureClass),
           sampleLabel: Value(_storedLabel(sampleLabel)),
           syncStatus: const Value('pending'),
           updatedAt: Value(now),
@@ -206,7 +216,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
       );
 
   /// Writes [content] into the live record [id] and marks it for sync, as
-  /// [updateLabels] does; a missing or deleted record is left as it is.
+  /// [updateCorrection] does; a missing or deleted record is left as it is.
   Future<void> _updateContent(int id, SoilRecordsCompanion content) async {
     final now = _now();
     await _db.transaction(() async {
@@ -282,11 +292,10 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
         Expression<bool> contains(GeneratedColumn<String> column) =>
             column.lower().like('%$escaped%', escapeChar: _likeEscapeChar);
         // A NULL column matches nothing, so a record without an address is
-        // still found by its labels.
-        condition = condition &
-            (contains(t.address) |
-                contains(t.fieldName) |
-                contains(t.sampleLabel));
+        // still found by its sample label. The field label is no longer
+        // searched (SPEC 0220).
+        condition =
+            condition & (contains(t.address) | contains(t.sampleLabel));
       }
 
       return condition;
@@ -340,6 +349,7 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             classificationFailure: const Value(null),
             fieldName: const Value(null),
             sampleLabel: const Value(null),
+            trueTextureClass: const Value(null),
           ),
         );
         // Per row, like the update above, so a wipe binds no list of uuids.

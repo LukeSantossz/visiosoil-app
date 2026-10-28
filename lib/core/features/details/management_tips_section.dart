@@ -829,10 +829,8 @@ class _RecordHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = context.palette;
-    final labels = [
-      record.fieldName,
-      record.sampleLabel,
-    ].whereType<String>().where((label) => label.isNotEmpty).join(' · ');
+    // The sample alone; the field label is not shown (SPEC 0220).
+    final labels = record.labelsSummary;
     final placeholder = ColoredBox(color: palette.surfaceContainerHigh);
     return Row(
       children: [

@@ -52,6 +52,12 @@ class SoilRecords extends Table {
   TextColumn get fieldName => text().named('field_name').nullable()();
   TextColumn get sampleLabel => text().named('sample_label').nullable()();
 
+  /// The class the agronomist recorded as the sample's true class, a name
+  /// from the model's classes (SPEC 0220). Null when not given, and for a
+  /// record saved before v11 whose labels named no class.
+  TextColumn get trueTextureClass =>
+      text().named('true_texture_class').nullable()();
+
   /// v10 (SPEC 0173): why the photograph was not classified, as a
   /// `ClassificationFailureCause` name. Null for a classified record, and for
   /// every record saved before v10, which kept no cause.

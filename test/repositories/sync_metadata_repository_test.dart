@@ -176,6 +176,8 @@ void main() {
       // SPEC 0149: the agronomist's labels are the record's content, too.
       expect(row.read<String?>('field_name'), isNull);
       expect(row.read<String?>('sample_label'), isNull);
+      // SPEC 0220: and so is the true class the agronomist recorded.
+      expect(row.read<String?>('true_texture_class'), isNull);
       expect(row.read<String>('image_path'), isEmpty);
       expect(row.read<String>('timestamp'), row.read<String>('updated_at'));
     }
@@ -225,16 +227,18 @@ void main() {
     });
 
     test('a_deleted_record_erases_its_labels', () async {
-      final saved = await repo.create(captured());
-      await repo.updateLabels(
+      final saved =
+          await repo.create(captured().copyWith(fieldName: 'Talhão 3'));
+      await repo.updateCorrection(
         saved.id!,
-        fieldName: 'Talhão 3',
+        trueTextureClass: 'Argilosa',
         sampleLabel: 'A1',
       );
       // Guards the test: the columns held something to erase.
       final before = await storedRow(saved.uuid!);
       expect(before.read<String?>('field_name'), 'Talhão 3');
       expect(before.read<String?>('sample_label'), 'A1');
+      expect(before.read<String?>('true_texture_class'), 'Argilosa');
       now = DateTime.parse(deletedAt);
 
       await repo.deleteById(saved.id!);

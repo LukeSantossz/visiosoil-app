@@ -66,6 +66,7 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
       horizontalAccuracy: record.horizontalAccuracy,
       fieldName: record.fieldName,
       sampleLabel: record.sampleLabel,
+      trueTextureClass: record.trueTextureClass,
       textureClass: textureClass,
       confidenceScore: confidenceScore,
       classDistribution: classDistribution,
@@ -118,24 +119,25 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
   @override
   Future<void> deleteAll() async => deleteAllCalls++;
 
-  /// Every [updateLabels] call in order, as the screen passed it.
-  final List<({int id, String? fieldName, String? sampleLabel})>
-      updateLabelsCalls =
-      <({int id, String? fieldName, String? sampleLabel})>[];
+  /// Every [updateCorrection] call in order, as the screen passed it.
+  final List<({int id, String? trueTextureClass, String? sampleLabel})>
+      updateCorrectionCalls =
+      <({int id, String? trueTextureClass, String? sampleLabel})>[];
 
-  /// When true, [updateLabels] throws after recording the call.
-  bool throwOnUpdateLabels = false;
+  /// When true, [updateCorrection] throws after recording the call.
+  bool throwOnUpdateCorrection = false;
 
   @override
-  Future<void> updateLabels(
+  Future<void> updateCorrection(
     int id, {
-    String? fieldName,
+    String? trueTextureClass,
     String? sampleLabel,
   }) async {
-    updateLabelsCalls
-        .add((id: id, fieldName: fieldName, sampleLabel: sampleLabel));
-    if (throwOnUpdateLabels) {
-      throw Exception('forced updateLabels failure');
+    updateCorrectionCalls.add(
+      (id: id, trueTextureClass: trueTextureClass, sampleLabel: sampleLabel),
+    );
+    if (throwOnUpdateCorrection) {
+      throw Exception('forced updateCorrection failure');
     }
   }
 

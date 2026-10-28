@@ -30,6 +30,7 @@ SoilRecord soilRecordFromRow(SoilRecordRow row) => SoilRecord(
       horizontalAccuracy: row.horizontalAccuracy,
       fieldName: row.fieldName,
       sampleLabel: row.sampleLabel,
+      trueTextureClass: row.trueTextureClass,
       classificationFailure: decodeClassificationFailure(
         row.classificationFailure,
       ),

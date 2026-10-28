@@ -599,7 +599,8 @@ void main() {
       );
     });
 
-    // SPEC 0149: a labelled card names its labels, shown and spoken.
+    // SPEC 0149, SPEC 0220: a labelled card names its sample, shown and
+    // spoken, and no longer its field.
     testWidgets('the_history_card_shows_the_labels', (tester) async {
       final semantics = tester.ensureSemantics();
       final labelled =
@@ -611,14 +612,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Talhão 3 · A1'), findsOneWidget);
+      expect(find.text('A1'), findsOneWidget);
       expect(find.text('B2'), findsOneWidget);
-      expect(find.textContaining(' · '), findsOneWidget);
+      expect(find.textContaining('Talhão 3'), findsNothing);
       final date = labelled.formattedTimestampCompact;
-      expect(
-        find.bySemanticsLabel('Registro de $date, Talhão 3 · A1'),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel('Registro de $date, A1'), findsOneWidget);
       expect(find.bySemanticsLabel('Registro de $date, B2'), findsOneWidget);
       expect(find.bySemanticsLabel('Registro de $date'), findsOneWidget);
       semantics.dispose();
