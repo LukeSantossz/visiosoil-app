@@ -7,6 +7,8 @@ adequate here, and it is why every step below is tested through a fake
 `LLMClient`: the pipeline's correctness is not a property of any model.
 """
 
+from datetime import datetime, timezone
+
 import pytest
 
 from src.cell import CellValidationError
@@ -24,7 +26,7 @@ from src.pipeline import (
 from src.sources import FetchedSource
 
 
-def source(index):
+def source(index, year=None):
     return FetchedSource(
         url=f"https://example.org/{index}",
         title=f"Fonte {index}",
@@ -32,6 +34,7 @@ def source(index):
         tier=1,
         text=f"Conteúdo da fonte {index}.",
         digest="0" * 64,
+        year=year,
     )
 
 
@@ -731,6 +734,99 @@ def test_a_cell_the_model_abstains_has_no_limitations():
     )
 
     outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.cell["limitations"] == []
+
+
+# --- An old kept source is surfaced by its age (SPEC 0225) ----------------------
+
+BUILT_IN_2026 = datetime(2026, 10, 28, tzinfo=timezone.utc)
+
+
+def age_sentence(year):
+    return f"Uma das fontes consultadas é de {year}, há mais de dez anos."
+
+
+def test_an_old_kept_source_is_surfaced_in_limitations():
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": relevant_to("fósforo"),
+            "https://example.org/1": True,
+        }
+    )
+
+    outcome = build_cell(
+        QUESTION,
+        [source(0, year=2016), source(1, year=2005)],
+        client=client,
+        now=BUILT_IN_2026,
+    )
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == [age_sentence(2005)]
+
+
+def test_the_age_follows_the_coverage_limitations_in_source_order():
+    client = ScriptedClient(
+        grades={
+            "https://example.org/0": relevant_to("fósforo"),
+            "https://example.org/1": relevant_to("calagem"),
+        }
+    )
+
+    outcome = build_cell(
+        QUESTION,
+        [source(0, year=2001), source(1, year=2005)],
+        client=client,
+        now=BUILT_IN_2026,
+    )
+
+    limitations = outcome.cell["limitations"]
+    assert limitations[-2:] == [age_sentence(2001), age_sentence(2005)]
+    assert limitations[:-2] == [
+        "As fontes consultadas não tratam de potássio.",
+        "As fontes consultadas não tratam de matéria orgânica.",
+        "As fontes consultadas não tratam do manejo da água.",
+        "As fontes consultadas não tratam do que a classe de textura implica "
+        "e do que não implica.",
+    ]
+
+
+@pytest.mark.parametrize("year", [2016, 2020, None])
+def test_a_recent_source_is_not_surfaced(year):
+    outcome = build_cell(
+        QUESTION, [source(0, year=year)], client=ScriptedClient(), now=BUILT_IN_2026
+    )
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == []
+
+
+def test_an_unkept_old_source_is_not_surfaced():
+    client = ScriptedClient(grades={"https://example.org/1": False})
+
+    outcome = build_cell(
+        QUESTION,
+        [source(0, year=2020), source(1, year=2005)],
+        client=client,
+        now=BUILT_IN_2026,
+    )
+
+    assert [d.url for d in outcome.kept] == ["https://example.org/0"]
+    assert outcome.cell["limitations"] == []
+
+
+def test_an_abstained_cell_states_no_age():
+    client = ScriptedClient(grounded=[False, False])
+
+    outcome = build_cell(
+        QUESTION,
+        [source(0, year=2005)],
+        client=client,
+        max_attempts=2,
+        now=BUILT_IN_2026,
+    )
 
     assert outcome.cell["status"] == "abstained"
     assert outcome.cell["limitations"] == []
