@@ -834,7 +834,14 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       : QualityStatus.failed;
 
   Widget _qualityChips(GuidanceRow row) {
-    final distance = _shownReading == null ? null : row == GuidanceRow.ready;
+    final failure = blockedGuidance(row, _shownAlignment);
+    final distance = _shownReading == null
+        ? null
+        : row == GuidanceRow.ready
+        ? true
+        : failure?.isDistance == true
+        ? false
+        : null;
     final chips = [
       QualityChip(
         label: 'Luz',
@@ -912,19 +919,17 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       causes.add('fora de foco');
       chips.add('Foco');
     }
-    if (_shownReading != null && row != GuidanceRow.ready) {
-      final close =
-          row == GuidanceRow.sheetCropped ||
-          _shownAlignment?.fix == MisalignmentFix.farther;
-      causes.add(close ? 'perto demais' : 'longe demais');
-      corrections.add(
-        close
-            ? 'afaste até a folha caber na moldura'
-            : 'aproxime até a amostra preencher a moldura',
-      );
-      chips.add('Distância');
+    if (_shownReading != null) {
+      final failure = blockedGuidance(row, _shownAlignment);
+      if (failure != null) {
+        causes.add(failure.cause);
+        corrections.add(failure.correction);
+        if (failure.isDistance) chips.add('Distância');
+      }
     }
-    if (chips.contains('Foco')) corrections.add('segure firme');
+    if (_quality != null && !_quality!.focusOk) {
+      corrections.add('segure firme');
+    }
     final failures = (causes: causes, corrections: corrections);
     setState(() {
       _failures = failures;

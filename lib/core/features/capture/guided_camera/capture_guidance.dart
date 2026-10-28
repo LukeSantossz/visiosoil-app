@@ -82,6 +82,64 @@ enum GuidanceRow {
   ready,
 }
 
+/// The cause and correction named when a guidance row blocks the shutter
+/// (SPEC 0224). Only distance failures belong to the distance chip.
+({String cause, String correction, bool isDistance})? blockedGuidance(
+  GuidanceRow row,
+  SheetAlignment? alignment,
+) {
+  const tooClose = (
+    cause: 'perto demais',
+    correction: 'afaste até a folha caber na moldura',
+    isDistance: true,
+  );
+  const tooFar = (
+    cause: 'longe demais',
+    correction: 'aproxime até a amostra preencher a moldura',
+    isDistance: true,
+  );
+  return switch (row) {
+    GuidanceRow.ready => null,
+    GuidanceRow.sheetCropped => tooClose,
+    GuidanceRow.tooCoarse => tooFar,
+    GuidanceRow.tilted || GuidanceRow.almostLevel => (
+      cause: 'celular inclinado',
+      correction: 'deixe o celular paralelo ao chão',
+      isDistance: false,
+    ),
+    GuidanceRow.sheetNotFound => (
+      cause: 'folha fora do contorno',
+      correction: 'enquadre a folha A4 inteira no contorno',
+      isDistance: false,
+    ),
+    GuidanceRow.soilNotMeasured => (
+      cause: 'solo não medido',
+      correction: 'coloque o solo no meio da folha, num círculo de 8 a 10 cm',
+      isDistance: false,
+    ),
+    GuidanceRow.smallSoil => (
+      cause: 'pouco solo',
+      correction: 'espalhe num círculo de 8 a 10 cm',
+      isDistance: false,
+    ),
+    GuidanceRow.sheetMisaligned => switch (alignment?.fix) {
+      MisalignmentFix.farther => tooClose,
+      MisalignmentFix.closer => tooFar,
+      MisalignmentFix.shift => (
+        cause: 'folha fora do centro',
+        correction: 'leve o celular para ${_towards(alignment!.arrow!)}',
+        isDistance: false,
+      ),
+      MisalignmentFix.turn => (
+        cause: 'folha torta',
+        correction: 'gire o celular até a folha ficar reta no contorno',
+        isDistance: false,
+      ),
+      null => null,
+    },
+  };
+}
+
 /// The banner for a smoothed [tilt] (null: `tiltUnavailable`) and the live
 /// [reading] (null: none yet, or no reader), with [tooCoarse] the scale
 /// estimate's verdict and [alignment] the guides' (SPEC 0169; null when the
