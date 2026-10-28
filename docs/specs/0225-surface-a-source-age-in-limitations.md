@@ -59,17 +59,19 @@ sentence for that source, in the same derived-limitation path SPEC 0162 built.**
 
 ## Scope
 
-**In scope:** the manifest's `year`, its validation in `src.sources`, the
-derived age sentence in `build_cell`, and `year` in the run manifest.
-
-**Out of scope:**
-- The two other items "Before B3": a producer for `evidenceStrength`, and a
-  generate prompt that asks for "what the class does not mean". Each needs its
-  own spec.
-- Re-running the B1' probe. That run, and the agronomist's judgement, are
-  #251's.
-- Detecting that something newer *contradicts* an old source. The sentence
-  reports age, and contradiction stays with the human review of B4.
+- Includes:
+  - the manifest's `year`, and its validation in `src.sources`;
+  - the derived age sentence in `build_cell`;
+  - `year` in the run manifest;
+  - the implementation map's "Before B3" entry, and the Developer's decision
+    of 2026-10-28 to go on without the agronomist's judgement of #251's cell.
+- Does NOT include:
+  - The two other items "Before B3": a producer for `evidenceStrength`, and a
+    generate prompt that asks for "what the class does not mean". Each needs
+    its own spec.
+  - Re-running the B1' probe. That run is #251's.
+  - Detecting that something newer *contradicts* an old source. The sentence
+    reports age, and contradiction stays with the human review of B4.
 
 ## Acceptance Criteria
 
