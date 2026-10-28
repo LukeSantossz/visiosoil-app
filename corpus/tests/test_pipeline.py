@@ -77,7 +77,7 @@ class ScriptedClient:
         return {
             "status": "grounded",
             "disclaimer": "Orientação consultiva.",
-            "tips": [{"text": "Uma dica.", "citations": [0]}],
+            "tips": [{"text": "Uma dica.", "citations": [0], "kind": "nao_significa"}],
             "limitations": [],
         }
 
@@ -591,6 +591,7 @@ def test_each_grounding_call_is_recorded_with_its_attempt():
             "supported": False,
             "quote": "trecho para Uma dica.",
             "found": False,
+            "kind": "nao_significa",
         },
         {
             "attempt": 2,
@@ -598,6 +599,7 @@ def test_each_grounding_call_is_recorded_with_its_attempt():
             "supported": True,
             "quote": "trecho para Uma dica.",
             "found": True,
+            "kind": "nao_significa",
         },
     ]
 
@@ -830,3 +832,103 @@ def test_an_abstained_cell_states_no_age():
 
     assert outcome.cell["status"] == "abstained"
     assert outcome.cell["limitations"] == []
+
+
+# --- What the class does not mean (SPEC 0226) ----------------------------------
+
+
+NO_CORRECTION = (
+    "Esta orientação não traz uma correção do que a classe de textura não "
+    "significa."
+)
+
+
+def generation(*kinds):
+    """A grounded generation with one tip per kind, `None` meaning no kind."""
+    return {
+        "status": "grounded",
+        "tips": [
+            # Lettered, not numbered: a digit in a tip is refused (SPEC 0160).
+            {"text": f"Dica {'abc'[i]}.", "citations": [0], **({"kind": k} if k else {})}
+            for i, k in enumerate(kinds)
+        ],
+    }
+
+
+def test_a_cell_with_a_correction_states_no_missing_correction():
+    client = ScriptedClient(
+        generation=generation("leitura_do_laudo", "nao_significa"),
+        grounded=[True, True],
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == []
+
+
+@pytest.mark.parametrize(
+    "kinds", [("leitura_do_laudo",), (None,), ("outra_coisa", "leitura_do_laudo")]
+)
+def test_a_cell_without_a_correction_says_so(kinds):
+    client = ScriptedClient(
+        generation=generation(*kinds), grounded=[True] * len(kinds)
+    )
+
+    outcome = build_cell(
+        QUESTION, [source(0, year=2005)], client=client, now=BUILT_IN_2026
+    )
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.cell["limitations"] == [age_sentence(2005), NO_CORRECTION]
+
+
+def test_an_uncovered_topic_is_not_stated_twice():
+    client = ScriptedClient(
+        grades={"https://example.org/0": relevant_to("fósforo")},
+        generation=generation("leitura_do_laudo"),
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    limitations = outcome.cell["limitations"]
+    assert NO_CORRECTION not in limitations
+    assert (
+        "As fontes consultadas não tratam do que a classe de textura implica "
+        "e do que não implica."
+    ) in limitations
+
+
+def test_the_kind_does_not_reach_the_cell():
+    client = ScriptedClient(
+        generation=generation("nao_significa", "leitura_do_laudo"),
+        grounded=[True, True],
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert all("kind" not in tip for tip in outcome.cell["tips"])
+
+
+def test_an_abstained_cell_states_no_missing_correction():
+    client = ScriptedClient(
+        generation=generation("leitura_do_laudo"), grounded=[False, False]
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.cell["limitations"] == []
+
+
+def test_the_run_manifest_records_each_tips_kind():
+    client = ScriptedClient(
+        generation=generation("nao_significa", None), grounded=[True, True]
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert [g["kind"] for g in outcome.groundings] == [
+        "nao_significa",
+        "leitura_do_laudo",
+    ]
