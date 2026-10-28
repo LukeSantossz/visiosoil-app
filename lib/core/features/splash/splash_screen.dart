@@ -52,42 +52,93 @@ enum BootHandOff {
 }
 
 /// The page for a route the boot routes on to. It runs the hand-off only
-/// when the boot asked for it, through [BootHandOff]; any other arrival gets
-/// the page GoRouter builds by default.
+/// when the boot asked for it, through [BootHandOff]; any other arrival runs
+/// the theme's transition, as a [MaterialPage] would.
+///
+/// Every arrival gets the same page type, so reaching the route again with
+/// another extra updates it in place instead of mounting it anew (SPEC 0228).
 Page<void> bootHandOffPage(GoRouterState state, Widget child) {
   final handOff = state.extra;
-  if (handOff is! BootHandOff) {
-    return MaterialPage<void>(
-      key: state.pageKey,
-      name: state.name ?? state.path,
-      restorationId: state.pageKey.value,
-      child: child,
-    );
-  }
-  return CustomTransitionPage<void>(
+  return _BootHandOffPage(
     key: state.pageKey,
     name: state.name ?? state.path,
     restorationId: state.pageKey.value,
-    transitionDuration: handOff == BootHandOff.slide
-        ? SplashScreen.handOffDuration
-        : Duration.zero,
-    reverseTransitionDuration: Duration.zero,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Once in, the page answers routes pushed over it as every other page
-      // does, through the theme's own transition.
-      final settled = Theme.of(context).pageTransitionsTheme.buildTransitions(
-        ModalRoute.of(context)! as PageRoute<void>,
+    handOff: handOff is BootHandOff ? handOff : null,
+    child: child,
+  );
+}
+
+class _BootHandOffPage extends Page<void> {
+  const _BootHandOffPage({
+    required this.handOff,
+    required this.child,
+    super.key,
+    super.name,
+    super.restorationId,
+  });
+
+  final BootHandOff? handOff;
+  final Widget child;
+
+  @override
+  Route<void> createRoute(BuildContext context) => _BootHandOffRoute(this);
+}
+
+class _BootHandOffRoute extends PageRoute<void>
+    with MaterialRouteTransitionMixin<void> {
+  // The arrival that created the route fixes its transition: an update has
+  // nothing left to enter.
+  _BootHandOffRoute(_BootHandOffPage page)
+    : _handOff = page.handOff,
+      super(settings: page);
+
+  final BootHandOff? _handOff;
+
+  @override
+  Widget buildContent(BuildContext context) =>
+      (settings as _BootHandOffPage).child;
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Duration get transitionDuration => switch (_handOff) {
+    BootHandOff.slide => SplashScreen.handOffDuration,
+    BootHandOff.cut => Duration.zero,
+    null => super.transitionDuration,
+  };
+
+  @override
+  Duration get reverseTransitionDuration =>
+      _handOff == null ? super.reverseTransitionDuration : Duration.zero;
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (_handOff == null) {
+      return super.buildTransitions(
         context,
-        kAlwaysCompleteAnimation,
+        animation,
         secondaryAnimation,
         child,
       );
-      return handOff == BootHandOff.slide
-          ? _BootHandOffTransition(animation: animation, child: settled)
-          : settled;
-    },
-    child: child,
-  );
+    }
+    // Once in, the page answers routes pushed over it as every other page
+    // does, through the theme's own transition.
+    final settled = super.buildTransitions(
+      context,
+      kAlwaysCompleteAnimation,
+      secondaryAnimation,
+      child,
+    );
+    return _handOff == BootHandOff.slide
+        ? _BootHandOffTransition(animation: animation, child: settled)
+        : settled;
+  }
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
@@ -246,13 +297,16 @@ class _BootFrame extends StatelessWidget {
                     key: const Key('boot-green'),
                     color: palette.bootBackground,
                     // Two clusters of contour rings (PNG 01, SPEC 0207);
-                    // Modo Sol draws no decoration.
+                    // Modo Sol draws no decoration. The rings paint once into
+                    // their own layer, which the reveal only clips (SPEC 0228).
                     child: palette.isSun
                         ? const SizedBox.expand()
-                        : const CustomPaint(
-                            key: Key('boot-contours'),
-                            painter: _BootContoursPainter(),
-                            size: Size.infinite,
+                        : const RepaintBoundary(
+                            child: CustomPaint(
+                              key: Key('boot-contours'),
+                              painter: _BootContoursPainter(),
+                              size: Size.infinite,
+                            ),
                           ),
                   ),
                 ),
