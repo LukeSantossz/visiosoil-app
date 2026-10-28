@@ -68,6 +68,8 @@ Page<void> bootHandOffPage(GoRouterState state, Widget child) {
   );
 }
 
+/// The one page [bootHandOffPage] builds, carrying the arrival's
+/// [BootHandOff], or null when it carried none.
 class _BootHandOffPage extends Page<void> {
   const _BootHandOffPage({
     required this.handOff,
@@ -84,6 +86,8 @@ class _BootHandOffPage extends Page<void> {
   Route<void> createRoute(BuildContext context) => _BootHandOffRoute(this);
 }
 
+/// A [_BootHandOffPage]'s route: the theme's transition, as [MaterialPage]'s
+/// route runs it, unless the boot handed off.
 class _BootHandOffRoute extends PageRoute<void>
     with MaterialRouteTransitionMixin<void> {
   // The arrival that created the route fixes its transition: an update has
