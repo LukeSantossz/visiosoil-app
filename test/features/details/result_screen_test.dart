@@ -521,7 +521,9 @@ void main() {
 
       expect(find.textContaining('Rio Verde, GO'), findsOneWidget);
       expect(find.textContaining('-17.790000, -50.920000'), findsOneWidget);
-      expect(find.textContaining('Talhão 3 · A1'), findsOneWidget);
+      // SPEC 0220: the sample shows alone; the field label no longer shows.
+      expect(find.textContaining('A1'), findsOneWidget);
+      expect(find.textContaining('Talhão 3'), findsNothing);
     });
 
     testWidgets('a record with no location', (tester) async {
@@ -548,14 +550,15 @@ void main() {
       expect(control.value, ResultTab.management);
     });
 
-    testWidgets('Corrigir opens the labels dialog', (tester) async {
+    testWidgets('Corrigir opens the correction dialog', (tester) async {
       await _pump(tester, _classified());
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Corrigir'));
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Talhão'), findsOneWidget);
+      expect(find.text('Corrigir classificação'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Talhão'), findsNothing);
     });
 
     testWidgets('the footer stacks from a 1.3x text scale', (tester) async {

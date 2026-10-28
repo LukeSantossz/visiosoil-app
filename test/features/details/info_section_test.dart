@@ -88,19 +88,36 @@ void main() {
     expect(find.textContaining('Precisão'), findsNothing);
   });
 
-  // SPEC 0149: the identification tile names each label the record has, and
-  // says when it has none.
-  testWidgets('details_show_the_labels', (tester) async {
+  // SPEC 0149, SPEC 0220: the identification tile names the true class and
+  // the sample the record has, never the field, and says when it has none.
+  testWidgets('identification_shows_the_true_class', (tester) async {
     await pumpInfo(
       tester,
-      recordWith().copyWith(fieldName: 'Talhão 3', sampleLabel: 'A1'),
+      recordWith().copyWith(
+        fieldName: 'Talhão 3',
+        trueTextureClass: 'Argilosa',
+        sampleLabel: '12',
+      ),
     );
     expect(find.text('Identificação'), findsOneWidget);
-    expect(find.text('Talhão: Talhão 3\nAmostra: A1'), findsOneWidget);
+    expect(find.text('Classe real: Argilosa\nAmostra: 12'), findsOneWidget);
+    expect(find.textContaining('Talhão'), findsNothing);
+
+    await pumpInfo(
+      tester,
+      recordWith().copyWith(trueTextureClass: 'Muito Argilosa'),
+    );
+    expect(find.text('Classe real: Muito argilosa'), findsOneWidget);
 
     await pumpInfo(tester, recordWith().copyWith(sampleLabel: 'A1'));
     expect(find.text('Amostra: A1'), findsOneWidget);
-    expect(find.textContaining('Talhão:'), findsNothing);
+    expect(find.textContaining('Classe real:'), findsNothing);
+  });
+
+  testWidgets('a field label alone is no identification', (tester) async {
+    await pumpInfo(tester, recordWith().copyWith(fieldName: 'Talhão 3'));
+
+    expect(find.text('Sem identificação'), findsOneWidget);
   });
 
   testWidgets('details_show_no_identification', (tester) async {

@@ -509,7 +509,9 @@ void main() {
       await pumpPage(tester);
 
       expect(find.text('Argilosa'), findsOneWidget);
-      expect(find.text('Talhão 3 · Amostra 2'), findsOneWidget);
+      // SPEC 0220: the sample heads the page alone.
+      expect(find.text('Amostra 2'), findsOneWidget);
+      expect(find.textContaining('Talhão 3'), findsNothing);
       expect(find.text('2 dicas'), findsOneWidget);
       expect(
         tester.getSize(find.byKey(const Key('tips-record-photo'))),
