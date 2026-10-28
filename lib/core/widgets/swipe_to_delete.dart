@@ -127,6 +127,9 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    // The row recedes 12 dp at its own width and "Excluir" covers its end
+    // (PNG 34): a margin would narrow it and re-lay out its content
+    // (SPEC 0222).
     final transform = Matrix4.translationValues(
       -(_dragExtent / _actionWidth) * AppSpacing.md,
       0,
@@ -157,7 +160,6 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
                             : AppMotion.durationOf(context, AppMotion.fast),
                         curve: AppMotion.standard,
                         transform: transform,
-                        margin: EdgeInsets.only(right: _dragExtent),
                         decoration: BoxDecoration(color: palette.background),
                         child: GestureDetector(
                           onTap: _revealed ? _close : null,

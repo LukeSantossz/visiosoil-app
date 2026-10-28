@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 
 /// What a step's panel draws (PNG 02 to 07, SPEC 0206).
@@ -22,8 +23,36 @@ class OnboardingPanel extends StatelessWidget {
     final palette = context.palette;
     final sun = palette.isSun;
     final inset = MediaQuery.paddingOf(context).top;
-    final height = 376 + inset;
-    final width = MediaQuery.sizeOf(context).width;
+    final screen = MediaQuery.sizeOf(context);
+    // §10 caps the art at 200 dp on a screen that fits within 360 × 640;
+    // a narrow but tall phone keeps the full panel (SPEC 0222).
+    final small = screen.width <= 360 && screen.height <= 640;
+    final height = (small ? 200 : 376) + inset;
+    final width = screen.width;
+    // The art sits on a 200 × 180 dp canvas, so each drawing keeps the
+    // coordinates measured on the mocks (SPEC 0206).
+    final canvas = SizedBox(
+      width: 200,
+      height: 180,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (art == OnboardingArt.triangle)
+            Positioned(
+              left: _triangleOffset.dx,
+              top: _triangleOffset.dy,
+              width: _triangleWidth,
+              child: const ExcludeSemantics(
+                child: TextureTriangle(
+                  highlightClass: SoilTextureColors.exampleClass,
+                ),
+              ),
+            )
+          else
+            Positioned.fill(child: ExcludeSemantics(child: _art(palette))),
+        ],
+      ),
+    );
     return Container(
       key: const Key('onboarding-panel'),
       height: height,
@@ -45,18 +74,17 @@ class OnboardingPanel extends StatelessWidget {
                 palette.primaryText.withValues(alpha: .17),
               ),
             ),
-          // The art sits on a 200 × 180 dp canvas whose top left is 100 dp
-          // left of the panel's centre and 76 dp under the safe area, so each
-          // drawing keeps the coordinates measured on the mocks (SPEC 0206).
-          if (art == OnboardingArt.triangle)
+          // The canvas's top left is 100 dp left of the panel's centre and
+          // 76 dp under the safe area (SPEC 0206). On a small screen it is
+          // scaled down to fit the short panel, centred (SPEC 0222).
+          if (small)
             Positioned(
-              left: width / 2 - 100 + _triangleOffset.dx,
-              top: inset + 76 + _triangleOffset.dy,
-              width: _triangleWidth,
-              child: const ExcludeSemantics(
-                child: TextureTriangle(
-                  highlightClass: SoilTextureColors.exampleClass,
-                ),
+              left: 0,
+              right: 0,
+              top: inset + AppSpacing.sm,
+              bottom: AppSpacing.sm,
+              child: Center(
+                child: FittedBox(fit: BoxFit.scaleDown, child: canvas),
               ),
             )
           else
@@ -65,7 +93,7 @@ class OnboardingPanel extends StatelessWidget {
               top: inset + 76,
               width: 200,
               height: 180,
-              child: ExcludeSemantics(child: _art(palette)),
+              child: canvas,
             ),
         ],
       ),
