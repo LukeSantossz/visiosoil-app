@@ -97,14 +97,29 @@ extractant, spaced or hyphenated, and a clay mineral's layer ratio, "argilas
 1:1" or "minerais do tipo 2:1", which is what clay activity turns on. A ratio
 outside that context, such as a mixing ratio, stays a number (SPEC 0160)."""
 
+_DOCUMENT_INDEX = re.compile(r"\[\s*\d+(?:\s*,\s*\d+)*\s*\]")
+"""A bracketed list of document indices, "[0]" or "[0, 2]": the model citing a
+document in the tip's text instead of in its `citations` (SPEC 0229)."""
+
+
+def cites_a_document_index(text: str) -> bool:
+    """Whether [text] cites a document by its index (SPEC 0229).
+
+    The app shows the tip to a reader who never sees the documents' order, so
+    the index points at nothing; `citations` is what links a tip to its source.
+    """
+    return _DOCUMENT_INDEX.search(text) is not None
+
 
 def states_a_number(text: str) -> bool:
     """Whether [text] states a number, which a tip never does (SPEC 0160).
 
     The advisory stance forbids doses and critical levels, and the generate
     prompt asks for the direction a source's numbers show instead. A prompt rule
-    is one the model can ignore, so the build checks it.
+    is one the model can ignore, so the build checks it. A document index is
+    not a number: [cites_a_document_index] names it (SPEC 0229).
     """
+    text = _DOCUMENT_INDEX.sub("", text)
     return _NUMBER.search(_NOT_A_NUMBER.sub("", text)) is not None
 
 
@@ -239,15 +254,19 @@ def build_cell(
         validate_cell(cell, source_count=len(source_array))
 
         # A number is refused before grounding is asked: the stance forbids it
-        # however well the source supports it (SPEC 0160). Limitations are the
-        # build's own sentences, so only tips are read (SPEC 0162).
-        numeric = [
-            f"states a number: {tip['text']}"
+        # however well the source supports it (SPEC 0160). So is a document
+        # index, which the reader cannot follow, under its own cause (SPEC
+        # 0229). Limitations are the build's own sentences, so only tips are
+        # read (SPEC 0162).
+        refused = [
+            f"cites a document by its index: {tip['text']}"
+            if cites_a_document_index(tip["text"])
+            else f"states a number: {tip['text']}"
             for tip in cell["tips"]
-            if states_a_number(tip["text"])
+            if cites_a_document_index(tip["text"]) or states_a_number(tip["text"])
         ]
-        unsupported = list(numeric)
-        if not numeric:
+        unsupported = list(refused)
+        if not refused:
             for tip in cell["tips"]:
                 grounding = client.ground(
                     tip["text"], [kept[i].text for i in tip["citations"]]
