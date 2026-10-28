@@ -18,7 +18,7 @@ Refusing the tip is right. The app shows a tip's text to a reader who never sees
 - In `build_cell`'s generate-and-check loop, each tip is checked before grounding is asked, in this order:
   1. a tip that cites a document by its index is refused as `cites a document by its index: <text>`;
   2. any other tip that states a number is refused as `states a number: <text>`, as today.
-- `states_a_number` ignores a bracketed index, so a tip that holds only an index and no figure is not called numeric.
+- `states_a_number` ignores a bracketed index, so a tip that holds only an index and no figure is not called numeric. The index is replaced by a space rather than removed, so a figure written against it ("Dose[0]18") is not glued to the word before and is still a number. This was added after review.
 - When any tip in an attempt is refused for either cause, grounding is not asked for that attempt's tips, as SPEC 0160 already does for numbers.
 - What abstains and what grounds does not change. A tip with an index was already refused. Only the recorded cause is new.
 
@@ -43,7 +43,7 @@ Refusing the tip is right. The app shows a tip's text to a reader who never sees
 
 - `test_a_tip_citing_a_document_index_is_rejected_by_that_cause`: for "O documento [0] menciona a argila." and "Segundo [0, 2], a argila importa.", the cell abstains after two attempts, and the rejections are `cites a document by its index: <text>`, twice. Grounding is not asked.
 - `test_an_index_is_not_a_number`: `states_a_number` is false for "O documento [0] menciona a argila." and for "Segundo [0, 2], a argila importa.".
-- `test_a_figure_beside_an_index_is_still_a_number`: `states_a_number` is true for "O documento [1] dá 18 mg dm-3.".
+- `test_a_figure_beside_an_index_is_still_a_number`: `states_a_number` is true for "O documento [1] dá 18 mg dm-3." and for "Dose[0]18 mg dm-3.".
 - Existing pipeline tests pass unchanged, the number cases of SPEC 0160 included.
 
 ## Reproducibility

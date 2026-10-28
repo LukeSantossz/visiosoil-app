@@ -119,7 +119,8 @@ def states_a_number(text: str) -> bool:
     is one the model can ignore, so the build checks it. A document index is
     not a number: [cites_a_document_index] names it (SPEC 0229).
     """
-    text = _DOCUMENT_INDEX.sub("", text)
+    # A space, not nothing: "Dose[0]18" must not become the name "Dose18".
+    text = _DOCUMENT_INDEX.sub(" ", text)
     return _NUMBER.search(_NOT_A_NUMBER.sub("", text)) is not None
 
 
