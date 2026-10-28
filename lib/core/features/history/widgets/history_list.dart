@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
@@ -10,6 +11,7 @@ import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/offline_banner.dart';
@@ -18,6 +20,7 @@ import 'package:visiosoil_app/core/widgets/swipe_to_delete.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Date-grouped history. Deferred deletes preserve the repository's original
@@ -140,7 +143,10 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                     (AppSpacing.lg + AppSpacing.xs),
                   ),
                   sliver: SliverToBoxAdapter(
-                    child: _Collection(records: records),
+                    child: _Collection(
+                      records: records,
+                      classes: ref.watch(contractClassesProvider).value,
+                    ),
                   ),
                 ),
               ];
@@ -168,7 +174,12 @@ class _HistoryListState extends ConsumerState<HistoryList> {
             return [
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                sliver: SliverToBoxAdapter(child: _Summary(records: records)),
+                sliver: SliverToBoxAdapter(
+                  child: _Summary(
+                    records: records,
+                    classes: ref.watch(contractClassesProvider).value,
+                  ),
+                ),
               ),
               if (visible.length > _shown)
                 SliverToBoxAdapter(
@@ -335,8 +346,11 @@ String _dateHeading(String timestamp) {
 }
 
 class _Summary extends StatelessWidget {
-  const _Summary({required this.records});
+  const _Summary({required this.records, required this.classes});
   final List<SoilRecord> records;
+
+  /// The contract's classes, null while unknown (SPEC 0223).
+  final List<String>? classes;
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -346,16 +360,29 @@ class _Summary extends StatelessWidget {
       final date = DateTime.tryParse(r.timestamp)?.toLocal();
       return date != null && !date.isBefore(monday) && !date.isAfter(now);
     }).length;
-    final earned = records
-        .where((r) => r.hasClassification)
-        .map((r) => r.textureClass)
-        .toSet()
-        .intersection(_collectionClasses.toSet())
-        .length;
+    final total = classes;
+    final earned = total == null
+        ? null
+        : records
+              .where((r) => r.hasClassification)
+              .map((r) => r.textureClass)
+              .toSet()
+              .intersection(total.toSet())
+              .length;
     final cells = [
       ('${records.length}', 'análises', null),
-      ('$week', 'nesta semana', '$week análises nesta semana'),
-      ('$earned/12', 'classes', null),
+      (
+        '$week',
+        'nesta semana',
+        '${Formatters.count(week, 'análise', 'análises')} nesta semana',
+      ),
+      (
+        earned == null ? '—' : '$earned/${total!.length}',
+        'classes',
+        earned == null
+            ? null
+            : '$earned de ${total!.length} classes na coleção',
+      ),
     ];
     final stacked = MediaQuery.textScalerOf(context).scale(1) >= 1.3;
     final rule = BorderSide(
@@ -447,23 +474,27 @@ class _SummaryCell extends StatelessWidget {
   }
 }
 
-final _collectionClasses = SoilTextureColors.referenceClasses.keys.toList();
-
+/// The contract's classes as tiles, in its order (SPEC 0223).
 class _Collection extends StatelessWidget {
-  const _Collection({required this.records});
+  const _Collection({required this.records, required this.classes});
   final List<SoilRecord> records;
+
+  /// Null while unknown, when the grid holds no tile.
+  final List<String>? classes;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        for (final name in _collectionClasses)
+        for (final name in classes ?? const <String>[])
           Builder(
             builder: (context) {
               final earned = records.any((r) => r.textureClass == name);
               return Semantics(
-                label: '$name, ${earned ? 'conquistada' : 'não conquistada'}',
+                label:
+                    '${SoilTextureReference.labelFor(name)}, '
+                    '${earned ? 'conquistada' : 'não conquistada'}',
                 child: ExcludeSemantics(
                   child: Container(
                     width: (constraints.maxWidth - AppSpacing.sm) / 2,
@@ -491,7 +522,10 @@ class _Collection extends StatelessWidget {
                               ? context.palette.primaryText
                               : context.palette.onSurfaceVariant,
                         ),
-                        Text(name, textAlign: TextAlign.center),
+                        Text(
+                          SoilTextureReference.labelFor(name),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),

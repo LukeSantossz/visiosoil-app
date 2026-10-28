@@ -4,6 +4,11 @@
 class Formatters {
   Formatters._();
 
+  /// [n] followed by [singular] when it is exactly one and by [plural]
+  /// otherwise, zero included, as pt-BR counts (SPEC 0223).
+  static String count(int n, String singular, String plural) =>
+      '$n ${n == 1 ? singular : plural}';
+
   /// Formats an ISO 8601 timestamp for display.
   ///
   /// Example: "2026-04-01T14:30:00" -> "01/04/2026 às 14:30"

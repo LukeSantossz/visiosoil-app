@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
-import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Weekly activity, observed collection and confidence of the latest capture.
 class StatsGrid extends StatelessWidget {
-  const StatsGrid({super.key, required this.recordsAsync});
+  const StatsGrid({
+    super.key,
+    required this.recordsAsync,
+    this.collectionClasses,
+  });
   final AsyncValue<List<SoilRecord>> recordsAsync;
+
+  /// The contract's classes the collection counts, null while unknown
+  /// (SPEC 0223).
+  final List<String>? collectionClasses;
 
   @override
   Widget build(BuildContext context) {
@@ -23,14 +31,17 @@ class StatsGrid extends StatelessWidget {
       final date = DateTime.tryParse(record.timestamp)?.toLocal();
       return date != null && !date.isBefore(monday) && !date.isAfter(now);
     }).length;
-    // The twelve USDA reference classes the records hold, counted as Perfil
-    // and the history count them (SPEC 0203).
-    final classes = records
-        .where((r) => r.hasClassification)
-        .map((r) => r.textureClass)
-        .toSet()
-        .intersection(SoilTextureColors.referenceClasses.keys.toSet())
-        .length;
+    // The contract's classes the records hold, counted as Perfil and the
+    // history count them (SPEC 0223).
+    final total = collectionClasses;
+    final classes = total == null
+        ? null
+        : records
+              .where((r) => r.hasClassification)
+              .map((r) => r.textureClass)
+              .toSet()
+              .intersection(total.toSet())
+              .length;
     final score = records.isNotEmpty ? records.first.confidenceScore : null;
     final cells = loading
         ? List.generate(3, (_) => const StatCell.skeleton())
@@ -39,13 +50,17 @@ class StatsGrid extends StatelessWidget {
               value: '$weekly',
               label: 'análises',
               icon: LucideIcons.scan,
-              semanticLabel: '$weekly análises nesta semana',
+              semanticLabel:
+                  '${Formatters.count(weekly, 'análise', 'análises')} '
+                  'nesta semana',
             ),
             StatCell(
-              value: '$classes/12',
+              value: classes == null ? '—' : '$classes/${total!.length}',
               label: 'coleção',
               icon: LucideIcons.layers,
-              semanticLabel: '$classes de 12 classes na coleção',
+              semanticLabel: classes == null
+                  ? null
+                  : '$classes de ${total!.length} classes na coleção',
             ),
             StatCell(
               value: score != null && score.isFinite
