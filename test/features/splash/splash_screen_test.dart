@@ -405,6 +405,88 @@ void main() {
     expect(haptics, isEmpty);
   });
 
+  // The contours are painted once and the reveal only clips them (SPEC 0228).
+  testWidgets('the_reveal_paints_the_contours_in_their_own_layer', (
+    tester,
+  ) async {
+    await pumpSplash(tester);
+    await tester.pump(ms(100));
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('boot-reveal')),
+        matching: find.ancestor(
+          of: find.byKey(const Key('boot-contours')),
+          matching: find.byType(RepaintBoundary),
+        ),
+      ),
+      findsWidgets,
+    );
+
+    await unmount(tester);
+  });
+
+  group('the page a boot target is built on (SPEC 0228)', () {
+    GoRouter targets(String initialLocation) => GoRouter(
+      initialLocation: initialLocation,
+      routes: [
+        GoRoute(path: '/start', builder: (_, _) => const Text('START_STUB')),
+        GoRoute(
+          path: '/',
+          pageBuilder: (_, state) => bootHandOffPage(state, const _Probe()),
+        ),
+        GoRoute(path: '/over', builder: (_, _) => const Text('OVER_STUB')),
+      ],
+    );
+
+    Future<GoRouter> pumpTargets(WidgetTester tester, String location) async {
+      final router = targets(location);
+      addTearDown(router.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+      return router;
+    }
+
+    testWidgets('the_root_keeps_its_state_when_reached_without_a_hand_off', (
+      tester,
+    ) async {
+      _Probe.mounts = 0;
+      final router = await pumpTargets(tester, '/start');
+      router.go('/', extra: BootHandOff.cut);
+      await tester.pumpAndSettle();
+      final before = tester.state(find.byType(_Probe));
+
+      router.push('/over');
+      await tester.pumpAndSettle();
+      router.go('/');
+      await tester.pumpAndSettle();
+
+      expect(find.text('OVER_STUB'), findsNothing);
+      expect(tester.state(find.byType(_Probe)), same(before));
+      expect(_Probe.mounts, 1);
+    });
+
+    testWidgets('an_arrival_without_a_hand_off_runs_the_theme_transition', (
+      tester,
+    ) async {
+      final router = await pumpTargets(tester, '/');
+      final root = ModalRoute.of(tester.element(find.byType(_Probe)))!;
+
+      router.push('/over');
+      await tester.pumpAndSettle();
+      final material = ModalRoute.of(tester.element(find.text('OVER_STUB')))!;
+
+      // GoRouter builds `/over` on a MaterialPage, as every plain route here.
+      expect(material, isA<MaterialRouteTransitionMixin<void>>());
+      expect(root, isA<MaterialRouteTransitionMixin<void>>());
+      expect(root.transitionDuration, material.transitionDuration);
+      expect(
+        root.reverseTransitionDuration,
+        material.reverseTransitionDuration,
+      );
+    });
+  });
+
   // The boot passes Flutter's four accessibility guidelines (SPEC 0133),
   // just before it routes on, with the mark, the name, the tagline and
   // "Pular" all in at full opacity on the green.
@@ -420,6 +502,27 @@ void main() {
       semantics.dispose();
     });
   }
+}
+
+/// A boot target that counts how often it is mounted.
+class _Probe extends StatefulWidget {
+  const _Probe();
+
+  static int mounts = 0;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  @override
+  void initState() {
+    super.initState();
+    _Probe.mounts++;
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('PROBE_STUB');
 }
 
 class _FakeStore implements OnboardingStore {
