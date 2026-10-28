@@ -102,7 +102,7 @@ void main() {
         );
         if (state == 'records') {
           expect(
-            find.text('1 análises e 1 classes guardadas neste aparelho'),
+            find.text('1 análise e 1 classe guardadas neste aparelho'),
             findsOneWidget,
           );
         }
@@ -144,13 +144,13 @@ void main() {
             find.text(linked ? 'Test User' : 'Sem conta vinculada'),
             findsOneWidget,
           );
-          expect(find.text('0/12'), findsOneWidget);
+          expect(find.text('0/4'), findsOneWidget);
           await tester.scrollUntilVisible(
             find.text('Configurações').hitTestable(),
             150,
           );
           expect(find.text('Configurações'), findsOneWidget);
-          await tester.ensureVisible(find.text('0/12'));
+          await tester.ensureVisible(find.text('0/4'));
           await tester.pump();
           expect(find.bySemanticsLabel(RegExp('0 análises')), findsWidgets);
           expect(tester.takeException(), isNull);
@@ -160,8 +160,8 @@ void main() {
     }
   }
 
-  // SPEC 0204: the collection counts the USDA reference classes, the count
-  // line sits beside a phone, and the links are settings rows.
+  // SPEC 0204, SPEC 0223: the collection counts the contract's classes, the
+  // count line sits beside a phone, and the links are settings rows.
   Future<void> pumpProfile(
     WidgetTester tester,
     List<SoilRecord> records, {
@@ -195,10 +195,10 @@ void main() {
     confidenceScore: .8,
   );
 
-  testWidgets('profile_collection_counts_reference_classes', (tester) async {
+  testWidgets('profile_collection_counts_contract_classes', (tester) async {
     await pumpProfile(tester, [classified('Argila'), classified('Argilosa')]);
 
-    expect(find.text('1/12'), findsOneWidget);
+    expect(find.text('1/4'), findsOneWidget);
     expect(find.byIcon(LucideIcons.smartphone), findsOneWidget);
     expect(
       find.text('2 análises e 2 classes guardadas neste aparelho'),
