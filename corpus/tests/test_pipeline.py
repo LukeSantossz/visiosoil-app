@@ -585,8 +585,17 @@ def test_an_index_is_not_a_number(text):
     assert not states_a_number(text)
 
 
-def test_a_figure_beside_an_index_is_still_a_number():
-    assert states_a_number("O documento [1] dá 18 mg dm-3.")
+@pytest.mark.parametrize(
+    "text",
+    [
+        "O documento [1] dá 18 mg dm-3.",
+        # Found by R3 on PR #456: removing the index must not glue the figure
+        # to the word before it.
+        "Dose[0]18 mg dm-3.",
+    ],
+)
+def test_a_figure_beside_an_index_is_still_a_number(text):
+    assert states_a_number(text)
 
 
 def test_the_number_rule_reads_tips_only():
