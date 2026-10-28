@@ -39,6 +39,9 @@ one fixed limitation that says so.**
   traz uma correção do que a classe de textura não significa." It is added
   after the coverage and age limitations, and only to a grounded cell. An
   abstained cell keeps `limitations: []`, as SPEC 0162 decided.
+  - When no kept source covers the topic "o que a classe de textura implica e
+    o que não implica", SPEC 0162 already states that gap. The sentence is
+    then left out, so the reader is not told the same thing twice.
 - **The run manifest records each tip's kind** beside its grounding, so a judge
   can see which tips the model presented as corrections.
 
@@ -79,6 +82,8 @@ one fixed limitation that says so.**
 - `a_cell_without_a_correction_says_so`: a grounded cell whose tips are all
   `"leitura_do_laudo"`, or carry no kind, has the fixed sentence last in its
   limitations.
+- `an_uncovered_topic_is_not_stated_twice`: when the coverage limitation for
+  what the class implies is present, the correction sentence is not added.
 - `the_kind_does_not_reach_the_cell`: no tip in the cell has a `kind` key.
 - `an_abstained_cell_states_no_missing_correction`: an abstained cell keeps
   `limitations: []`.
