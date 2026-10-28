@@ -96,6 +96,7 @@ class SyncLocalStore {
             horizontalAccuracy: Value(remote.horizontalAccuracy),
             fieldName: Value(remote.fieldName),
             sampleLabel: Value(remote.sampleLabel),
+            trueTextureClass: Value(remote.trueTextureClass),
             classificationFailure:
                 Value(remote.classificationFailure?.name),
           ),
@@ -127,6 +128,7 @@ class SyncLocalStore {
         horizontalAccuracy: Value(remote.horizontalAccuracy),
         fieldName: Value(remote.fieldName),
         sampleLabel: Value(remote.sampleLabel),
+        trueTextureClass: Value(remote.trueTextureClass),
         classificationFailure: Value(remote.classificationFailure?.name),
       ),
     );
