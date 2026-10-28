@@ -53,9 +53,9 @@ Widget app(
 );
 
 void main() {
-  testWidgets('collection earns only exact USDA reference labels', (
-    tester,
-  ) async {
+  // SPEC 0223: the collection is the contract's classes, so a USDA name
+  // earns nothing and a contract class earns its tile.
+  testWidgets('collection earns only the contract classes', (tester) async {
     final semantics = tester.ensureSemantics();
     for (final textureClass in ['Argilosa', 'Argila']) {
       await tester.pumpWidget(const SizedBox());
@@ -68,16 +68,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Coleção'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Argila').last);
-      await tester.pumpAndSettle();
+      expect(find.text('Argila'), findsNothing);
       if (textureClass == 'Argilosa') {
-        expect(
-          find.bySemanticsLabel('Argila, não conquistada'),
-          findsOneWidget,
-        );
-        expect(find.bySemanticsLabel(RegExp(r', conquistada$')), findsNothing);
+        expect(find.bySemanticsLabel('Argilosa, conquistada'), findsOneWidget);
       } else {
-        expect(find.bySemanticsLabel('Argila, conquistada'), findsOneWidget);
+        expect(find.bySemanticsLabel(RegExp(r', conquistada$')), findsNothing);
       }
     }
     semantics.dispose();
@@ -100,7 +95,7 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('82% de confiança')), findsWidgets);
       await tester.tap(find.text('Coleção'));
       await tester.pumpAndSettle();
-      expect(find.text('Areia'), findsOneWidget);
+      expect(find.text('Arenosa'), findsOneWidget);
       expect(find.byType(AnalysisTile), findsNothing);
       semantics.dispose();
     });

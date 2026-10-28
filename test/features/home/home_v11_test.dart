@@ -49,7 +49,7 @@ void main() {
           id: 1,
           imagePath: 'x',
           timestamp: now.toIso8601String(),
-          textureClass: 'Argila',
+          textureClass: 'Argilosa',
           confidenceScore: .849,
         ),
         SoilRecord(
@@ -58,20 +58,28 @@ void main() {
           timestamp: monday
               .subtract(const Duration(seconds: 1))
               .toIso8601String(),
-          textureClass: 'Argila',
+          textureClass: 'Argilosa',
           confidenceScore: .2,
         ),
       ];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: StatsGrid(recordsAsync: AsyncValue.data(records)),
+            body: StatsGrid(
+              recordsAsync: AsyncValue.data(records),
+              collectionClasses: const [
+                'Arenosa',
+                'Media',
+                'Muito Argilosa',
+                'Argilosa',
+              ],
+            ),
           ),
         ),
       );
       final cells = tester.widgetList<StatCell>(find.byType(StatCell)).toList();
-      expect(cells.map((s) => s.value), ['1', '1/12', '84%']);
-      expect(cells.first.semanticLabel, '1 análises nesta semana');
+      expect(cells.map((s) => s.value), ['1', '1/4', '84%']);
+      expect(cells.first.semanticLabel, '1 análise nesta semana');
     },
   );
   testWidgets('nonfinite latest confidence is an em dash', (tester) async {

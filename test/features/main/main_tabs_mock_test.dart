@@ -184,7 +184,7 @@ void main() {
     expect(icons.every((icon) => icon.size == 18), isTrue);
     expect(tester.widgetList<StatCell>(cells).map((cell) => cell.value), [
       '2',
-      '0/12',
+      '1/4',
       '82%',
     ]);
     final shadows = tester
@@ -313,7 +313,7 @@ void main() {
       find.descendant(of: strip, matching: find.text('2')),
       findsNWidgets(2),
     );
-    for (final text in ['análises', 'nesta semana', '0/12', 'classes']) {
+    for (final text in ['análises', 'nesta semana', '1/4', 'classes']) {
       expect(
         find.descendant(of: strip, matching: find.text(text)),
         findsOneWidget,

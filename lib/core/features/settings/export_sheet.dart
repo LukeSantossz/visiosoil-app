@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -44,7 +45,10 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               ] else if (records.isLoading)
                 const LinearProgressIndicator()
               else
-                Text('${records.value!.length} análises em uma planilha CSV.'),
+                Text(
+                  '${Formatters.count(records.value!.length, 'análise', 'análises')} '
+                  'em uma planilha CSV.',
+                ),
               const SizedBox(height: AppSpacing.lg),
               const CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
