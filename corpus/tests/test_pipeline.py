@@ -371,7 +371,7 @@ def test_the_models_limitations_are_ignored():
         client = ScriptedClient(
             generation={
                 "status": "grounded",
-                "tips": [{"text": "t", "citations": [0]}],
+                "tips": [{"text": "t", "citations": [0], "kind": "nao_significa"}],
                 "limitations": limitations,
             }
         )
