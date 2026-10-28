@@ -52,10 +52,25 @@ ollama pull qwen2.5:7b
 python -m src.probe --cell "Argilosa|tb_oxidic"
 ```
 
-Output lands in `corpus/out/`, which is git-ignored. **It never lands in
-`assets/corpus/`**: that is where the app loads *reviewed* guidance from, and
-moving a cell there is the review gate's act — a gate blocked on a reviewer
-nobody has identified.
+Output lands in `corpus/out/`, which is git-ignored. It reaches
+`assets/corpus/`, where the app loads guidance from, only through the release.
+
+## Releasing the corpus
+
+```bash
+python -m src.build_grids                          # the two IBGE lattices, in out/
+python -m src.release --cells out/ --grids out/ --version 2026.10.28
+```
+
+The release reads the twelve substance cells by their run manifests' keys and
+refuses, naming the cause, a missing or extra key, cells from two models or two
+sets of prompt versions, a cell the app's reader would reject, or a grid of the
+wrong magic, kind or lattice. Nothing is written unless all of it passes. It
+derives each biome's default clay-activity family from the grids, and writes
+`corpus.json` and both grids into `assets/corpus/`, which is tracked (SPEC 0227).
+
+The Developer decided on 2026-10-28 to publish the cells without B4's named
+human review, so `corpus.json` carries `humanReview: false`.
 
 ## How it is shaped
 

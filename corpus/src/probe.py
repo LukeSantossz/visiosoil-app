@@ -6,9 +6,9 @@ agronomist's time — by building one cell and putting it in front of one. A
 judgement of "not worth reading" is a result, and it stops the plan before the
 other 43 cells exist.
 
-**Its output never lands in `assets/corpus/`.** Unreviewed generated guidance
-must not sit where the app loads reviewed guidance from; moving it there is the
-review gate's act, and that gate is blocked on a reviewer nobody has identified.
+**Its output reaches `assets/corpus/` only through the release**
+(`src.release`, SPEC 0227), which checks a whole build's cells before it
+writes anything where the app reads guidance from.
 """
 
 from __future__ import annotations

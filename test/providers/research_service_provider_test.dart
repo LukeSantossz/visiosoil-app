@@ -68,9 +68,8 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    // It holds nothing while `assets/corpus/` carries no release, which is the
-    // state the composition rule defines; the binding is what changes when the
-    // corpus build ships, not the app.
+    // It reads whatever release `assets/corpus/` carries (SPEC 0227); a bundle
+    // without one is the state the composition rule defines as no coverage.
     expect(container.read(corpusStoreProvider), isA<AssetCorpusStore>());
   });
 

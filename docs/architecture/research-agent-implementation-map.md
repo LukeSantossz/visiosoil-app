@@ -383,7 +383,12 @@ Each gets its own spec, and whether B3 waits for them is the Developer's call.
 **The Developer's decision of 2026-10-28:** the corpus work goes on without
 the agronomist's judgement of this cell. It is to be validated through the
 feature in use in the app, and corrected afterwards where that shows a need.
-B4's named human review of every cell before it ships is unchanged.
+
+**The Developer's decision of 2026-10-28, on release:** the twelve substance
+cells are published **without B4's named human review**. Every cell carries
+the advisory disclaimer, and `corpus.json` records the decision as
+`humanReview: false` (SPEC 0227). The land-use and unit layers, and a producer
+for `evidenceStrength`, stay out of scope.
 
 ### B2 — slice 2: cells, region tables and structured sources
 
@@ -569,10 +574,12 @@ and the release file parses through `Corpus.fromJson` unchanged.
 
 ### B4 — slice 4: verification and the human review gate
 
-**Blocked.** The cross-family verification pass is ready after B3; the human
-review gate is blocked because **no reviewer is identified**, and none of the
-alternatives considered produced a fallback. Build slices proceed; no corpus is
-released.
+**Waived for the first release by the Developer's decision of 2026-10-28.**
+The cross-family verification pass is ready after B3; the human review gate is
+blocked because **no reviewer is identified**, and none of the alternatives
+considered produced a fallback. The substance layer was released without it
+(SPEC 0227), with `humanReview: false` in the artifact; the gate still applies
+to the review that corrects it.
 
 ## 5. Lane C — the proxy
 
