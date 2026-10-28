@@ -7,6 +7,7 @@
       "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
       "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
       "tier": 1,
+      "year": 2016,
       "pages": [1, 1],
       "why": "How a phosphorus result is read: the Mehlich-1 figure means something different at each clay range while the resin figure does not — the correction a clayey class makes to reading a lab report. 3,476 characters."
     },
@@ -15,6 +16,7 @@
       "title": "Guia prático para interpretação de resultados de análises de solo",
       "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
       "tier": 1,
+      "year": 2015,
       "pages": [12, 13],
       "why": "A low CEC points to kaolinite rather than to little clay, and in weathered soils most of the CEC comes from organic matter — the heuristic 'clayey means fertile' is what tb_oxidic falsifies. 2,958 characters."
     },
@@ -23,6 +25,7 @@
       "title": "Uso de gesso agrícola nos solos do Cerrado",
       "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
       "tier": 1,
+      "year": 2005,
       "pages": [6, 8],
       "why": "A clayey Latossolo stores more water than a sandy one, and roots reach it only where the subsoil's acidity was corrected — liming the plough layer does not. Older than ten years, so research-agent.md §8.3 surfaces its age. 4,916 characters."
     }

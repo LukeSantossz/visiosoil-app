@@ -61,6 +61,7 @@ class RunManifest:
                     "title": source.title,
                     "publisher": source.publisher,
                     "tier": source.tier,
+                    "year": source.year,
                     "digest": source.digest,
                     # A digest of a passage is readable only beside the pages it
                     # covers, and the committed range can move between runs.
