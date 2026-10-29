@@ -731,6 +731,38 @@ void main() {
       expect(find.text('1 dica'), findsOneWidget);
     });
 
+    // A filter hides tips, not the support they have (SPEC 0233).
+    testWidgets('filter_hiding_every_tip_keeps_the_sources_heading',
+        (tester) async {
+      await pumpPage(
+        tester,
+        result: phased(),
+        hiddenCategories: const {TipCategory.water, TipCategory.preparation},
+      );
+
+      expect(find.text('Nenhuma dica nas categorias escolhidas.'), findsOneWidget);
+      expect(find.text('Fontes'), findsOneWidget);
+      expect(find.text('Fontes consultadas'), findsNothing);
+    });
+
+    testWidgets('tipless_result_names_the_consulted_sources', (tester) async {
+      final grounded = phased();
+      await pumpPage(
+        tester,
+        result: ManagementTipsResult(
+          status: ManagementTipsStatus.insufficientEvidence,
+          tips: const [],
+          sources: grounded.sources,
+          disclaimer: grounded.disclaimer,
+          model: grounded.model,
+          retrievedAt: grounded.retrievedAt,
+        ),
+      );
+
+      expect(find.text('Fontes consultadas'), findsOneWidget);
+      expect(find.text('Fontes'), findsNothing);
+    });
+
     testWidgets('filter_sheet_toggles_a_category', (tester) async {
       Set<TipCategory>? chosen;
       await tester.pumpWidget(MaterialApp(
