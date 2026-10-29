@@ -377,3 +377,14 @@ def test_every_manifest_is_on_the_allowlist():
             tiers.append(tier)
         if key_of_manifest(path).endswith(f"|{GENERIC}"):
             assert any(tier <= 3 for tier in tiers), path.name
+
+
+def test_every_generic_manifest_has_fifteen_excerpts():
+    """The Developer's floor for a class's sources (SPEC 0234 amendment). A
+    manifest keys its entries by URL, so fifteen excerpts are fifteen URLs."""
+    from src.keys import generic_keys
+
+    for key in generic_keys():
+        path = manifest_path_for(key)
+        urls = {source.url for source in SourceManifest.load(path).entries}
+        assert len(urls) >= 15, f"{path.name}: {len(urls)} excerpt(s)"
