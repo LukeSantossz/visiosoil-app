@@ -79,6 +79,34 @@ A fixed table rather than the model's words: what the sources leave out cannot
 be quoted, so it cannot be grounded, and a limitation the build states from its
 own grading is true by construction."""
 
+OLD_SOURCE_YEARS = 10
+"""A source more than this many years older than the build has its age
+surfaced in `limitations` (research-agent.md §8.3, SPEC 0225)."""
+
+
+CORRECTION_KIND = "nao_significa"
+"""The kind the generate prompt gives a tip that corrects a wrong reading of the
+class (SPEC 0226). Any other kind, or none, is read as lab-report guidance."""
+
+NO_CORRECTION_LIMITATION = (
+    "Esta orientação não traz uma correção do que a classe de textura não "
+    "significa."
+)
+"""The fixed sentence a grounded cell carries when none of its tips is a
+correction (SPEC 0226)."""
+
+_IMPLIES_TOPIC = MANAGEMENT_TOPICS[-1]
+
+
+def age_limitation(year: int) -> str:
+    """The fixed sentence for a kept source published in [year].
+
+    It states the age and nothing else: the build does not check that nothing
+    newer contradicts the source. Its digits are a year, not an amount, and the
+    number rule of SPEC 0160 reads tips, not limitations."""
+    return f"Uma das fontes consultadas é de {year}, há mais de dez anos."
+
+
 _NUMBER = re.compile(
     r"(?<!\w)(?<!\w-)\d+(?:[.,]\d+)?|[¼-¾⅐-⅟↉]"
 )
@@ -187,9 +215,8 @@ def build_cell(
     ground cannot make the build spin. Exhausting it abstains, which is an answer
     the composition rule already defines rather than a failure.
     """
-    accessed_at = (now or datetime.now(timezone.utc)).isoformat().replace(
-        "+00:00", "Z"
-    )
+    built_at = now or datetime.now(timezone.utc)
+    accessed_at = built_at.isoformat().replace("+00:00", "Z")
     # The model is told what the key means, never the key itself (SPEC 0152).
     question = describe_key(key)
     queries = [
@@ -214,6 +241,11 @@ def build_cell(
             coverage[topic].append(document.url)
     limitations = [
         TOPIC_LIMITATIONS[topic] for topic in MANAGEMENT_TOPICS if not coverage[topic]
+    ] + [
+        age_limitation(document.year)
+        for document in kept
+        if document.year is not None
+        and built_at.year - document.year > OLD_SOURCE_YEARS
     ]
 
     if not kept:
@@ -239,15 +271,26 @@ def build_cell(
         # `status` became "grounded" and missing `tips` became `[]`, so
         # malformed output composed into a grounded cell carrying no guidance.
         _require_generated_shape(generated)
+        kinds = [_kind(tip) for tip in generated["tips"]]
+        # Left out when coverage already says no source treats what the class
+        # implies, so the reader is not told the same gap twice (SPEC 0226).
+        missing_correction = (
+            [NO_CORRECTION_LIMITATION]
+            if CORRECTION_KIND not in kinds and coverage[_IMPLIES_TOPIC]
+            else []
+        )
         cell = build_cell_payload(
             status=generated["status"],
             # Not `generated["disclaimer"]`: see SUBSTANCE_DISCLAIMER.
             disclaimer=SUBSTANCE_DISCLAIMER,
+            # `kind` is dropped here: the app's contract does not name it.
             tips=generated["tips"],
             sources=source_array,
             # Derived from coverage, never the model's, and only on a grounded
             # cell: an abstention carries none, however it abstained (SPEC 0162).
-            limitations=limitations if generated["status"] == "grounded" else [],
+            limitations=limitations + missing_correction
+            if generated["status"] == "grounded"
+            else [],
         )
         # Validated before grounding: a cell that does not satisfy the contract
         # is a build failure however well supported its claims are, and this is
@@ -268,7 +311,7 @@ def build_cell(
         ]
         unsupported = list(refused)
         if not refused:
-            for tip in cell["tips"]:
+            for tip, kind in zip(cell["tips"], kinds):
                 grounding = client.ground(
                     tip["text"], [kept[i].text for i in tip["citations"]]
                 )
@@ -279,6 +322,7 @@ def build_cell(
                         "supported": grounding.supported,
                         "quote": grounding.quote,
                         "found": grounding.found,
+                        "kind": kind,
                     }
                 )
                 if not grounding.supported:
@@ -308,6 +352,13 @@ def build_cell(
         groundings=groundings,
         coverage=coverage,
     )
+
+
+def _kind(tip: Any) -> str:
+    """A tip's kind as the model stated it, read as lab-report guidance unless it
+    is a correction: the label is the model's, and grounding judges the claim."""
+    is_correction = isinstance(tip, dict) and tip.get("kind") == CORRECTION_KIND
+    return CORRECTION_KIND if is_correction else "leitura_do_laudo"
 
 
 def _require_generated_shape(generated: Any) -> None:

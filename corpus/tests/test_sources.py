@@ -26,8 +26,14 @@ def manifest(tmp_path, entries):
     return SourceManifest.load(path)
 
 
-def entry(url, title="Fonte", publisher="Embrapa", tier=1):
-    return {"url": url, "title": title, "publisher": publisher, "tier": tier}
+def entry(url, title="Fonte", publisher="Embrapa", tier=1, year=2020):
+    return {
+        "url": url,
+        "title": title,
+        "publisher": publisher,
+        "tier": tier,
+        "year": year,
+    }
 
 
 def test_a_source_outside_the_manifest_is_refused(tmp_path):
@@ -280,6 +286,41 @@ def test_the_committed_substance_manifest_loads():
     committed = SourceManifest.load(DEFAULT_MANIFEST)
 
     assert sum(1 for source in committed.entries if source.tier == 1) >= 2
+
+
+# --- A source states the year it was published (SPEC 0225) ---------------------
+
+
+@pytest.mark.parametrize("year", ["absent", None, "2005", 2005.0, True, [2005]])
+def test_a_manifest_source_without_a_year_is_refused(tmp_path, year):
+    item = entry("https://example.org/a")
+    if year == "absent":
+        del item["year"]
+    else:
+        item["year"] = year
+    path = tmp_path / "substance.manifest.json"
+    path.write_text(json.dumps({"sources": [item]}), encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        SourceManifest.load(path)
+
+    assert "year" in str(excinfo.value)
+
+
+def test_the_manifest_states_each_sources_year():
+    from src.probe import DEFAULT_MANIFEST
+
+    committed = SourceManifest.load(DEFAULT_MANIFEST)
+
+    assert [source.year for source in committed.entries] == [2016, 2015, 2005]
+
+
+def test_a_fetched_source_carries_its_year(tmp_path):
+    allowed = manifest(tmp_path, [entry("https://example.org/a", year=2005)])
+
+    fetched = fetch_sources(allowed, transport=lambda url: "<p>Texto.</p>")
+
+    assert fetched[0].year == 2005
 
 
 def test_a_pdf_the_reader_cannot_decrypt_fails_the_build(tmp_path, monkeypatch):

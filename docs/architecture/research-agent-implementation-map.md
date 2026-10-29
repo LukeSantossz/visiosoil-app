@@ -368,11 +368,22 @@ it, and B4's named human review still gates every cell.
 
 **Before B3:**
 1. A source-age limitation, which needs a date per manifest source (§8.3).
+   **Built by SPEC 0225:** each manifest source states its `year`, and a
+   grounded cell that keeps a source more than ten years older than the build
+   carries one fixed sentence naming that year.
 2. A producer for `evidenceStrength`.
 3. A generate prompt that asks for the "what the class does not mean"
    corrections, since this cell carries only the lab-report one.
+   **Built by SPEC 0226:** generate prompt version 6 asks for at least one
+   correction the documents support, and each tip states its `kind`. A
+   grounded cell with no correction carries one fixed sentence saying so.
 
 Each gets its own spec, and whether B3 waits for them is the Developer's call.
+
+**The Developer's decision of 2026-10-28:** the corpus work goes on without
+the agronomist's judgement of this cell. It is to be validated through the
+feature in use in the app, and corrected afterwards where that shows a need.
+B4's named human review of every cell before it ships is unchanged.
 
 ### B2 — slice 2: cells, region tables and structured sources
 

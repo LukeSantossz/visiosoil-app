@@ -69,6 +69,9 @@ class SourceEntry:
     title: str
     publisher: str | None
     tier: int | None
+    year: int
+    """The publication year of the edition the passage is read from, so a cell
+    can state an old source's age (SPEC 0225)."""
     pages: tuple[int, int] | None = None
     """Physical pages of a PDF, 1-based and inclusive — page 1 is the cover, not
     the page printed "1"."""
@@ -85,6 +88,9 @@ class FetchedSource:
     text: str
     digest: str
     pages: tuple[int, int] | None = None
+    year: int | None = None
+    """None only for a source built outside a manifest, whose age is unknown and
+    so never stated."""
 
 
 class SourceManifest:
@@ -109,6 +115,7 @@ class SourceManifest:
                     title=item.get("title") or url,
                     publisher=item.get("publisher"),
                     tier=item.get("tier"),
+                    year=_year(item.get("year"), index=index, path=path),
                     pages=_page_range(item.get("pages"), index=index, path=path),
                 )
             )
@@ -154,6 +161,21 @@ def _page_range(raw: object, *, index: int, path: Path) -> tuple[int, int] | Non
     return raw[0], raw[1]
 
 
+def _year(raw: object, *, index: int, path: Path) -> int:
+    """The `year` of manifest entry [index], refused unless it is an integer.
+
+    Required, and checked at load like `pages`: an age the build cannot know is
+    an age it cannot surface (SPEC 0225).
+    """
+    # `bool` is an `int` in Python, and `true` is not a year.
+    if not isinstance(raw, int) or isinstance(raw, bool):
+        raise ValueError(
+            f"source {index} in {path} has year {raw!r}; year is the integer "
+            f"year the edition read from was published"
+        )
+    return raw
+
+
 Transport = Callable[[str], str | bytes]
 """Returns a page as decoded `str`, or a PDF as its undecoded `bytes`."""
 
@@ -192,6 +214,7 @@ def fetch_sources(
                 text=text,
                 digest=hashlib.sha256(text.encode("utf-8")).hexdigest(),
                 pages=allowed.pages,
+                year=allowed.year,
             )
         )
     return fetched
