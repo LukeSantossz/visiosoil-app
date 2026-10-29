@@ -47,6 +47,46 @@ The Developer's target, set on 2026-10-29, is that every classified sample gets 
   - The output is released as a new corpus version, with `humanReview: false` and the advisory disclaimer, as in the Developer's decision of 2026-10-28.
   - Two judges, themed tips and the target of three tips per class belong to a later spec, which rebuilds the corpus again.
 
+## Amendment (2026-10-29): sources per class and batched generation
+
+The Developer asked for **at least fifteen excerpts per class**, from trusted sources that may include peer-reviewed articles. A single generate call cannot read that many. `PROMPT_CHAR_CEILING` is 32,768 characters, and one passage can be up to `PASSAGE_CHAR_LIMIT` (6,000), so at most five passages fit beside the prompt. `_complete` refuses a longer prompt, so a generic cell with fifteen passages would never build.
+
+- **Sources.**
+  - Each generic manifest lists at least fifteen excerpts, each from its own URL, since a manifest keys its entries by URL.
+  - The same URL can appear in several manifests with different pages.
+  - Articles from `scielo.br` and from university repositories count as tier 3, as `src.search.ALLOWLIST` already ranks them.
+  - The rest of the source rules above stand, including the Developer's approval of the list before the build.
+- **Batches.** `build_cell` splits the kept documents into batches of `GENERATE_BATCH_SIZE = 4`, in kept order. Four passages at the limit, with their titles and the prompt, fit under the ceiling, and a test pins that.
+- **Each batch runs the present loop on its own.**
+  1. `generate_cell` receives only the batch, so a tip cites indices local to the batch.
+  2. The cell is validated against the batch's size.
+  3. The refusals run, and each tip is grounded against the passages of the batch it cites.
+  4. A batch with an unsupported or refused tip is retried, up to `max_attempts`. Exhausting the attempts drops that batch's tips. The other batches are not affected.
+  5. A batch the model abstains on contributes no tips. It is not retried, as today.
+- **Merge.**
+  - The tips of the batches that passed are joined in batch order.
+  - Their citations are mapped to indices in the cell's source array, which holds every kept document, as today.
+  - A tip whose text, case-folded and with whitespace collapsed, repeats an earlier tip's text is dropped.
+  - Detecting tips that only say the same thing in other words is left to the hardening spec.
+- **The cell.**
+  - The cell is grounded when at least one tip survives, and abstained otherwise.
+  - The limitations are derived as today: from coverage, from source age, and from the merged tips' kinds (SPEC 0226).
+  - The whole cell is validated once more against the full source array.
+- **The run record.**
+  - Each grounding entry gains `"batch"`, the batch's 1-based number, beside `"attempt"`.
+  - `BuildOutcome.attempts` becomes the number of generate calls across all batches. For one batch, that is the same number as today.
+- **Scope.** The amendment adds `corpus/src/pipeline.py` and `corpus/tests/test_pipeline.py` to the Scope. `generate.md` and `ground.md` are unchanged.
+- **Acceptance criteria**, in `corpus/tests/test_pipeline.py`:
+  - `test_a_batch_fits_the_prompt_ceiling`: `GENERATE_BATCH_SIZE` passages of `PASSAGE_CHAR_LIMIT` characters, with the generate template, are within `PROMPT_CHAR_CEILING`.
+  - `test_kept_documents_are_generated_in_batches`: nine kept documents give three generate calls, of four, four and one documents.
+  - `test_a_batch_citation_maps_to_the_cell_source_array`: citation 0 in the second batch becomes citation 4 in the cell.
+  - `test_a_tip_is_grounded_against_its_own_batch`: the grounding of a tip in the second batch receives the text of that batch's cited document.
+  - `test_a_failed_batch_does_not_sink_the_others`: a batch that never grounds leaves the other batch's tips in a grounded cell.
+  - `test_a_repeated_tip_is_kept_once`: the same text from two batches, differing only in case and spacing, appears once.
+  - `test_every_batch_failing_abstains`: no batch grounds, so the cell abstains with its sources.
+  - `test_each_grounding_call_is_recorded_with_its_attempt` is updated to expect `"batch"` as well.
+  - `test_every_generic_manifest_has_fifteen_excerpts`, in `corpus/tests/test_sources.py`: every generic manifest lists at least fifteen distinct URLs.
+
 ## Alternatives Considered
 
 - **Keep twelve family cells and give each one its own sources.** Rejected for now. Few trusted documents speak to one texture under one clay family, so most cells would still abstain, and a family difference the sources do not state would be invented. The family stays only where a manifest exists.
