@@ -70,6 +70,7 @@ The Developer asked for **at least fifteen excerpts per class**, from trusted so
   - Detecting tips that only say the same thing in other words is left to the hardening spec.
 - **The cell.**
   - The cell is grounded when at least one tip survives, and abstained otherwise.
+  - An abstained cell carries `ABSTENTION_DISCLAIMER`, whether the model abstained or the checks dropped every tip. A model abstention used to keep the substance disclaimer.
   - The limitations are derived as today: from coverage, from source age, and from the merged tips' kinds (SPEC 0226).
   - The whole cell is validated once more against the full source array.
 - **The run record.**
