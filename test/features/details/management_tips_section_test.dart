@@ -221,6 +221,37 @@ void main() {
     expect(find.textContaining('consultiv'), findsOneWidget);
   });
 
+  // An abstention's sources are what was read, not what supports a tip
+  // (SPEC 0233).
+  testWidgets('abstained_result_names_the_consulted_sources', (tester) async {
+    final grounded = groundedTips();
+    final repo = FakeManagementTipsRepository()
+      ..seed(
+        'rec-1',
+        ManagementTipsResult(
+          status: ManagementTipsStatus.abstained,
+          tips: const [],
+          sources: grounded.sources,
+          disclaimer: grounded.disclaimer,
+          model: grounded.model,
+          retrievedAt: grounded.retrievedAt,
+        ),
+      );
+    await tester.pumpWidget(harness(
+      record: tipsRecord(),
+      repo: repo,
+      service: okService(),
+      connectivity: ConnectivityStatus.online,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fontes consultadas'), findsOneWidget);
+    expect(find.text('Fontes'), findsNothing);
+    for (final source in grounded.sources) {
+      expect(find.textContaining(source.title), findsWidgets);
+    }
+  });
+
   testWidgets('generation shows a loading indicator then the result',
       (tester) async {
     final gate = Completer<ResearchResult>();
