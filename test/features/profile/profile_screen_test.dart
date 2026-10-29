@@ -244,7 +244,8 @@ void main() {
   });
 
   // PNG 22: the initials in `primaryText`, a rule under the header, and the
-  // sync row with its action live (SPEC 0204).
+  // sync row (SPEC 0204), without its action while no backend is wired
+  // (SPEC 0236).
   testWidgets('linked_card_matches_the_mock', (tester) async {
     await pumpProfile(
       tester,
@@ -272,30 +273,12 @@ void main() {
       closeTo(36, 1),
     );
 
-    final action = tester.widget<Text>(find.text('Sincronizar'));
-    expect(action.style?.fontSize, 14);
-    expect(action.style?.fontWeight, FontWeight.w600);
-    expect(action.style?.color, const Color(0xFF3B6A49));
+    // No backend is wired, so the row says where the data is and offers no
+    // action (SPEC 0236).
     expect(
-      tester
-          .getSize(
-            find.ancestor(
-              of: find.text('Sincronizar'),
-              matching: find.byType(TextButton),
-            ),
-          )
-          .height,
-      greaterThanOrEqualTo(48),
-    );
-
-    await tester.tap(find.text('Sincronizar'));
-    await tester.pump();
-    expect(
-      find.text(
-        'A sincronização com a conta ainda não está disponível. '
-        'As análises seguem neste aparelho.',
-      ),
+      find.descendant(of: card, matching: find.text('Dados só neste aparelho')),
       findsOneWidget,
     );
+    expect(find.text('Sincronizar'), findsNothing);
   });
 }
