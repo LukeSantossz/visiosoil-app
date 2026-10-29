@@ -182,6 +182,30 @@ def test_the_run_manifest_records_the_page_range_its_digest_covers():
     assert recorded["https://example.org/1"] is None
 
 
+def test_the_run_manifest_writes_each_sources_year():
+    """So a judge sees why a cell states a source's age (SPEC 0225)."""
+    dated = FetchedSource(
+        url="https://example.org/antiga.pdf",
+        title="Circular",
+        publisher="Embrapa",
+        tier=1,
+        text="Trecho.",
+        digest="b" * 64,
+        year=2005,
+    )
+    manifest = RunManifest(
+        key="k",
+        model="m",
+        model_digest="d",
+        prompt_versions={},
+        seed=1,
+        sources=[dated],
+        attempts=1,
+    )
+
+    assert manifest.to_json()["sources"][0]["year"] == 2005
+
+
 def test_the_manifest_writes_the_groundings():
     """The passage each grounding check quoted, rejected attempts included, so
     a judge reads why a tip held or failed (SPEC 0161)."""

@@ -79,6 +79,20 @@ A fixed table rather than the model's words: what the sources leave out cannot
 be quoted, so it cannot be grounded, and a limitation the build states from its
 own grading is true by construction."""
 
+OLD_SOURCE_YEARS = 10
+"""A source more than this many years older than the build has its age
+surfaced in `limitations` (research-agent.md §8.3, SPEC 0225)."""
+
+
+def age_limitation(year: int) -> str:
+    """The fixed sentence for a kept source published in [year].
+
+    It states the age and nothing else: the build does not check that nothing
+    newer contradicts the source. Its digits are a year, not an amount, and the
+    number rule of SPEC 0160 reads tips, not limitations."""
+    return f"Uma das fontes consultadas é de {year}, há mais de dez anos."
+
+
 _NUMBER = re.compile(
     r"(?<!\w)(?<!\w-)\d+(?:[.,]\d+)?|[¼-¾⅐-⅟↉]"
 )
@@ -171,9 +185,8 @@ def build_cell(
     ground cannot make the build spin. Exhausting it abstains, which is an answer
     the composition rule already defines rather than a failure.
     """
-    accessed_at = (now or datetime.now(timezone.utc)).isoformat().replace(
-        "+00:00", "Z"
-    )
+    built_at = now or datetime.now(timezone.utc)
+    accessed_at = built_at.isoformat().replace("+00:00", "Z")
     # The model is told what the key means, never the key itself (SPEC 0152).
     question = describe_key(key)
     queries = [
@@ -198,6 +211,11 @@ def build_cell(
             coverage[topic].append(document.url)
     limitations = [
         TOPIC_LIMITATIONS[topic] for topic in MANAGEMENT_TOPICS if not coverage[topic]
+    ] + [
+        age_limitation(document.year)
+        for document in kept
+        if document.year is not None
+        and built_at.year - document.year > OLD_SOURCE_YEARS
     ]
 
     if not kept:
