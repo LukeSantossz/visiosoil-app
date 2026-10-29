@@ -37,6 +37,9 @@ three files are tracked, so the APK carries them.**
   cause, when:
   - a key of `keys.substance_keys()` has no cell, or a cell has a key outside
     it;
+  - two manifests name the same key. A stale copy left beside a cell under
+    another file name would otherwise replace it, and whichever sorts last
+    would ship;
   - two manifests name different models, or different prompt versions. One
     release is one build, and a cell built under an older prompt would ship
     under a version that does not describe it;
@@ -110,7 +113,7 @@ three files are tracked, so the APK carries them.**
   every top-level field of `test/fixtures/corpus/corpus.json` except `_note`
   and the three layers out of scope, each of the same JSON type, and each
   cell's fields are fields the fixture's cells use.
-- `a_missing_or_extra_key_is_refused`.
+- `a_missing_or_extra_key_is_refused`, and `a_key_two_manifests_name_is_refused`.
 - `cells_from_two_builds_are_refused`: a different model or prompt version.
 - `an_invalid_cell_is_refused`: a citation outside its sources, and an empty
   disclaimer.
