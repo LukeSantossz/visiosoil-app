@@ -86,6 +86,8 @@ def _read_cells(cells_dir: Path) -> tuple[dict[str, dict[str, Any]], str]:
     for manifest_path in sorted(Path(cells_dir).glob("*.manifest.json")):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         key = manifest["key"]
+        if key in cells:
+            raise ReleaseError(f"{key} is named by two run manifests")
         cell_path = manifest_path.with_name(
             manifest_path.name.replace(".manifest.json", ".cell.json")
         )
