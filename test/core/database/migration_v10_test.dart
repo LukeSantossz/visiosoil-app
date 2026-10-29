@@ -32,13 +32,6 @@ void main() {
       }
     });
 
-    test('schema_version_is_ten', () {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-
-      expect(db.schemaVersion, 10);
-    });
-
     test('migrates_v9_to_v10_with_a_null_cause', () async {
       final db = AppDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
@@ -75,10 +68,10 @@ void main() {
       expect(live.read<String?>('field_name'), 'Talhão 3');
       expect(deleted.read<String?>('remote_id'), 'remote-deleted');
 
-      // The upgrade itself stamps the new version on the file.
+      // The upgrade itself stamps the current version on the file.
       final version =
           await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 10);
+      expect(version.read<int>('user_version'), db.schemaVersion);
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -12,21 +13,24 @@ class InfoSection extends StatelessWidget {
 
   final SoilRecord record;
 
-  /// Opens the label editor; null shows no "Editar" button (SPEC 0149).
+  /// Opens the correction dialog; null shows no "Editar" button (SPEC 0149,
+  /// SPEC 0220).
   final VoidCallback? onEditLabels;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Each label the record has on its own line (SPEC 0149).
+        // The true class and the sample, each on its own line when the
+        // record has it; the field label is not shown (SPEC 0220).
         _InfoTile(
           icon: Icons.label_outline,
           title: 'Identificação',
-          value: record.hasLabels
+          value: record.trueTextureClass != null || record.hasLabels
               ? [
-                  if (record.fieldName != null)
-                    'Talhão: ${record.fieldName}',
+                  if (record.trueTextureClass != null)
+                    'Classe real: '
+                        '${SoilTextureReference.labelFor(record.trueTextureClass!)}',
                   if (record.sampleLabel != null)
                     'Amostra: ${record.sampleLabel}',
                 ].join('\n')

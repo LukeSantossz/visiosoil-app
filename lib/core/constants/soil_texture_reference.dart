@@ -6,6 +6,16 @@
 /// why the texture class literal guard permits this file. Pending an
 /// agronomist's review.
 abstract final class SoilTextureReference {
+  /// The classes the model classifies, by contract name and in texture order,
+  /// which are the classes a correction may record as a sample's true class
+  /// (SPEC 0220). Siltosa is not among them (ADR 0016).
+  static const List<String> modelClasses = [
+    'Arenosa',
+    'Media',
+    'Argilosa',
+    'Muito Argilosa',
+  ];
+
   static const Map<String, String> _about = {
     'Arenosa': 'Solos de textura arenosa têm menos de 15% de argila e mais '
         'de 70% de areia, segundo o SiBCS (Embrapa). Drenam rápido, retêm '

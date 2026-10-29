@@ -46,26 +46,37 @@ SoilRecord _locatedRecord() => SoilRecord(
       confidenceScore: 0.9,
     );
 
-/// Applies label writes to the record details read, as the Drift repository
-/// does, so a re-read shows them (SPEC 0149).
+/// Applies correction writes to the record details read, as the Drift
+/// repository does, so a re-read shows them (SPEC 0149, SPEC 0220).
 class _LabellingRepository extends FakeSoilRecordRepository {
   _LabellingRepository(this.current);
 
   SoilRecord current;
 
   @override
-  Future<void> updateLabels(
+  Future<void> updateCorrection(
     int id, {
-    String? fieldName,
+    String? trueTextureClass,
     String? sampleLabel,
   }) async {
-    await super.updateLabels(
+    await super.updateCorrection(
       id,
-      fieldName: fieldName,
+      trueTextureClass: trueTextureClass,
       sampleLabel: sampleLabel,
     );
-    current =
-        current.copyWith(fieldName: fieldName, sampleLabel: sampleLabel);
+    current = SoilRecord(
+      id: current.id,
+      imagePath: current.imagePath,
+      latitude: current.latitude,
+      longitude: current.longitude,
+      address: current.address,
+      timestamp: current.timestamp,
+      textureClass: current.textureClass,
+      confidenceScore: current.confidenceScore,
+      fieldName: current.fieldName,
+      trueTextureClass: trueTextureClass,
+      sampleLabel: sampleLabel,
+    );
   }
 }
 
@@ -631,15 +642,20 @@ void main() {
     semantics.dispose();
   });
 
-  // SPEC 0149: the labels are edited from the identification tile.
-  group('editing_labels_saves_them', () {
+  // SPEC 0149, SPEC 0220: the correction is edited from the identification
+  // tile.
+  group('editing_the_correction_saves_it', () {
     late _LabellingRepository repo;
 
     Future<void> openDialog(WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 2400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       repo = _LabellingRepository(
-        _locatedRecord().copyWith(fieldName: 'Talhão 3', sampleLabel: 'A1'),
+        _locatedRecord().copyWith(
+          fieldName: 'Talhão 3',
+          trueTextureClass: 'Media',
+          sampleLabel: 'A1',
+        ),
       );
       await tester.pumpWidget(ProviderScope(
         overrides: [
@@ -666,55 +682,63 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Finder field(String label) => find.widgetWithText(TextField, label);
+    Finder sample() => find.widgetWithText(TextField, 'Amostra');
 
-    testWidgets('the dialog opens with the current labels', (tester) async {
+    testWidgets('identification_shows_the_true_class', (tester) async {
       await openDialog(tester);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<TextField>(field('Talhão')).controller!.text,
-        'Talhão 3',
-      );
-      expect(
-        tester.widget<TextField>(field('Amostra')).controller!.text,
-        'A1',
-      );
+      expect(find.text('Classe real: Média\nAmostra: A1'), findsOneWidget);
+      expect(find.textContaining('Talhão:'), findsNothing);
     });
 
-    testWidgets('saving writes the fields and shows them', (tester) async {
+    testWidgets('the dialog opens with the current correction',
+        (tester) async {
       await openDialog(tester);
 
-      await tester.enterText(field('Talhão'), 'Talhão 4');
-      await tester.enterText(field('Amostra'), ' B2 ');
+      expect(find.text('Corrigir classificação'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Talhão'), findsNothing);
+      expect(tester.widget<TextField>(sample()).controller!.text, 'A1');
+    });
+
+    testWidgets('saving writes the choice and shows it', (tester) async {
+      await openDialog(tester);
+
+      await tester.tap(find.text('Argilosa').last);
+      await tester.enterText(sample(), ' B2 ');
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 
-      expect(repo.updateLabelsCalls, hasLength(1));
-      final call = repo.updateLabelsCalls.single;
+      expect(repo.updateCorrectionCalls, hasLength(1));
+      final call = repo.updateCorrectionCalls.single;
       expect(call.id, 1);
-      expect(call.fieldName, 'Talhão 4');
+      expect(call.trueTextureClass, 'Argilosa');
       expect(call.sampleLabel, ' B2 ');
       expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Talhão: Talhão 4\nAmostra:  B2 '), findsOneWidget);
+      expect(
+        find.text('Classe real: Argilosa\nAmostra:  B2 '),
+        findsOneWidget,
+      );
     });
 
     testWidgets('cancelling writes nothing', (tester) async {
       await openDialog(tester);
 
-      await tester.enterText(field('Talhão'), 'Talhão 4');
+      await tester.tap(find.text('Arenosa').last);
       await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();
 
-      expect(repo.updateLabelsCalls, isEmpty);
+      expect(repo.updateCorrectionCalls, isEmpty);
       expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Talhão: Talhão 3\nAmostra: A1'), findsOneWidget);
+      expect(find.text('Classe real: Média\nAmostra: A1'), findsOneWidget);
     });
 
     testWidgets('a failed write says so', (tester) async {
       await openDialog(tester);
-      repo.throwOnUpdateLabels = true;
+      repo.throwOnUpdateCorrection = true;
 
-      await tester.enterText(field('Talhão'), 'Talhão 4');
+      await tester.tap(find.text('Arenosa').last);
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 

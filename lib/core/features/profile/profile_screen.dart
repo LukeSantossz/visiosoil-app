@@ -7,7 +7,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
-import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/google_sign_in_button.dart';
@@ -15,6 +15,7 @@ import 'package:visiosoil_app/core/widgets/account_card.dart';
 import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
 /// Local records remain available independently of account state.
@@ -34,11 +35,12 @@ class ProfileScreen extends ConsumerWidget {
         .map((record) => record.textureClass!)
         .toSet();
     final classes = held?.length;
-    // The collection counts the twelve USDA reference classes, as Home and
-    // the history count them (SPEC 0203, SPEC 0204).
-    final collected = held
-        ?.intersection(SoilTextureColors.referenceClasses.keys.toSet())
-        .length;
+    // The collection counts the contract's classes, as Home and the history
+    // count them (SPEC 0223).
+    final total = ref.watch(contractClassesProvider).value;
+    final collected = total == null
+        ? null
+        : held?.intersection(total.toSet()).length;
     final offline =
         ref.watch(connectivityStatusProvider).value ==
         ConnectivityStatus.offline;
@@ -112,7 +114,9 @@ class ProfileScreen extends ConsumerWidget {
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
-                                  '${list.length} análises e $classes classes guardadas neste aparelho',
+                                  '${Formatters.count(list.length, 'análise', 'análises')} e '
+                                  '${Formatters.count(classes!, 'classe', 'classes')} '
+                                  'guardadas neste aparelho',
                                   style: SettingsRowFrame.subtitleStyle(
                                     context,
                                   ),
@@ -243,10 +247,14 @@ class ProfileScreen extends ConsumerWidget {
                         icon: LucideIcons.scan,
                       ),
                       StatCell(
-                        value: '$collected/12',
+                        value: collected == null
+                            ? '—'
+                            : '$collected/${total!.length}',
                         label: 'coleção',
                         icon: LucideIcons.layers,
-                        semanticLabel: '$collected de 12 classes na coleção',
+                        semanticLabel: collected == null
+                            ? null
+                            : '$collected de ${total!.length} classes na coleção',
                       ),
                       StatCell(
                         value:

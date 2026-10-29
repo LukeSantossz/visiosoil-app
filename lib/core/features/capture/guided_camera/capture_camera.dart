@@ -115,15 +115,14 @@ class PluginCaptureCamera implements CaptureCamera {
   @override
   Future<void> initialize() async {
     try {
-      final cameras = _cameras = await availableCameras();
-      final back = cameras.where(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-      if (back.isEmpty) {
+      _cameras = (await availableCameras())
+          .where((camera) => camera.lensDirection == CameraLensDirection.back)
+          .toList();
+      if (_cameras.isEmpty) {
         throw const CameraUnavailableException('no back-facing camera');
       }
       final controller = CameraController(
-        back.first,
+        _cameras.first,
         ResolutionPreset.max,
         enableAudio: false,
         // The plane the live reader reads: the luma on Android, BGRA on iOS.

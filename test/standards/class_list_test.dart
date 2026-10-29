@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';
 
 /// The model's class list used to exist in two languages, and until SPEC 0048
@@ -30,6 +31,19 @@ void main() {
       );
       expect(parsed.cause, isNull);
       expect(parsed.contract!.classes, configured);
+    });
+
+    // SPEC 0220: the classes a correction may record are the ones the model
+    // classifies.
+    test('model_classes_match_the_contract', () {
+      final parsed = parseDescriptorContract(
+        File('assets/models/spec.json').readAsStringSync(),
+      );
+      expect(SoilTextureReference.modelClasses, hasLength(4));
+      expect(
+        SoilTextureReference.modelClasses.toSet(),
+        parsed.contract!.classes.toSet(),
+      );
     });
 
     // Anti-vacuity. If the `classes:` block gains an anchor, a merge key or a

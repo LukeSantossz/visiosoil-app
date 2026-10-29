@@ -22,15 +22,17 @@ abstract class SoilRecordRepository {
   /// in a single request.
   Future<List<SoilRecord>> getAll();
 
-  /// Writes the field and sample labels of the record with the given [id]
-  /// and marks it for sync (SPEC 0149).
+  /// Writes the true class and the sample label of the record with the given
+  /// [id] and marks it for sync (SPEC 0149, SPEC 0220).
   ///
-  /// Each label is trimmed, and one that is empty once trimmed is stored as
-  /// null, so passing it clears the label. No-op if the record does not
-  /// exist or is deleted.
-  Future<void> updateLabels(
+  /// [trueTextureClass] is a name from `SoilTextureReference.modelClasses`, or
+  /// null to clear it; any other name throws an [ArgumentError] and nothing is
+  /// written. The sample label is trimmed, and one that is empty once trimmed
+  /// is stored as null. The field label is not written. No-op if the record
+  /// does not exist or is deleted.
+  Future<void> updateCorrection(
     int id, {
-    String? fieldName,
+    String? trueTextureClass,
     String? sampleLabel,
   });
 
@@ -72,8 +74,9 @@ abstract class SoilRecordRepository {
   ///
   /// [textureClass] filters by texture class (exact match).
   ///
-  /// [searchTerm] filters by address, field name or sample label,
-  /// case-insensitively: a record matches when any of them contains it. It is
+  /// [searchTerm] filters by address or sample label, case-insensitively: a
+  /// record matches when either contains it. The field label is not searched
+  /// (SPEC 0220). It is
   /// matched as a literal substring: it is trimmed first, and `%` and `_`
   /// match themselves rather than acting as SQL wildcards.
   ///

@@ -76,7 +76,9 @@ void main() {
         if (state == 'ready' || state == 'empty') {
           expect(
             find.text(
-              '${state == 'empty' ? 0 : 1} análises em uma planilha CSV.',
+              state == 'empty'
+                  ? '0 análises em uma planilha CSV.'
+                  : '1 análise em uma planilha CSV.',
             ),
             findsOneWidget,
           );

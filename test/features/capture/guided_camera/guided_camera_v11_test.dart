@@ -18,6 +18,7 @@ Future<void> readQuality(
   GuidedCameraHarness h, {
   required bool good,
   bool cropped = false,
+  LiveReading? reading,
   int rounds = 2,
 }) async {
   for (var i = 0; i < rounds; i++) {
@@ -35,13 +36,14 @@ Future<void> readQuality(
     ));
     await tester.pump();
     h.readers.last.reply(
-      cropped
-          ? const LiveSheetCropped()
-          : const LiveSheetFound(
-              sheetLongSidePx: 900,
-              discDiameterMm: 90,
-              holdsMinPatches: true,
-            ),
+      reading ??
+          (cropped
+              ? const LiveSheetCropped()
+              : const LiveSheetFound(
+                  sheetLongSidePx: 900,
+                  discDiameterMm: 90,
+                  holdsMinPatches: true,
+                )),
     );
     await tester.pump();
     await tester.pump();
@@ -49,6 +51,39 @@ Future<void> readQuality(
 }
 
 void main() {
+  for (final tilted in [false, true]) {
+    testWidgets('non_distance_block_keeps_distance_adjusting_$tilted', (
+      tester,
+    ) async {
+      final h = await openGuidedCamera(tester);
+      await tiltTo(tester, h, tilted ? 20 : 0);
+      await readQuality(
+        tester,
+        h,
+        good: true,
+        reading: const LiveSheetNotFound(),
+      );
+      await tester.tap(shutter);
+      await tester.pump();
+      final chip = tester
+          .widgetList<QualityChip>(find.byType(QualityChip))
+          .singleWhere((chip) => chip.label == 'Distância');
+      expect(chip.status, QualityStatus.adjusting);
+      expect(chip.value, 'Ajustando…');
+      expect(chip.highlight, isFalse);
+      final alert = tester.widget<CaptureAlert>(find.byType(CaptureAlert));
+      expect(alert.causes, [
+        tilted ? 'celular inclinado' : 'folha fora do contorno',
+      ]);
+      expect(alert.corrections, [
+        tilted
+            ? 'deixe o celular paralelo ao chão'
+            : 'enquadre a folha A4 inteira no contorno',
+      ]);
+      await backOut(tester);
+    });
+  }
+
   for (final entry in {
     'light': AppTheme.light,
     'dark': AppTheme.dark,
@@ -132,6 +167,14 @@ void main() {
       expect(
         find.textContaining('Pouca luz, fora de foco, perto demais'),
         findsOneWidget,
+      );
+      expect(
+        tester.widget<CaptureAlert>(find.byType(CaptureAlert)).corrections,
+        [
+          'Procure sombra clara',
+          'afaste até a folha caber na moldura',
+          'segure firme',
+        ],
       );
       expect(
         tester

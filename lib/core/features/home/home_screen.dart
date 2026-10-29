@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/inference_provider.dart';
 import 'package:visiosoil_app/providers/main_tab_index_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 
@@ -90,7 +91,12 @@ class HomeScreen extends ConsumerWidget {
                     else ...[
                       _SectionTitle('Esta semana'),
                       const SizedBox(height: AppSpacing.md),
-                      StatsGrid(recordsAsync: recordsAsync),
+                      StatsGrid(
+                        recordsAsync: recordsAsync,
+                        collectionClasses: ref
+                            .watch(contractClassesProvider)
+                            .value,
+                      ),
                       // The link's 48 dp target centres the title in it, so
                       // the gaps give back its 12 dp above and below; its
                       // text ends 4 dp from the card's edge (PNG 08).

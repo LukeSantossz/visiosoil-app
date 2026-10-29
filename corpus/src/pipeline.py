@@ -125,14 +125,30 @@ extractant, spaced or hyphenated, and a clay mineral's layer ratio, "argilas
 1:1" or "minerais do tipo 2:1", which is what clay activity turns on. A ratio
 outside that context, such as a mixing ratio, stays a number (SPEC 0160)."""
 
+_DOCUMENT_INDEX = re.compile(r"\[\s*\d+(?:\s*,\s*\d+)*\s*\]")
+"""A bracketed list of document indices, "[0]" or "[0, 2]": the model citing a
+document in the tip's text instead of in its `citations` (SPEC 0229)."""
+
+
+def cites_a_document_index(text: str) -> bool:
+    """Whether [text] cites a document by its index (SPEC 0229).
+
+    The app shows the tip to a reader who never sees the documents' order, so
+    the index points at nothing; `citations` is what links a tip to its source.
+    """
+    return _DOCUMENT_INDEX.search(text) is not None
+
 
 def states_a_number(text: str) -> bool:
     """Whether [text] states a number, which a tip never does (SPEC 0160).
 
     The advisory stance forbids doses and critical levels, and the generate
     prompt asks for the direction a source's numbers show instead. A prompt rule
-    is one the model can ignore, so the build checks it.
+    is one the model can ignore, so the build checks it. A document index is
+    not a number: [cites_a_document_index] names it (SPEC 0229).
     """
+    # A space, not nothing: "Dose[0]18" must not become the name "Dose18".
+    text = _DOCUMENT_INDEX.sub(" ", text)
     return _NUMBER.search(_NOT_A_NUMBER.sub("", text)) is not None
 
 
@@ -161,6 +177,8 @@ def denies_its_class_clay(text: str) -> bool:
 
 def _refusal(text: str) -> str | None:
     """The cause a tip is refused for before grounding is asked, or None."""
+    if cites_a_document_index(text):
+        return f"cites a document by its index: {text}"
     if states_a_number(text):
         return f"states a number: {text}"
     if denies_its_class_clay(text):
@@ -314,10 +332,11 @@ def build_cell(
         validate_cell(cell, source_count=len(source_array))
 
         # A number is refused before grounding is asked: the stance forbids it
-        # however well the source supports it (SPEC 0160). So is a tip denying
-        # its class's clay content, which no source can support (SPEC 0230).
-        # Limitations are the build's own sentences, so only tips are read
-        # (SPEC 0162).
+        # however well the source supports it (SPEC 0160). So is a document
+        # index, which the reader cannot follow, under its own cause (SPEC
+        # 0229), and a tip denying its class's clay content, which no source can
+        # support (SPEC 0230). Limitations are the build's own sentences, so
+        # only tips are read (SPEC 0162).
         refused = [
             cause
             for tip in cell["tips"]

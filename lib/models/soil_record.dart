@@ -45,6 +45,11 @@ class SoilRecord {
   final String? fieldName;
   final String? sampleLabel;
 
+  /// The class the agronomist recorded as the sample's true class, a name
+  /// from [SoilTextureReference.modelClasses] (SPEC 0220). Null when not
+  /// given.
+  final String? trueTextureClass;
+
   /// Why the photograph was not classified (SPEC 0173); null when it was, or
   /// when the record was saved before the cause was kept.
   final ClassificationFailureCause? classificationFailure;
@@ -69,6 +74,7 @@ class SoilRecord {
     this.horizontalAccuracy,
     this.fieldName,
     this.sampleLabel,
+    this.trueTextureClass,
     this.classificationFailure,
   });
 
@@ -93,6 +99,7 @@ class SoilRecord {
     double? horizontalAccuracy,
     String? fieldName,
     String? sampleLabel,
+    String? trueTextureClass,
     ClassificationFailureCause? classificationFailure,
   }) {
     return SoilRecord(
@@ -115,6 +122,7 @@ class SoilRecord {
       horizontalAccuracy: horizontalAccuracy ?? this.horizontalAccuracy,
       fieldName: fieldName ?? this.fieldName,
       sampleLabel: sampleLabel ?? this.sampleLabel,
+      trueTextureClass: trueTextureClass ?? this.trueTextureClass,
       classificationFailure:
           classificationFailure ?? this.classificationFailure,
     );
@@ -148,13 +156,12 @@ class SoilRecord {
       ? 'Precisão estimada: ${Formatters.horizontalAccuracy(horizontalAccuracy!)}'
       : 'Precisão não disponível';
 
-  /// Indicates whether the agronomist gave the record either label.
-  bool get hasLabels => fieldName != null || sampleLabel != null;
+  /// Indicates whether the agronomist gave the record a sample label. The
+  /// field label is no longer shown (SPEC 0220).
+  bool get hasLabels => sampleLabel != null;
 
-  /// The labels the record has, joined as "field · sample"; empty when it
-  /// has none.
-  String get labelsSummary =>
-      [fieldName, sampleLabel].whereType<String>().join(' · ');
+  /// The sample label as it shows on the record; empty when it has none.
+  String get labelsSummary => sampleLabel ?? '';
 
   /// Returns the address or a default message.
   String get displayAddress =>
