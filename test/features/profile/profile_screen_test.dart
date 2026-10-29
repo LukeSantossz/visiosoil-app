@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/google_g_logo.dart';
 import 'package:visiosoil_app/core/widgets/settings_tile.dart';
+import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -206,6 +207,23 @@ void main() {
     );
   });
 
+  // No sync backend is wired, so a signed-in account's records are still
+  // only on this device (SPEC 0235).
+  testWidgets('signed_in_records_count_as_only_on_this_device', (tester) async {
+    await pumpProfile(tester, [
+      classified('Argilosa'),
+      classified('Arenosa'),
+    ], account: const AuthAccount(email: 'user@test.com', displayName: null));
+
+    expect(find.text('enviadas'), findsNothing);
+    final cell = tester.widget<StatCell>(
+      find.byWidgetPredicate(
+        (widget) => widget is StatCell && widget.label == 'só no aparelho',
+      ),
+    );
+    expect(cell.value, '2');
+  });
+
   testWidgets('profile_links_use_the_settings_row', (tester) async {
     await pumpProfile(tester, const []);
 
@@ -259,12 +277,14 @@ void main() {
     expect(action.style?.fontWeight, FontWeight.w600);
     expect(action.style?.color, const Color(0xFF3B6A49));
     expect(
-      tester.getSize(
-        find.ancestor(
-          of: find.text('Sincronizar'),
-          matching: find.byType(TextButton),
-        ),
-      ).height,
+      tester
+          .getSize(
+            find.ancestor(
+              of: find.text('Sincronizar'),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .height,
       greaterThanOrEqualTo(48),
     );
 

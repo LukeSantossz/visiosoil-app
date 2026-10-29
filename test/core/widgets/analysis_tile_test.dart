@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/services/classification_report.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
@@ -86,7 +87,9 @@ void main() {
           theme: AppTheme.light,
           home: MediaQuery(
             data: MediaQueryData(textScaler: TextScaler.linear(scenario.scale)),
-            child: Scaffold(body: AnalysisTile(record: record)),
+            child: Scaffold(
+              body: AnalysisTile(record: record, syncWired: true),
+            ),
           ),
         ),
       );
@@ -122,7 +125,13 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(320, 640));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
-        host(AnalysisTile(record: classifiedRecord(), showSyncStatus: true)),
+        host(
+          AnalysisTile(
+            record: classifiedRecord(),
+            showSyncStatus: true,
+            syncWired: true,
+          ),
+        ),
       );
 
       // Home names the status beside a dot (SPEC 0203).
@@ -151,6 +160,7 @@ void main() {
           body: AnalysisTile(
             record: classifiedRecord(syncStatus: 'pending'),
             history: true,
+            syncWired: true,
           ),
         ),
       ),
@@ -201,7 +211,10 @@ void main() {
       MaterialApp(
         theme: AppTheme.sun,
         home: Scaffold(
-          body: AnalysisTile(record: classifiedRecord(syncStatus: 'pending')),
+          body: AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            syncWired: true,
+          ),
         ),
       ),
     );
@@ -263,12 +276,75 @@ void main() {
     );
   });
 
+  // While no sync backend is wired, no row names a sync status (SPEC 0235).
+  group('sync not wired', () {
+    testWidgets('unwired_pending_history_row_shows_its_chevron', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            history: true,
+          ),
+        ),
+      );
+      expect(find.byType(StatusPill), findsNothing);
+      expect(find.byIcon(LucideIcons.chevronRight), findsOneWidget);
+    });
+
+    testWidgets('unwired_pending_tile_shows_its_confidence', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        host(AnalysisTile(record: classifiedRecord(syncStatus: 'pending'))),
+      );
+      expect(find.byType(StatusPill), findsNothing);
+      expect(find.byType(ConfidenceBadge), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('sincronização')), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('unwired_home_row_shows_no_sync_status', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        host(
+          AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            showSyncStatus: true,
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('status-dot')), findsNothing);
+      expect(find.text('Pendente'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('sincronização')), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('unwired_error_record_keeps_its_confidence', (tester) async {
+      await tester.pumpWidget(
+        host(
+          AnalysisTile(
+            record: classifiedRecord(syncStatus: 'error'),
+            showSyncStatus: true,
+          ),
+        ),
+      );
+      expect(find.textContaining(' · 90%'), findsOneWidget);
+      expect(find.text('Erro'), findsNothing);
+    });
+  });
+
   group('pending state', () {
     testWidgets('shows the pending status pill instead of the chevron', (
       tester,
     ) async {
       await tester.pumpWidget(
-        host(AnalysisTile(record: classifiedRecord(syncStatus: 'pending'))),
+        host(
+          AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            syncWired: true,
+          ),
+        ),
       );
       expect(find.byType(StatusPill), findsOneWidget);
       expect(
@@ -280,7 +356,12 @@ void main() {
     testWidgets('semantics label names the pending sync', (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
-        host(AnalysisTile(record: classifiedRecord(syncStatus: 'pending'))),
+        host(
+          AnalysisTile(
+            record: classifiedRecord(syncStatus: 'pending'),
+            syncWired: true,
+          ),
+        ),
       );
       expect(
         find.bySemanticsLabel(RegExp('pendente de sincronização\$')),
@@ -341,6 +422,7 @@ void main() {
                 classificationFailure: ClassificationFailureCause.sheetNotFound,
                 syncStatus: 'pending',
               ),
+              syncWired: true,
             ),
           ),
         );
