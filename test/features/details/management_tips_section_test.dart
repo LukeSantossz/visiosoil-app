@@ -412,10 +412,14 @@ void main() {
           retrievedAt: DateTime.utc(2026, 6, 26, 12),
         );
 
-    Future<void> pumpTimeline(WidgetTester tester) async {
+    Future<void> pumpTimeline(
+      WidgetTester tester, {
+      ManagementTipsResult? result,
+    }) async {
       await tester.binding.setSurfaceSize(const Size(420, 2400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      final repo = FakeManagementTipsRepository()..seed('rec-1', twoCategories());
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', result ?? twoCategories());
       await tester.pumpWidget(harness(
         record: tipsRecord(textureClass: 'Media'),
         repo: repo,
@@ -443,6 +447,23 @@ void main() {
     testWidgets('tips_header_counts_the_tips', (tester) async {
       await pumpTimeline(tester);
       expect(find.text('Média · 2 dicas'), findsOneWidget);
+    });
+
+    // SPEC 0231: one tip reads in the singular.
+    testWidgets('tips_header_counts_one_tip_in_the_singular', (tester) async {
+      final two = twoCategories();
+      await pumpTimeline(
+        tester,
+        result: ManagementTipsResult(
+          status: two.status,
+          tips: two.tips.take(1).toList(),
+          sources: two.sources,
+          disclaimer: two.disclaimer,
+          model: two.model,
+          retrievedAt: two.retrievedAt,
+        ),
+      );
+      expect(find.text('Média · 1 dica'), findsOneWidget);
     });
   });
 
@@ -676,7 +697,7 @@ void main() {
       expect(find.text('Evite tráfego com solo úmido'), findsOneWidget);
       expect(find.text('Ajuste a lâmina de irrigação'), findsNothing);
       expect(find.text('Monitore o encharcamento'), findsNothing);
-      expect(find.text('1 dicas'), findsOneWidget);
+      expect(find.text('1 dica'), findsOneWidget);
     });
 
     testWidgets('filter_sheet_toggles_a_category', (tester) async {

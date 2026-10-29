@@ -269,7 +269,7 @@ class _TipsData extends StatelessWidget {
           if (showCount) ...[
             // The class and how many tips it has (redesign v11 §3.9).
             Text(
-              '$textureLabel · ${tips.length} dicas',
+              '$textureLabel · ${Formatters.count(tips.length, 'dica', 'dicas')}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: context.palette.onSurfaceVariant,
               ),
@@ -890,7 +890,7 @@ class _RecordHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              '$tipCount dicas',
+              Formatters.count(tipCount!, 'dica', 'dicas'),
               style:
                   AppTypography.resized(
                     theme.textTheme.labelMedium!,
