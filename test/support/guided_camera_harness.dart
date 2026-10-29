@@ -40,6 +40,8 @@ class RecordingErrorReportStore implements ErrorReportStore {
 class GuidedCameraHarness {
   final cameras = FakeCaptureCameras();
   final tilt = FakeTiltSource();
+  final optics = FakeCameraOpticsSource();
+  final light = FakeAmbientLightSource();
   final errors = RecordingErrorReportStore();
   final popped = <GuidedCaptureResult?>[];
 
@@ -168,6 +170,8 @@ Future<void> backOut(WidgetTester tester) async {
 List<Override> guidedCameraOverrides(GuidedCameraHarness h) => [
       captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
       tiltSourceProvider.overrideWithValue(h.tilt),
+      cameraOpticsSourceProvider.overrideWithValue(h.optics),
+      ambientLightSourceProvider.overrideWithValue(h.light),
       errorReportStoreProvider.overrideWithValue(h.errors),
       liveContractLoaderProvider.overrideWithValue(() async {
         await h.contractGate?.future;
