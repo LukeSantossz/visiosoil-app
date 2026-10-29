@@ -173,11 +173,13 @@ class FakeCameraOpticsSource implements CameraOpticsSource {
 }
 
 /// An [AmbientLightSource] a test drives reading by reading, counting how
-/// often the screen started listening (SPEC 0238).
+/// often the screen started listening (SPEC 0238). It delivers each reading
+/// at once, as the platform channel does.
 class FakeAmbientLightSource implements AmbientLightSource {
   int listens = 0;
   late final controller = StreamController<double>.broadcast(
     onListen: () => listens++,
+    sync: true,
   );
 
   bool get listening => controller.hasListener;
