@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/features/home/widgets/hero_capture_card.dart';
 import 'package:visiosoil_app/core/features/home/widgets/home_data_error.dart';
 import 'package:visiosoil_app/core/features/home/widgets/stats_grid.dart';
@@ -229,6 +230,7 @@ class HomeScreen extends ConsumerWidget {
                                       dense: true,
                                       showSyncStatus: true,
                                       offline: offline,
+                                      syncWired: syncBackendWired,
                                       onTap: () => context.push(
                                         '/details',
                                         extra: records[index].id,
