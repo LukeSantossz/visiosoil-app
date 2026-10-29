@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Protocol
+from typing import Any, Protocol, Sequence
 
 from src.cell import (
     CellValidationError,
@@ -184,12 +184,36 @@ def denies_its_class_clay(text: str) -> bool:
 def _refusal(text: str) -> str | None:
     """The cause a tip is refused for before grounding is asked, or None."""
     if cites_a_document_index(text):
-        return f"cites a document by its index: {text}"
+        return "cites a document by its index"
     if states_a_number(text):
-        return f"states a number: {text}"
+        return "states a number"
     if denies_its_class_clay(text):
-        return f"denies the clay content its class states: {text}"
+        return "denies the clay content its class states"
     return None
+
+
+REFUSAL_REASONS = {
+    "states a number": (
+        "traz um número; escreva a direção que os números mostram, sem números"
+    ),
+    "cites a document by its index": (
+        "cita um documento no texto; cite só no campo citations, pelos índices"
+    ),
+    "denies the clay content its class states": (
+        "nega o teor de argila que a própria classe afirma, o que é falso"
+    ),
+}
+"""What a retry is told for each refusal cause, in the prompt's language."""
+
+UNSUPPORTED_REASON = "os documentos citados não sustentam esta dica"
+
+REJECTED_TIP_CHAR_LIMIT = 300
+"""A refused tip is cut to this in its line, so a retry's prompt cannot pass
+`PROMPT_CHAR_CEILING` whatever the model wrote."""
+
+
+def _told(text: str, reason: str) -> str:
+    return f'"{text[:REJECTED_TIP_CHAR_LIMIT]}": {reason}'
 
 
 class LLMClient(Protocol):
@@ -205,7 +229,10 @@ class LLMClient(Protocol):
     def grade_document(self, query: str, document: FetchedSource) -> bool: ...
 
     def generate_cell(
-        self, question: str, documents: list[FetchedSource]
+        self,
+        question: str,
+        documents: list[FetchedSource],
+        rejected: Sequence[str] = (),
     ) -> dict[str, Any]: ...
 
     def ground(self, tip_text: str, cited_texts: list[str]) -> "Grounding": ...
@@ -393,8 +420,12 @@ def _build_batch(
     the build spin. Exhausting it returns no tips; so does a batch the model
     abstains on, which is not retried.
     """
+    # Under temperature 0 and a fixed seed, a retry differs from the attempt
+    # before it only by being told what that attempt lost and why (SPEC 0237).
+    told: list[str] = []
     for attempt in range(1, max_attempts + 1):
-        generated = client.generate_cell(question, batch)
+        generated = client.generate_cell(question, batch, told)
+        told = []
         # Checked **before** normalising, because a default applied to a missing
         # field hides the fact that the model did not produce it: a missing
         # `status` became "grounded" and missing `tips` became `[]`, so
@@ -423,11 +454,12 @@ def _build_batch(
         # support (SPEC 0230). Limitations are the build's own sentences, so
         # only tips are read (SPEC 0162).
         refused = [
-            cause
+            (cause, tip["text"])
             for tip in cell["tips"]
             if (cause := _refusal(tip["text"])) is not None
         ]
-        unsupported = list(refused)
+        unsupported = [f"{cause}: {text}" for cause, text in refused]
+        told = [_told(text, REFUSAL_REASONS[cause]) for cause, text in refused]
         if not refused:
             for tip, kind in zip(cell["tips"], kinds):
                 grounding = client.ground(
@@ -446,6 +478,7 @@ def _build_batch(
                 )
                 if not grounding.supported:
                     unsupported.append(tip["text"])
+                    told.append(_told(tip["text"], UNSUPPORTED_REASON))
         if not unsupported:
             return list(zip(cell["tips"], kinds)), attempt
         rejections.extend(unsupported)
