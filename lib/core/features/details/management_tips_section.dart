@@ -288,7 +288,7 @@ class _TipsData extends StatelessWidget {
             _TipsTimeline(tips: tips, sources: result.sources),
         ],
         if (result.sources.isNotEmpty) ...[
-          _SourcesList(sources: result.sources),
+          _SourcesList(sources: result.sources, consulted: abstained),
           const SizedBox(height: AppSpacing.md),
         ],
         Text(
@@ -713,9 +713,13 @@ class _TipCard extends StatelessWidget {
 }
 
 class _SourcesList extends StatelessWidget {
-  const _SourcesList({required this.sources});
+  const _SourcesList({required this.sources, required this.consulted});
 
   final List<TipSource> sources;
+
+  /// The sources were read but support no tip, so the heading says only that
+  /// they were consulted (SPEC 0233).
+  final bool consulted;
 
   @override
   Widget build(BuildContext context) {
@@ -724,7 +728,7 @@ class _SourcesList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Fontes',
+          consulted ? 'Fontes consultadas' : 'Fontes',
           style: theme.textTheme.labelLarge?.copyWith(
             color: context.palette.onSurfaceVariant,
           ),
