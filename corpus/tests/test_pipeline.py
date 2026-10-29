@@ -58,6 +58,8 @@ class ScriptedClient:
         self.calls = []
         self.questions = []
         self.topics = []
+        # What each generate call was told the last attempt lost (SPEC 0237).
+        self.told = []
 
     def transform_query(self, question, *, topic):
         self.calls.append("transform")
@@ -70,8 +72,9 @@ class ScriptedClient:
         grade = self.grades.get(document.url, True)
         return grade(query) if callable(grade) else grade
 
-    def generate_cell(self, question, documents):
+    def generate_cell(self, question, documents, rejected=()):
         self.calls.append("generate")
+        self.told.append(list(rejected))
         self.questions.append(("generate", question))
         if self.generation is not None:
             return self.generation
@@ -461,8 +464,9 @@ class SequencedClient(ScriptedClient):
         super().__init__(**kwargs)
         self.generations = list(generations)
 
-    def generate_cell(self, question, documents):
+    def generate_cell(self, question, documents, rejected=()):
         self.calls.append("generate")
+        self.told.append(list(rejected))
         return self.generations.pop(0)
 
 
@@ -1047,12 +1051,13 @@ class BatchClient(ScriptedClient):
         self.evidence = []
         self._generate = generate
 
-    def generate_cell(self, question, documents):
+    def generate_cell(self, question, documents, rejected=()):
         self.batches.append([document.url for document in documents])
         if self._generate is not None:
             self.calls.append("generate")
+            self.told.append(list(rejected))
             return self._generate(documents)
-        return super().generate_cell(question, documents)
+        return super().generate_cell(question, documents, rejected)
 
     def ground(self, tip_text, cited_texts):
         self.evidence.append(cited_texts)
@@ -1150,3 +1155,100 @@ def test_every_batch_failing_abstains():
     assert outcome.cell["tips"] == []
     assert len(outcome.cell["sources"]) == 6
     assert outcome.attempts == 4
+
+
+# --- A retry is told why its tips were refused (SPEC 0237) ---------------------
+
+
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        (
+            "Em solo argiloso, o nível crítico é 18 mg dm-3.",
+            "traz um número; escreva a direção que os números mostram, sem números",
+        ),
+        (
+            "O documento [0] menciona a argila.",
+            "cita um documento no texto; cite só no campo citations, pelos índices",
+        ),
+        (
+            "O solo arenoso não necessariamente significa baixo teor de argila.",
+            "nega o teor de argila que a própria classe afirma, o que é falso",
+        ),
+    ],
+)
+def test_a_retry_is_told_why_its_tip_was_refused(text, reason):
+    """Under temperature 0 and a fixed seed, an untold retry sends the same
+    prompt and gets the same answer; the reason is what changes it."""
+    client = ScriptedClient(generation=generation_with(text))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told == [[], [f'"{text}": {reason}']]
+
+
+def test_a_retry_is_told_its_tip_was_not_supported():
+    client = ScriptedClient(generation=generation_with("Uma dica."), grounded=[False, True])
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told == [
+        [],
+        ['"Uma dica.": os documentos citados não sustentam esta dica'],
+    ]
+
+
+def test_a_retry_names_only_the_refused_tips():
+    """Grounding is not asked once a tip is refused, so the clean tip was never
+    checked and is not reported as lost."""
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    client = ScriptedClient(generation=generation_with(numeric, "Uma dica."))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert len(client.told[1]) == 1
+    assert client.told[1][0].startswith(f'"{numeric}"')
+
+
+def test_a_long_refused_tip_is_cut_in_its_line():
+    text = "Em solo argiloso, o nível crítico é 18 mg dm-3. " + "a" * 352
+    assert len(text) == 400
+    client = ScriptedClient(generation=generation_with(text))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told[1][0].startswith(f'"{text[:300]}": ')
+
+
+def test_each_batch_starts_untold():
+    client = BatchClient(generate=one_tip_per_batch, grounded=[False, False, True])
+
+    build_cell(QUESTION, [source(i) for i in range(6)], client=client, max_attempts=2)
+
+    assert client.told[0] == []
+    assert client.told[1] != []
+    assert client.told[2] == []
+
+
+def test_a_told_batch_fits_the_prompt_ceiling():
+    from src.llm import PROMPT_CHAR_CEILING, load_prompt, rejected_block
+    from src.pipeline import GENERATE_BATCH_SIZE, REFUSAL_REASONS, REJECTED_TIP_CHAR_LIMIT
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    template, _ = load_prompt("generate")
+    longest = max(REFUSAL_REASONS.values(), key=len)
+    lines = [
+        f'"{"t" * REJECTED_TIP_CHAR_LIMIT}": {longest}'
+        for _ in range(GENERATE_BATCH_SIZE)
+    ]
+    rendered = "\n\n".join(
+        f"[{index}] {'t' * 300}\n{'x' * PASSAGE_CHAR_LIMIT}"
+        for index in range(GENERATE_BATCH_SIZE)
+    )
+    prompt = (
+        template.replace("{{question}}", describe_key("Muito Argilosa|generic"))
+        .replace("{{documents}}", rendered)
+        .replace("{{rejected}}", rejected_block(lines))
+    )
+
+    assert len(prompt) <= PROMPT_CHAR_CEILING
