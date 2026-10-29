@@ -221,6 +221,37 @@ void main() {
     expect(find.textContaining('consultiv'), findsOneWidget);
   });
 
+  // An abstention's sources are what was read, not what supports a tip
+  // (SPEC 0233).
+  testWidgets('abstained_result_names_the_consulted_sources', (tester) async {
+    final grounded = groundedTips();
+    final repo = FakeManagementTipsRepository()
+      ..seed(
+        'rec-1',
+        ManagementTipsResult(
+          status: ManagementTipsStatus.abstained,
+          tips: const [],
+          sources: grounded.sources,
+          disclaimer: grounded.disclaimer,
+          model: grounded.model,
+          retrievedAt: grounded.retrievedAt,
+        ),
+      );
+    await tester.pumpWidget(harness(
+      record: tipsRecord(),
+      repo: repo,
+      service: okService(),
+      connectivity: ConnectivityStatus.online,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fontes consultadas'), findsOneWidget);
+    expect(find.text('Fontes'), findsNothing);
+    for (final source in grounded.sources) {
+      expect(find.textContaining(source.title), findsWidgets);
+    }
+  });
+
   testWidgets('generation shows a loading indicator then the result',
       (tester) async {
     final gate = Completer<ResearchResult>();
@@ -698,6 +729,38 @@ void main() {
       expect(find.text('Ajuste a lâmina de irrigação'), findsNothing);
       expect(find.text('Monitore o encharcamento'), findsNothing);
       expect(find.text('1 dica'), findsOneWidget);
+    });
+
+    // A filter hides tips, not the support they have (SPEC 0233).
+    testWidgets('filter_hiding_every_tip_keeps_the_sources_heading',
+        (tester) async {
+      await pumpPage(
+        tester,
+        result: phased(),
+        hiddenCategories: const {TipCategory.water, TipCategory.preparation},
+      );
+
+      expect(find.text('Nenhuma dica nas categorias escolhidas.'), findsOneWidget);
+      expect(find.text('Fontes'), findsOneWidget);
+      expect(find.text('Fontes consultadas'), findsNothing);
+    });
+
+    testWidgets('tipless_result_names_the_consulted_sources', (tester) async {
+      final grounded = phased();
+      await pumpPage(
+        tester,
+        result: ManagementTipsResult(
+          status: ManagementTipsStatus.insufficientEvidence,
+          tips: const [],
+          sources: grounded.sources,
+          disclaimer: grounded.disclaimer,
+          model: grounded.model,
+          retrievedAt: grounded.retrievedAt,
+        ),
+      );
+
+      expect(find.text('Fontes consultadas'), findsOneWidget);
+      expect(find.text('Fontes'), findsNothing);
     });
 
     testWidgets('filter_sheet_toggles_a_category', (tester) async {
