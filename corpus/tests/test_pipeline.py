@@ -563,6 +563,44 @@ def test_a_name_or_a_ratio_is_not_a_number(text):
     assert not states_a_number(text)
 
 
+CITING_AN_INDEX = [
+    "O documento [0] menciona a argila.",
+    "Segundo [0, 2], a argila importa.",
+]
+
+
+@pytest.mark.parametrize("text", CITING_AN_INDEX)
+def test_a_tip_citing_a_document_index_is_rejected_by_that_cause(text):
+    """The reader never sees the documents' order, so the index points at
+    nothing; the record names that, not a number (SPEC 0229)."""
+    client = ScriptedClient(generation=generation_with(text))
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.attempts == 2
+    assert outcome.rejections == [f"cites a document by its index: {text}"] * 2
+    assert "ground" not in client.calls
+
+
+@pytest.mark.parametrize("text", CITING_AN_INDEX)
+def test_an_index_is_not_a_number(text):
+    assert not states_a_number(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "O documento [1] dá 18 mg dm-3.",
+        # Found by R3 on PR #456: removing the index must not glue the figure
+        # to the word before it.
+        "Dose[0]18 mg dm-3.",
+    ],
+)
+def test_a_figure_beside_an_index_is_still_a_number(text):
+    assert states_a_number(text)
+
+
 def test_the_number_rule_reads_tips_only():
     """A model limitation is ignored, so its number no longer rejects the
     attempt; derived limitations hold no numbers (SPEC 0162)."""
