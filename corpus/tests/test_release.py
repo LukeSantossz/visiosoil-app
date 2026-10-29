@@ -152,6 +152,17 @@ def test_an_extra_key_is_refused(build):
         run(build)
 
 
+def test_a_key_two_manifests_name_is_refused(build):
+    # A stale copy under another file name must not replace the cell.
+    cells = build[0]
+    for suffix in ("cell", "manifest"):
+        original = cells / f"Arenosa__tb_oxidic.{suffix}.json"
+        copy = cells / f"Arenosa__tb_oxidic.backup.{suffix}.json"
+        copy.write_text(original.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(ReleaseError, match="Arenosa\\|tb_oxidic"):
+        run(build)
+
+
 def test_cells_from_two_models_are_refused(build):
     write_cell(build[0], "Arenosa|tb_oxidic", grounded(), model="llama3.1:8b")
     with pytest.raises(ReleaseError, match="model"):
