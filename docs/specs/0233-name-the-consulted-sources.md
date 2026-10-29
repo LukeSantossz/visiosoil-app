@@ -35,6 +35,8 @@ An abstained result tells the agronomist that no source supports a tip, and then
 
 - `abstained_result_names_the_consulted_sources`: an abstained result with sources shows the heading "Fontes consultadas" and no heading "Fontes", and still lists each source's title.
 - `data state renders cards, chips, sources and disclaimer`: a grounded result still shows the heading "Fontes".
+- `filter_hiding_every_tip_keeps_the_sources_heading`: a grounded result whose every tip the category filter hides shows "Nenhuma dica nas categorias escolhidas." and keeps the heading "Fontes".
+- `tipless_result_names_the_consulted_sources`: an insufficient-evidence result with no tips and with sources shows the heading "Fontes consultadas".
 
 ## Reproducibility
 
