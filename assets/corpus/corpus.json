@@ -1,0 +1,406 @@
+{
+  "corpusVersion": "2026.10.28",
+  "classListVersion": "v1-four-class",
+  "model": "qwen2.5:7b",
+  "builtAt": "2026-10-28T23:37:36.747Z",
+  "humanReview": false,
+  "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+  "clayActivityDefaultByBiome": {
+    "amazonia": "tb_oxidic",
+    "cerrado": "tb_oxidic",
+    "mata_atlantica": "tb_oxidic",
+    "caatinga": "tb_oxidic",
+    "pampa": "tb_oxidic",
+    "pantanal": "intermediate"
+  },
+  "substance": {
+    "Arenosa|tb_oxidic": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:39:03.514221Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:39:03.514221Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:39:03.514221Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Arenosa|intermediate": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
+        {
+          "text": "O solo arenoso não necessariamente significa baixo teor de argila.",
+          "citations": [
+            0
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:06:15.051602Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:06:15.051602Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:06:15.051602Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+      ]
+    },
+    "Arenosa|ta_less_weathered": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:20:29.199286Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:20:29.199286Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:20:29.199286Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Media|tb_oxidic": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
+        {
+          "text": "O teor de fósforo no solo não indica diretamente a necessidade de adubação fosfatada, pois a interpretação dos níveis críticos de fósforo depende do teor de argila do solo.",
+          "citations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:39:47.419358Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:39:47.419358Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:39:47.419358Z"
+        }
+      ],
+      "limitations": [
+        "As fontes consultadas não tratam do que a classe de textura implica e do que não implica.",
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+      ]
+    },
+    "Media|intermediate": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:54:47.809700Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:54:47.809700Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T21:54:47.809700Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Media|ta_less_weathered": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:08:57.721046Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:08:57.721046Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:08:57.721046Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Muito Argilosa|tb_oxidic": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:22:48.048393Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:22:48.048393Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Muito Argilosa|intermediate": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:37:53.751157Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:37:53.751157Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:37:53.751157Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Muito Argilosa|ta_less_weathered": {
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
+      "sources": [
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:52:45.227174Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T22:52:45.227174Z"
+        }
+      ],
+      "limitations": []
+    },
+    "Argilosa|tb_oxidic": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
+        {
+          "text": "O teor de fósforo no solo de textura argilosa não necessariamente indica uma disponibilidade maior de fósforo para as plantas, pois a capacidade de tampão argilosa é mais alta, o que pode reduzir a solubilidade do fósforo.",
+          "citations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:16:34.080145Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:16:34.080145Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T18:16:34.080145Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+      ]
+    },
+    "Argilosa|intermediate": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
+        {
+          "text": "A textura argilosa do solo não significa necessariamente que o teor de fósforo será mais alto ou mais baixo do que em solos de textura média ou arenosos.",
+          "citations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:06:39.839369Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:06:39.839369Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:06:39.839369Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+      ]
+    },
+    "Argilosa|ta_less_weathered": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
+        {
+          "text": "A textura argilosa do solo não significa necessariamente que o teor de cálcio no solo será alto.",
+          "citations": [
+            2
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:21:49.969433Z"
+        },
+        {
+          "title": "Guia prático para interpretação de resultados de análises de solo",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
+          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:21:49.969433Z"
+        },
+        {
+          "title": "Uso de gesso agrícola nos solos do Cerrado",
+          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
+          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "tier": 1,
+          "accessedAt": "2026-10-28T23:21:49.969433Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+      ]
+    }
+  }
+}

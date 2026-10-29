@@ -1,13 +1,13 @@
 // End-to-end over the real artifacts: IBGE shapefile → the Python rasteriser →
 // packed bytes → this app's reader → a `SiteKey`.
 //
-// The grids are build products and git-ignored, so this test **skips when they
-// are absent** rather than failing in CI. What it proves when they are present
+// The grids are tracked since SPEC 0227, and this test still **skips when they
+// are absent**, so a checkout without them does not fail here. What it proves when they are present
 // is the one thing no unit test can: that the two sides of the format agree on
 // bytes a machine actually produced, not on bytes a fixture builder wrote.
 //
-// Build them with `python -m src.build_grids` from `corpus/` and copy the two
-// `.bin` files into `assets/corpus/`.
+// Build them with `python -m src.build_grids` from `corpus/`, and release them
+// into `assets/corpus/` with `python -m src.release`.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

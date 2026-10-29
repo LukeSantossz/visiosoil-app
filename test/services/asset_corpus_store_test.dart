@@ -16,7 +16,7 @@ import 'package:visiosoil_app/models/site_key.dart';
 /// The smallest thing that behaves like an asset bundle: a map of key to bytes.
 /// Mirrors `InferenceService`'s injected `ModelAssetLoader` rather than reaching
 /// for the real `rootBundle`, so no test depends on `assets/corpus/` being
-/// populated — which it is not, and will not be until Lane B ships.
+/// populated; `released_corpus_test.dart` reads the release itself.
 class FakeAssetBundle {
   FakeAssetBundle(this.assets);
 

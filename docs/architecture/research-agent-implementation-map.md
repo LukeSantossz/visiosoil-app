@@ -23,8 +23,10 @@ not worth reading, and the Developer's answer to that on 2026-09-18 is recorded
 in B1: re-probe with management-guidance sources before any other cell is built.
 **The B1' re-probe ran on 2026-10-15** (#251), after SPECs 0072 and 0151 to
 0162 changed the chain. A delegated model review judged it worth reading,
-narrowly, which is preliminary: the agronomist's judgement that B1's gate names
-is still owed, and B3 waits on it. B1 records that review and three follow-ups.
+narrowly, which is preliminary. **On 2026-10-28 the Developer decided to go on
+without the agronomist's judgement that B1's gate names**, and to release the
+twelve substance cells without B4's human review (SPEC 0227). B1 records that
+review, three follow-ups and both decisions.
 
 ## 1. What exists today
 
@@ -297,7 +299,8 @@ parts, and the slice that carries them passes its own Spec Gate first:
   been returned once.
 
 **The first two parts are built, SPEC 0072 (2026-09-22), and the run followed
-on 2026-10-15; the agronomist's judgement of it is still owed.** Building them found that the first verdict rested on less
+on 2026-10-15; the Developer waived the agronomist's judgement of it on
+2026-10-28.** Building them found that the first verdict rested on less
 than it appeared to. Re-fetched through the build's own code, the two SciELO
 articles that still answer are 42,213 and 40,462 characters long and their
 introductions start at 9,660 and 8,280, while the client sent the model
@@ -363,8 +366,8 @@ holds the cell and the run manifest).
 
 The reviewer was Claude (`claude-opus-5-5`), on the Developer's delegation, and
 is not an agronomist, so this verdict is preliminary. This slice's gate puts the
-cell in front of an agronomist, and that judgement is still owed; B3 waits on
-it, and B4's named human review still gates every cell.
+cell in front of an agronomist, and the Developer waived that judgement and B4's
+named human review on 2026-10-28, as recorded below.
 
 **Before B3:**
 1. A source-age limitation, which needs a date per manifest source (§8.3).
@@ -383,7 +386,12 @@ Each gets its own spec, and whether B3 waits for them is the Developer's call.
 **The Developer's decision of 2026-10-28:** the corpus work goes on without
 the agronomist's judgement of this cell. It is to be validated through the
 feature in use in the app, and corrected afterwards where that shows a need.
-B4's named human review of every cell before it ships is unchanged.
+
+**The Developer's decision of 2026-10-28, on release:** the twelve substance
+cells are published **without B4's named human review**. Every cell carries
+the advisory disclaimer, and `corpus.json` records the decision as
+`humanReview: false` (SPEC 0227). The land-use and unit layers, and a producer
+for `evidenceStrength`, stay out of scope.
 
 ### B2 — slice 2: cells, region tables and structured sources
 
@@ -547,32 +555,38 @@ wrongly to unknown.
 
 ### B3 — slice 3: the whole corpus is built
 
-**Blocked on the agronomist's judgement of B1', not on code.** The chain B3 was written to build
+**Built for the substance layer (SPEC 0227).** The Developer decided on
+2026-10-28 to go on without the agronomist's judgement of B1', and scoped B3 to
+the twelve substance cells. The chain B3 was written to build
 already exists and has run: query transform, allowlisted search, source grading,
 generation with citations, and the grounding graders, CRAG-shaped so that the
 grader stays external and light — which is what makes a small local model
 adequate for it. The allowlist is **our code now**, not a provider parameter, and
 the injection fixture of §12.4 passes.
 
-What B3 still owes is the **driver and the artifact**: today `probe.py` builds one
-cell, and B3 builds all 44 and assembles the release file the app already reads.
-That contract is fixed by `test/fixtures/corpus/corpus.json` and is not
+B3 added the **artifact**: `probe.py` builds each cell, run once per key, and
+`src.release` checks the twelve cells and both grids and writes the release file
+the app already reads. That contract is fixed by `test/fixtures/corpus/corpus.json` and is not
 negotiable from this side — `corpusVersion`, `classListVersion`, `model`,
 `builtAt`, `disclaimer`, `clayActivityDefaultByBiome`, and the four layers
 `substance`, `landUse`, `unit` and `biome` — plus a run manifest for the build as
-a whole rather than per cell.
+a whole rather than per cell. The release writes no whole-build manifest;
+instead it refuses cells from two models or two sets of prompt versions. The
+land-use (5) and unit (27) cells are out of scope, so the file carries no
+`landUse`, `unit` or `biome` layer, and the app reads an absent layer as empty.
 
-It waits on the agronomist's judgement of B1' because building 43 more cells from a source
-policy that produced one unreadable cell would repeat the measured failure at
-forty-four times the cost. Gate: the 44 artifacts exist, every citation resolves,
-and the release file parses through `Corpus.fromJson` unchanged.
+The gate was the 44 artifacts. For this scope it is the twelve substance cells:
+they exist, every citation resolves, and the release file parses through the
+app's reader (`test/services/released_corpus_test.dart`).
 
 ### B4 — slice 4: verification and the human review gate
 
-**Blocked.** The cross-family verification pass is ready after B3; the human
-review gate is blocked because **no reviewer is identified**, and none of the
-alternatives considered produced a fallback. Build slices proceed; no corpus is
-released.
+**Waived for the first release by the Developer's decision of 2026-10-28.**
+The cross-family verification pass is ready after B3; the human review gate is
+blocked because **no reviewer is identified**, and none of the alternatives
+considered produced a fallback. The substance layer was released without it
+(SPEC 0227), with `humanReview: false` in the artifact; the gate still applies
+to the review that corrects it.
 
 ## 5. Lane C — the proxy
 
@@ -598,8 +612,8 @@ ADR 0023 removes them from v1.
 A1 ──► A2 ──► A3 ──► A4 (bundled half: DONE)
      DONE   DONE   DONE ▲
                         │
-B1 ──► B2 ──► B1' ──► B3 ──► B4 (blocked: reviewer)
-DONE  part   run next │
+B1 ──► B2 ──► B1' ──► B3 ──► B4 (waived: first release)
+DONE  part   ran     │ substance only
                       └──► the corpus A4 ships
 
 Lane C ── not on the critical path ── A4 (refresh half), and nothing else in v1
@@ -608,7 +622,8 @@ A5 ── UI/UX terminal ── after A1 lands the fields it renders
 
 **B1'** is the re-probe: the same one cell, rebuilt from management-guidance
 sources read out of PDF, and judged again. Its code is SPEC 0072 and it ran on
-2026-10-15; the agronomist's judgement is what remains. It sits between B2 and B3 because B1's
+2026-10-15; the Developer waived the agronomist's judgement of it on 2026-10-28.
+It sits between B2 and B3 because B1's
 first verdict was that the cell is not worth reading, and nothing downstream is
 worth building until that answer changes.
 
