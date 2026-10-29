@@ -3,6 +3,8 @@ import 'dart:async';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/ambient_light_source.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/camera_optics.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_sheet_reader.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
@@ -59,7 +61,14 @@ class FakeCaptureCamera implements CaptureCamera {
   @override
   Future<void> switchCamera() async {
     _owner.log.add('switchCamera:$index');
+    _lens++;
   }
+
+  /// Which of the device's back cameras is open, bumped by every switch.
+  int _lens = 0;
+
+  @override
+  String? get cameraId => '$_lens';
 
   int takePictureCalls = 0;
   bool disposed = false;
@@ -109,10 +118,8 @@ class FakeCaptureCamera implements CaptureCamera {
   Size get previewSize => const Size(720, 1280);
 
   @override
-  Widget buildPreview() => const ColoredBox(
-        key: ValueKey('fake-preview'),
-        color: Color(0xFF223322),
-      );
+  Widget buildPreview() =>
+      const ColoredBox(key: ValueKey('fake-preview'), color: Color(0xFF223322));
 
   @override
   Future<XFile> takePicture() async {
@@ -150,6 +157,33 @@ class FakeTiltSource implements TiltSource {
 
   @override
   Stream<AccelerationSample> get samples => controller.stream;
+}
+
+/// A [CameraOpticsSource] that answers [optics] for every camera and
+/// remembers which ones it was asked about (SPEC 0238).
+class FakeCameraOpticsSource implements CameraOpticsSource {
+  CameraOptics? optics;
+  final asked = <String>[];
+
+  @override
+  Future<CameraOptics?> opticsOf(String cameraId) async {
+    asked.add(cameraId);
+    return optics;
+  }
+}
+
+/// An [AmbientLightSource] a test drives reading by reading, counting how
+/// often the screen started listening (SPEC 0238).
+class FakeAmbientLightSource implements AmbientLightSource {
+  int listens = 0;
+  late final controller = StreamController<double>.broadcast(
+    onListen: () => listens++,
+  );
+
+  bool get listening => controller.hasListener;
+
+  @override
+  Stream<double> get lux => controller.stream;
 }
 
 /// A [LiveSheetReader] a test answers by hand (SPEC 0166).

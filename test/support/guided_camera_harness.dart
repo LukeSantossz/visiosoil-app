@@ -40,6 +40,8 @@ class RecordingErrorReportStore implements ErrorReportStore {
 class GuidedCameraHarness {
   final cameras = FakeCaptureCameras();
   final tilt = FakeTiltSource();
+  final optics = FakeCameraOpticsSource();
+  final light = FakeAmbientLightSource();
   final errors = RecordingErrorReportStore();
   final popped = <GuidedCaptureResult?>[];
 
@@ -98,30 +100,31 @@ Future<GuidedCameraHarness> openGuidedCamera(
   addTearDown(
     () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
   );
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      ...guidedCameraOverrides(h),
-      ...overrides,
-    ],
-    child: MaterialApp(
-      theme: theme ?? AppTheme.light,
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () async {
-              final result =
-                  await Navigator.of(context).push<GuidedCaptureResult>(
-                MaterialPageRoute(builder: (_) => const GuidedCameraScreen()),
-              );
-              h.popped.add(result);
-              h.stillSizeAtPop.add(h.stillSizes.size);
-            },
-            child: const Text('open'),
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [...guidedCameraOverrides(h), ...overrides],
+      child: MaterialApp(
+        theme: theme ?? AppTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                final result = await Navigator.of(context)
+                    .push<GuidedCaptureResult>(
+                      MaterialPageRoute(
+                        builder: (_) => const GuidedCameraScreen(),
+                      ),
+                    );
+                h.popped.add(result);
+                h.stillSizeAtPop.add(h.stillSizes.size);
+              },
+              child: const Text('open'),
+            ),
           ),
         ),
       ),
     ),
-  ));
+  );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
   return h;
@@ -137,19 +140,23 @@ Future<void> tiltTo(
 ) async {
   final radians = degrees * math.pi / 180;
   for (var i = 0; i < 60; i++) {
-    h.tilt.controller.add(
-      (x: 0, y: 9.81 * math.sin(radians), z: 9.81 * math.cos(radians)),
-    );
+    h.tilt.controller.add((
+      x: 0,
+      y: 9.81 * math.sin(radians),
+      z: 9.81 * math.cos(radians),
+    ));
   }
   await tester.pumpAndSettle();
 }
 
 /// The banner's sentence.
 String bannerText(WidgetTester tester) => tester
-    .widgetList<Text>(find.descendant(
-      of: find.byKey(const ValueKey('guided-camera-banner')),
-      matching: find.byType(Text),
-    ))
+    .widgetList<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('guided-camera-banner')),
+        matching: find.byType(Text),
+      ),
+    )
     .map((text) => text.data)
     .join();
 
@@ -166,32 +173,34 @@ Future<void> backOut(WidgetTester tester) async {
 
 /// The provider overrides that put the guided camera on [h]'s fakes.
 List<Override> guidedCameraOverrides(GuidedCameraHarness h) => [
-      captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
-      tiltSourceProvider.overrideWithValue(h.tilt),
-      errorReportStoreProvider.overrideWithValue(h.errors),
-      liveContractLoaderProvider.overrideWithValue(() async {
-        await h.contractGate?.future;
-        return h.liveContract;
-      }),
-      liveSheetReaderFactoryProvider.overrideWithValue((contract) async {
-        final error = h.spawnError;
-        if (error != null) throw error;
-        final reader = FakeLiveSheetReader();
-        h.readers.add(reader);
-        return reader;
-      }),
-      stillSizeStoreProvider.overrideWithValue(h.stillSizes),
-      autoCaptureClockProvider.overrideWithValue(() => h.now),
-    ];
+  captureCameraFactoryProvider.overrideWithValue(h.cameras.create),
+  tiltSourceProvider.overrideWithValue(h.tilt),
+  cameraOpticsSourceProvider.overrideWithValue(h.optics),
+  ambientLightSourceProvider.overrideWithValue(h.light),
+  errorReportStoreProvider.overrideWithValue(h.errors),
+  liveContractLoaderProvider.overrideWithValue(() async {
+    await h.contractGate?.future;
+    return h.liveContract;
+  }),
+  liveSheetReaderFactoryProvider.overrideWithValue((contract) async {
+    final error = h.spawnError;
+    if (error != null) throw error;
+    final reader = FakeLiveSheetReader();
+    h.readers.add(reader);
+    return reader;
+  }),
+  stillSizeStoreProvider.overrideWithValue(h.stillSizes),
+  autoCaptureClockProvider.overrideWithValue(() => h.now),
+];
 
 /// A tiny luma frame, as the camera's stream would hand one over.
 CameraFrame get tinyFrame => (
-      format: LivePixelFormat.yuv420,
-      width: 4,
-      height: 2,
-      bytes: Uint8List(8),
-      bytesPerRow: 4,
-    );
+  format: LivePixelFormat.yuv420,
+  width: 4,
+  height: 2,
+  bytes: Uint8List(8),
+  bytesPerRow: 4,
+);
 
 /// Emits a frame from the live camera and lets the screen hand it over.
 Future<void> emitFrame(WidgetTester tester, GuidedCameraHarness h) async {
