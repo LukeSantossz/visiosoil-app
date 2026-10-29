@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/ambient_light_source.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/camera_optics.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
@@ -16,6 +18,18 @@ final captureCameraFactoryProvider = Provider<CaptureCameraFactory>(
 /// The accelerometer behind the guided camera's level. Overridden in tests.
 final tiltSourceProvider = Provider<TiltSource>(
   (ref) => SensorsPlusTiltSource(),
+);
+
+/// The lens and sensor behind the distance chip's estimate (SPEC 0238).
+/// Overridden in tests.
+final cameraOpticsSourceProvider = Provider<CameraOpticsSource>(
+  (ref) => const PlatformCameraOpticsSource(),
+);
+
+/// The ambient light sensor behind the light chip's lux (SPEC 0238).
+/// Overridden in tests.
+final ambientLightSourceProvider = Provider<AmbientLightSource>(
+  (ref) => const PlatformAmbientLightSource(),
 );
 
 /// The app-wide queue of guided camera releases and orientation resets, so
