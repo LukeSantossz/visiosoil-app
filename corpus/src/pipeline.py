@@ -152,6 +152,40 @@ def states_a_number(text: str) -> bool:
     return _NUMBER.search(_NOT_A_NUMBER.sub("", text)) is not None
 
 
+_DENIED_CLASS_CLAY = re.compile(
+    r"(?:\barenos[oa]s?|\bargilos[oa]s?|\btextura\s+m[ée]dia)\b[^.;!?]*?"
+    r"\bnão\s+(?:\w+\s+){0,2}?(?:significa|indica|implica|quer\s+dizer)\s+"
+    r"(?:\w+\s+){0,3}?"
+    r"(?:(?:teor|conte[úu]do|quantidade|percentual|porcentagem|proporção)\s+"
+    r"(?:\w+\s+)?de\s+argila|(?:pouca|muita|mais|menos)\s+argila)",
+    re.IGNORECASE,
+)
+"""A sentence that names a texture class and then says it does not mean a clay
+content: "O solo arenoso não necessariamente significa baixo teor de argila"
+(SPEC 0230)."""
+
+
+def denies_its_class_clay(text: str) -> bool:
+    """Whether [text] denies the clay content its texture class states (SPEC 0230).
+
+    A texture class is a range of clay content, so such a tip is false whatever
+    a source says. The B3 run's grounding check judged one supported on a passage
+    that does not bear on it, so the build checks it by its words.
+    """
+    return _DENIED_CLASS_CLAY.search(text) is not None
+
+
+def _refusal(text: str) -> str | None:
+    """The cause a tip is refused for before grounding is asked, or None."""
+    if cites_a_document_index(text):
+        return f"cites a document by its index: {text}"
+    if states_a_number(text):
+        return f"states a number: {text}"
+    if denies_its_class_clay(text):
+        return f"denies the clay content its class states: {text}"
+    return None
+
+
 class LLMClient(Protocol):
     """What the pipeline needs of a model.
 
@@ -300,14 +334,13 @@ def build_cell(
         # A number is refused before grounding is asked: the stance forbids it
         # however well the source supports it (SPEC 0160). So is a document
         # index, which the reader cannot follow, under its own cause (SPEC
-        # 0229). Limitations are the build's own sentences, so only tips are
-        # read (SPEC 0162).
+        # 0229), and a tip denying its class's clay content, which no source can
+        # support (SPEC 0230). Limitations are the build's own sentences, so
+        # only tips are read (SPEC 0162).
         refused = [
-            f"cites a document by its index: {tip['text']}"
-            if cites_a_document_index(tip["text"])
-            else f"states a number: {tip['text']}"
+            cause
             for tip in cell["tips"]
-            if cites_a_document_index(tip["text"]) or states_a_number(tip["text"])
+            if (cause := _refusal(tip["text"])) is not None
         ]
         unsupported = list(refused)
         if not refused:

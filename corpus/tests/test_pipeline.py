@@ -21,6 +21,7 @@ from src.pipeline import (
     BuildOutcome,
     Grounding,
     build_cell,
+    denies_its_class_clay,
     states_a_number,
 )
 from src.sources import FetchedSource
@@ -612,6 +613,65 @@ def test_the_number_rule_reads_tips_only():
 
     assert outcome.cell["status"] == "grounded"
     assert outcome.rejections == []
+
+
+# --- A tip never denies the clay content its class states (SPEC 0230) -----------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The tip the B3 run of 2026-10-28 grounded for Arenosa|intermediate.
+        "O solo arenoso não necessariamente significa baixo teor de argila.",
+        "A textura argilosa não indica um alto teor de argila.",
+        "Solo muito argiloso não quer dizer que haja mais argila.",
+    ],
+)
+def test_a_tip_denying_its_class_clay_is_rejected_by_that_cause(text):
+    client = ScriptedClient(generation=generation_with(text))
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.attempts == 2
+    assert outcome.rejections == [
+        f"denies the clay content its class states: {text}"
+    ] * 2
+    assert "ground" not in client.calls
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The other four tips the B3 run grounded.
+        "A textura argilosa do solo não significa necessariamente que o teor de "
+        "fósforo será mais alto ou mais baixo do que em solos de textura média ou "
+        "arenosos.",
+        "A textura argilosa do solo não significa necessariamente que o teor de "
+        "cálcio no solo será alto.",
+        "O teor de fósforo no solo de textura argilosa não necessariamente indica "
+        "uma disponibilidade maior de fósforo para as plantas, pois a capacidade "
+        "de tampão argilosa é mais alta, o que pode reduzir a solubilidade do "
+        "fósforo.",
+        "O teor de fósforo no solo não indica diretamente a necessidade de "
+        "adubação fosfatada, pois a interpretação dos níveis críticos de fósforo "
+        "depende do teor de argila do solo.",
+        "Solo argiloso não significa solo fértil.",
+        # Names no class, so it denies no class's definition.
+        "A cor escura não indica o teor de argila.",
+    ],
+)
+def test_a_tip_about_another_property_is_not_denying_its_class(text):
+    assert not denies_its_class_clay(text)
+
+
+def test_a_number_is_named_before_a_denied_class():
+    text = "O solo arenoso não significa teor de argila abaixo de 15%."
+    client = ScriptedClient(generation=generation_with(text))
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.rejections == [f"states a number: {text}"] * 2
 
 
 # --- Every grounding is recorded with its quote (SPEC 0161) ---------------------

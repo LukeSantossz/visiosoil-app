@@ -1,8 +1,8 @@
 {
-  "corpusVersion": "2026.10.28",
+  "corpusVersion": "2026.10.28.1",
   "classListVersion": "v1-four-class",
   "model": "qwen2.5:7b",
-  "builtAt": "2026-10-28T23:37:36.747Z",
+  "builtAt": "2026-10-29T00:14:05.396Z",
   "humanReview": false,
   "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
   "clayActivityDefaultByBiome": {
@@ -44,43 +44,33 @@
       "limitations": []
     },
     "Arenosa|intermediate": {
-      "status": "grounded",
-      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
-      "tips": [
-        {
-          "text": "O solo arenoso não necessariamente significa baixo teor de argila.",
-          "citations": [
-            0
-          ]
-        }
-      ],
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
       "sources": [
         {
           "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
           "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
           "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:06:15.051602Z"
+          "accessedAt": "2026-10-28T23:46:50.244723Z"
         },
         {
           "title": "Guia prático para interpretação de resultados de análises de solo",
           "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
           "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:06:15.051602Z"
+          "accessedAt": "2026-10-28T23:46:50.244723Z"
         },
         {
           "title": "Uso de gesso agrícola nos solos do Cerrado",
           "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
           "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:06:15.051602Z"
+          "accessedAt": "2026-10-28T23:46:50.244723Z"
         }
       ],
-      "limitations": [
-        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
-        "Uma das fontes consultadas é de 2005, há mais de dez anos."
-      ]
+      "limitations": []
     },
     "Arenosa|ta_less_weathered": {
       "status": "abstained",
