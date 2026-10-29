@@ -33,6 +33,19 @@ void main() {
     expect(line.color, palette.onSurfaceVariant);
   });
 
+  // SPEC 0235: without a count, the card names no upload.
+  testWidgets('banner_without_a_count_names_no_pending_upload', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(body: OfflineBanner(pendingCount: null)),
+      ),
+    );
+    expect(find.text('Sem conexão'), findsOneWidget);
+    expect(find.text('Tudo continua salvo neste aparelho.'), findsOneWidget);
+    expect(find.textContaining('aguarda'), findsNothing);
+  });
+
   // SPEC 0216: Modo Sol draws the whole illustration in ink, the slash too.
   testWidgets('offline_slash_is_error_in_light_and_ink_in_sun', (tester) async {
     for (final (theme, palette) in [

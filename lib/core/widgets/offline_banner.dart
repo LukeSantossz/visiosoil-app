@@ -9,8 +9,11 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 /// PNG 18 draws it (SPEC 0214).
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({super.key, required this.pendingCount})
-    : assert(pendingCount >= 0);
-  final int pendingCount;
+    : assert(pendingCount == null || pendingCount >= 0);
+
+  /// Null while no sync backend is wired, when nothing waits to be sent and
+  /// the notice names no count (SPEC 0235).
+  final int? pendingCount;
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -67,7 +70,13 @@ class OfflineBanner extends StatelessWidget {
               ),
               const SizedBox(height: 4.5),
               Text(
-                '${pendingCount == 1 ? '1 análise aguarda' : '$pendingCount análises aguardam'} envio. Tudo continua salvo neste aparelho.',
+                switch (pendingCount) {
+                  null => 'Tudo continua salvo neste aparelho.',
+                  1 =>
+                    '1 análise aguarda envio. Tudo continua salvo neste aparelho.',
+                  final count =>
+                    '$count análises aguardam envio. Tudo continua salvo neste aparelho.',
+                },
                 textAlign: TextAlign.center,
                 style: AppTypography.resized(
                   text.bodySmall!,
