@@ -118,8 +118,10 @@ class FakeCaptureCamera implements CaptureCamera {
   Size get previewSize => const Size(720, 1280);
 
   @override
-  Widget buildPreview() =>
-      const ColoredBox(key: ValueKey('fake-preview'), color: Color(0xFF223322));
+  Widget buildPreview() => const ColoredBox(
+        key: ValueKey('fake-preview'),
+        color: Color(0xFF223322),
+      );
 
   @override
   Future<XFile> takePicture() async {
