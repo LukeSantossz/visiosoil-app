@@ -305,7 +305,7 @@ def test_the_prompt_versions_moved():
     versions = OllamaClient().prompt_versions
 
     assert versions["transform"] == "3"
-    assert versions["generate"] == "5"
+    assert versions["generate"] == "6"
 
 
 def test_the_generate_prompt_asks_for_the_direction_not_the_number():
@@ -322,7 +322,21 @@ def test_the_generate_prompt_asks_for_the_direction_not_the_number():
     assert "Nunca doses e nunca números" in prompt
     assert "escreva a direção que os números mostram" in prompt
     assert "nunca pelo nome" in prompt
-    assert client.prompt_versions["generate"] == "5"
+    assert client.prompt_versions["generate"] == "6"
+
+
+def test_the_generate_prompt_asks_for_what_the_class_does_not_mean():
+    """The review asked mostly for corrections of wrong heuristics, and the
+    prompt now asks for one and for each tip's kind (SPEC 0226)."""
+    client, requests = recording_client('{"status": "abstained", "tips": []}')
+
+    client.generate_cell("Solo argiloso", [document("Texto.")])
+
+    prompt = requests[0]["prompt"]
+    assert '"kind": "nao_significa"' in prompt
+    assert "leitura_do_laudo" in prompt
+    assert "pelo menos uma dica" in prompt
+    assert client.prompt_versions["generate"] == "6"
 
 
 # --- The grader scores relevance (SPEC 0154) -----------------------------------
@@ -521,4 +535,4 @@ def test_the_generate_prompt_no_longer_asks_for_limitations():
     client.generate_cell("Solo argiloso", [document("Texto.")])
 
     assert '"limitations"' not in requests[0]["prompt"]
-    assert client.prompt_versions["generate"] == "5"
+    assert client.prompt_versions["generate"] == "6"

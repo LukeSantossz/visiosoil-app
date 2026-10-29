@@ -374,6 +374,9 @@ it, and B4's named human review still gates every cell.
 2. A producer for `evidenceStrength`.
 3. A generate prompt that asks for the "what the class does not mean"
    corrections, since this cell carries only the lab-report one.
+   **Built by SPEC 0226:** generate prompt version 6 asks for at least one
+   correction the documents support, and each tip states its `kind`. A
+   grounded cell with no correction carries one fixed sentence saying so.
 
 Each gets its own spec, and whether B3 waits for them is the Developer's call.
 
