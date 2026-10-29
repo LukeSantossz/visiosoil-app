@@ -1,7 +1,7 @@
 # Corpus build
 
-The offline half of the Research Agent: it builds the reviewed corpus the app
-composes management tips from. Python 3.12, following `ml/`'s precedent — a
+The offline half of the Research Agent: it builds the corpus the app composes
+management tips from. Python 3.12, following `ml/`'s precedent — a
 Python pipeline inside a Flutter repository.
 
 The design is [ADR 0022](../docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md);
@@ -32,9 +32,13 @@ the author affiliations and an abstract, and the server cut each prompt at a
 context length chosen from the machine's video memory. So the fetcher now reads
 PDF, a manifest entry names the pages of its passage, a passage longer than the
 model reads is refused rather than cut, and every request pins its context. The
-manifest holds three Embrapa passages. **What is left is the run and its
-judgement**, before any of the other 43 cells is built. The implementation map
-records both runs' state.
+manifest holds three Embrapa passages.
+
+**The twelve substance cells are built and released** (SPEC 0227): the four
+texture classes by the three clay-activity families. They ship without the
+agronomist's judgement and without B4's human review, by the Developer's
+decision of 2026-10-28, and the land-use and unit cells are out of scope. The
+implementation map records the runs and that decision.
 
 ## Running the tests
 
@@ -63,14 +67,15 @@ python -m src.release --cells out/ --grids out/ --version 2026.10.28
 ```
 
 The release reads the twelve substance cells by their run manifests' keys and
-refuses, naming the cause, a missing or extra key, cells from two models or two
-sets of prompt versions, a cell the app's reader would reject, or a grid of the
-wrong magic, kind or lattice. Nothing is written unless all of it passes. It
-derives each biome's default clay-activity family from the grids, and writes
-`corpus.json` and both grids into `assets/corpus/`, which is tracked (SPEC 0227).
+refuses, naming the cause, a missing or extra key, a key two manifests name,
+cells from two models or two sets of prompt versions, a cell the app's reader
+would reject, or a grid of the wrong magic, kind or lattice. Nothing is written
+unless all of it passes. It derives each biome's default clay-activity family
+from the grids, and writes `corpus.json` and both grids into `assets/corpus/`,
+which is tracked (SPEC 0227).
 
-The Developer decided on 2026-10-28 to publish the cells without B4's named
-human review, so `corpus.json` carries `humanReview: false`.
+The cells are not reviewed by a person: `corpus.json` carries
+`humanReview: false`, and every cell carries the advisory disclaimer.
 
 ## How it is shaped
 
