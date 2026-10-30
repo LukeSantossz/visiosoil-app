@@ -212,8 +212,6 @@ void main() {
       connectivity: ConnectivityStatus.online,
     ));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Gerar dicas'));
-    await tester.pumpAndSettle();
 
     expect(
       find.descendant(
@@ -224,7 +222,7 @@ void main() {
     );
   });
 
-  testWidgets('empty cache online shows the generate button', (tester) async {
+  testWidgets('empty cache online automatically shows tips', (tester) async {
     await tester.pumpWidget(harness(
       record: tipsRecord(),
       repo: FakeManagementTipsRepository(),
@@ -233,14 +231,14 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sem dicas de manejo ainda'), findsOneWidget);
-    expect(find.text('Gerar dicas'), findsOneWidget);
+    expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+    expect(find.text('Atualizar dicas'), findsOneWidget);
   });
 
   // Tips compose on the device from the corpus the app holds (ADR 0022), so
   // being offline changes nothing about them (SPEC 0090).
   group('offline', () {
-    testWidgets('offline_empty_cache_offers_generate_tips', (tester) async {
+    testWidgets('offline_empty_cache_automatically_shows_tips', (tester) async {
       await tester.pumpWidget(harness(
         record: tipsRecord(),
         repo: FakeManagementTipsRepository(),
@@ -249,7 +247,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Gerar dicas'), findsOneWidget);
+      expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
       expect(find.text('Sem conexão'), findsNothing);
       expect(find.textContaining('Conecte-se'), findsNothing);
     });
@@ -262,9 +260,6 @@ void main() {
         service: service,
         connectivity: ConnectivityStatus.offline,
       ));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gerar dicas'));
       await tester.pumpAndSettle();
 
       expect(service.calls, 1);
@@ -282,8 +277,6 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Gerar dicas'));
-      await tester.pumpAndSettle();
       expect(find.textContaining('Não foi possível gerar as dicas agora'),
           findsOneWidget);
 
@@ -400,9 +393,9 @@ void main() {
       service: service,
       connectivity: ConnectivityStatus.online,
     ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Gerar dicas'));
+    // Generation starts on open; settling would wait on the pending service.
+    await tester.pump();
+    await tester.pump();
     await tester.pump();
     expect(find.text('Carregando dicas'), findsOneWidget);
 
@@ -421,9 +414,6 @@ void main() {
       service: service,
       connectivity: ConnectivityStatus.online,
     ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Gerar dicas'));
     await tester.pumpAndSettle();
 
     expect(

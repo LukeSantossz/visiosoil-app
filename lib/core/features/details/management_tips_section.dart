@@ -23,10 +23,12 @@ import 'package:visiosoil_app/providers/management_tips_controller_provider.dart
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 
 /// Advisory "Dicas de manejo" section on the Soil Record details screen.
-/// Cache-first display via [cachedManagementTipsProvider]; explicit generation
-/// via [managementTipsControllerProvider]. Generation is manual; a failed
-/// refresh preserves already-cached tips. Tips compose on the device from the
-/// corpus the app holds (ADR 0022), so no action here waits on connectivity.
+/// Cache-first display via [cachedManagementTipsProvider]; generation via
+/// [managementTipsControllerProvider] runs automatically once per section state
+/// after an empty cache read. Manual generation and retry remain available; a
+/// failed refresh preserves already-cached tips. Tips compose on the device
+/// from the corpus the app holds (ADR 0022), so no action here waits on
+/// connectivity.
 class ManagementTipsSection extends ConsumerStatefulWidget {
   const ManagementTipsSection({
     super.key,
@@ -52,6 +54,7 @@ class ManagementTipsSection extends ConsumerStatefulWidget {
 
 class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
   bool _generating = false;
+  bool _autoGenerationAttempted = false;
   ResearchFailureKind? _lastError;
 
   SoilRecord get _record => widget.record;
@@ -120,6 +123,14 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
             // entry) instead of being stuck.
             error: (_, _) => _empty(),
             data: (result) {
+              if (result == null && !_autoGenerationAttempted && !_generating) {
+                _autoGenerationAttempted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  _generate();
+                });
+                return const _TipsLoading();
+              }
               if (_generating && result == null) return const _TipsLoading();
               if (result != null) {
                 return _TipsData(
@@ -186,6 +197,8 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
 
   String _messageFor(ResearchFailureKind kind) {
     switch (kind) {
+      case ResearchFailureKind.corpusUnavailable:
+        return 'As dicas de manejo ainda não estão disponíveis nesta versão do app.';
       case ResearchFailureKind.timeout:
       case ResearchFailureKind.network:
         return 'Falha de conexão. Verifique sua internet e tente novamente.';

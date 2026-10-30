@@ -15,6 +15,9 @@ enum ResearchFailureKind {
   /// The record lacks the data required to ask for tips (uuid or texture class).
   invalidRecord,
 
+  /// This app version holds no corpus from which to compose tips.
+  corpusUnavailable,
+
   /// Proxy returned 401 — the bearer token is missing, invalid, or expired.
   unauthenticated,
 
@@ -60,7 +63,7 @@ class ResearchFailure extends ResearchResult {
   final int? statusCode;
 }
 
-/// Fetches advisory management tips for a Soil Record from the backend proxy.
+/// Fetches advisory management tips for a Soil Record from a corpus or proxy.
 /// The abstract seam mirrors `AuthService` so providers and tests can
 /// substitute a fake.
 abstract class ResearchService {

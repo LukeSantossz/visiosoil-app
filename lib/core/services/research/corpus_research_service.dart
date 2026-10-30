@@ -58,15 +58,11 @@ class CorpusResearchService implements ResearchService {
 
   /// What the app answers while it holds no corpus.
   ///
-  /// `insufficient_evidence` with an empty tips list and a non-empty disclaimer,
-  /// which §6.5 already defines as a valid composition — and which the surface
-  /// reads as "there is no coverage for this region". Reporting it as a
-  /// [ResearchFailure] would put a transport error in front of a user whose
-  /// device is working perfectly.
-  ///
-  /// `retrievedAt` is the moment the empty answer was produced, and
-  /// `corpusVersion` is null, which reads as unknown and therefore stale at the
-  /// next online check.
+  /// The service retains its successful composition contract, returning an
+  /// `insufficient_evidence` placeholder with model `corpus:none`. This answer
+  /// is not cacheable: the controller maps it to `corpusUnavailable` so the
+  /// surface can explain that this app version has no tips available.
+  /// `retrievedAt` is the moment the placeholder was produced.
   ManagementTipsResult _withoutCorpus(SiteKey site, LandUse? landUse) {
     return ManagementTipsResult(
       status: ManagementTipsStatus.insufficientEvidence,
