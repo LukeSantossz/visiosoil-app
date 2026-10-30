@@ -29,6 +29,7 @@ The controller recognizes a successful answer whose model is `corpus:none`, retu
 
 ## Acceptance Criteria
 
+- `auto_generation_restarts_for_a_new_record` in `test/features/details/management_tips_section_test.dart`: rebuilding the same section state with a different UUID and an empty cache triggers a second generation call.
 - `tips_appear_without_tapping_generate` in `test/features/details/management_tips_section_test.dart`: a classified record with no cache displays loading and then generated tips without a tap.
 - `auto_generation_fires_once_after_failure` in the same file: repeated rebuilds after failure do not generate again; the existing retry still works.
 - `auto_generation_fires_once_without_cached_result` in the same file: an attempt leaving the cache empty does not loop.
@@ -49,6 +50,7 @@ flutter analyze
 
 ## Risks and Assumptions
 
+- **A mounted section can receive a different record.** A UUID change resets the automatic-attempt guard and the previous error so the new record can generate tips.
 - **The no-corpus sentinel remains `corpus:none`.** A changed service sentinel would require updating the controller check.
 - **One automatic attempt belongs to one section state.** Opening a new section state may attempt generation again; failures in the current state require manual retry.
 - **Previously cached placeholders are outside scope.** This change prevents new no-corpus entries but does not migrate existing entries.

@@ -94,6 +94,32 @@ void main() {
     expect(service.calls, 1);
   });
 
+  testWidgets('auto_generation_restarts_for_a_new_record', (tester) async {
+    final repo = FakeManagementTipsRepository();
+    final service = okService();
+    final resolver = FakeSiteResolver(const SiteKey.unresolved());
+    Widget section(String uuid) => harness(
+      record: tipsRecord(uuid: uuid),
+      repo: repo,
+      service: service,
+      connectivity: ConnectivityStatus.online,
+      resolver: resolver,
+    );
+
+    await tester.pumpWidget(section('rec-1'));
+    await tester.pumpAndSettle();
+    final originalState = tester.state(find.byType(ManagementTipsSection));
+    expect(service.calls, 1);
+    expect(await repo.getByRecordUuid('rec-2'), isNull);
+
+    await tester.pumpWidget(section('rec-2'));
+    await tester.pumpAndSettle();
+
+    expect(tester.state(find.byType(ManagementTipsSection)), same(originalState));
+    expect(service.calls, 2);
+    expect(await repo.getByRecordUuid('rec-2'), isNotNull);
+  });
+
   testWidgets('auto_generation_fires_once_after_failure', (tester) async {
     final repo = FakeManagementTipsRepository();
     final service = FakeResearchService(
