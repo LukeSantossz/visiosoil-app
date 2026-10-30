@@ -6,30 +6,6 @@ import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/site_key.dart';
 import '../support/management_tips_fakes.dart';
 
-/// Returns a fixed key and records what it was asked to resolve.
-class FakeSiteResolver implements SiteResolver {
-  FakeSiteResolver(this.key);
-
-  final SiteKey key;
-  int calls = 0;
-  double? lastLatitude;
-  double? lastLongitude;
-  String? lastAddress;
-
-  @override
-  Future<SiteKey> resolve({
-    double? latitude,
-    double? longitude,
-    String? address,
-  }) async {
-    calls++;
-    lastLatitude = latitude;
-    lastLongitude = longitude;
-    lastAddress = address;
-    return key;
-  }
-}
-
 ManagementTipsController build({
   required FakeManagementTipsRepository repo,
   required FakeResearchService service,
@@ -43,6 +19,22 @@ ManagementTipsController build({
     );
 
 void main() {
+  test('no_corpus_result_is_not_upserted', () async {
+    final repo = FakeManagementTipsRepository();
+    final service = FakeResearchService(
+      (_) async => ResearchSuccess(noCorpusTips()),
+    );
+    final controller = build(repo: repo, service: service);
+
+    final failure = await controller.generate(tipsRecord());
+
+    // Compare the public enum name so RED needs no production enum change.
+    expect(failure?.name, 'corpusUnavailable');
+    expect(service.calls, 1);
+    expect(repo.upsertCount, 0);
+    expect(await repo.getByRecordUuid('rec-1'), isNull);
+  });
+
   test('generate success persists tips and returns null', () async {
     final repo = FakeManagementTipsRepository();
     final service =
