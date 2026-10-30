@@ -59,6 +59,15 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
 
   SoilRecord get _record => widget.record;
 
+  @override
+  void didUpdateWidget(covariant ManagementTipsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.record.uuid != widget.record.uuid) {
+      _autoGenerationAttempted = false;
+      _lastError = null;
+    }
+  }
+
   Future<void> _generate() async {
     final uuid = _record.uuid;
     if (uuid == null) return;
