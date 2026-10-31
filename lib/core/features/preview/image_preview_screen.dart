@@ -164,8 +164,8 @@ class _ImageViewer extends StatelessWidget {
 
 /// The rows PNG 19 lists, for the facts the app knows: a fact it does not
 /// know has no row (SPEC 0198), the shot's light, distance and focus are
-/// kept since SPEC 0240, and the accuracy and the address are left to the result's Detalhes tab
-/// (SPEC 0202). Each row is 56 dp, a 14 sp label in grey and a 15 sp value
+/// kept since SPEC 0240, and the accuracy and the address are left to the
+/// result's Detalhes tab (SPEC 0202). Each row is 56 dp, a 14 sp label in grey and a 15 sp value
 /// in white, over a #333 rule.
 class _RecordFacts extends StatelessWidget {
   const _RecordFacts({required this.record});
