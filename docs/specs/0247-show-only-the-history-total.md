@@ -19,7 +19,7 @@ The same three numbers appear on three screens.
 **Histórico shows one quiet line above the list, "N análises", in place of the three-cell strip. The week and the collection stay on Início, and Perfil keeps its sentence.**
 
 - The line counts every saved record, as the strip's first cell did, and takes the singular at one: `Formatters.count(n, 'análise', 'análises')`.
-- It is `bodySmall` in `textSecondary`, with no border, and keeps the key `history-summary`.
+- It is `bodySmall` in `onSurfaceVariant`, with no border, and keeps the key `history-summary`.
 - `_Summary` no longer reads the contract's classes, and `_SummaryCell` is removed.
 - The collection grid on Histórico's other segment is unchanged.
 
