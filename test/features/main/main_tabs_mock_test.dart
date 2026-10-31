@@ -365,7 +365,8 @@ void main() {
     );
   });
 
-  // SPEC 0205: the Dicas tab has its app bar, and back selects Início.
+  // SPEC 0205: the Dicas tab has its app bar. SPEC 0246: like the other
+  // tabs, it has no back arrow, and its title starts 16 dp in.
   testWidgets('tips_tab_has_an_app_bar', (tester) async {
     _phone(tester);
     final container = await _pump(tester, home: const MainScreen());
@@ -374,7 +375,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.widgetWithText(AppBar, 'Dicas de manejo'), findsOneWidget);
-    await tester.tap(find.byTooltip('Voltar'));
+    expect(find.byTooltip('Voltar'), findsNothing);
+    expect(tester.getTopLeft(find.text('Dicas de manejo')).dx, 16);
+  });
+
+  // SPEC 0246: the system back still selects Início from Dicas.
+  testWidgets('tips_tab_system_back_selects_home', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, home: const MainScreen());
+    container.read(mainTabIndexProvider.notifier).select(2);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.binding.handlePopRoute();
     await tester.pump();
     expect(container.read(mainTabIndexProvider), 0);
   });
