@@ -648,6 +648,23 @@ void main() {
       semantics.dispose();
     });
 
+    // SPEC 0245: the card shows the date as every screen writes it, and
+    // still speaks it without the dot.
+    testWidgets('grid_tile_shows_the_dotted_date', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final single = record(id: 1);
+      await tester.pumpWidget(gridWith([single]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(single.formattedTimestampDotted), findsOneWidget);
+      expect(find.text(single.formattedTimestampCompact), findsNothing);
+      expect(
+        find.bySemanticsLabel('Registro de ${single.formattedTimestampCompact}'),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
     testWidgets('no_notice_under_the_cap', (tester) async {
       await tester.pumpWidget(gridWith(records(150)));
       await tester.pumpAndSettle();

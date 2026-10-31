@@ -90,7 +90,7 @@ void main() {
           ),
         ),
       );
-      final date = find.text(record.formattedTimestampCompact);
+      final date = find.text(record.formattedTimestampDotted);
       final pill = find.byType(StatusPill);
       expect(pill, findsOneWidget);
       if (scenario.stacked) {
@@ -185,7 +185,7 @@ void main() {
       );
       for (final text in [
         record.displayTextureClass,
-        record.formattedTimestampCompact,
+        record.formattedTimestampDotted,
       ]) {
         final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
         expect(paragraph.didExceedMaxLines, isFalse, reason: text);

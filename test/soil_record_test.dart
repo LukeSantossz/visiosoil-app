@@ -6,6 +6,12 @@ void main() {
   group('SoilRecord', () {
     final ts = DateTime.utc(2026, 1, 1).toIso8601String();
 
+    // SPEC 0245: every screen writes the date and time one way.
+    test('dotted_timestamp_joins_date_and_time_with_a_dot', () {
+      const r = SoilRecord(imagePath: '/d.jpg', timestamp: '2026-04-01T14:30:00');
+      expect(r.formattedTimestampDotted, '01/04/2026 · 14:30');
+    });
+
     test('hasCoordinates is false when latitude or longitude is null', () {
       final a = SoilRecord(imagePath: '/a.jpg', timestamp: ts);
       final b = SoilRecord(
