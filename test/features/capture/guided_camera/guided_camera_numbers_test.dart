@@ -1,7 +1,9 @@
 // The quality chips' numbers: the ambient light sensor's lux beside the
-// light verdict, and the sheet's estimated distance (SPEC 0238).
+// light verdict, and the sheet's estimated distance (SPEC 0238), handed over
+// with the shot they were shown for (SPEC 0240).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
 
@@ -98,6 +100,31 @@ void main() {
     await readQuality(tester, h, good: true, cropped: true);
     expect(chipOf(tester, 'Distância').value, 'Ajuste a moldura');
     await backOut(tester);
+  });
+
+  testWidgets('shot_hands_over_the_shown_numbers', (tester) async {
+    final h = GuidedCameraHarness();
+    h.optics.optics = (focalLengthMm: 5.6, activeLongSideMm: 7.3);
+    await openGuidedCamera(tester, harness: h);
+    await readQuality(tester, h, good: true, reading: sheet);
+    h.light.controller.add(1480);
+    await tester.pump();
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+    final conditions = (h.popped.single! as GuidedCaptureCaptured).conditions;
+    expect(conditions.lux, 1480);
+    expect(conditions.distanceMm, closeTo(337, 1));
+    expect(conditions.sharp, isTrue);
+  });
+
+  testWidgets('shot_hands_over_null_without_numbers', (tester) async {
+    final h = await openGuidedCamera(tester);
+    await tester.tap(shutter);
+    await tester.pumpAndSettle();
+    final conditions = (h.popped.single! as GuidedCaptureCaptured).conditions;
+    expect(conditions.lux, isNull);
+    expect(conditions.distanceMm, isNull);
+    expect(conditions.sharp, isNull);
   });
 
   testWidgets('optics_are_read_for_each_camera', (tester) async {

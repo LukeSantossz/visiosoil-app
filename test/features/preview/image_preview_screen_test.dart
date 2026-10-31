@@ -233,6 +233,45 @@ void main() {
     expect(find.text('Coordenadas'), findsNothing);
   });
 
+  // The shot's light, distance and focus, kept since SPEC 0240.
+  testWidgets('shows_the_capture_row_with_every_value', (tester) async {
+    await pumpFacts(
+      tester,
+      classified().copyWith(
+        captureLux: 1483,
+        captureDistanceMm: 339,
+        captureSharp: true,
+      ),
+    );
+
+    expect(find.text('Captura'), findsOneWidget);
+    expect(find.text('1.480 lx · ≈ 34 cm · nítido'), findsOneWidget);
+    final top = tester.getTopLeft(find.text('Captura')).dy;
+    expect(tester.getTopLeft(find.text('Coordenadas')).dy, lessThan(top));
+    expect(tester.getTopLeft(find.text('Modelo')).dy, greaterThan(top));
+  });
+
+  // The record is built inside the test, once setUp has made the photograph.
+  for (final (name, shown, value)
+      in <(String, SoilRecord Function(SoilRecord), String)>[
+    ('distance', (r) => r.copyWith(captureDistanceMm: 339), '≈ 34 cm'),
+    ('lux', (r) => r.copyWith(captureLux: 87.4), '87 lx'),
+    ('focus', (r) => r.copyWith(captureSharp: false), 'desfocado'),
+  ]) {
+    testWidgets('shows_the_capture_row_with_what_it_has_$name',
+        (tester) async {
+      await pumpFacts(tester, shown(classified()));
+
+      expect(find.text('Captura'), findsOneWidget);
+      expect(find.text(value), findsOneWidget);
+    });
+  }
+
+  testWidgets('hides_the_capture_row_without_values', (tester) async {
+    await pumpFacts(tester, classified());
+    expect(find.text('Captura'), findsNothing);
+  });
+
   testWidgets('photo_screen_shares_and_deletes', (tester) async {
     await tester.binding.setSurfaceSize(const Size(420, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
