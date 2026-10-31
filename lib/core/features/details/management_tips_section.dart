@@ -9,6 +9,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
@@ -835,7 +836,14 @@ class _RecordHeader extends StatelessWidget {
     final palette = context.palette;
     // The sample alone; the field label is not shown (SPEC 0220).
     final labels = record.labelsSummary;
-    final placeholder = ColoredBox(color: palette.surfaceContainerHigh);
+    // The history tile's placeholder, in the class's colour (SPEC 0242).
+    final textureColor = SoilTextureColors.forClass(record.textureClass!);
+    final placeholder = ColoredBox(
+      color: textureColor.withValues(alpha: 0.3),
+      child: Center(
+        child: Icon(Icons.landscape, color: textureColor, size: 56 * 0.45),
+      ),
+    );
     return Row(
       children: [
         ClipRRect(
