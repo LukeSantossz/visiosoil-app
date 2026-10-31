@@ -40,6 +40,13 @@ agronomist's judgement and without B4's human review, by the Developer's
 decision of 2026-10-28, and the land-use and unit cells are out of scope. The
 implementation map records the runs and that decision.
 
+**Every texture class now has a generic cell** (SPEC 0234): `<class>|generic`,
+built from its own manifest of at least fifteen trusted passages, which is what
+a record composes when no family cell holds tips for it. A family cell is built
+only where a manifest for it exists in `corpus/sources/`, and today that is
+`Argilosa|tb_oxidic`. The eight family cells that abstained in `2026.10.28.1`
+left the corpus.
+
 ## Running the tests
 
 ```bash
@@ -53,8 +60,11 @@ python -m pytest tests/ -q      # no model, no network
 ```bash
 ollama serve                    # if not already running
 ollama pull qwen2.5:7b
-python -m src.probe --cell "Argilosa|tb_oxidic"
+python -m src.probe --cell "Arenosa|generic"
 ```
+
+The probe reads the manifest of its cell, `corpus/sources/<key>.manifest.json`
+with `|` written `__` and a space written `-`, unless `--manifest` names another.
 
 Output lands in `corpus/out/`, which is git-ignored. It reaches
 `assets/corpus/`, where the app loads guidance from, only through the release.
@@ -63,10 +73,11 @@ Output lands in `corpus/out/`, which is git-ignored. It reaches
 
 ```bash
 python -m src.build_grids                          # the two IBGE lattices, in out/
-python -m src.release --cells out/ --grids out/ --version 2026.10.28
+python -m src.release --cells out/ --grids out/ --version 2026.10.31.1
 ```
 
-The release reads the twelve substance cells by their run manifests' keys and
+The release expects a generic cell per texture class and a family cell for each
+family manifest in `corpus/sources/`, reads them by their run manifests' keys and
 refuses, naming the cause, a missing or extra key, a key two manifests name,
 cells from two models or two sets of prompt versions, a cell the app's reader
 would reject, or a grid of the wrong magic, kind or lattice. Nothing is written
