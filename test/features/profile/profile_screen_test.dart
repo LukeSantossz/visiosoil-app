@@ -224,6 +224,22 @@ void main() {
     expect(cell.value, '2');
   });
 
+  // Linking copies nothing while no sync backend is wired (SPEC 0241).
+  testWidgets('signed_out_card_says_the_analyses_stay_on_the_device', (
+    tester,
+  ) async {
+    await pumpProfile(tester, const []);
+
+    expect(
+      find.text(
+        'Suas análises ficam só neste aparelho. '
+        'A cópia na conta Google ainda não está disponível.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sincroniz'), findsNothing);
+  });
+
   testWidgets('profile_links_use_the_settings_row', (tester) async {
     await pumpProfile(tester, const []);
 

@@ -97,7 +97,7 @@ Future<void> _pumpOnboarding(WidgetTester tester) async {
 
 /// The four steps' titles, in order, and the action that leaves each.
 const _steps = [
-  ('Vincular conta para salvar e sincronizar suas análises', 'Agora não'),
+  ('Vincular sua conta Google', 'Agora não'),
   ('Fotografe a amostra de solo', 'Continuar'),
   ('Veja a classe textural estimada', 'Continuar'),
   ('Permita o acesso à câmera', null),
