@@ -175,10 +175,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverToBoxAdapter(
-                  child: _Summary(
-                    records: records,
-                    classes: ref.watch(contractClassesProvider).value,
-                  ),
+                  child: _Summary(count: records.length),
                 ),
               ),
               if (visible.length > _shown)
@@ -345,130 +342,19 @@ String _dateHeading(String timestamp) {
   return '${date.day} ${months[date.month - 1]}${date.year == now.year ? '' : ' ${date.year}'}';
 }
 
+/// The total of saved analyses, one quiet line above the list. The week and
+/// the collection stay on Início (SPEC 0247, in place of PNG 16's strip).
 class _Summary extends StatelessWidget {
-  const _Summary({required this.records, required this.classes});
-  final List<SoilRecord> records;
+  const _Summary({required this.count});
+  final int count;
 
-  /// The contract's classes, null while unknown (SPEC 0223).
-  final List<String>? classes;
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final monday = today.subtract(Duration(days: now.weekday - 1));
-    final week = records.where((r) {
-      final date = DateTime.tryParse(r.timestamp)?.toLocal();
-      return date != null && !date.isBefore(monday) && !date.isAfter(now);
-    }).length;
-    final total = classes;
-    final earned = total == null
-        ? null
-        : records
-              .where((r) => r.hasClassification)
-              .map((r) => r.textureClass)
-              .toSet()
-              .intersection(total.toSet())
-              .length;
-    final cells = [
-      ('${records.length}', 'análises', null),
-      (
-        '$week',
-        'nesta semana',
-        '${Formatters.count(week, 'análise', 'análises')} nesta semana',
-      ),
-      (
-        earned == null ? '—' : '$earned/${total!.length}',
-        'classes',
-        earned == null
-            ? null
-            : '$earned de ${total!.length} classes na coleção',
-      ),
-    ];
-    final stacked = MediaQuery.textScalerOf(context).scale(1) >= 1.3;
-    final rule = BorderSide(
-      color: context.palette.divider,
-      width: context.palette.edgeWidth,
-    );
-    // One bordered strip split in three (PNG 16, SPEC 0203); a column of
-    // cells from 1.3x text.
-    return Container(
+    return Text(
+      Formatters.count(count, 'análise', 'análises'),
       key: const Key('history-summary'),
-      decoration: BoxDecoration(
-        border: Border.fromBorderSide(rule),
-        borderRadius: AppRadius.borderRadiusMd,
-      ),
-      child: IntrinsicHeight(
-        child: Flex(
-          direction: stacked ? Axis.vertical : Axis.horizontal,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < cells.length; i++)
-              Flexible(
-                fit: FlexFit.tight,
-                flex: stacked ? 0 : 1,
-                child: Container(
-                  decoration: i == 0
-                      ? null
-                      : BoxDecoration(
-                          border: stacked
-                              ? Border(top: rule)
-                              : Border(left: rule),
-                        ),
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: _SummaryCell(
-                    value: cells[i].$1,
-                    label: cells[i].$2,
-                    semanticLabel: cells[i].$3,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCell extends StatelessWidget {
-  const _SummaryCell({
-    required this.value,
-    required this.label,
-    this.semanticLabel,
-  });
-
-  final String value;
-  final String label;
-  final String? semanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // The value 20 sp weight 600, the label 12 sp in textTertiary.
-    return Semantics(
-      label: semanticLabel ?? '$value $label',
-      child: ExcludeSemantics(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: AppTypography.tabular(
-                theme.textTheme.titleLarge!.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: context.palette.textTertiary,
-              ),
-            ),
-          ],
-        ),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: context.palette.onSurfaceVariant,
       ),
     );
   }
