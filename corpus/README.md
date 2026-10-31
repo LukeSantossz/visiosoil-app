@@ -34,7 +34,7 @@ PDF, a manifest entry names the pages of its passage, a passage longer than the
 model reads is refused rather than cut, and every request pins its context. The
 manifest holds three Embrapa passages.
 
-**The twelve substance cells are built and released** (SPEC 0227): the four
+**The twelve substance cells were built and released** (SPEC 0227): the four
 texture classes by the three clay-activity families. They ship without the
 agronomist's judgement and without B4's human review, by the Developer's
 decision of 2026-10-28, and the land-use and unit cells are out of scope. The
