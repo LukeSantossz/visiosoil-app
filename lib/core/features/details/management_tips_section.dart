@@ -870,7 +870,7 @@ class _RecordHeader extends StatelessWidget {
                 ).copyWith(fontWeight: FontWeight.w500),
               ),
               Text(
-                labels.isEmpty ? record.formattedTimestampCompact : labels,
+                labels.isEmpty ? record.formattedTimestampDotted : labels,
                 style: AppTypography.resized(
                   theme.textTheme.bodyMedium!,
                   15,
