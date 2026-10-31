@@ -161,17 +161,6 @@ void main() {
       expect(cell.value, '2/4');
       expect(cell.semanticLabel, '2 de 4 classes na coleção');
     });
-
-    testWidgets('history summary', (tester) async {
-      await _pumpHistory(tester, _mixed);
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('history-summary')),
-          matching: find.text('2/4'),
-        ),
-        findsOneWidget,
-      );
-    });
   });
 
   testWidgets('collection_ignores_names_outside_the_contract', (tester) async {
@@ -230,18 +219,6 @@ void main() {
       expect(_collectionCell(tester).value, '—');
       expect(tester.takeException(), isNull);
     });
-
-    testWidgets('history summary', (tester) async {
-      await _pumpHistory(tester, _mixed, fail: true);
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('history-summary')),
-          matching: find.text('—'),
-        ),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    });
   });
 
   group('counts_take_the_singular_at_one', () {
@@ -288,6 +265,14 @@ void main() {
         expect(find.text(text), findsOneWidget);
       });
     }
+
+    testWidgets('history summary', (tester) async {
+      await _pumpHistory(tester, [_record(1, 'Argilosa')]);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('history-summary'))).data,
+        '1 análise',
+      );
+    });
 
     testWidgets('weekly semantics', (tester) async {
       await _pumpStats(tester, [_record(1, 'Argilosa')]);
