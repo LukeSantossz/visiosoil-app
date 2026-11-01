@@ -142,8 +142,9 @@ class ProfileScreen extends ConsumerWidget {
                       ] else ...[
                         // PNG 22: a rule 16 dp under the header, then the
                         // sync row. The sync foundation has no remote backend
-                        // yet (ADR 0022), so the row says where the data is,
-                        // and its action says why it cannot sync.
+                        // yet (ADR 0022), so the row says where the data is
+                        // and offers no action until one is wired (SPEC 0236).
+                        // The row keeps the 48 dp its action gives it.
                         const SizedBox(height: 2),
                         Divider(
                           key: const Key('account-sync-rule'),
@@ -152,55 +153,62 @@ class ProfileScreen extends ConsumerWidget {
                           color: context.palette.divider,
                         ),
                         const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(
-                              LucideIcons.cloud,
-                              size: 20,
-                              color: context.palette.primaryText,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                'Dados só neste aparelho',
-                                style:
-                                    AppTypography.resized(
-                                      theme.textTheme.bodyMedium!,
-                                      14,
-                                      height: 20 / 14,
-                                    ).copyWith(
-                                      color: context.palette.onSurfaceVariant,
-                                    ),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: Row(
+                            children: [
+                              Icon(
+                                LucideIcons.cloud,
+                                size: 20,
+                                color: context.palette.primaryText,
                               ),
-                            ),
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(48, 48),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xs,
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  'Dados só neste aparelho',
+                                  style:
+                                      AppTypography.resized(
+                                        theme.textTheme.bodyMedium!,
+                                        14,
+                                        height: 20 / 14,
+                                      ).copyWith(
+                                        color: context.palette.onSurfaceVariant,
+                                      ),
                                 ),
                               ),
-                              onPressed: () =>
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        AppStrings.syncNotAvailable,
-                                      ),
+                              if (syncBackendWired)
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    minimumSize: const Size(48, 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.xs,
                                     ),
                                   ),
-                              child: Text(
-                                'Sincronizar',
-                                style: AppTypography.weighted(
-                                  AppTypography.resized(
-                                    theme.textTheme.labelLarge!,
-                                    14,
-                                    height: 20 / 14,
+                                  onPressed: () => ScaffoldMessenger.of(context)
+                                      .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            AppStrings.syncNotAvailable,
+                                          ),
+                                        ),
+                                      ),
+                                  child: Text(
+                                    'Sincronizar',
+                                    style:
+                                        AppTypography.weighted(
+                                          AppTypography.resized(
+                                            theme.textTheme.labelLarge!,
+                                            14,
+                                            height: 20 / 14,
+                                          ),
+                                          600,
+                                        ).copyWith(
+                                          color: context.palette.primaryText,
+                                        ),
                                   ),
-                                  600,
-                                ).copyWith(color: context.palette.primaryText),
-                              ),
-                            ),
-                          ],
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
