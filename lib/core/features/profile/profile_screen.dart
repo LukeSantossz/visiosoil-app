@@ -97,8 +97,12 @@ class ProfileScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (account == null) ...[
+                        // Linking copies nothing until a backend is wired
+                        // (SPEC 0241).
                         Text(
-                          'Vincule uma conta para salvar e sincronizar suas análises. Se trocar ou perder o aparelho, elas não se perdem.',
+                          syncBackendWired
+                              ? 'Vincule uma conta para salvar e sincronizar suas análises. Se trocar ou perder o aparelho, elas não se perdem.'
+                              : 'Suas análises ficam só neste aparelho. A cópia na conta Google ainda não está disponível.',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: context.palette.onSurfaceVariant,
                           ),
