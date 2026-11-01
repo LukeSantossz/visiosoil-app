@@ -1198,6 +1198,38 @@ def test_a_retry_is_told_its_tip_was_not_supported():
     ]
 
 
+def test_default_attempt_limit_is_three():
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    directional = "Em solo argiloso, o nível crítico é menor."
+    client = SequencedClient(
+        [generation_with(numeric), generation_with(numeric), generation_with(directional)],
+        grounded=[True],
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client)
+
+    assert outcome.cell["status"] == "grounded"
+    assert outcome.attempts == 3
+    assert client.told[0] == []
+    assert client.told[1] == client.told[2]
+    assert client.told[2][0].startswith(f'"{numeric}": ')
+
+
+def test_explicit_attempt_limit_is_preserved():
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    directional = "Em solo argiloso, o nível crítico é menor."
+    client = SequencedClient(
+        [generation_with(numeric), generation_with(numeric), generation_with(directional)],
+        grounded=[True],
+    )
+
+    outcome = build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.attempts == 2
+    assert len(client.told) == 2
+
+
 def test_a_retry_names_only_the_refused_tips():
     """Grounding is not asked once a tip is refused, so the clean tip was never
     checked and is not reported as lost."""

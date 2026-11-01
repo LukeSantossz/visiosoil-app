@@ -273,14 +273,14 @@ def build_cell(
     sources: list[FetchedSource],
     *,
     client: LLMClient,
-    max_attempts: int = 2,
+    max_attempts: int = 3,
     now: datetime | None = None,
 ) -> BuildOutcome:
     """Builds the cell for [key] from [sources].
 
-    [max_attempts] bounds each batch's generate-and-check loop. A cell no batch
-    grounds abstains, which is an answer the composition rule already defines
-    rather than a failure.
+    [max_attempts] bounds each batch's generate-and-check loop to three
+    attempts by default. A cell no batch grounds abstains, which is an answer
+    the composition rule already defines rather than a failure.
     """
     built_at = now or datetime.now(timezone.utc)
     accessed_at = built_at.isoformat().replace("+00:00", "Z")
