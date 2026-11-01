@@ -58,6 +58,8 @@ class ScriptedClient:
         self.calls = []
         self.questions = []
         self.topics = []
+        # What each generate call was told the last attempt lost (SPEC 0237).
+        self.told = []
 
     def transform_query(self, question, *, topic):
         self.calls.append("transform")
@@ -70,8 +72,9 @@ class ScriptedClient:
         grade = self.grades.get(document.url, True)
         return grade(query) if callable(grade) else grade
 
-    def generate_cell(self, question, documents):
+    def generate_cell(self, question, documents, rejected=()):
         self.calls.append("generate")
+        self.told.append(list(rejected))
         self.questions.append(("generate", question))
         if self.generation is not None:
             return self.generation
@@ -461,8 +464,9 @@ class SequencedClient(ScriptedClient):
         super().__init__(**kwargs)
         self.generations = list(generations)
 
-    def generate_cell(self, question, documents):
+    def generate_cell(self, question, documents, rejected=()):
         self.calls.append("generate")
+        self.told.append(list(rejected))
         return self.generations.pop(0)
 
 
@@ -684,6 +688,7 @@ def test_each_grounding_call_is_recorded_with_its_attempt():
 
     assert outcome.groundings == [
         {
+            "batch": 1,
             "attempt": 1,
             "tip": "Uma dica.",
             "supported": False,
@@ -692,6 +697,7 @@ def test_each_grounding_call_is_recorded_with_its_attempt():
             "kind": "nao_significa",
         },
         {
+            "batch": 1,
             "attempt": 2,
             "tip": "Uma dica.",
             "supported": True,
@@ -1030,3 +1036,219 @@ def test_the_run_manifest_records_each_tips_kind():
         "nao_significa",
         "leitura_do_laudo",
     ]
+
+
+# --- Kept documents are generated in batches (SPEC 0234 amendment) -------------
+
+
+class BatchClient(ScriptedClient):
+    """A client that records each batch it is asked to generate from, and
+    answers each batch through [generate], a function of the batch's documents."""
+
+    def __init__(self, generate=None, **kwargs):
+        super().__init__(**kwargs)
+        self.batches = []
+        self.evidence = []
+        self._generate = generate
+
+    def generate_cell(self, question, documents, rejected=()):
+        self.batches.append([document.url for document in documents])
+        if self._generate is not None:
+            self.calls.append("generate")
+            self.told.append(list(rejected))
+            return self._generate(documents)
+        return super().generate_cell(question, documents, rejected)
+
+    def ground(self, tip_text, cited_texts):
+        self.evidence.append(cited_texts)
+        return super().ground(tip_text, cited_texts)
+
+
+def one_tip_per_batch(documents):
+    """A batch's tip, citing its first document and named after it by letter,
+    since a digit would be refused as a number."""
+    letter = "ABCDEFGHI"[int(documents[0].url.rsplit("/", 1)[1])]
+    return generation_with(f"Dica da fonte {letter}.")
+
+
+def test_a_batch_fits_the_prompt_ceiling():
+    from src.llm import PROMPT_CHAR_CEILING, load_prompt
+    from src.pipeline import GENERATE_BATCH_SIZE
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    template, _ = load_prompt("generate")
+    question = describe_key("Muito Argilosa|generic")
+    # A title is a manifest field without a cap; 300 characters is above every
+    # title the manifests hold.
+    rendered = "\n\n".join(
+        f"[{index}] {'t' * 300}\n{'x' * PASSAGE_CHAR_LIMIT}"
+        for index in range(GENERATE_BATCH_SIZE)
+    )
+    prompt = template.replace("{{question}}", question).replace(
+        "{{documents}}", rendered
+    )
+
+    assert len(prompt) <= PROMPT_CHAR_CEILING
+
+
+def test_kept_documents_are_generated_in_batches():
+    client = BatchClient()
+
+    build_cell(QUESTION, [source(i) for i in range(9)], client=client)
+
+    assert [len(batch) for batch in client.batches] == [4, 4, 1]
+    assert client.batches[1][0] == "https://example.org/4"
+
+
+def test_a_batch_citation_maps_to_the_cell_source_array():
+    client = BatchClient(generate=one_tip_per_batch)
+
+    outcome = build_cell(QUESTION, [source(i) for i in range(6)], client=client)
+
+    assert [tip["citations"] for tip in outcome.cell["tips"]] == [[0], [4]]
+    assert len(outcome.cell["sources"]) == 6
+
+
+def test_a_tip_is_grounded_against_its_own_batch():
+    client = BatchClient(generate=one_tip_per_batch)
+
+    build_cell(QUESTION, [source(i) for i in range(6)], client=client)
+
+    assert client.evidence == [["Conteúdo da fonte 0."], ["Conteúdo da fonte 4."]]
+
+
+def test_a_failed_batch_does_not_sink_the_others():
+    # The first batch fails both its attempts; the second grounds at once.
+    client = BatchClient(generate=one_tip_per_batch, grounded=[False, False, True])
+
+    outcome = build_cell(
+        QUESTION, [source(i) for i in range(6)], client=client, max_attempts=2
+    )
+
+    assert outcome.cell["status"] == "grounded"
+    assert [tip["text"] for tip in outcome.cell["tips"]] == ["Dica da fonte E."]
+    assert outcome.attempts == 3
+    assert [(g["batch"], g["attempt"]) for g in outcome.groundings] == [
+        (1, 1),
+        (1, 2),
+        (2, 1),
+    ]
+
+
+def test_a_repeated_tip_is_kept_once():
+    texts = iter(["Uma  dica repetida.", "uma dica Repetida."])
+    client = BatchClient(generate=lambda documents: generation_with(next(texts)))
+
+    outcome = build_cell(QUESTION, [source(i) for i in range(6)], client=client)
+
+    assert [tip["text"] for tip in outcome.cell["tips"]] == ["Uma  dica repetida."]
+
+
+def test_every_batch_failing_abstains():
+    client = BatchClient(generate=one_tip_per_batch, grounded=[False] * 4)
+
+    outcome = build_cell(
+        QUESTION, [source(i) for i in range(6)], client=client, max_attempts=2
+    )
+
+    assert outcome.cell["status"] == "abstained"
+    assert outcome.cell["tips"] == []
+    assert len(outcome.cell["sources"]) == 6
+    assert outcome.attempts == 4
+
+
+# --- A retry is told why its tips were refused (SPEC 0237) ---------------------
+
+
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        (
+            "Em solo argiloso, o nível crítico é 18 mg dm-3.",
+            "traz um número; escreva a direção que os números mostram, sem números",
+        ),
+        (
+            "O documento [0] menciona a argila.",
+            "cita um documento no texto; cite só no campo citations, pelos índices",
+        ),
+        (
+            "O solo arenoso não necessariamente significa baixo teor de argila.",
+            "nega o teor de argila que a própria classe afirma, o que é falso",
+        ),
+    ],
+)
+def test_a_retry_is_told_why_its_tip_was_refused(text, reason):
+    """Under temperature 0 and a fixed seed, an untold retry sends the same
+    prompt and gets the same answer; the reason is what changes it."""
+    client = ScriptedClient(generation=generation_with(text))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told == [[], [f'"{text}": {reason}']]
+
+
+def test_a_retry_is_told_its_tip_was_not_supported():
+    client = ScriptedClient(generation=generation_with("Uma dica."), grounded=[False, True])
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told == [
+        [],
+        ['"Uma dica.": os documentos citados não sustentam esta dica'],
+    ]
+
+
+def test_a_retry_names_only_the_refused_tips():
+    """Grounding is not asked once a tip is refused, so the clean tip was never
+    checked and is not reported as lost."""
+    numeric = "Em solo argiloso, o nível crítico é 18 mg dm-3."
+    client = ScriptedClient(generation=generation_with(numeric, "Uma dica."))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert len(client.told[1]) == 1
+    assert client.told[1][0].startswith(f'"{numeric}"')
+
+
+def test_a_long_refused_tip_is_cut_in_its_line():
+    text = "Em solo argiloso, o nível crítico é 18 mg dm-3. " + "a" * 352
+    assert len(text) == 400
+    client = ScriptedClient(generation=generation_with(text))
+
+    build_cell(QUESTION, [source(0)], client=client, max_attempts=2)
+
+    assert client.told[1][0].startswith(f'"{text[:300]}": ')
+
+
+def test_each_batch_starts_untold():
+    client = BatchClient(generate=one_tip_per_batch, grounded=[False, False, True])
+
+    build_cell(QUESTION, [source(i) for i in range(6)], client=client, max_attempts=2)
+
+    assert client.told[0] == []
+    assert client.told[1] != []
+    assert client.told[2] == []
+
+
+def test_a_told_batch_fits_the_prompt_ceiling():
+    from src.llm import PROMPT_CHAR_CEILING, load_prompt, rejected_block
+    from src.pipeline import GENERATE_BATCH_SIZE, REFUSAL_REASONS, REJECTED_TIP_CHAR_LIMIT
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    template, _ = load_prompt("generate")
+    longest = max(REFUSAL_REASONS.values(), key=len)
+    lines = [
+        f'"{"t" * REJECTED_TIP_CHAR_LIMIT}": {longest}'
+        for _ in range(GENERATE_BATCH_SIZE)
+    ]
+    rendered = "\n\n".join(
+        f"[{index}] {'t' * 300}\n{'x' * PASSAGE_CHAR_LIMIT}"
+        for index in range(GENERATE_BATCH_SIZE)
+    )
+    prompt = (
+        template.replace("{{question}}", describe_key("Muito Argilosa|generic"))
+        .replace("{{documents}}", rendered)
+        .replace("{{rejected}}", rejected_block(lines))
+    )
+
+    assert len(prompt) <= PROMPT_CHAR_CEILING

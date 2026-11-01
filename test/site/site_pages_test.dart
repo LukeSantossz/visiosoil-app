@@ -19,6 +19,14 @@ void main() {
   final mailto = RegExp(r'mailto:([^"?\s]+@[^"?\s]+\.[A-Za-z]{2,})');
 
   group('privacy policy', () {
+    test('policy_names_the_true_class', () {
+      expect(policy, contains('classe real'));
+      expect(
+        policy,
+        isNot(contains('o nome do talhão e a identificação da amostra')),
+      );
+    });
+
     test('policy_names_the_controller_and_the_contact', () {
       expect(policy, contains('Lucas Gonçalves'));
       expect(

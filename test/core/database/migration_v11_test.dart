@@ -39,13 +39,6 @@ void main() {
         )
         .getSingle();
 
-    test('schema_version_is_eleven', () {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-
-      expect(db.schemaVersion, 11);
-    });
-
     test('migration_v11_adds_the_true_class', () async {
       final db = AppDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
@@ -63,7 +56,7 @@ void main() {
       expect(plain.read<String?>('classification_failure'), isNull);
 
       final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 11);
+      expect(version.read<int>('user_version'), db.schemaVersion);
     });
 
     test('migration_v11_backfills_a_class_from_the_labels', () async {

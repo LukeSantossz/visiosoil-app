@@ -87,6 +87,32 @@ SoilRecord record({int id = 1, String textureClass = 'Argilosa'}) => SoilRecord(
 
 void main() {
   group('HistoryFilterBar', () {
+    testWidgets('search_hint_names_only_what_search_matches', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            soilRecordsStreamProvider.overrideWithValue(
+              AsyncValue<List<SoilRecord>>.data([record()]),
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: HistoryFilterBar(
+                searchController: TextEditingController(),
+                onSearchChanged: (_) {},
+                onClearSearch: () {},
+                onSelectTexture: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Buscar por endereço ou amostra...'), findsOneWidget);
+      expect(find.textContaining('talhão'), findsNothing);
+    });
+
     testWidgets('renders the search field and a chip per available class',
         (tester) async {
       await tester.pumpWidget(ProviderScope(

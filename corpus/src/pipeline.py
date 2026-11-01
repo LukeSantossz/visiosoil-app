@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Protocol
+from typing import Any, Protocol, Sequence
 
 from src.cell import (
     CellValidationError,
@@ -82,6 +82,12 @@ own grading is true by construction."""
 OLD_SOURCE_YEARS = 10
 """A source more than this many years older than the build has its age
 surfaced in `limitations` (research-agent.md §8.3, SPEC 0225)."""
+
+
+GENERATE_BATCH_SIZE = 4
+"""How many kept documents one generate call reads. Four passages at
+`PASSAGE_CHAR_LIMIT`, with their titles and the prompt, fit under
+`PROMPT_CHAR_CEILING`; five do not (SPEC 0234 amendment)."""
 
 
 CORRECTION_KIND = "nao_significa"
@@ -178,12 +184,36 @@ def denies_its_class_clay(text: str) -> bool:
 def _refusal(text: str) -> str | None:
     """The cause a tip is refused for before grounding is asked, or None."""
     if cites_a_document_index(text):
-        return f"cites a document by its index: {text}"
+        return "cites a document by its index"
     if states_a_number(text):
-        return f"states a number: {text}"
+        return "states a number"
     if denies_its_class_clay(text):
-        return f"denies the clay content its class states: {text}"
+        return "denies the clay content its class states"
     return None
+
+
+REFUSAL_REASONS = {
+    "states a number": (
+        "traz um número; escreva a direção que os números mostram, sem números"
+    ),
+    "cites a document by its index": (
+        "cita um documento no texto; cite só no campo citations, pelos índices"
+    ),
+    "denies the clay content its class states": (
+        "nega o teor de argila que a própria classe afirma, o que é falso"
+    ),
+}
+"""What a retry is told for each refusal cause, in the prompt's language."""
+
+UNSUPPORTED_REASON = "os documentos citados não sustentam esta dica"
+
+REJECTED_TIP_CHAR_LIMIT = 300
+"""A refused tip is cut to this in its line, so a retry's prompt cannot pass
+`PROMPT_CHAR_CEILING` whatever the model wrote."""
+
+
+def _told(text: str, reason: str) -> str:
+    return f'"{text[:REJECTED_TIP_CHAR_LIMIT]}": {reason}'
 
 
 class LLMClient(Protocol):
@@ -199,7 +229,10 @@ class LLMClient(Protocol):
     def grade_document(self, query: str, document: FetchedSource) -> bool: ...
 
     def generate_cell(
-        self, question: str, documents: list[FetchedSource]
+        self,
+        question: str,
+        documents: list[FetchedSource],
+        rejected: Sequence[str] = (),
     ) -> dict[str, Any]: ...
 
     def ground(self, tip_text: str, cited_texts: list[str]) -> "Grounding": ...
@@ -245,9 +278,9 @@ def build_cell(
 ) -> BuildOutcome:
     """Builds the cell for [key] from [sources].
 
-    [max_attempts] bounds the generate-and-check loop, so a model that will not
-    ground cannot make the build spin. Exhausting it abstains, which is an answer
-    the composition rule already defines rather than a failure.
+    [max_attempts] bounds each batch's generate-and-check loop. A cell no batch
+    grounds abstains, which is an answer the composition rule already defines
+    rather than a failure.
     """
     built_at = now or datetime.now(timezone.utc)
     accessed_at = built_at.isoformat().replace("+00:00", "Z")
@@ -297,39 +330,122 @@ def build_cell(
     source_array = [source_payload(s, accessed_at=accessed_at) for s in kept]
     rejections: list[str] = []
     groundings: list[dict[str, Any]] = []
+    tips: list[dict[str, Any]] = []
+    kinds: list[str] = []
+    seen: set[str] = set()
+    attempts = 0
 
+    # Fifteen passages do not fit one prompt, so each batch is generated and
+    # checked on its own, and a batch that will not ground drops only its own
+    # tips (SPEC 0234 amendment).
+    for number, offset in enumerate(range(0, len(kept), GENERATE_BATCH_SIZE), 1):
+        batch = kept[offset : offset + GENERATE_BATCH_SIZE]
+        passed, used = _build_batch(
+            question,
+            batch,
+            number=number,
+            client=client,
+            max_attempts=max_attempts,
+            rejections=rejections,
+            groundings=groundings,
+        )
+        attempts += used
+        for tip, kind in passed:
+            # Only a verbatim repeat is caught; one said in other words is left
+            # to the hardening spec.
+            text = " ".join(tip["text"].casefold().split())
+            if text in seen:
+                continue
+            seen.add(text)
+            tips.append({**tip, "citations": [offset + i for i in tip["citations"]]})
+            kinds.append(kind)
+
+    if not tips:
+        # No batch grounded within the bound. Abstaining is honest; shipping a
+        # last attempt would publish a claim the grounding check rejected.
+        return BuildOutcome(
+            key=key,
+            queries=queries,
+            kept=kept,
+            cell=_abstention(sources=source_array, limitations=[]),
+            attempts=attempts,
+            rejections=rejections,
+            groundings=groundings,
+            coverage=coverage,
+        )
+
+    # Left out when coverage already says no source treats what the class
+    # implies, so the reader is not told the same gap twice (SPEC 0226).
+    missing_correction = (
+        [NO_CORRECTION_LIMITATION]
+        if CORRECTION_KIND not in kinds and coverage[_IMPLIES_TOPIC]
+        else []
+    )
+    cell = build_cell_payload(
+        status="grounded",
+        # Not the model's disclaimer: see SUBSTANCE_DISCLAIMER.
+        disclaimer=SUBSTANCE_DISCLAIMER,
+        tips=tips,
+        sources=source_array,
+        # Derived from coverage, never the model's (SPEC 0162).
+        limitations=limitations + missing_correction,
+    )
+    validate_cell(cell, source_count=len(source_array))
+    return BuildOutcome(
+        key=key,
+        queries=queries,
+        kept=kept,
+        cell=cell,
+        attempts=attempts,
+        rejections=rejections,
+        groundings=groundings,
+        coverage=coverage,
+    )
+
+
+def _build_batch(
+    question: str,
+    batch: list[FetchedSource],
+    *,
+    number: int,
+    client: LLMClient,
+    max_attempts: int,
+    rejections: list[str],
+    groundings: list[dict[str, Any]],
+) -> tuple[list[tuple[dict[str, Any], str]], int]:
+    """Generates and checks one batch, returning its tips with their kinds, cited
+    by index into [batch], and the generate calls it took.
+
+    [max_attempts] bounds the loop, so a model that will not ground cannot make
+    the build spin. Exhausting it returns no tips; so does a batch the model
+    abstains on, which is not retried.
+    """
+    # Under temperature 0 and a fixed seed, a retry differs from the attempt
+    # before it only by being told what that attempt lost and why (SPEC 0237).
+    told: list[str] = []
     for attempt in range(1, max_attempts + 1):
-        generated = client.generate_cell(question, kept)
+        generated = client.generate_cell(question, batch, told)
+        told = []
         # Checked **before** normalising, because a default applied to a missing
         # field hides the fact that the model did not produce it: a missing
         # `status` became "grounded" and missing `tips` became `[]`, so
         # malformed output composed into a grounded cell carrying no guidance.
         _require_generated_shape(generated)
         kinds = [_kind(tip) for tip in generated["tips"]]
-        # Left out when coverage already says no source treats what the class
-        # implies, so the reader is not told the same gap twice (SPEC 0226).
-        missing_correction = (
-            [NO_CORRECTION_LIMITATION]
-            if CORRECTION_KIND not in kinds and coverage[_IMPLIES_TOPIC]
-            else []
-        )
         cell = build_cell_payload(
             status=generated["status"],
-            # Not `generated["disclaimer"]`: see SUBSTANCE_DISCLAIMER.
             disclaimer=SUBSTANCE_DISCLAIMER,
             # `kind` is dropped here: the app's contract does not name it.
             tips=generated["tips"],
-            sources=source_array,
-            # Derived from coverage, never the model's, and only on a grounded
-            # cell: an abstention carries none, however it abstained (SPEC 0162).
-            limitations=limitations + missing_correction
-            if generated["status"] == "grounded"
-            else [],
+            sources=[],
+            limitations=[],
         )
         # Validated before grounding: a cell that does not satisfy the contract
         # is a build failure however well supported its claims are, and this is
         # the check a page's injected instruction runs into.
-        validate_cell(cell, source_count=len(source_array))
+        validate_cell(cell, source_count=len(batch))
+        if cell["status"] != "grounded":
+            return [], attempt
 
         # A number is refused before grounding is asked: the stance forbids it
         # however well the source supports it (SPEC 0160). So is a document
@@ -338,18 +454,20 @@ def build_cell(
         # support (SPEC 0230). Limitations are the build's own sentences, so
         # only tips are read (SPEC 0162).
         refused = [
-            cause
+            (cause, tip["text"])
             for tip in cell["tips"]
             if (cause := _refusal(tip["text"])) is not None
         ]
-        unsupported = list(refused)
+        unsupported = [f"{cause}: {text}" for cause, text in refused]
+        told = [_told(text, REFUSAL_REASONS[cause]) for cause, text in refused]
         if not refused:
             for tip, kind in zip(cell["tips"], kinds):
                 grounding = client.ground(
-                    tip["text"], [kept[i].text for i in tip["citations"]]
+                    tip["text"], [batch[i].text for i in tip["citations"]]
                 )
                 groundings.append(
                     {
+                        "batch": number,
                         "attempt": attempt,
                         "tip": tip["text"],
                         "supported": grounding.supported,
@@ -360,31 +478,11 @@ def build_cell(
                 )
                 if not grounding.supported:
                     unsupported.append(tip["text"])
+                    told.append(_told(tip["text"], UNSUPPORTED_REASON))
         if not unsupported:
-            return BuildOutcome(
-                key=key,
-                queries=queries,
-                kept=kept,
-                cell=cell,
-                attempts=attempt,
-                rejections=rejections,
-                groundings=groundings,
-                coverage=coverage,
-            )
+            return list(zip(cell["tips"], kinds)), attempt
         rejections.extend(unsupported)
-
-    # The model would not ground within the bound. Abstaining is honest; shipping
-    # the last attempt would publish a claim the grounding check rejected.
-    return BuildOutcome(
-        key=key,
-        queries=queries,
-        kept=kept,
-        cell=_abstention(sources=source_array, limitations=[]),
-        attempts=max_attempts,
-        rejections=rejections,
-        groundings=groundings,
-        coverage=coverage,
-    )
+    return [], max_attempts
 
 
 def _kind(tip: Any) -> str:

@@ -13,6 +13,9 @@ import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
+import 'package:visiosoil_app/models/site_key.dart';
+import 'package:visiosoil_app/core/services/region/site_resolver.dart';
+import 'package:visiosoil_app/providers/site_resolver_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
@@ -23,9 +26,11 @@ Widget harness({
   required FakeManagementTipsRepository repo,
   required ResearchService service,
   required ConnectivityStatus connectivity,
+  SiteResolver? resolver,
 }) {
   return ProviderScope(
     overrides: [
+      if (resolver != null) siteResolverProvider.overrideWithValue(resolver),
       managementTipsRepositoryProvider.overrideWithValue(repo),
       researchServiceProvider.overrideWithValue(service),
       connectivityServiceProvider
@@ -42,7 +47,166 @@ Widget harness({
 FakeResearchService okService() =>
     FakeResearchService((_) async => ResearchSuccess(groundedTips()));
 
+// Simulates a successful write whose subsequent cache read remains empty.
+class NonRetainingTipsRepository extends FakeManagementTipsRepository {
+  @override
+  Future<void> upsert(String recordUuid, ManagementTipsResult result) async {
+    upsertCount++;
+  }
+}
+
+Future<void> rebuildTipsSection(WidgetTester tester) async {
+  for (var rebuild = 0; rebuild < 3; rebuild++) {
+    tester.element(find.byType(ManagementTipsSection)).markNeedsBuild();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 void main() {
+  testWidgets('tips_appear_without_tapping_generate', (tester) async {
+    final gate = Completer<ResearchResult>();
+    final repo = FakeManagementTipsRepository();
+    final service = FakeResearchService((_) => gate.future);
+    await tester.pumpWidget(
+      harness(
+        record: tipsRecord(),
+        repo: repo,
+        service: service,
+        connectivity: ConnectivityStatus.online,
+        resolver: FakeSiteResolver(const SiteKey.unresolved()),
+      ),
+    );
+    // Let the empty cache resolve and the scheduled generation start.
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(service.calls, 1);
+    expect(find.text('Carregando dicas'), findsOneWidget);
+    expect(repo.upsertCount, 0);
+
+    gate.complete(ResearchSuccess(groundedTips()));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+    expect(repo.upsertCount, 1);
+    expect(service.calls, 1);
+  });
+
+  testWidgets('auto_generation_restarts_for_a_new_record', (tester) async {
+    final repo = FakeManagementTipsRepository();
+    final service = okService();
+    final resolver = FakeSiteResolver(const SiteKey.unresolved());
+    Widget section(String uuid) => harness(
+      record: tipsRecord(uuid: uuid),
+      repo: repo,
+      service: service,
+      connectivity: ConnectivityStatus.online,
+      resolver: resolver,
+    );
+
+    await tester.pumpWidget(section('rec-1'));
+    await tester.pumpAndSettle();
+    final originalState = tester.state(find.byType(ManagementTipsSection));
+    expect(service.calls, 1);
+    expect(await repo.getByRecordUuid('rec-2'), isNull);
+
+    await tester.pumpWidget(section('rec-2'));
+    await tester.pumpAndSettle();
+
+    expect(tester.state(find.byType(ManagementTipsSection)), same(originalState));
+    expect(service.calls, 2);
+    expect(await repo.getByRecordUuid('rec-2'), isNotNull);
+  });
+
+  testWidgets('auto_generation_fires_once_after_failure', (tester) async {
+    final repo = FakeManagementTipsRepository();
+    final service = FakeResearchService(
+      (_) async =>
+          const ResearchFailure(ResearchFailureKind.upstreamUnavailable),
+    );
+    await tester.pumpWidget(
+      harness(
+        record: tipsRecord(),
+        repo: repo,
+        service: service,
+        connectivity: ConnectivityStatus.online,
+        resolver: FakeSiteResolver(const SiteKey.unresolved()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await rebuildTipsSection(tester);
+
+    expect(service.calls, 1);
+    expect(repo.upsertCount, 0);
+    expect(
+      find.textContaining('Não foi possível gerar as dicas agora'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+    await rebuildTipsSection(tester);
+
+    expect(service.calls, 2);
+    expect(repo.upsertCount, 0);
+  });
+
+  testWidgets('auto_generation_fires_once_without_cached_result', (
+    tester,
+  ) async {
+    final repo = NonRetainingTipsRepository();
+    final service = okService();
+    await tester.pumpWidget(
+      harness(
+        record: tipsRecord(),
+        repo: repo,
+        service: service,
+        connectivity: ConnectivityStatus.online,
+        resolver: FakeSiteResolver(const SiteKey.unresolved()),
+      ),
+    );
+    // Bounded pumps also catch a generation loop without timing out settling.
+    await rebuildTipsSection(tester);
+
+    expect(service.calls, 1);
+    expect(repo.upsertCount, 1);
+    expect(await repo.getByRecordUuid('rec-1'), isNull);
+    expect(find.text('Carregando dicas'), findsNothing);
+    await rebuildTipsSection(tester);
+    expect(service.calls, 1);
+  });
+
+  testWidgets('no_corpus_message_shows', (tester) async {
+    final repo = FakeManagementTipsRepository();
+    final service = FakeResearchService(
+      (_) async => ResearchSuccess(noCorpusTips()),
+    );
+    await tester.pumpWidget(
+      harness(
+        record: tipsRecord(),
+        repo: repo,
+        service: service,
+        connectivity: ConnectivityStatus.online,
+        resolver: FakeSiteResolver(const SiteKey.unresolved()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'As dicas de manejo ainda não estão disponíveis nesta versão '
+        'do app.',
+      ),
+      findsOneWidget,
+    );
+    expect(repo.upsertCount, 0);
+    expect(await repo.getByRecordUuid('rec-1'), isNull);
+    await rebuildTipsSection(tester);
+    expect(service.calls, 1);
+  });
+
   testWidgets('data state renders cards, chips, sources and disclaimer',
       (tester) async {
     final repo = FakeManagementTipsRepository()..seed('rec-1', groundedTips());
@@ -74,8 +238,6 @@ void main() {
       connectivity: ConnectivityStatus.online,
     ));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Gerar dicas'));
-    await tester.pumpAndSettle();
 
     expect(
       find.descendant(
@@ -86,7 +248,7 @@ void main() {
     );
   });
 
-  testWidgets('empty cache online shows the generate button', (tester) async {
+  testWidgets('empty cache online automatically shows tips', (tester) async {
     await tester.pumpWidget(harness(
       record: tipsRecord(),
       repo: FakeManagementTipsRepository(),
@@ -95,14 +257,14 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sem dicas de manejo ainda'), findsOneWidget);
-    expect(find.text('Gerar dicas'), findsOneWidget);
+    expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+    expect(find.text('Atualizar dicas'), findsOneWidget);
   });
 
   // Tips compose on the device from the corpus the app holds (ADR 0022), so
   // being offline changes nothing about them (SPEC 0090).
   group('offline', () {
-    testWidgets('offline_empty_cache_offers_generate_tips', (tester) async {
+    testWidgets('offline_empty_cache_automatically_shows_tips', (tester) async {
       await tester.pumpWidget(harness(
         record: tipsRecord(),
         repo: FakeManagementTipsRepository(),
@@ -111,7 +273,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Gerar dicas'), findsOneWidget);
+      expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
       expect(find.text('Sem conexão'), findsNothing);
       expect(find.textContaining('Conecte-se'), findsNothing);
     });
@@ -124,9 +286,6 @@ void main() {
         service: service,
         connectivity: ConnectivityStatus.offline,
       ));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gerar dicas'));
       await tester.pumpAndSettle();
 
       expect(service.calls, 1);
@@ -144,8 +303,6 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Gerar dicas'));
-      await tester.pumpAndSettle();
       expect(find.textContaining('Não foi possível gerar as dicas agora'),
           findsOneWidget);
 
@@ -262,9 +419,9 @@ void main() {
       service: service,
       connectivity: ConnectivityStatus.online,
     ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Gerar dicas'));
+    // Generation starts on open; settling would wait on the pending service.
+    await tester.pump();
+    await tester.pump();
     await tester.pump();
     expect(find.text('Carregando dicas'), findsOneWidget);
 
@@ -283,9 +440,6 @@ void main() {
       service: service,
       connectivity: ConnectivityStatus.online,
     ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Gerar dicas'));
     await tester.pumpAndSettle();
 
     expect(
