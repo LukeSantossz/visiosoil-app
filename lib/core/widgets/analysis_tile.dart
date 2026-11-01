@@ -187,7 +187,7 @@ class AnalysisTile extends StatelessWidget {
                         ? _homeMetadata(record, syncWired)
                         : history
                         ? _historyMetadata(record)
-                        : record.formattedTimestampCompact;
+                        : record.formattedTimestampDotted;
                     final titleWidth = textWidth(title, titleStyle);
                     final dateWidth = textWidth(metadata, metadataStyle);
                     final columnWidth = titleWidth > dateWidth
@@ -308,7 +308,7 @@ class AnalysisTile extends StatelessWidget {
                                         ? _homeMetadata(record, syncWired)
                                         : history
                                         ? _historyMetadata(record)
-                                        : record.formattedTimestampCompact,
+                                        : record.formattedTimestampDotted,
                                     style: metadataStyle?.copyWith(
                                       color: failure != null
                                           ? palette.error

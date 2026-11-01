@@ -40,6 +40,15 @@ void main() {
     expect(find.text('Data da coleta'), findsOneWidget);
   });
 
+  // SPEC 0245: the collection date is written as every screen writes it.
+  testWidgets('info_section_shows_the_dotted_date', (tester) async {
+    final record = recordWith();
+    await pumpInfo(tester, record);
+
+    expect(find.text(record.formattedTimestampDotted), findsOneWidget);
+    expect(find.text(record.formattedTimestamp), findsNothing);
+  });
+
   testWidgets('shows the texture tile only for a classified record',
       (tester) async {
     await pumpInfo(tester, recordWith());

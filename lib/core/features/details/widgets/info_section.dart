@@ -58,7 +58,7 @@ class InfoSection extends StatelessWidget {
         _InfoTile(
           icon: Icons.calendar_today_outlined,
           title: 'Data da coleta',
-          value: record.formattedTimestamp,
+          value: record.formattedTimestampDotted,
         ),
         if (record.hasClassification) ...[
           const SizedBox(height: AppSpacing.md),

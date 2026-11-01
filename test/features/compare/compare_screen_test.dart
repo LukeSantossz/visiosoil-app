@@ -84,7 +84,7 @@ void main() {
       expect(find.text(record.labelsSummary), findsOneWidget);
       expect(find.text(record.textureClass!), findsOneWidget);
       expect(find.text(record.formattedConfidence), findsOneWidget);
-      expect(find.text(record.formattedTimestamp), findsOneWidget);
+      expect(find.text(record.formattedTimestampDotted), findsOneWidget);
       expect(find.text(record.address!), findsOneWidget);
       expect(find.text(record.formattedCoordinates), findsOneWidget);
     }

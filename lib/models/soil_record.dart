@@ -157,9 +157,13 @@ class SoilRecord {
   /// Returns the timestamp formatted for display.
   String get formattedTimestamp => Formatters.timestamp(timestamp);
 
-  /// Returns the timestamp formatted in compact form.
+  /// Returns the timestamp formatted in compact form, for spoken labels.
   String get formattedTimestampCompact =>
       Formatters.timestampCompact(timestamp);
+
+  /// The date and time as every screen shows them, joined by " · "
+  /// (SPEC 0245).
+  String get formattedTimestampDotted => Formatters.timestampDotted(timestamp);
 
   /// Returns the formatted coordinates.
   String get formattedCoordinates => hasCoordinates
@@ -185,7 +189,8 @@ class SoilRecord {
       hasValidAddress ? address! : 'Endereço não disponível';
 
   /// Indicates whether the record has a texture classification.
-  bool get hasClassification => textureClass != null && textureClass!.isNotEmpty;
+  bool get hasClassification =>
+      textureClass != null && textureClass!.isNotEmpty;
 
   /// Returns the texture class as it reads on screen (SPEC 0195), or a
   /// default message.

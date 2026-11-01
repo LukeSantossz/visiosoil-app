@@ -684,6 +684,7 @@ void main() {
       ManagementTipsResult? result,
       Set<TipCategory> hiddenCategories = const {},
       double width = 390,
+      bool labelled = true,
     }) async {
       await tester.binding.setSurfaceSize(Size(width, 2400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -703,10 +704,12 @@ void main() {
               child: ManagementTipsSection(
                 asPage: asPage,
                 hiddenCategories: hiddenCategories,
-                record: tipsRecord().copyWith(
-                  fieldName: 'Talhão 3',
-                  sampleLabel: 'Amostra 2',
-                ),
+                record: labelled
+                    ? tipsRecord().copyWith(
+                        fieldName: 'Talhão 3',
+                        sampleLabel: 'Amostra 2',
+                      )
+                    : tipsRecord(),
               ),
             ),
           ),
@@ -728,6 +731,16 @@ void main() {
         const Size(56, 56),
       );
       expect(find.text('Dicas de manejo'), findsNothing);
+    });
+
+    // SPEC 0245: with no labels, the head shows the date as every screen
+    // writes it.
+    testWidgets('tips_head_shows_the_dotted_date', (tester) async {
+      await pumpPage(tester, labelled: false);
+
+      final record = tipsRecord();
+      expect(find.text(record.formattedTimestampDotted), findsOneWidget);
+      expect(find.text(record.formattedTimestampCompact), findsNothing);
     });
 
     testWidgets('tips_photo_placeholder_shows_the_class', (tester) async {
