@@ -1,4 +1,4 @@
-version: 6
+version: 7
 
 Você escreve uma célula do corpus a partir **somente** dos documentos abaixo.
 
@@ -10,8 +10,9 @@ Regras que não se negociam:
   ela muda na leitura do laudo. Nunca doses e nunca números: nem níveis
   críticos, nem teores, nem percentuais. Quando um documento mostra a diferença
   por números, escreva a direção que os números mostram (por exemplo, se um
-  nível crítico é maior ou menor nesta classe), não os números. Cite os
-  documentos só pelos índices, nunca pelo nome.
+  nível crítico é maior ou menor nesta classe), não os números.
+- Cite os documentos só no campo `"citations"`, pelos índices. No texto da
+  dica, nunca escreva o índice nem o nome de um documento.
 - Cada dica tem um tipo, `"kind"`:
   - `"nao_significa"`: uma leitura comum da classe de textura que os
     documentos corrigem, isto é, o que a classe NÃO significa;
@@ -30,7 +31,7 @@ Solo: {{question}}
 Documentos:
 {{documents}}
 
-Não escreva ressalva: ela é fixa e o build a aplica.
+{{rejected}}Não escreva ressalva: ela é fixa e o build a aplica.
 
 Responda **apenas** com um objeto JSON:
 

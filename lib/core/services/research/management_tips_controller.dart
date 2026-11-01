@@ -6,9 +6,10 @@ import 'package:visiosoil_app/models/soil_record.dart';
 
 /// Orchestrates one "generate management tips" action: validates the record,
 /// resolves the corpus key on the device, calls the [ResearchService], and
-/// persists a successful result via [ManagementTipsRepository]. Returns `null`
-/// on success or the [ResearchFailureKind] on failure; never throws (mirrors the
-/// service contract). On failure the cache is left untouched.
+/// persists a cacheable successful result via [ManagementTipsRepository].
+/// A `corpus:none` placeholder returns `corpusUnavailable` without caching.
+/// Returns `null` on success or the [ResearchFailureKind] on failure; never
+/// throws (mirrors the service contract). On failure the cache is left untouched.
 ///
 /// **Resolving is orchestration, so it lives here** rather than inside a
 /// service: keeping the resolver out of an implementation leaves that
@@ -55,6 +56,9 @@ class ManagementTipsController {
     );
     switch (result) {
       case ResearchSuccess(:final tips):
+        if (tips.model == 'corpus:none') {
+          return ResearchFailureKind.corpusUnavailable;
+        }
         await _repository.upsert(uuid, tips);
         return null;
       case ResearchFailure(:final kind):

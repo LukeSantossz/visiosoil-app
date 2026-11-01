@@ -72,4 +72,25 @@ class Formatters {
   static String horizontalAccuracy(double metres) {
     return '± ${metres.ceil()} m';
   }
+
+  /// An estimated distance in millimetres, as whole centimetres marked
+  /// approximate (SPEC 0238).
+  ///
+  /// Example: 339 -> "≈ 34 cm"
+  static String distanceCm(double millimetres) {
+    return '≈ ${(millimetres / 10).round()} cm';
+  }
+
+  /// An illuminance, whole below 100 lx and to the nearest 10 from there,
+  /// with a dot between thousands (SPEC 0238).
+  ///
+  /// Example: 1483 -> "1.480 lx"
+  static String lux(double lux) {
+    final rounded = lux < 100 ? lux.round() : (lux / 10).round() * 10;
+    final grouped = rounded.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+$)'),
+      (_) => '.',
+    );
+    return '$grouped lx';
+  }
 }

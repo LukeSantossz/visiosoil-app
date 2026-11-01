@@ -1,3 +1,4 @@
+import 'package:visiosoil_app/core/services/region/site_resolver.dart';
 import 'package:visiosoil_app/core/data/repositories/management_tips_repository.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/corpus_composer.dart';
@@ -164,4 +165,38 @@ class HeldCorpusStore implements CorpusStore {
 
   @override
   Future<Corpus?> current() async => _corpus;
+}
+
+/// The successful placeholder returned when the app holds no corpus.
+ManagementTipsResult noCorpusTips() => ManagementTipsResult(
+  status: ManagementTipsStatus.insufficientEvidence,
+  tips: const [],
+  sources: const [],
+  disclaimer: 'Conteudo consultivo.',
+  model: 'corpus:none',
+  retrievedAt: DateTime.utc(2026, 6, 26, 12),
+);
+
+/// Returns a fixed key and records what it was asked to resolve.
+class FakeSiteResolver implements SiteResolver {
+  FakeSiteResolver(this.key);
+
+  final SiteKey key;
+  int calls = 0;
+  double? lastLatitude;
+  double? lastLongitude;
+  String? lastAddress;
+
+  @override
+  Future<SiteKey> resolve({
+    double? latitude,
+    double? longitude,
+    String? address,
+  }) async {
+    calls++;
+    lastLatitude = latitude;
+    lastLongitude = longitude;
+    lastAddress = address;
+    return key;
+  }
 }

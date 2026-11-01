@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_panel.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -110,9 +111,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         step: 3,
         art: OnboardingArt.camera,
         title: 'Permita o acesso à câmera',
-        description:
-            'Usamos a câmera para fotografar o solo. Funciona sem internet; as '
-            'análises sincronizam quando houver sinal.',
+        // No step promises a sync no backend performs (SPEC 0241).
+        description: syncBackendWired
+            ? 'Usamos a câmera para fotografar o solo. Funciona sem internet; '
+                  'as análises sincronizam quando houver sinal.'
+            : 'Usamos a câmera para fotografar o solo. Funciona sem internet.',
         extra: const Column(
           children: [
             _ListRow(
@@ -205,8 +208,9 @@ class _AccountStep extends ConsumerWidget {
         step: 0,
         art: OnboardingArt.linked,
         title: 'Conta vinculada',
-        description:
-            'Suas análises vão sincronizar sozinhas quando houver internet.',
+        description: syncBackendWired
+            ? 'Suas análises vão sincronizar sozinhas quando houver internet.'
+            : 'Por enquanto, suas análises ficam só neste aparelho.',
         actions: [
           // 16 dp above "Continuar", as PNG 04 draws it.
           Padding(
@@ -223,10 +227,14 @@ class _AccountStep extends ConsumerWidget {
     return _StepPage(
       step: 0,
       art: OnboardingArt.account,
-      title: 'Vincular conta para salvar e sincronizar suas análises',
-      description:
-          'Guardamos suas análises, fotos e coleção na sua conta Google. Sem '
-          'conta, tudo fica só neste aparelho.',
+      title: syncBackendWired
+          ? 'Vincular conta para salvar e sincronizar suas análises'
+          : 'Vincular sua conta Google',
+      description: syncBackendWired
+          ? 'Guardamos suas análises, fotos e coleção na sua conta Google. '
+                'Sem conta, tudo fica só neste aparelho.'
+          : 'Por enquanto, suas análises e fotos ficam só neste aparelho. '
+                'A cópia na conta ainda não está disponível.',
       extra: offline
           ? Text(
               'Sem conexão. Você pode vincular depois em Perfil.',
