@@ -221,7 +221,7 @@ class _ThumbnailCard extends StatelessWidget {
               _ThumbnailImage(imagePath: record.imagePath),
               const _GradientOverlay(),
               _TimestampLabel(
-                timestamp: record.formattedTimestampCompact,
+                timestamp: record.formattedTimestampDotted,
                 labels: record.hasLabels ? record.labelsSummary : null,
               ),
               if (isSelectionMode) _SelectionOverlay(isSelected: isSelected),

@@ -32,6 +32,24 @@ from typing import Callable, Iterable
 from pypdf import PdfReader
 from pypdf.errors import DependencyError, PyPdfError
 
+SOURCES_DIR = Path(__file__).resolve().parent.parent / "sources"
+"""Where each cell's manifest lives, one file per cell (SPEC 0234)."""
+
+_MANIFEST_SUFFIX = ".manifest.json"
+
+
+def manifest_path_for(key: str, sources_dir: Path = SOURCES_DIR) -> Path:
+    """The manifest of the cell [key], named the way the probe names its output."""
+    slug = key.replace("|", "__").replace(" ", "-")
+    return Path(sources_dir) / f"{slug}{_MANIFEST_SUFFIX}"
+
+
+def key_of_manifest(path: Path) -> str:
+    """The cell key a manifest's file name gives, the inverse of [manifest_path_for]."""
+    slug = Path(path).name.removesuffix(_MANIFEST_SUFFIX)
+    return slug.replace("__", "|").replace("-", " ")
+
+
 PASSAGE_CHAR_LIMIT = 6000
 """How much of one document the model reads. The client cuts at this length, so
 a PDF passage longer than it is refused at fetch rather than cut there without a
@@ -104,6 +122,12 @@ class SourceManifest:
     @classmethod
     def load(cls, path: Path) -> "SourceManifest":
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        cell = raw.get("cell")
+        if cell is not None and cell != key_of_manifest(path):
+            raise ValueError(
+                f"{path} names the cell {cell!r}, but its file name gives "
+                f"{key_of_manifest(path)!r}; a cell reads only the manifest named for it"
+            )
         entries = []
         for index, item in enumerate(raw.get("sources", [])):
             url = item.get("url")

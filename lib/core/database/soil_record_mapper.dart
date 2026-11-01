@@ -34,6 +34,9 @@ SoilRecord soilRecordFromRow(SoilRecordRow row) => SoilRecord(
       classificationFailure: decodeClassificationFailure(
         row.classificationFailure,
       ),
+      captureLux: row.captureLux,
+      captureDistanceMm: row.captureDistanceMm,
+      captureSharp: row.captureSharp,
     );
 
 /// The cause [name] stores, or null when it stores none or a name this build

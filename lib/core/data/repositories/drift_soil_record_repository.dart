@@ -83,6 +83,9 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
                 trueTextureClass: Value(record.trueTextureClass),
                 classificationFailure:
                     Value(record.classificationFailure?.name),
+                captureLux: Value(record.captureLux),
+                captureDistanceMm: Value(record.captureDistanceMm),
+                captureSharp: Value(record.captureSharp),
               ),
             );
         await _enqueue(uuid, SyncOperation.upsert, now);
@@ -350,6 +353,9 @@ class DriftSoilRecordRepository implements SoilRecordRepository {
             fieldName: const Value(null),
             sampleLabel: const Value(null),
             trueTextureClass: const Value(null),
+            captureLux: const Value(null),
+            captureDistanceMm: const Value(null),
+            captureSharp: const Value(null),
           ),
         );
         // Per row, like the update above, so a wipe binds no list of uuids.

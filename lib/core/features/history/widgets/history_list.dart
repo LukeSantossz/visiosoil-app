@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/data/repositories/soil_record_repository.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -99,7 +100,11 @@ class _HistoryListState extends ConsumerState<HistoryList> {
           ),
         ),
         if (offline)
-          SliverToBoxAdapter(child: OfflineBanner(pendingCount: pending)),
+          SliverToBoxAdapter(
+            child: OfflineBanner(
+              pendingCount: syncBackendWired ? pending : null,
+            ),
+          ),
         ...data.when(
           skipError: false,
           skipLoadingOnRefresh: false,
@@ -276,6 +281,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
         child: AnalysisTile(
           record: record,
           history: true,
+          syncWired: syncBackendWired,
           onLongPress: () => widget.onLongPress(id),
           onSelect: widget.isSelectionMode || widget.onSelect == null
               ? null

@@ -17,7 +17,7 @@ import re
 import unicodedata
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from src.pipeline import Grounding
 from src.sources import (
@@ -42,6 +42,17 @@ MIN_CHARS_PER_TOKEN = 2
 `PROMPT_CHAR_CEILING` fits the context in all but a table of bare numbers."""
 
 PROMPT_CHAR_CEILING = CONTEXT_TOKENS * MIN_CHARS_PER_TOKEN
+
+SLOWEST_TOKENS_PER_SECOND = 2
+"""The slowest rate the build has measured: `qwen2.5:7b` wrote 2.16 tokens/s on
+the Iris Xe (SPEC 0244). A slower machine lowers it."""
+
+MODEL_TIMEOUT_SECONDS = (
+    PASSAGE_CHAR_LIMIT // MIN_CHARS_PER_TOKEN // SLOWEST_TOKENS_PER_SECOND
+)
+"""How long a model call waits: the time to copy a whole passage at the slowest
+rate, since a grounding check quotes its support word for word. A Muito
+Argilosa check quoted 885 tokens in 409 s, past the 300 s this replaced."""
 
 RELEVANCE_THRESHOLD = 2
 """The lowest grade score that keeps a document for a query (SPEC 0154). 2 is
@@ -126,7 +137,9 @@ def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=300) as response:  # noqa: S310
+    with urllib.request.urlopen(  # noqa: S310
+        request, timeout=MODEL_TIMEOUT_SECONDS
+    ) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -260,6 +273,19 @@ def quote_in_evidence(quote: str, cited_texts: list[str]) -> bool:
     )
 
 
+def rejected_block(lines: Sequence[str]) -> str:
+    """The generate prompt's `{{rejected}}` slot: the tips the last attempt lost
+    and why, or nothing on a first attempt (SPEC 0237)."""
+    if not lines:
+        return ""
+    return (
+        "Sua resposta anterior foi recusada. Não repita estas dicas: corrija o "
+        "motivo ou escreva outra que os documentos sustentem.\n"
+        + "".join(f"- {line}\n" for line in lines)
+        + "\n"
+    )
+
+
 class OllamaClient:
     """`LLMClient` over a local Ollama server.
 
@@ -379,7 +405,10 @@ class OllamaClient:
         return parse_score(raw) >= RELEVANCE_THRESHOLD
 
     def generate_cell(
-        self, question: str, documents: list[FetchedSource]
+        self,
+        question: str,
+        documents: list[FetchedSource],
+        rejected: Sequence[str] = (),
     ) -> dict[str, Any]:
         template, _ = self._prompts["generate"]
         rendered = "\n\n".join(
@@ -387,9 +416,9 @@ class OllamaClient:
             for index, doc in enumerate(documents)
         )
         raw = self._complete(
-            template.replace("{{question}}", question).replace(
-                "{{documents}}", rendered
-            )
+            template.replace("{{question}}", question)
+            .replace("{{documents}}", rendered)
+            .replace("{{rejected}}", rejected_block(rejected))
         )
         return parse_json_object(raw)
 

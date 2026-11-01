@@ -16,10 +16,12 @@ import pytest
 from src.keys import (
     BIOMES,
     CLAY_ACTIVITIES,
+    GENERIC,
     LABELS_PATH,
     LAND_USES,
     UNITS,
     describe_key,
+    generic_keys,
     read_texture_classes,
     substance_keys,
 )
@@ -132,3 +134,21 @@ def test_the_description_names_the_family_in_words():
 def test_an_undescribed_key_fails_loudly(key):
     with pytest.raises(ValueError):
         describe_key(key)
+
+
+# --- A generic cell per class (SPEC 0234) --------------------------------------
+
+
+def test_generic_keys_cover_every_class():
+    assert generic_keys() == [
+        f"{texture_class}|{GENERIC}" for texture_class in read_texture_classes()
+    ]
+
+
+def test_describe_key_names_the_texture_alone_for_a_generic_key():
+    description = describe_key("Arenosa|generic")
+
+    assert "textura arenosa" in description
+    assert "sem distinção da atividade da argila" in description
+    for family in ("atividade baixa", "intermediária", "atividade alta"):
+        assert family not in description

@@ -185,6 +185,7 @@ class ProxyResearchService implements ResearchService {
         // failures only; an unexpected 4xx will not be fixed by retrying.
         final code = failure.statusCode;
         return code == null || code >= 500;
+      case ResearchFailureKind.corpusUnavailable:
       case ResearchFailureKind.invalidRecord:
       case ResearchFailureKind.unauthenticated:
       case ResearchFailureKind.rateLimited:

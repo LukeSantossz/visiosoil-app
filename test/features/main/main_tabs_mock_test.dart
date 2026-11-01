@@ -197,7 +197,8 @@ void main() {
     expect(shadows, isEmpty);
   });
 
-  testWidgets('home_recent_rows_show_a_status_dot', (tester) async {
+  // No sync backend is wired, so no row names a sync status (SPEC 0235).
+  testWidgets('home_recent_rows_show_no_sync_status', (tester) async {
     // Wide enough that the test font's square glyphs keep the row on one
     // line, as Inter keeps it on a phone.
     tester.view.physicalSize = const Size(600, 900);
@@ -215,12 +216,13 @@ void main() {
       find.descendant(of: row, matching: find.byType(StatusPill)),
       findsNothing,
     );
-    final sent = find.descendant(of: row, matching: find.text('Enviada'));
-    expect(sent, findsOneWidget);
-    expect(tester.widget<Text>(sent).style?.color, AppPalette.light.statusSent);
+    expect(
+      find.descendant(of: row, matching: find.text('Enviada')),
+      findsNothing,
+    );
     expect(
       find.descendant(of: row, matching: find.byKey(const Key('status-dot'))),
-      findsOneWidget,
+      findsNothing,
     );
     // Rows every 64 dp, the rule included (PNG 08, SPEC 0210).
     expect(tester.getSize(row).height, 63);
@@ -322,11 +324,7 @@ void main() {
   });
 
   testWidgets('history_rows_match_the_mock', (tester) async {
-    // Wider than the phone: the test font's square glyphs would otherwise
-    // need the room a pending row's pill leaves Inter, and stack it.
-    tester.view.physicalSize = const Size(600, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+    _phone(tester);
     await _pump(tester, home: const HistoryScreen());
 
     final sent = find.byType(AnalysisTile).first;
@@ -348,20 +346,19 @@ void main() {
       findsOneWidget,
     );
 
+    // No backend is wired, so a pending row shows what a sent row shows
+    // (SPEC 0235).
     final pending = find.byType(AnalysisTile).at(1);
-    final pill = find.descendant(
-      of: pending,
-      matching: find.byType(StatusPill),
-    );
-    expect(pill, findsOneWidget);
-    final title = find.descendant(of: pending, matching: find.text('Argilosa'));
     expect(
-      (tester.getCenter(pill).dy - tester.getCenter(title).dy).abs(),
-      lessThan(16),
+      find.descendant(of: pending, matching: find.byType(StatusPill)),
+      findsNothing,
     );
     expect(
-      tester.getTopRight(pill).dx,
-      greaterThan(tester.getTopRight(title).dx),
+      find.descendant(
+        of: pending,
+        matching: find.byIcon(LucideIcons.chevronRight),
+      ),
+      findsOneWidget,
     );
   });
 

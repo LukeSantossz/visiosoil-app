@@ -1265,6 +1265,41 @@ void main() {
       expect(find.text('DETAILS_STUB 2'), findsOneWidget);
     });
 
+    testWidgets('retake_saves_the_new_shot_conditions', (tester) async {
+      final repository = FakeSoilRecordRepository()..throwOnCreate = true;
+      final shots = [
+        GuidedCaptureResult.captured(
+          XFile(samplePath),
+          conditions: const CaptureConditions(
+            lux: 57,
+            distanceMm: 610,
+            sharp: false,
+          ),
+        ),
+        GuidedCaptureResult.captured(
+          XFile(retakePath),
+          conditions: const CaptureConditions(lux: 1480, distanceMm: 339),
+        ),
+      ];
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async => shots.removeAt(0),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+      ));
+
+      await capture(tester);
+      repository.throwOnCreate = false;
+      await retake(tester);
+      await handOver(tester);
+
+      final created = repository.createCalls.last;
+      expect(created.imagePath, retakePath);
+      expect(created.captureLux, 1480);
+      expect(created.captureDistanceMm, 339);
+      expect(created.captureSharp, isNull);
+    });
+
     testWidgets('cancelling_a_retake_keeps_the_photograph', (tester) async {
       final repository = FakeSoilRecordRepository()..throwOnCreate = true;
       final picks = <String?>[samplePath, null];
@@ -1705,6 +1740,52 @@ void main() {
 
       expect(systemCalls, 0);
       expect(repository.createCalls.single.imagePath, samplePath);
+    });
+
+    // The guided shot's light, distance and focus go into its record, and a
+    // photograph from the system camera keeps none (SPEC 0240).
+    testWidgets('guided_shot_saves_its_conditions', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async => GuidedCaptureResult.captured(
+          XFile(samplePath),
+          conditions: const CaptureConditions(
+            lux: 1480,
+            distanceMm: 339,
+            sharp: true,
+          ),
+        ),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+      ));
+
+      await capture(tester);
+      await handOver(tester);
+
+      final created = repository.createCalls.single;
+      expect(created.captureLux, 1480);
+      expect(created.captureDistanceMm, 339);
+      expect(created.captureSharp, isTrue);
+    });
+
+    testWidgets('system_camera_saves_no_conditions', (tester) async {
+      final repository = FakeSoilRecordRepository();
+      await tester.pumpWidget(buildScreen(
+        openGuidedCamera: (_) async => const GuidedCaptureResult.unavailable(),
+        pickFromSystemCamera: () async => XFile(samplePath),
+        locate: () async => null,
+        classify: (_) async => null,
+        repository: repository,
+      ));
+
+      await capture(tester);
+      await handOver(tester);
+
+      final created = repository.createCalls.single;
+      expect(created.captureLux, isNull);
+      expect(created.captureDistanceMm, isNull);
+      expect(created.captureSharp, isNull);
     });
 
     for (final (name, result) in <(String, GuidedCaptureResult?)>[

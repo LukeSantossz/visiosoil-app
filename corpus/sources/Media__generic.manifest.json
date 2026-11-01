@@ -1,0 +1,198 @@
+{
+  "_note": "The curated sources of the Media class's generic cell, the cell that answers when no clay-activity family refines the class (SPEC 0234). Curated on 2026-10-29 to the Developer's floor of fifteen excerpts per class, which admits peer-reviewed SciELO articles at tier 3 beside Embrapa and state material. A URL that is not listed here cannot be fetched; adding a source is a reviewed act. `pages` is [first, last] in physical pages of the file, 1-based and inclusive, not the numbers printed on them. Every entry was fetched through src.llm.http_transport on 2026-10-29 and returned a PDF directly, without a redirect, with a text layer, and a passage within PASSAGE_CHAR_LIMIT; the tier column is the source policy of research-agent.md §8.1.",
+  "cell": "Media|generic",
+  "sources": [
+    {
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/869677/1/ALBAERTO.pdf",
+      "title": "Comportamento físico-químico, aspectos mineralógicos e resposta ao manejo de Latossolos de textura média do Oeste da Bahia",
+      "publisher": "Embrapa (XVIII Reunião Brasileira de Manejo e Conservação do Solo e da Água, 2010)",
+      "tier": 1,
+      "year": 2010,
+      "pages": [
+        3,
+        3
+      ],
+      "why": "How medium-textured Latossolos of western Bahia behave and respond to management. 4,399 characters."
+    },
+    {
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+      "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+      "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
+      "tier": 1,
+      "year": 2021,
+      "pages": [
+        11,
+        11
+      ],
+      "why": "How no-till changes the quality of soils by texture, including medium-textured ones. 2,887 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+      "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+      "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        4,
+        4
+      ],
+      "why": "Questions and answers on how a soil's texture governs erosion, water retention and the care its tillage needs. 5,228 characters."
+    },
+    {
+      "url": "https://www.gov.br/agricultura/pt-br/assuntos/riscos-seguro/programa-nacional-de-zoneamento-agricola-de-risco-climatico/documentos/NotadeEsclarescimentoZARC22.05.2023.pdf/@@download/file",
+      "title": "Nota de esclarecimento: nova classificação de solos adotada no Zoneamento Agrícola de Risco Climático (Zarc)",
+      "publisher": "Ministério da Agricultura e Pecuária (2023)",
+      "tier": 1,
+      "year": 2023,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How the climate-risk zoning now classes soils by texture and water retention, medium texture among them. 3,003 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/HQcWhPqMBK43vSgQdgctnBc/?format=pdf&lang=pt",
+      "title": "Caracterização, potencial agrícola e perspectivas de manejo de solos leves no Brasil",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2016,
+      "pages": [
+        12,
+        12
+      ],
+      "why": "Management prospects for light soils, which include the sandier medium-textured soils. 4,696 characters."
+    },
+    {
+      "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+      "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+      "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+      "tier": 2,
+      "year": 2016,
+      "pages": [
+        87,
+        87
+      ],
+      "why": "Conservation practices for sugarcane by soil texture, including medium-textured soils. 2,780 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cr/a/TnVFHfSrK94rmgpQ3yyWNcL/?format=pdf&lang=pt",
+      "title": "Atributos físicos do solo relacionados ao armazenamento de água em um Argissolo Vermelho sob diferentes sistemas de preparo",
+      "publisher": "Ciência Rural (SciELO)",
+      "tier": 3,
+      "year": 2005,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Physical attributes tied to water storage in an Argissolo under different tillage systems. 4,480 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/bWXMZQPNWW8FQTp7m48C7Bs/?format=pdf&lang=pt",
+      "title": "Lixiviação de potássio em função da textura e da disponibilidade do nutriente no solo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2008,
+      "pages": [
+        7,
+        7
+      ],
+      "why": "Conclusions on how potassium leaching changes with soil texture, a medium-textured soil among those compared. 2,450 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/9DsKpCvFVXrvCDdNHWwXbMm/?format=pdf&lang=pt",
+      "title": "Lixiviação de potássio no solo de acordo com suas doses aplicadas sobre palha de milheto",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2006,
+      "pages": [
+        3,
+        3
+      ],
+      "why": "How potassium applied over millet straw leaches through a medium-textured soil. 5,762 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbeaa/a/5H5nyswDZjxNkKwcRDsmP5c/?format=pdf&lang=pt",
+      "title": "Estoque de carbono e atributos físicos de um Latossolo em cronossequência sob diferentes manejos",
+      "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+      "tier": 3,
+      "year": 2015,
+      "pages": [
+        3,
+        3
+      ],
+      "why": "How carbon stock and physical attributes of a Latossolo change with years under no-till. 5,527 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/XRSSNbLXbnYZhM7wRm5WGqv/?format=pdf&lang=pt",
+      "title": "Atributos físicos, químicos e biológicos relacionados com a estabilidade de agregados de dois Latossolos em plantio direto no estado de São Paulo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2004,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "What drives aggregate stability in two Latossolos of different texture under no-till. 2,820 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/XzxbTTp8Bc86vN4h3gDmkrp/?format=pdf&lang=pt",
+      "title": "Análise multivariada e variabilidade espacial na estimativa da erodibilidade de um Argissolo Vermelho-Amarelo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2011,
+      "pages": [
+        7,
+        7
+      ],
+      "why": "Conclusions on how surface texture makes an Argissolo susceptible to erosion. 2,985 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/RvbSjhKcHp9Y8xwDytYLdvs/?format=pdf&lang=pt",
+      "title": "Alteração de atributos físicos em Latossolo com aplicação superficial de escória de aciaria, lama cal, lodos de esgoto e calcário",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2009,
+      "pages": [
+        8,
+        8
+      ],
+      "why": "How surface-applied residues and lime change the physical attributes of a Latossolo. 5,734 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/esa/a/V3kk4qXyWVxVNws6vtH59fN/?format=pdf&lang=pt",
+      "title": "Influência da textura do solo receptor e das condições climáticas e ambientais na taxa e fração de mineralização da matéria orgânica no solo",
+      "publisher": "Engenharia Sanitária e Ambiental (SciELO)",
+      "tier": 3,
+      "year": 2022,
+      "pages": [
+        6,
+        6
+      ],
+      "why": "How the receiving soil's texture changes how fast organic matter mineralizes. 5,888 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965477/1/comtec272004solosoestebaiano.pdf",
+      "title": "Comportamento físico-químico dos solos de textura arenosa e média do Oeste Baiano",
+      "publisher": "Embrapa Solos (Comunicado Técnico 27, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How the sandy and medium-textured soils of western Bahia behave physically and chemically. 3,149 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbeaa/a/mmnzyLvY8qwpzpnTnZy8Rdg/?format=pdf&lang=pt",
+      "title": "Intervalo hídrico ótimo e produtividade de cultivares de soja",
+      "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+      "tier": 3,
+      "year": 2006,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "The least limiting water range of a medium-textured Latossolo and its tie to soybean yield. 3,339 characters."
+    }
+  ]
+}
