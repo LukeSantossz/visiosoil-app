@@ -264,7 +264,7 @@ void main() {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
 
-    expect(find.text('Conta'), findsOneWidget);
+    expect(find.text('Conta'), findsNWidgets(2));
     expect(
       find.text('Não vinculada · dados só neste aparelho'),
       findsOneWidget,
@@ -291,14 +291,14 @@ void main() {
     await tester.pumpWidget(_app(null, signInError: Exception('oauth failed')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Conta'));
+    await tester.tap(find.text('Conta').last);
     await tester.pump(); // start sign-in (loading)
     await tester.pump(); // async throws -> error state -> listener fires
     await tester.pump(); // build the SnackBar
 
     expect(find.text(_failureMessage), findsOneWidget);
     // The tile stays on the sign-in affordance, so the user can retry.
-    expect(find.text('Conta'), findsOneWidget);
+    expect(find.text('Conta'), findsNWidgets(2));
     expect(
       find.text('Não vinculada · dados só neste aparelho'),
       findsOneWidget,
@@ -322,7 +322,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Conta'));
+    await tester.tap(find.text('Conta').last);
     await tester.pump();
     await tester.pump();
 
@@ -343,7 +343,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Conta'));
+    await tester.tap(find.text('Conta').last);
     await tester.pumpAndSettle();
 
     expect(find.text(_failureMessage), findsOneWidget);
@@ -366,7 +366,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Conta'));
+    await tester.tap(find.text('Conta').last);
     await tester.pumpAndSettle();
 
     expect(auth.signInCalls, 1);
@@ -395,7 +395,7 @@ void main() {
     // tile keeps showing the account, not the sign-in affordance.
     expect(find.text('agro@example.com'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
-    expect(find.text('Conta'), findsNothing);
+    expect(find.text('Conta'), findsOneWidget);
   });
 
   testWidgets(
@@ -418,7 +418,7 @@ void main() {
 
       expect(find.text(_failureMessage), findsOneWidget);
       // Local credentials were cleared, so the tile reflects signed-out.
-      expect(find.text('Conta'), findsOneWidget);
+      expect(find.text('Conta'), findsNWidgets(2));
       expect(
         find.text('Não vinculada · dados só neste aparelho'),
         findsOneWidget,
@@ -440,7 +440,7 @@ void main() {
     await tester.pump();
 
     expect(find.text(_failureMessage), findsNothing);
-    expect(find.text('Conta'), findsOneWidget);
+    expect(find.text('Conta'), findsNWidgets(2));
     expect(
       find.text('Não vinculada · dados só neste aparelho'),
       findsOneWidget,
@@ -489,7 +489,7 @@ void main() {
 
       expect(auth.deleteAccountCalls, 1);
       expect(find.text('Conta excluída do VisioSoil.'), findsOneWidget);
-      expect(find.text('Conta'), findsOneWidget);
+      expect(find.text('Conta'), findsNWidgets(2));
       expect(
         find.text('Não vinculada · dados só neste aparelho'),
         findsOneWidget,
@@ -529,7 +529,7 @@ void main() {
       );
       expect(find.text(_failureMessage), findsNothing);
       expect(find.text('Conta excluída do VisioSoil.'), findsNothing);
-      expect(find.text('Conta'), findsOneWidget);
+      expect(find.text('Conta'), findsNWidgets(2));
       expect(
         find.text('Não vinculada · dados só neste aparelho'),
         findsOneWidget,
@@ -853,7 +853,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_app(null, theme: theme));
       await tester.pumpAndSettle();
-      expect(find.text('Conta'), findsOneWidget);
+      expect(find.text('Conta'), findsNWidgets(2));
       expect(
         find.text('Não vinculada · dados só neste aparelho'),
         findsOneWidget,
@@ -945,7 +945,7 @@ void main() {
 
       double top(String text) => tester.getTopLeft(find.text(text)).dy;
       expect(find.text(_privacyPolicyLabel), findsOneWidget);
-      expect(top('SOBRE E AJUDA'), lessThan(top(_privacyPolicyLabel)));
+      expect(top('Sobre e ajuda'), lessThan(top(_privacyPolicyLabel)));
       expect(top(_privacyPolicyLabel), lessThan(top('Versão')));
     });
 
@@ -1024,11 +1024,49 @@ void main() {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
 
-    final label = tester.widget<Text>(find.text('PREFERÊNCIAS'));
+    final label = tester.widget<Text>(find.text('Preferências'));
     expect(label.style?.fontSize, 12);
     expect(label.style?.fontWeight, FontWeight.w600);
-    expect(label.style?.letterSpacing, 0.6);
+    expect(label.style?.letterSpacing, 0);
     expect(label.style?.color, AppPalette.light.textTertiary);
+  });
+
+  testWidgets('section_labels_are_in_sentence_case', (tester) async {
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    Finder sectionLabel(String text) => find.byWidgetPredicate(
+      (widget) =>
+          widget is Text &&
+          widget.data == text &&
+          widget.style?.fontWeight == FontWeight.w600 &&
+          widget.style?.letterSpacing == 0,
+      description: 'section label $text',
+    );
+
+    for (final text in [
+      'Conta',
+      'Preferências',
+      'Câmera e análise',
+      'Dados e sincronização',
+      'Acessibilidade',
+      'Sobre e ajuda',
+    ]) {
+      final label = sectionLabel(text);
+      await tester.scrollUntilVisible(label, 200);
+      expect(label, findsOneWidget);
+    }
+
+    for (final text in [
+      'CONTA',
+      'PREFERÊNCIAS',
+      'CÂMERA E ANÁLISE',
+      'DADOS E SINCRONIZAÇÃO',
+      'ACESSIBILIDADE',
+      'SOBRE E AJUDA',
+    ]) {
+      expect(find.text(text), findsNothing);
+    }
   });
 
   // SPEC 0215: PNG 36 spaces the section labels on light mode's line.
@@ -1036,7 +1074,7 @@ void main() {
     await tester.pumpWidget(_app(null, theme: AppTheme.sun));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.text('PREFERÊNCIAS')).height, 16);
+    expect(tester.getSize(find.text('Preferências')).height, 16);
   });
 
   // SPEC 0216: the backup row follows the account tile on an auth error.

@@ -67,11 +67,11 @@ class SettingsScreen extends ConsumerWidget {
               AppSpacing.xl,
             ),
             children: [
-              const _SectionHeader(title: 'CONTA'),
+              const _SectionHeader(title: 'Conta'),
               const SizedBox(height: AppSpacing.sm),
               const SettingsGroup(children: [_AccountTile()]),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionHeader(title: 'PREFERÊNCIAS'),
+              const _SectionHeader(title: 'Preferências'),
               const SizedBox(height: AppSpacing.sm),
               SettingsGroup(
                 children: [
@@ -108,7 +108,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionHeader(title: 'CÂMERA E ANÁLISE'),
+              const _SectionHeader(title: 'Câmera e análise'),
               const SizedBox(height: AppSpacing.sm),
               // Each switch acts on the capture (SPEC 0208).
               SettingsGroup(
@@ -139,7 +139,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionHeader(title: 'DADOS E SINCRONIZAÇÃO'),
+              const _SectionHeader(title: 'Dados e sincronização'),
               const SizedBox(height: AppSpacing.sm),
               SettingsGroup(
                 children: [
@@ -179,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionHeader(title: 'ACESSIBILIDADE'),
+              const _SectionHeader(title: 'Acessibilidade'),
               const SizedBox(height: AppSpacing.sm),
               SettingsGroup(
                 children: [
@@ -206,7 +206,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionHeader(title: 'SOBRE E AJUDA'),
+              const _SectionHeader(title: 'Sobre e ajuda'),
               const SizedBox(height: AppSpacing.sm),
               SettingsGroup(
                 children: [
@@ -672,7 +672,7 @@ class _SectionHeader extends StatelessWidget {
         title,
         style: style.copyWith(
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
+          letterSpacing: 0,
           height: 16 / style.fontSize!,
           color: context.palette.textTertiary,
         ),
