@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
 import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -143,21 +144,23 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               SettingsGroup(
                 children: [
-                  SettingsTile(
-                    icon: LucideIcons.cloudUpload,
-                    title: 'Backup na conta',
-                    subtitle: linked
-                        ? 'Dados só neste aparelho'
-                        : 'Requer conta vinculada',
-                    // Greyed until an account is linked (PNG 23, SPEC 0216).
-                    enabled: linked,
-                  ),
-                  const SettingsSwitchTile(
-                    icon: LucideIcons.wifi,
-                    title: 'Sincronizar só no Wi-Fi',
-                    value: true,
-                    onChanged: null,
-                  ),
+                  if (syncBackendWired)
+                    SettingsTile(
+                      icon: LucideIcons.cloudUpload,
+                      title: 'Backup na conta',
+                      subtitle: linked
+                          ? 'Dados só neste aparelho'
+                          : 'Requer conta vinculada',
+                      // Greyed until an account is linked (PNG 23, SPEC 0216).
+                      enabled: linked,
+                    ),
+                  if (syncBackendWired)
+                    const SettingsSwitchTile(
+                      icon: LucideIcons.wifi,
+                      title: 'Sincronizar só no Wi-Fi',
+                      value: true,
+                      onChanged: null,
+                    ),
                   SettingsTile(
                     icon: LucideIcons.download,
                     title: 'Exportar análises',
