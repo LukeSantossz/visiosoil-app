@@ -71,6 +71,10 @@ abstract interface class CaptureCamera {
   bool get canSwitchCamera;
   Future<void> switchCamera();
 
+  /// The open camera's Camera2 id on Android, which its optics are read by
+  /// (SPEC 0238); null when none is open.
+  String? get cameraId;
+
   /// Takes a still at the camera's largest resolution.
   Future<XFile> takePicture();
 
@@ -161,6 +165,10 @@ class PluginCaptureCamera implements CaptureCamera {
     await controller.setFlashMode(FlashMode.off);
     await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
   }
+
+  /// `camera_android_camerax` names each camera by its Camera2 id.
+  @override
+  String? get cameraId => _controller?.description.name;
 
   @override
   Size get previewSize {
