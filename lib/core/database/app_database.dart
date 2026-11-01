@@ -22,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +96,14 @@ class AppDatabase extends _$AppDatabase {
             // filled from a label that names a class.
             await migrator.addColumn(soilRecords, soilRecords.trueTextureClass);
             await _backfillTrueTextureClass();
+          }
+          if (from < 12) {
+            // v11 -> v12: the shot's light, distance and focus (SPEC 0240).
+            // Nullable, and nothing to fill.
+            await migrator.addColumn(soilRecords, soilRecords.captureLux);
+            await migrator.addColumn(
+                soilRecords, soilRecords.captureDistanceMm);
+            await migrator.addColumn(soilRecords, soilRecords.captureSharp);
           }
         },
       );

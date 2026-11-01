@@ -17,7 +17,7 @@ import re
 import unicodedata
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from src.pipeline import Grounding
 from src.sources import (
@@ -273,6 +273,19 @@ def quote_in_evidence(quote: str, cited_texts: list[str]) -> bool:
     )
 
 
+def rejected_block(lines: Sequence[str]) -> str:
+    """The generate prompt's `{{rejected}}` slot: the tips the last attempt lost
+    and why, or nothing on a first attempt (SPEC 0237)."""
+    if not lines:
+        return ""
+    return (
+        "Sua resposta anterior foi recusada. Não repita estas dicas: corrija o "
+        "motivo ou escreva outra que os documentos sustentem.\n"
+        + "".join(f"- {line}\n" for line in lines)
+        + "\n"
+    )
+
+
 class OllamaClient:
     """`LLMClient` over a local Ollama server.
 
@@ -392,7 +405,10 @@ class OllamaClient:
         return parse_score(raw) >= RELEVANCE_THRESHOLD
 
     def generate_cell(
-        self, question: str, documents: list[FetchedSource]
+        self,
+        question: str,
+        documents: list[FetchedSource],
+        rejected: Sequence[str] = (),
     ) -> dict[str, Any]:
         template, _ = self._prompts["generate"]
         rendered = "\n\n".join(
@@ -400,9 +416,9 @@ class OllamaClient:
             for index, doc in enumerate(documents)
         )
         raw = self._complete(
-            template.replace("{{question}}", question).replace(
-                "{{documents}}", rendered
-            )
+            template.replace("{{question}}", question)
+            .replace("{{documents}}", rendered)
+            .replace("{{rejected}}", rejected_block(rejected))
         )
         return parse_json_object(raw)
 

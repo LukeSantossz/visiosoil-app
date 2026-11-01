@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -96,8 +97,12 @@ class ProfileScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (account == null) ...[
+                        // Linking copies nothing until a backend is wired
+                        // (SPEC 0241).
                         Text(
-                          'Vincule uma conta para salvar e sincronizar suas análises. Se trocar ou perder o aparelho, elas não se perdem.',
+                          syncBackendWired
+                              ? 'Vincule uma conta para salvar e sincronizar suas análises. Se trocar ou perder o aparelho, elas não se perdem.'
+                              : 'Suas análises ficam só neste aparelho. A cópia na conta Google ainda não está disponível.',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: context.palette.onSurfaceVariant,
                           ),
@@ -141,8 +146,9 @@ class ProfileScreen extends ConsumerWidget {
                       ] else ...[
                         // PNG 22: a rule 16 dp under the header, then the
                         // sync row. The sync foundation has no remote backend
-                        // yet (ADR 0022), so the row says where the data is,
-                        // and its action says why it cannot sync.
+                        // yet (ADR 0022), so the row says where the data is
+                        // and offers no action until one is wired (SPEC 0236).
+                        // The row keeps the 48 dp its action gives it.
                         const SizedBox(height: 2),
                         Divider(
                           key: const Key('account-sync-rule'),
@@ -151,55 +157,62 @@ class ProfileScreen extends ConsumerWidget {
                           color: context.palette.divider,
                         ),
                         const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(
-                              LucideIcons.cloud,
-                              size: 20,
-                              color: context.palette.primaryText,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                'Dados só neste aparelho',
-                                style:
-                                    AppTypography.resized(
-                                      theme.textTheme.bodyMedium!,
-                                      14,
-                                      height: 20 / 14,
-                                    ).copyWith(
-                                      color: context.palette.onSurfaceVariant,
-                                    ),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: Row(
+                            children: [
+                              Icon(
+                                LucideIcons.cloud,
+                                size: 20,
+                                color: context.palette.primaryText,
                               ),
-                            ),
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(48, 48),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xs,
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  'Dados só neste aparelho',
+                                  style:
+                                      AppTypography.resized(
+                                        theme.textTheme.bodyMedium!,
+                                        14,
+                                        height: 20 / 14,
+                                      ).copyWith(
+                                        color: context.palette.onSurfaceVariant,
+                                      ),
                                 ),
                               ),
-                              onPressed: () =>
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        AppStrings.syncNotAvailable,
-                                      ),
+                              if (syncBackendWired)
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    minimumSize: const Size(48, 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.xs,
                                     ),
                                   ),
-                              child: Text(
-                                'Sincronizar',
-                                style: AppTypography.weighted(
-                                  AppTypography.resized(
-                                    theme.textTheme.labelLarge!,
-                                    14,
-                                    height: 20 / 14,
+                                  onPressed: () => ScaffoldMessenger.of(context)
+                                      .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            AppStrings.syncNotAvailable,
+                                          ),
+                                        ),
+                                      ),
+                                  child: Text(
+                                    'Sincronizar',
+                                    style:
+                                        AppTypography.weighted(
+                                          AppTypography.resized(
+                                            theme.textTheme.labelLarge!,
+                                            14,
+                                            height: 20 / 14,
+                                          ),
+                                          600,
+                                        ).copyWith(
+                                          color: context.palette.primaryText,
+                                        ),
                                   ),
-                                  600,
-                                ).copyWith(color: context.palette.primaryText),
-                              ),
-                            ),
-                          ],
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
@@ -256,14 +269,21 @@ class ProfileScreen extends ConsumerWidget {
                             ? null
                             : '$collected de ${total!.length} classes na coleção',
                       ),
-                      StatCell(
-                        value:
-                            '${account == null ? list.length : list.where((record) => record.syncStatus == 'synced').length}',
-                        label: account == null ? 'só no aparelho' : 'enviadas',
-                        icon: account == null
-                            ? LucideIcons.hardDriveDownload
-                            : LucideIcons.cloudCheck,
-                      ),
+                      // Without a backend nothing is ever sent, so every
+                      // record counts as on this device only (SPEC 0235).
+                      if (account == null || !syncBackendWired)
+                        StatCell(
+                          value: '${list.length}',
+                          label: 'só no aparelho',
+                          icon: LucideIcons.hardDriveDownload,
+                        )
+                      else
+                        StatCell(
+                          value:
+                              '${list.where((record) => record.syncStatus == 'synced').length}',
+                          label: 'enviadas',
+                          icon: LucideIcons.cloudCheck,
+                        ),
                     ],
                   ),
                 const SizedBox(height: AppSpacing.xl),

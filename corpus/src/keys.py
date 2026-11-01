@@ -28,6 +28,10 @@ LABELS_PATH = (
 CLAY_ACTIVITIES = ("tb_oxidic", "intermediate", "ta_less_weathered")
 """The three families of §5.1, split at 27 cmolc/kg of clay (SiBCS Ta/Tb)."""
 
+GENERIC = "generic"
+"""The family slot of a class's generic cell, which no family refines (SPEC 0234).
+It answers whenever no family-specific cell does."""
+
 LAND_USES = (
     "native_vegetation",
     "pasture",
@@ -111,6 +115,8 @@ def describe_key(key: str) -> str:
     """
     texture_class, _, family = key.partition("|")
     texture = _TEXTURE_WORDS.get(texture_class)
+    if texture is not None and family == GENERIC:
+        return f"solo de {texture}, sem distinção da atividade da argila"
     activity = _FAMILY_WORDS.get(family)
     if texture is None or activity is None:
         raise ValueError(f"no description for the cell key {key!r}")
@@ -123,4 +129,12 @@ def substance_keys(path: Path | None = None) -> list[str]:
         substance_key(texture_class, activity)
         for texture_class in read_texture_classes(path)
         for activity in CLAY_ACTIVITIES
+    ]
+
+
+def generic_keys(path: Path | None = None) -> list[str]:
+    """One generic cell per class, in the contract's order (SPEC 0234)."""
+    return [
+        substance_key(texture_class, GENERIC)
+        for texture_class in read_texture_classes(path)
     ]

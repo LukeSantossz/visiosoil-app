@@ -134,12 +134,13 @@ void main() {
           isSemantics(isLiveRegion: true),
         );
         semantics.dispose();
+        // No sync backend is wired, so the banner counts no uploads
+        // (SPEC 0235).
         expect(
-          find.text(
-            '${count == 1 ? '1 análise aguarda' : '$count análises aguardam'} envio. Tudo continua salvo neste aparelho.',
-          ),
+          find.text('Tudo continua salvo neste aparelho.'),
           findsOneWidget,
         );
+        expect(find.textContaining('aguarda'), findsNothing);
       });
     }
     testWidgets('$name narrow phone supports large text and revealed rows', (

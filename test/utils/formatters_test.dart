@@ -54,4 +54,18 @@ void main() {
       expect(Formatters.coordinates(1.5, -2.25), '1.500000, -2.250000');
     });
   });
+
+  group('Formatters.distanceCm', () {
+    test('distance_reads_approximate_whole_centimetres', () {
+      expect(Formatters.distanceCm(339), '≈ 34 cm');
+    });
+  });
+
+  group('Formatters.lux', () {
+    test('lux_reads_rounded_with_a_thousands_dot', () {
+      expect(Formatters.lux(87.4), '87 lx');
+      expect(Formatters.lux(1483), '1.480 lx');
+      expect(Formatters.lux(12345), '12.350 lx');
+    });
+  });
 }

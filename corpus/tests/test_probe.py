@@ -69,3 +69,12 @@ def test_the_probe_writes_the_outcomes_groundings(monkeypatch, tmp_path):
     assert manifest["groundings"] == [entry]
     assert manifest["coverage"] == {"fósforo": ["https://example.org/0"]}
     assert "groundings" not in written_cell
+
+
+def test_probe_reads_the_manifest_of_its_cell():
+    """Each cell reads the sources chosen for it, not one shared list (SPEC 0234)."""
+    from src.sources import manifest_path_for
+
+    path = manifest_path_for("Muito Argilosa|generic")
+
+    assert path == sources.SOURCES_DIR / "Muito-Argilosa__generic.manifest.json"

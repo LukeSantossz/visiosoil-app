@@ -81,9 +81,7 @@ void main() {
   testWidgets('step_text_is_left_aligned', (tester) async {
     await _pump(tester);
 
-    final headline = find.text(
-      'Vincular conta para salvar e sincronizar suas análises',
-    );
+    final headline = find.text('Vincular sua conta Google');
     expect(tester.getTopLeft(headline).dx, 24);
     expect(tester.widget<Text>(headline).style?.fontSize, 28);
     final bar = find.byKey(const Key('onboardingStepBar')).first;
@@ -193,5 +191,55 @@ void main() {
     for (final step in captureProtocolSteps) {
       expect(find.text(step.title), findsNothing);
     }
+  });
+
+  // Linking copies nothing while no sync backend is wired (SPEC 0241).
+  testWidgets('account_step_promises_no_copy', (tester) async {
+    await _pump(tester);
+
+    expect(find.text('Vincular sua conta Google'), findsOneWidget);
+    expect(
+      find.text(
+        'Por enquanto, suas análises e fotos ficam só neste aparelho. '
+        'A cópia na conta ainda não está disponível.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sincroniz'), findsNothing);
+    expect(find.textContaining('Guardamos'), findsNothing);
+  });
+
+  testWidgets('linked_step_promises_no_sync', (tester) async {
+    await _pump(
+      tester,
+      account: const AuthAccount(
+        email: 'ana@exemplo.com',
+        displayName: 'Ana Ribeiro',
+      ),
+    );
+
+    expect(
+      find.text('Por enquanto, suas análises ficam só neste aparelho.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sincroniz'), findsNothing);
+  });
+
+  testWidgets('camera_step_promises_no_sync', (tester) async {
+    await _pump(tester);
+    await _toStep2(tester);
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.text('Continuar').first);
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Permita o acesso à câmera'), findsOneWidget);
+    expect(
+      find.text(
+        'Usamos a câmera para fotografar o solo. Funciona sem internet.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sincroniz'), findsNothing);
   });
 }

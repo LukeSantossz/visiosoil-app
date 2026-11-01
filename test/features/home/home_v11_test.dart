@@ -234,7 +234,7 @@ void main() {
     });
     for (final offline in [false, true]) {
       testWidgets(
-        '${entry.key} recent records capped and offline=$offline pills',
+        '${entry.key} recent records capped and offline=$offline name no sync',
         (tester) async {
           final semantics = tester.ensureSemantics();
           final records = List.generate(
@@ -255,11 +255,13 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(find.byType(AnalysisTile), findsNWidgets(5));
-          // A dot and the word name each status (PNG 08, SPEC 0203).
+          // No sync backend is wired, so no row names a status, and an
+          // `error` record keeps its confidence (SPEC 0235).
           expect(find.byType(StatusPill), findsNothing);
-          expect(find.text('Pendente'), findsWidgets);
-          expect(find.text('Enviada').evaluate().isNotEmpty, !offline);
-          expect(find.text('Erro').evaluate().isNotEmpty, !offline);
+          expect(find.text('Pendente'), findsNothing);
+          expect(find.text('Enviada'), findsNothing);
+          expect(find.text('Erro'), findsNothing);
+          expect(find.textContaining(' · 82%'), findsNWidgets(5));
           expect(tester.takeException(), isNull);
           expect(
             find.bySemanticsLabel(RegExp('82% de confiança')),
