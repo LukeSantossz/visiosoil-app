@@ -12,6 +12,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/core/services/region/site_resolver.dart';
@@ -724,6 +725,24 @@ void main() {
         const Size(56, 56),
       );
       expect(find.text('Dicas de manejo'), findsNothing);
+    });
+
+    testWidgets('tips_photo_placeholder_shows_the_class', (tester) async {
+      await pumpPage(tester);
+
+      // 'x.png' never loads, so the head shows its placeholder: the
+      // history tile's, in the class's colour (SPEC 0242).
+      final photo = find.byKey(const Key('tips-record-photo'));
+      final clay = SoilTextureColors.forClass('Argilosa');
+      final icon = tester.widget<Icon>(
+        find.descendant(of: photo, matching: find.byType(Icon)),
+      );
+      expect(icon.icon, Icons.landscape);
+      expect(icon.color, clay);
+      final ground = tester.widget<ColoredBox>(
+        find.descendant(of: photo, matching: find.byType(ColoredBox)).first,
+      );
+      expect(ground.color, clay.withValues(alpha: 0.3));
     });
 
     testWidgets('disclaimer_comes_first', (tester) async {
