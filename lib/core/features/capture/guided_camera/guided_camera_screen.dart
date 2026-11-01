@@ -731,6 +731,12 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
     _flash();
     // Read now: the screen may be closed by the time the shot returns.
     final stillSizes = ref.read(stillSizeStoreProvider);
+    // What the chips show, read before the reader stops and clears them.
+    final conditions = CaptureConditions(
+      lux: _shownQuality == null ? null : _lux,
+      distanceMm: _distanceEstimate(),
+      sharp: _shownQuality?.focusOk,
+    );
     // The reader stops before the shot, and nothing waits on its last frame.
     // Stopping closes the window, so the ring and its banner go now.
     _stopLive();
@@ -755,7 +761,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         await _discard(file);
         return;
       }
-      _pop(GuidedCaptureResult.captured(file));
+      _pop(GuidedCaptureResult.captured(file, conditions: conditions));
     } on Exception catch (e, stack) {
       _shooting = false;
       // Only a window opened after this failure, lasting its full second,
