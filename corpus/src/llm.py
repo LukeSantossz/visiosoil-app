@@ -43,6 +43,17 @@ MIN_CHARS_PER_TOKEN = 2
 
 PROMPT_CHAR_CEILING = CONTEXT_TOKENS * MIN_CHARS_PER_TOKEN
 
+SLOWEST_TOKENS_PER_SECOND = 2
+"""The slowest rate the build has measured: `qwen2.5:7b` wrote 2.16 tokens/s on
+the Iris Xe (SPEC 0244). A slower machine lowers it."""
+
+MODEL_TIMEOUT_SECONDS = (
+    PASSAGE_CHAR_LIMIT // MIN_CHARS_PER_TOKEN // SLOWEST_TOKENS_PER_SECOND
+)
+"""How long a model call waits: the time to copy a whole passage at the slowest
+rate, since a grounding check quotes its support word for word. A Muito
+Argilosa check quoted 885 tokens in 409 s, past the 300 s this replaced."""
+
 RELEVANCE_THRESHOLD = 2
 """The lowest grade score that keeps a document for a query (SPEC 0154). 2 is
 "treats the subject, but not the case the query describes": CT 33 scores 2 on
@@ -126,7 +137,9 @@ def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=300) as response:  # noqa: S310
+    with urllib.request.urlopen(  # noqa: S310
+        request, timeout=MODEL_TIMEOUT_SECONDS
+    ) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

@@ -573,3 +573,37 @@ def test_the_generate_prompt_no_longer_asks_for_limitations():
 
     assert '"limitations"' not in requests[0]["prompt"]
     assert client.prompt_versions["generate"] == "7"
+
+
+def test_a_model_call_waits_long_enough_to_quote_a_whole_passage(monkeypatch):
+    """A grounding check copies its support word for word, and a passage may
+    hold `PASSAGE_CHAR_LIMIT` characters, so a correct answer can take that
+    long to write (SPEC 0244)."""
+    import io
+
+    import src.llm as llm
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    waits = []
+
+    def urlopen(request, timeout):
+        waits.append(timeout)
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", urlopen)
+    llm._post("http://localhost:11434/api/generate", {})
+
+    assert waits == [llm.MODEL_TIMEOUT_SECONDS]
+    assert llm.MODEL_TIMEOUT_SECONDS == (
+        PASSAGE_CHAR_LIMIT
+        // llm.MIN_CHARS_PER_TOKEN
+        // llm.SLOWEST_TOKENS_PER_SECOND
+    )
+
+
+def test_the_wait_covers_the_measured_long_quote():
+    """The Muito Argilosa check that timed out four times answered in 409 s
+    when nothing cut it short (SPEC 0244)."""
+    from src.llm import MODEL_TIMEOUT_SECONDS
+
+    assert MODEL_TIMEOUT_SECONDS > 409
