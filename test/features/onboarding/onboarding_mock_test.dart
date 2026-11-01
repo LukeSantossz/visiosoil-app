@@ -123,9 +123,14 @@ void main() {
     for (final text in ['AR', 'Ana Ribeiro', 'ana@exemplo.com']) {
       expect(find.descendant(of: row, matching: find.text(text)), findsOneWidget);
     }
+    // SPEC 0248: a plain check, since no backup reaches the cloud.
+    expect(
+      find.descendant(of: row, matching: find.byIcon(LucideIcons.circleCheck)),
+      findsOneWidget,
+    );
     expect(
       find.descendant(of: row, matching: find.byIcon(LucideIcons.cloudCheck)),
-      findsOneWidget,
+      findsNothing,
     );
     // 16 dp above "Continuar", as PNG 04 draws it.
     expect(
@@ -142,7 +147,7 @@ void main() {
       16,
     );
     final icon = tester.widget<Icon>(
-      find.descendant(of: row, matching: find.byIcon(LucideIcons.cloudCheck)),
+      find.descendant(of: row, matching: find.byIcon(LucideIcons.circleCheck)),
     );
     expect(icon.size, 20);
   });
