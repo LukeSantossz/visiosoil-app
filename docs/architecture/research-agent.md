@@ -656,8 +656,8 @@ post-filter". With the build on local models there is no such platform, and that
 was named as a cost rather than absorbed.
 
 What replaces it is stronger than a post-filter and weaker than a platform: for
-the substance layer the allowlist is a **committed manifest of sources**
-(`corpus/sources/substance.manifest.json`), and a URL it does not list is refused
+the substance layer the allowlist is a **committed manifest of sources per cell**
+(`corpus/sources/<cell>.manifest.json`, SPEC 0234), and a URL it does not list is refused
 *before* it is fetched rather than filtered after. Adding a source is a reviewed
 act. For the unit overlays, which do search, the tier list above is a filter this
 repository implements and tests.

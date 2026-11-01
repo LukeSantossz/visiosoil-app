@@ -3,6 +3,12 @@ package com.visiosoil.app
 import android.app.UiModeManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.os.Bundle
 import android.view.ViewTreeObserver
@@ -10,6 +16,7 @@ import android.view.WindowInsetsController
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -112,5 +119,76 @@ class MainActivity : FlutterActivity() {
                 }
                 result.success(null)
             }
+        // The guided camera's distance estimate reads the open lens's optics,
+        // and its light chip the ambient light sensor (SPEC 0238).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.visiosoil.app/camera_optics")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "opticsOf") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                try {
+                    result.success(opticsOf(call.arguments as String))
+                } catch (e: Exception) {
+                    result.error("optics_unavailable", e.message, null)
+                }
+            }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "com.visiosoil.app/ambient_light")
+            .setStreamHandler(AmbientLightHandler())
+    }
+
+    /**
+     * The focal length and the active array's long side, in millimetres, of
+     * the Camera2 camera [cameraId]; null when the camera reports either
+     * incompletely. The active array is the part of the sensor the frames
+     * come from, so its share of the physical size is what a frame spans.
+     */
+    private fun opticsOf(cameraId: String): Map<String, Double>? {
+        val manager = getSystemService(CameraManager::class.java) ?: return null
+        val characteristics = manager.getCameraCharacteristics(cameraId)
+        val focal = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+            ?.firstOrNull() ?: return null
+        val physical = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+            ?: return null
+        val pixels = characteristics.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+            ?: return null
+        val active = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+            ?: return null
+        val pixelLong = maxOf(pixels.width, pixels.height)
+        if (focal <= 0f || pixelLong <= 0) return null
+        val activeLong = maxOf(active.width(), active.height())
+        val physicalLong = maxOf(physical.width, physical.height)
+        return mapOf(
+            "focalLengthMm" to focal.toDouble(),
+            "activeLongSideMm" to physicalLong.toDouble() * activeLong / pixelLong,
+        )
+    }
+
+    /** Streams the ambient light sensor's lux while Dart listens. */
+    private inner class AmbientLightHandler : EventChannel.StreamHandler, SensorEventListener {
+        private var events: EventChannel.EventSink? = null
+
+        override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
+            val manager = getSystemService(SensorManager::class.java)
+            val sensor = manager?.getDefaultSensor(Sensor.TYPE_LIGHT)
+            if (sensor == null) {
+                // No sensor: the light chip keeps its verdict alone.
+                sink.endOfStream()
+                return
+            }
+            events = sink
+            manager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+
+        override fun onCancel(arguments: Any?) {
+            getSystemService(SensorManager::class.java)?.unregisterListener(this)
+            events = null
+        }
+
+        override fun onSensorChanged(event: SensorEvent) {
+            events?.success(event.values[0].toDouble())
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
     }
 }

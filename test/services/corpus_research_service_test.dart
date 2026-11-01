@@ -88,6 +88,38 @@ void main() {
         ),
       );
     });
+
+    // A record saved without GPS has no site at all, and still gets its
+    // class's tips from the generic cell (SPEC 0234).
+    test('a_record_without_location_gets_tips', () async {
+      final corpus = Corpus.fromJson(
+        {
+          'corpusVersion': 'generic',
+          'disclaimer': 'x',
+          'substance': {
+            Corpus.genericKey('Argilosa'): {
+              'status': 'grounded',
+              'disclaimer': 'x',
+              'tips': [
+                {'text': 'Uma dica.', 'citations': [0]},
+              ],
+              'sources': [
+                {'title': 'Fonte', 'url': 'https://example.org/a'},
+              ],
+            },
+          },
+        },
+        fetchedAt: DateTime.utc(2026, 10, 29),
+      );
+      final service = CorpusResearchService(store: HeldCorpusStore(corpus));
+
+      final result = await service.fetchTips(tipsRecord());
+
+      final tips = (result as ResearchSuccess).tips;
+      expect(tips.status, ManagementTipsStatus.grounded);
+      expect(tips.tips.single.text, 'Uma dica.');
+      expect(tips.coverage?.substanceIsGeneric, isTrue);
+    });
   });
 
   group('when no corpus is held', () {

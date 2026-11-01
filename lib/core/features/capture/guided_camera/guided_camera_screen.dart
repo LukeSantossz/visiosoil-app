@@ -13,6 +13,7 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/live_quality.d
 import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_alert.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/auto_capture_trigger.dart';
+import 'package:visiosoil_app/core/features/capture/guided_camera/camera_optics.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/camera_release_queue.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
@@ -33,6 +34,7 @@ import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -137,6 +139,18 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   SheetAlignment? _shownAlignment;
   bool _shownTooCoarse = false;
   bool _wasReady = false;
+
+  // The chips' numbers (SPEC 0238).
+  static const _luxRefresh = Duration(milliseconds: 500);
+  CameraOptics? _optics;
+
+  /// Bumped by every optics read and release: a reply carrying another one
+  /// answers a camera no longer open.
+  int _opticsToken = 0;
+  StreamSubscription<double>? _luxSubscription;
+  Timer? _luxTimer;
+  double? _latestLux;
+  double? _lux;
 
   // The automatic capture (SPEC 0167).
   final AutoCaptureTrigger _trigger = AutoCaptureTrigger();
@@ -260,7 +274,58 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       _camera = camera;
       _everInitialized = true;
     });
+    unawaited(_readOptics(camera));
+    _listenToLight();
     unawaited(_startLive(camera));
+  }
+
+  /// Reads the optics of [camera]'s open lens, for the distance estimate.
+  Future<void> _readOptics(CaptureCamera camera) async {
+    final token = ++_opticsToken;
+    _optics = null;
+    final id = camera.cameraId;
+    if (!_guide || id == null) return;
+    final optics = await ref.read(cameraOpticsSourceProvider).opticsOf(id);
+    if (token != _opticsToken || !mounted || !identical(_camera, camera)) {
+      return;
+    }
+    setState(() => _optics = optics);
+  }
+
+  /// Listens to the ambient light sensor while a camera is live.
+  void _listenToLight() {
+    if (!_guide || _luxSubscription != null) return;
+    _luxSubscription = ref
+        .read(ambientLightSourceProvider)
+        .lux
+        // A sensor that fails shows no lux; the light verdict stays.
+        .listen(_onLux, onError: (Object _) {});
+  }
+
+  void _stopLight() {
+    unawaited(_luxSubscription?.cancel());
+    _luxSubscription = null;
+    _luxTimer?.cancel();
+    _luxTimer = null;
+    _latestLux = null;
+    _lux = null;
+  }
+
+  /// Shows [lux] now, or at the end of the refresh window when one is open,
+  /// so the chip changes at most twice a second.
+  void _onLux(double lux) {
+    _latestLux = lux;
+    if (_luxTimer == null) _showLux();
+  }
+
+  void _showLux() {
+    final lux = _latestLux;
+    if (!mounted || lux == null) return;
+    if (lux != _lux) setState(() => _lux = lux);
+    _luxTimer = Timer(_luxRefresh, () {
+      _luxTimer = null;
+      if (_latestLux != _lux) _showLux();
+    });
   }
 
   /// A stale initialisation finished while the screen wants a camera again:
@@ -632,6 +697,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   /// screen cannot rebuild.
   void _releaseCamera({bool rebuild = true}) {
     _stopLive();
+    _stopLight();
+    _opticsToken++;
+    _optics = null;
     _generation++;
     final camera = _camera;
     _camera = null;
@@ -788,6 +856,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       await _stopFrames(camera);
       if (!identical(_camera, camera) || _closed) return;
       await camera.switchCamera();
+      unawaited(_readOptics(camera));
     } on Exception catch (error, stack) {
       unawaited(
         _errors.record(source: 'guided_camera', error: error, stack: stack),
@@ -833,6 +902,22 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       ? QualityStatus.ready
       : QualityStatus.failed;
 
+  /// The shown sheet's estimated distance, or null when no whole sheet is
+  /// shown or the optics are not known (SPEC 0238).
+  double? _distanceEstimate() {
+    final reading = _shownReading;
+    final optics = _optics;
+    final read = _readSize;
+    if (reading is! LiveSheetFound || optics == null || read == null) {
+      return null;
+    }
+    return estimatedDistanceMm(
+      optics: optics,
+      sheetLongSidePx: reading.sheetLongSidePx,
+      readLongSidePx: read.longestSide,
+    );
+  }
+
   Widget _qualityChips(GuidanceRow row) {
     final failure = blockedGuidance(row, _shownAlignment);
     final distance = _shownReading == null
@@ -842,16 +927,22 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         : failure?.isDistance == true
         ? false
         : null;
+    final light = _shownQuality == null
+        ? null
+        : _shownQuality!.lightOk
+        ? 'Boa'
+        : _shownQuality!.tooBright
+        ? 'Excessiva'
+        : 'Baixa';
+    final estimate = _distanceEstimate();
     final chips = [
       QualityChip(
         label: 'Luz',
-        value: _shownQuality == null
+        value: light == null
             ? 'Ajustando…'
-            : _shownQuality!.lightOk
-            ? 'Boa'
-            : _shownQuality!.tooBright
-            ? 'Excessiva'
-            : 'Baixa',
+            : _lux == null
+            ? light
+            : '$light · ${Formatters.lux(_lux!)}',
         status: _status(_shownQuality?.lightOk),
         highlight: _failedChips.contains('Luz'),
       ),
@@ -867,7 +958,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       ),
       QualityChip(
         label: 'Distância',
-        value: distance == null
+        value: estimate != null
+            ? Formatters.distanceCm(estimate)
+            : distance == null
             ? 'Ajustando…'
             : distance
             ? 'Enquadrada'
