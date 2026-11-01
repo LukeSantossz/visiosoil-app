@@ -10,6 +10,7 @@ import 'package:visiosoil_app/core/services/auth/auth_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/google_g_logo.dart';
 import 'package:visiosoil_app/core/widgets/settings_tile.dart';
+import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -206,6 +207,23 @@ void main() {
     );
   });
 
+  // No sync backend is wired, so a signed-in account's records are still
+  // only on this device (SPEC 0235).
+  testWidgets('signed_in_records_count_as_only_on_this_device', (tester) async {
+    await pumpProfile(tester, [
+      classified('Argilosa'),
+      classified('Arenosa'),
+    ], account: const AuthAccount(email: 'user@test.com', displayName: null));
+
+    expect(find.text('enviadas'), findsNothing);
+    final cell = tester.widget<StatCell>(
+      find.byWidgetPredicate(
+        (widget) => widget is StatCell && widget.label == 'só no aparelho',
+      ),
+    );
+    expect(cell.value, '2');
+  });
+
   testWidgets('profile_links_use_the_settings_row', (tester) async {
     await pumpProfile(tester, const []);
 
@@ -226,7 +244,8 @@ void main() {
   });
 
   // PNG 22: the initials in `primaryText`, a rule under the header, and the
-  // sync row with its action live (SPEC 0204).
+  // sync row (SPEC 0204), without its action while no backend is wired
+  // (SPEC 0236).
   testWidgets('linked_card_matches_the_mock', (tester) async {
     await pumpProfile(
       tester,
@@ -254,28 +273,12 @@ void main() {
       closeTo(36, 1),
     );
 
-    final action = tester.widget<Text>(find.text('Sincronizar'));
-    expect(action.style?.fontSize, 14);
-    expect(action.style?.fontWeight, FontWeight.w600);
-    expect(action.style?.color, const Color(0xFF3B6A49));
+    // No backend is wired, so the row says where the data is and offers no
+    // action (SPEC 0236).
     expect(
-      tester.getSize(
-        find.ancestor(
-          of: find.text('Sincronizar'),
-          matching: find.byType(TextButton),
-        ),
-      ).height,
-      greaterThanOrEqualTo(48),
-    );
-
-    await tester.tap(find.text('Sincronizar'));
-    await tester.pump();
-    expect(
-      find.text(
-        'A sincronização com a conta ainda não está disponível. '
-        'As análises seguem neste aparelho.',
-      ),
+      find.descendant(of: card, matching: find.text('Dados só neste aparelho')),
       findsOneWidget,
     );
+    expect(find.text('Sincronizar'), findsNothing);
   });
 }
