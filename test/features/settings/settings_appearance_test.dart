@@ -129,7 +129,7 @@ void main() {
 
     // No stored choice yet: the theme follows the test view's platform,
     // which is light.
-    expect(find.text('PREFERÊNCIAS'), findsOneWidget);
+    expect(find.text('Preferências'), findsOneWidget);
     expect(brightness(), Brightness.light);
 
     for (final (label, mode, expected) in [
