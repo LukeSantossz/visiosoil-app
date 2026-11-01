@@ -301,25 +301,16 @@ void main() {
     expect(tester.getSize(segment).height, greaterThanOrEqualTo(48));
   });
 
-  testWidgets('history_summary_is_one_strip', (tester) async {
+  // SPEC 0247: the total alone, where PNG 16 drew a strip of three.
+  testWidgets('history_summary_is_the_total_alone', (tester) async {
     _phone(tester);
     await _pump(tester, home: const HistoryScreen());
 
-    final strip = find.byKey(const Key('history-summary'));
-    expect(strip, findsOneWidget);
-    expect(
-      find.descendant(of: strip, matching: find.byType(StatCell)),
-      findsNothing,
-    );
-    expect(
-      find.descendant(of: strip, matching: find.text('2')),
-      findsNWidgets(2),
-    );
-    for (final text in ['análises', 'nesta semana', '1/4', 'classes']) {
-      expect(
-        find.descendant(of: strip, matching: find.text(text)),
-        findsOneWidget,
-      );
+    final summary = find.byKey(const Key('history-summary'));
+    expect(summary, findsOneWidget);
+    expect(tester.widget<Text>(summary).data, '2 análises');
+    for (final text in ['nesta semana', 'classes', '1/4']) {
+      expect(find.textContaining(text), findsNothing);
     }
   });
 
