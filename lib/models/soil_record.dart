@@ -54,6 +54,14 @@ class SoilRecord {
   /// when the record was saved before the cause was kept.
   final ClassificationFailureCause? classificationFailure;
 
+  /// The light in lux, the sheet's estimated distance in millimetres and the
+  /// focus verdict the guided camera's chips showed when the shutter fired
+  /// (SPEC 0240). Each is null when the chip showed none, and all three for
+  /// a photograph from another source or a record saved before v12.
+  final double? captureLux;
+  final double? captureDistanceMm;
+  final bool? captureSharp;
+
   const SoilRecord({
     this.id,
     this.uuid,
@@ -76,6 +84,9 @@ class SoilRecord {
     this.sampleLabel,
     this.trueTextureClass,
     this.classificationFailure,
+    this.captureLux,
+    this.captureDistanceMm,
+    this.captureSharp,
   });
 
   /// Returns a copy of this record with the given fields replaced.
@@ -101,6 +112,9 @@ class SoilRecord {
     String? sampleLabel,
     String? trueTextureClass,
     ClassificationFailureCause? classificationFailure,
+    double? captureLux,
+    double? captureDistanceMm,
+    bool? captureSharp,
   }) {
     return SoilRecord(
       id: id ?? this.id,
@@ -125,6 +139,9 @@ class SoilRecord {
       trueTextureClass: trueTextureClass ?? this.trueTextureClass,
       classificationFailure:
           classificationFailure ?? this.classificationFailure,
+      captureLux: captureLux ?? this.captureLux,
+      captureDistanceMm: captureDistanceMm ?? this.captureDistanceMm,
+      captureSharp: captureSharp ?? this.captureSharp,
     );
   }
 

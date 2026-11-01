@@ -63,4 +63,12 @@ class SoilRecords extends Table {
   /// every record saved before v10, which kept no cause.
   TextColumn get classificationFailure =>
       text().named('classification_failure').nullable()();
+
+  /// v12 (SPEC 0240): the light in lux, the sheet's estimated distance in
+  /// millimetres and the focus verdict the guided camera showed at the shot.
+  /// Null when it showed none, and for every record saved before v12.
+  RealColumn get captureLux => real().named('capture_lux').nullable()();
+  RealColumn get captureDistanceMm =>
+      real().named('capture_distance_mm').nullable()();
+  BoolColumn get captureSharp => boolean().named('capture_sharp').nullable()();
 }

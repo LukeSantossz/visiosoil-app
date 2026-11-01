@@ -9,7 +9,7 @@ import pytest
 
 from src.build_grids import BIOME_KIND, CLAY_KIND
 from src.grids import GridSpec, write_packed_grid
-from src.keys import BIOMES, CLAY_ACTIVITIES, substance_keys
+from src.keys import BIOMES, CLAY_ACTIVITIES, generic_keys
 from src.pipeline import ABSTENTION_DISCLAIMER, SUBSTANCE_DISCLAIMER
 from src.release import ReleaseError, default_by_biome, release
 
@@ -86,24 +86,41 @@ def write_grids(directory, clay=None, biome=None, *, biome_spec=None):
     return clay_bytes, biome_bytes
 
 
+FAMILY_KEY = "Argilosa|tb_oxidic"
+"""The one family-specific cell the fixture's sources directory has a manifest for."""
+
+
+def slug(key):
+    return key.replace("|", "__").replace(" ", "-")
+
+
+def write_source_manifest(directory, key):
+    (directory / f"{slug(key)}.manifest.json").write_text(
+        json.dumps({"cell": key, "sources": []}), encoding="utf-8"
+    )
+
+
 @pytest.fixture
 def build(tmp_path):
     cells = tmp_path / "cells"
     grids = tmp_path / "grids"
     out = tmp_path / "out"
-    cells.mkdir()
-    grids.mkdir()
-    for key in substance_keys():
+    sources = tmp_path / "sources"
+    for directory in (cells, grids, sources):
+        directory.mkdir()
+    for key in [*generic_keys(), FAMILY_KEY]:
+        write_source_manifest(sources, key)
         write_cell(cells, key, grounded())
     write_grids(grids)
-    return cells, grids, out
+    return cells, grids, out, sources
 
 
 def run(build, **overrides):
-    cells, grids, out = build
+    cells, grids, out, sources = build
     return release(
         cells_dir=cells,
         grids_dir=grids,
+        sources_dir=sources,
         out_dir=out,
         version=overrides.get("version", "2026.10.28"),
         built_at=BUILT_AT,
@@ -134,21 +151,34 @@ def test_the_release_writes_the_fixtures_fields(build):
         assert set(cell) <= cell_fields
 
 
-def test_every_substance_key_is_released(build):
-    assert sorted(written(build)["substance"]) == sorted(substance_keys())
+def test_every_expected_key_is_released(build):
+    """The generic cells, then the family cells that have a manifest (SPEC 0234)."""
+    assert list(written(build)["substance"]) == [*generic_keys(), FAMILY_KEY]
 
 
-def test_a_missing_key_is_refused(build):
+def test_release_requires_every_generic_cell(build):
     cells = build[0]
-    for path in cells.glob("Media__intermediate.*"):
+    for path in cells.glob("Media__generic.*"):
         path.unlink()
+    with pytest.raises(ReleaseError, match="Media\\|generic"):
+        run(build)
+
+
+def test_release_refuses_a_family_cell_without_a_manifest(build):
+    write_cell(build[0], "Media|intermediate", grounded())
     with pytest.raises(ReleaseError, match="Media\\|intermediate"):
         run(build)
 
 
+def test_release_requires_a_family_cell_that_has_a_manifest(build):
+    write_source_manifest(build[3], "Arenosa|ta_less_weathered")
+    with pytest.raises(ReleaseError, match="Arenosa\\|ta_less_weathered"):
+        run(build)
+
+
 def test_an_extra_key_is_refused(build):
-    write_cell(build[0], "Siltosa|tb_oxidic", grounded())
-    with pytest.raises(ReleaseError, match="Siltosa\\|tb_oxidic"):
+    write_cell(build[0], "Siltosa|generic", grounded())
+    with pytest.raises(ReleaseError, match="Siltosa\\|generic"):
         run(build)
 
 
@@ -156,21 +186,21 @@ def test_a_key_two_manifests_name_is_refused(build):
     # A stale copy under another file name must not replace the cell.
     cells = build[0]
     for suffix in ("cell", "manifest"):
-        original = cells / f"Arenosa__tb_oxidic.{suffix}.json"
-        copy = cells / f"Arenosa__tb_oxidic.backup.{suffix}.json"
+        original = cells / f"Arenosa__generic.{suffix}.json"
+        copy = cells / f"Arenosa__generic.backup.{suffix}.json"
         copy.write_text(original.read_text(encoding="utf-8"), encoding="utf-8")
-    with pytest.raises(ReleaseError, match="Arenosa\\|tb_oxidic"):
+    with pytest.raises(ReleaseError, match="Arenosa\\|generic"):
         run(build)
 
 
 def test_cells_from_two_models_are_refused(build):
-    write_cell(build[0], "Arenosa|tb_oxidic", grounded(), model="llama3.1:8b")
+    write_cell(build[0], "Arenosa|generic", grounded(), model="llama3.1:8b")
     with pytest.raises(ReleaseError, match="model"):
         run(build)
 
 
 def test_cells_from_two_prompt_versions_are_refused(build):
-    write_cell(build[0], "Arenosa|tb_oxidic", grounded(), generate="5")
+    write_cell(build[0], "Arenosa|generic", grounded(), generate="5")
     with pytest.raises(ReleaseError, match="prompt"):
         run(build)
 
@@ -178,29 +208,29 @@ def test_cells_from_two_prompt_versions_are_refused(build):
 def test_a_citation_outside_its_sources_is_refused(build):
     cell = grounded()
     cell["tips"][0]["citations"] = [3]
-    write_cell(build[0], "Arenosa|tb_oxidic", cell)
-    with pytest.raises(ReleaseError, match="Arenosa\\|tb_oxidic"):
+    write_cell(build[0], "Arenosa|generic", cell)
+    with pytest.raises(ReleaseError, match="Arenosa\\|generic"):
         run(build)
 
 
 def test_an_empty_disclaimer_is_refused(build):
     cell = grounded()
     cell["disclaimer"] = " "
-    write_cell(build[0], "Arenosa|tb_oxidic", cell)
-    with pytest.raises(ReleaseError, match="Arenosa\\|tb_oxidic"):
+    write_cell(build[0], "Arenosa|generic", cell)
+    with pytest.raises(ReleaseError, match="Arenosa\\|generic"):
         run(build)
 
 
 def test_nothing_is_written_when_the_release_is_refused(build):
-    write_cell(build[0], "Arenosa|tb_oxidic", grounded(), model="llama3.1:8b")
+    write_cell(build[0], "Arenosa|generic", grounded(), model="llama3.1:8b")
     with pytest.raises(ReleaseError):
         run(build)
     assert not build[2].exists() or not any(build[2].iterdir())
 
 
 def test_an_abstained_cell_is_released_as_it_is(build):
-    write_cell(build[0], "Arenosa|tb_oxidic", abstained())
-    assert written(build)["substance"]["Arenosa|tb_oxidic"] == abstained()
+    write_cell(build[0], "Arenosa|generic", abstained())
+    assert written(build)["substance"]["Arenosa|generic"] == abstained()
 
 
 def test_the_grids_are_copied_byte_for_byte(build):
