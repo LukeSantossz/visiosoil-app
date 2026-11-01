@@ -59,7 +59,7 @@ class HistoryFilterBar extends ConsumerWidget {
               child: TextField(
                 controller: searchController,
                 decoration: InputDecoration(
-                  hintText: 'Buscar por endereço, talhão ou amostra...',
+                  hintText: 'Buscar por endereço ou amostra...',
                   prefixIcon: const Icon(Icons.search, size: 20),
                   suffixIcon: searchTerm.isNotEmpty
                       ? VisioIconButton(

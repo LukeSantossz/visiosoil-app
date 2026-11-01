@@ -27,8 +27,9 @@ from typing import Any
 from src.build_grids import BIOME_KIND, CLAY_KIND
 from src.cell import CellValidationError, validate_cell
 from src.grids import MAGIC
-from src.keys import BIOMES, CLAY_ACTIVITIES, substance_keys
+from src.keys import BIOMES, CLAY_ACTIVITIES, generic_keys, substance_keys
 from src.pipeline import SUBSTANCE_DISCLAIMER
+from src.sources import SOURCES_DIR, manifest_path_for
 
 DEFAULT_OUT_DIR = Path(__file__).resolve().parents[2] / "assets" / "corpus"
 CLASS_LIST_VERSION = "v1-four-class"
@@ -79,7 +80,19 @@ def _read_grid(path: Path, kind: int) -> tuple[bytes, tuple[int, ...], bytes]:
     return data, tuple(lattice), cells
 
 
-def _read_cells(cells_dir: Path) -> tuple[dict[str, dict[str, Any]], str]:
+def expected_keys(sources_dir: Path = SOURCES_DIR) -> list[str]:
+    """Every class's generic cell, then each family cell that has its own
+    manifest: a family is refined only where sources speak to it (SPEC 0234)."""
+    return [*generic_keys()] + [
+        key
+        for key in substance_keys()
+        if manifest_path_for(key, sources_dir).is_file()
+    ]
+
+
+def _read_cells(
+    cells_dir: Path, sources_dir: Path
+) -> tuple[dict[str, dict[str, Any]], str]:
     """Every cell by its manifest's key, and the one model that built them."""
     cells: dict[str, dict[str, Any]] = {}
     builds: set[tuple[str, str]] = set()
@@ -106,13 +119,15 @@ def _read_cells(cells_dir: Path) -> tuple[dict[str, dict[str, Any]], str]:
             (manifest["model"], json.dumps(manifest["promptVersions"], sort_keys=True))
         )
 
-    expected = substance_keys()
+    expected = expected_keys(sources_dir)
     missing = [key for key in expected if key not in cells]
     extra = sorted(key for key in cells if key not in expected)
     if missing:
         raise ReleaseError(f"no cell for {', '.join(missing)}")
     if extra:
-        raise ReleaseError(f"cells outside the substance keys: {', '.join(extra)}")
+        raise ReleaseError(
+            f"cells with no manifest in {sources_dir}: {', '.join(extra)}"
+        )
     models = {model for model, _ in builds}
     if len(models) > 1:
         raise ReleaseError(f"cells from more than one model: {sorted(models)}")
@@ -130,12 +145,13 @@ def release(
     *,
     cells_dir: Path,
     grids_dir: Path,
+    sources_dir: Path = SOURCES_DIR,
     out_dir: Path = DEFAULT_OUT_DIR,
     version: str,
     built_at: datetime,
 ) -> dict[str, Any]:
     """Checks the build and writes `corpus.json` and both grids into [out_dir]."""
-    cells, model = _read_cells(cells_dir)
+    cells, model = _read_cells(cells_dir, sources_dir)
     grids = [
         (name, *_read_grid(Path(grids_dir) / name, kind)) for name, kind in GRIDS
     ]

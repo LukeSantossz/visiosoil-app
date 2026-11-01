@@ -1,0 +1,186 @@
+{
+  "_note": "The curated sources of the Argilosa class's generic cell, the cell that answers when no clay-activity family refines the class (SPEC 0234). Curated on 2026-10-29 to the Developer's floor of fifteen excerpts per class, which admits peer-reviewed SciELO articles at tier 3 beside Embrapa and state material. A URL that is not listed here cannot be fetched; adding a source is a reviewed act. `pages` is [first, last] in physical pages of the file, 1-based and inclusive, not the numbers printed on them. Every entry was fetched through src.llm.http_transport on 2026-10-29 and returned a PDF directly, without a redirect, with a text layer, and a passage within PASSAGE_CHAR_LIMIT; the tier column is the source policy of research-agent.md §8.1.",
+  "cell": "Argilosa|generic",
+  "sources": [
+    {
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+      "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+      "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
+      "tier": 1,
+      "year": 2021,
+      "pages": [
+        11,
+        11
+      ],
+      "why": "How no-till changes the quality of soils by texture, including the compaction a clayey soil is prone to. 2,887 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1134304/1/500perguntassistemaplantiodireto-p.103.pdf",
+      "title": "Compactação do solo (chapter 8 of 500 perguntas, 500 respostas: Sistema Plantio Direto)",
+      "publisher": "Embrapa (500 Perguntas 500 Respostas, 1998)",
+      "tier": 1,
+      "year": 1998,
+      "pages": [
+        2,
+        4
+      ],
+      "why": "Questions and answers on how compaction forms, how it is recognised and how it is corrected. 4,776 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/255165/1/CT221992.pdf",
+      "title": "Soja: recomendações técnicas para o Mato Grosso do Sul",
+      "publisher": "Embrapa (Circular Técnica 22, 1992)",
+      "tier": 1,
+      "year": 1992,
+      "pages": [
+        27,
+        28
+      ],
+      "why": "Soil preparation and conservation recommendations for soybean, by soil texture. 2,696 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+      "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+      "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        4,
+        4
+      ],
+      "why": "Questions and answers on how a clayey soil's texture governs erosion, water retention and the care its tillage needs. 5,228 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/xVSy9RqzNh5hm7MHB3xH5dy/?format=pdf&lang=pt",
+      "title": "Propriedades físicas e taxa de estratificação de carbono orgânico num Latossolo Vermelho após dez anos sob dois sistemas de manejo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2004,
+      "pages": [
+        7,
+        7
+      ],
+      "why": "Conclusions on physical properties and carbon stratification after ten years of two systems in a clayey Latossolo. 3,693 characters."
+    },
+    {
+      "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+      "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+      "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+      "tier": 2,
+      "year": 2016,
+      "pages": [
+        80,
+        81
+      ],
+      "why": "Conservation practices for sugarcane by soil texture, including clayey soils. 4,836 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/yd3Z3MSRrPBbKT5pKMJWLwg/?format=pdf&lang=pt",
+      "title": "Alterações nos atributos físicos de um Latossolo Vermelho sob plantio direto induzidas por diferentes tipos de escarificadores e o rendimento da soja",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2011,
+      "pages": [
+        10,
+        10
+      ],
+      "why": "How long chiseling relieves compaction of a clayey Latossolo under no-till, and its effect on soybean. 4,671 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/Jcjq7JXCGMmL7pdZKyvk6xt/?format=pdf&lang=pt",
+      "title": "Propriedades físicas do solo sob plantio direto influenciadas por calagem, preparo inicial e tráfego",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 1998,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How liming, initial tillage and traffic change physical properties of a clayey soil under no-till. 2,588 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/6njnqQ8BbdgvdtWfgkrvDxh/?format=pdf&lang=pt",
+      "title": "Duração das alterações em propriedades físico-hídricas de Latossolo argiloso decorrentes da escarificação mecânica",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2016,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How long the effects of mechanical chiseling last in a clayey Latossolo. 4,418 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/brag/a/pT8hwVBpG6V7rJBsxFR5mZL/?format=pdf&lang=pt",
+      "title": "Compactação de um Latossolo Vermelho Distroférrico com diferentes quantidades e manejos de palha em superfície",
+      "publisher": "Bragantia (SciELO)",
+      "tier": 3,
+      "year": 2012,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How surface straw changes the compaction of a clayey Latossolo. 4,407 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/asagr/a/FYDpW7pWXWTP6tccWNCP3Mz/?format=pdf&lang=pt",
+      "title": "Determinação da densidade relativa do solo por uma função de pedotransferência para a densidade do solo máxima",
+      "publisher": "Acta Scientiarum. Agronomy (SciELO)",
+      "tier": 3,
+      "year": 2011,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How a soil's relative density is judged from its clay content, and how clayey soils aggregate. 4,306 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cr/a/bpnYzMgKy5Vf5zQx4sG55sd/?format=pdf&lang=pt",
+      "title": "Atributos físicos e rendimento de grãos de trigo, soja e milho em dois Latossolos compactados e escarificados",
+      "publisher": "Ciência Rural (SciELO)",
+      "tier": 3,
+      "year": 2009,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How compaction states limit crop yield in clayey Latossolos under no-till, and what chiseling does. 4,531 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/bWXMZQPNWW8FQTp7m48C7Bs/?format=pdf&lang=pt",
+      "title": "Lixiviação de potássio em função da textura e da disponibilidade do nutriente no solo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2008,
+      "pages": [
+        7,
+        7
+      ],
+      "why": "Conclusions on how potassium leaching changes with soil texture, a clayey soil among those compared. 2,450 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/4R3ywLm8LMfRWTSqVXt4tLN/?format=pdf&lang=pt",
+      "title": "Fatores controladores da compressibilidade de um Argissolo Vermelho-Amarelo distrófico arênico e de um Latossolo Vermelho distrófico típico. I - Estado inicial de compactação",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2002,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "What controls how a clayey Latossolo compresses, set against a sandy Argissolo. 2,735 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cr/a/7tkFFz8NLmDs4ByWHzYVCjc/?format=pdf&lang=pt",
+      "title": "Atributos físico-hídricos e produtividade de trigo em um Latossolo sob estados de compactação",
+      "publisher": "Ciência Rural (SciELO)",
+      "tier": 3,
+      "year": 2011,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How compaction states of a clayey to very clayey Latossolo change its physical-hydric attributes and wheat yield. 4,408 characters."
+    }
+  ]
+}
