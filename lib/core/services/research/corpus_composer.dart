@@ -158,6 +158,10 @@ class Corpus {
   /// The substance key for a class and a clay-activity family.
   static String substanceKey(String textureClass, ClayActivity activity) =>
       '$textureClass|${activity.wireName}';
+
+  /// The key of a class's generic cell, built from sources about the texture
+  /// alone and composed when no family cell answers (SPEC 0234).
+  static String genericKey(String textureClass) => '$textureClass|generic';
 }
 
 /// Turns a key and a corpus into a [ManagementTipsResult], with no I/O.
@@ -183,9 +187,16 @@ class CorpusComposer {
             ? null
             : corpus.clayActivityDefaultByBiome[site.biome!.wireName]);
 
-    final substance = activity == null
+    // A family cell with tips answers; otherwise the class's generic cell does,
+    // which covers a record without a family, a family without a cell and a
+    // family cell that abstained (SPEC 0234).
+    final familyCell = activity == null
         ? null
         : corpus.substance[Corpus.substanceKey(textureClass, activity)];
+    final genericCell = corpus.substance[Corpus.genericKey(textureClass)];
+    final useGeneric = genericCell != null &&
+        (familyCell == null || familyCell.tips.isEmpty);
+    final substance = useGeneric ? genericCell : familyCell;
     final landUseCell = landUse == null ? null : corpus.landUse[landUse.wireName];
     final unitCell = site.unit == null ? null : corpus.unit[site.unit!];
     final biomeCell =
@@ -230,13 +241,14 @@ class CorpusComposer {
       limitations: limitations,
       alerts: alerts,
       followUpQuestions: followUpQuestions,
-      // The coverage describes this composition, not the site: the family the
-      // lookup used, whether the biome default supplied it, and "generic" only
-      // when no family was used at all (SPEC 0108).
+      // The coverage describes this composition, not the site: the family of
+      // the cell that composed, whether the biome default supplied it, and
+      // "generic" when no family cell was used (SPEC 0108, SPEC 0234).
       coverage: TipsCoverage(
-        clayActivity: activity?.wireName,
-        clayActivityAssumed: site.clayActivity == null && activity != null,
-        substanceIsGeneric: activity == null,
+        clayActivity: useGeneric ? null : activity?.wireName,
+        clayActivityAssumed:
+            !useGeneric && site.clayActivity == null && activity != null,
+        substanceIsGeneric: useGeneric || activity == null,
         unit: site.unit,
         unitLayerPresent: unitCell != null,
         biome: site.biome?.wireName,

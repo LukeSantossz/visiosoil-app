@@ -27,7 +27,8 @@ import 'package:visiosoil_app/models/confidence_level.dart';
 ///
 /// Home uses the optional sync presentation, and history its own time and
 /// confidence metadata with a chevron for sent records; other callers keep
-/// the default.
+/// the default. While [syncWired] is false no row names a sync status
+/// (SPEC 0235).
 class AnalysisTile extends StatelessWidget {
   const AnalysisTile({
     super.key,
@@ -40,6 +41,7 @@ class AnalysisTile extends StatelessWidget {
     this.showSyncStatus = false,
     this.offline = false,
     this.history = false,
+    this.syncWired = false,
   });
 
   // Below this inner width (a ~344 dp screen) the row stacks even when the
@@ -64,12 +66,17 @@ class AnalysisTile extends StatelessWidget {
   /// History uses time/confidence metadata and a chevron for sent records.
   final bool history;
 
+  /// Whether a sync backend can send the record. Without one every record is
+  /// `pending` forever, so the row shows it as a sent row (SPEC 0235).
+  final bool syncWired;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = context.palette;
     final failure = record.classificationFailure;
-    final isPending = record.syncStatus == 'pending';
+    final isPending = syncWired && record.syncStatus == 'pending';
+    final showDot = syncWired && (!offline || isPending);
     // Home's rows hold a 40 dp photograph and history's a 56 dp one (PNG 08
     // and 16, SPEC 0203).
     final thumbSize = showSyncStatus
@@ -112,9 +119,9 @@ class AnalysisTile extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       label: showSyncStatus
-          ? '${failure != null ? classificationFailureChip(failure).label : record.displayTextureClass}, ${_homeMetadata(record).replaceFirst('%', '% de confiança')}${isPending
+          ? '${failure != null ? classificationFailureChip(failure).label : record.displayTextureClass}, ${_homeMetadata(record, syncWired).replaceFirst('%', '% de confiança')}${isPending
                 ? ', pendente de sincronização'
-                : offline
+                : !showDot
                 ? ''
                 : record.syncStatus == 'error'
                 ? ', Erro'
@@ -177,7 +184,7 @@ class AnalysisTile extends StatelessWidget {
                     final metadata = failure != null
                         ? classificationFailureChip(failure).label
                         : showSyncStatus
-                        ? _homeMetadata(record)
+                        ? _homeMetadata(record, syncWired)
                         : history
                         ? _historyMetadata(record)
                         : record.formattedTimestampCompact;
@@ -199,7 +206,7 @@ class AnalysisTile extends StatelessWidget {
                     final score = record.confidenceScore;
                     final double trailingWidth;
                     if (showSyncStatus) {
-                      trailingWidth = offline && !isPending
+                      trailingWidth = !showDot
                           ? 0
                           : _StatusDot.dotWidth +
                                 textWidth(
@@ -298,7 +305,7 @@ class AnalysisTile extends StatelessWidget {
                                             failure,
                                           ).label
                                         : showSyncStatus
-                                        ? _homeMetadata(record)
+                                        ? _homeMetadata(record, syncWired)
                                         : history
                                         ? _historyMetadata(record)
                                         : record.formattedTimestampCompact,
@@ -324,7 +331,7 @@ class AnalysisTile extends StatelessWidget {
                             if (!stackTrailing && !stackBelow) ...[
                               const SizedBox(width: AppSpacing.sm),
                               if (showSyncStatus)
-                                if (!stackStatus && (!offline || isPending))
+                                if (!stackStatus && showDot)
                                   _StatusDot(status: status.status)
                                 else
                                   const SizedBox.shrink()
@@ -341,7 +348,7 @@ class AnalysisTile extends StatelessWidget {
                               child: trailing,
                             ),
                           ),
-                        if (stackStatus && (!offline || isPending)) ...[
+                        if (stackStatus && showDot) ...[
                           const SizedBox(height: AppSpacing.xs),
                           FittedBox(
                             fit: BoxFit.scaleDown,
@@ -417,7 +424,7 @@ class AnalysisTileSkeleton extends StatelessWidget {
   }
 }
 
-String _homeMetadata(SoilRecord record) {
+String _homeMetadata(SoilRecord record, bool syncWired) {
   final date = DateTime.tryParse(record.timestamp)?.toLocal();
   var timestamp = record.formattedTimestampCompact;
   if (date != null) {
@@ -437,7 +444,7 @@ String _homeMetadata(SoilRecord record) {
       score != null &&
           score.isFinite &&
           record.classificationFailure == null &&
-          record.syncStatus != 'error'
+          !(syncWired && record.syncStatus == 'error')
       ? '${floorConfidencePercent(score)}%'
       : '—';
   return '$timestamp · $confidence';

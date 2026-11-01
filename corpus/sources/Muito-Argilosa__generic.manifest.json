@@ -1,0 +1,186 @@
+{
+  "_note": "The curated sources of the Muito Argilosa class's generic cell, the cell that answers when no clay-activity family refines the class (SPEC 0234). Curated on 2026-10-29 to the Developer's floor of fifteen excerpts per class, which admits peer-reviewed SciELO articles at tier 3 beside Embrapa and state material. A URL that is not listed here cannot be fetched; adding a source is a reviewed act. `pages` is [first, last] in physical pages of the file, 1-based and inclusive, not the numbers printed on them. Every entry was fetched through src.llm.http_transport on 2026-10-29 and returned a PDF directly, without a redirect, with a text layer, and a passage within PASSAGE_CHAR_LIMIT; the tier column is the source policy of research-agent.md §8.1.",
+  "cell": "Muito Argilosa|generic",
+  "sources": [
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1134304/1/500perguntassistemaplantiodireto-p.103.pdf",
+      "title": "Compactação do solo (chapter 8 of 500 perguntas, 500 respostas: Sistema Plantio Direto)",
+      "publisher": "Embrapa (500 Perguntas 500 Respostas, 1998)",
+      "tier": 1,
+      "year": 1998,
+      "pages": [
+        7,
+        8
+      ],
+      "why": "Questions and answers on correcting compaction, including in very clayey soils. 3,369 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/255165/1/CT221992.pdf",
+      "title": "Soja: recomendações técnicas para o Mato Grosso do Sul",
+      "publisher": "Embrapa (Circular Técnica 22, 1992)",
+      "tier": 1,
+      "year": 1992,
+      "pages": [
+        14,
+        16
+      ],
+      "why": "Soil and liming recommendations for soybean, by soil texture. 3,942 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+      "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+      "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        3,
+        3
+      ],
+      "why": "Questions and answers on soil texture classes and what a high clay content means for management. 4,497 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1163287/1/Mineralogia-estrutura-e-comportamento-fisico-hidrico-de-Latossolos-Brasileiros-2024.pdf",
+      "title": "Mineralogia, estrutura e comportamento físico-hídrico de Latossolos brasileiros",
+      "publisher": "Embrapa (2024)",
+      "tier": 1,
+      "year": 2024,
+      "pages": [
+        3,
+        3
+      ],
+      "why": "How the clay minerals of very clayey Latossolos form their structure and set how they hold water. 4,339 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/hZv6ztrV4vFWYVkfRgbFzWv/?format=pdf&lang=pt",
+      "title": "Revolvimento ocasional e calagem em Latossolo muito argiloso em sistema plantio direto consolidado",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2015,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Occasional tillage and liming in a very clayey Latossolo under consolidated no-till. 2,191 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/xVSy9RqzNh5hm7MHB3xH5dy/?format=pdf&lang=pt",
+      "title": "Propriedades físicas e taxa de estratificação de carbono orgânico num Latossolo Vermelho após dez anos sob dois sistemas de manejo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2004,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Why compaction concerns clayey and very clayey soils under no-till, and what ten years of two systems did. 2,561 characters."
+    },
+    {
+      "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+      "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+      "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+      "tier": 2,
+      "year": 2016,
+      "pages": [
+        80,
+        81
+      ],
+      "why": "Conservation practices for sugarcane by soil texture, including very clayey soils. 4,836 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/p4q4Ds46LZ95rhxgwvRympp/?format=pdf&lang=pt",
+      "title": "Eficiência da escarificação mecânica e biológica na melhoria dos atributos físicos de um Latossolo muito argiloso e no incremento do rendimento de soja",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2008,
+      "pages": [
+        11,
+        11
+      ],
+      "why": "Conclusions on mechanical and biological chiseling of a very clayey Latossolo. 4,813 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/eagri/a/G7MSLBFLSbQx4ynm6MmCgnH/?format=pdf&lang=en",
+      "title": "Resistência do solo à penetração em Latossolo influenciada pelo tráfego agrícola e o conteúdo de água do solo",
+      "publisher": "Engenharia Agrícola (SciELO)",
+      "tier": 3,
+      "year": 2013,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How machine traffic and soil water content raise penetration resistance of a very clayey Latossolo under no-till. 3,938 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/y6nsLX3rbY8m9qbCQMdsd5r/?format=pdf&lang=pt",
+      "title": "Intervalo hídrico ótimo e grau de compactação de um Latossolo Vermelho após 30 anos sob plantio direto",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2012,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "The least limiting water range and compaction degree of a very clayey Latossolo after 30 years of no-till. 3,023 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cr/a/v65DDd4Mz4HDR8xjWs5Qdyp/?format=pdf&lang=pt",
+      "title": "Atributos físicos de um Latossolo Vermelho e produtividade de culturas cultivadas em sucessão e rotação",
+      "publisher": "Ciência Rural (SciELO)",
+      "tier": 3,
+      "year": 2009,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How crop succession and rotation change the physical attributes of a very clayey Latossolo. 4,410 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/sgxJsJyxNqQjT6J7gQ8YHBb/?format=pdf&lang=pt",
+      "title": "Compactação em um Latossolo Vermelho distroférrico e suas relações com o crescimento radicular do milho",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2010,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How compaction of a very clayey Latossolo restricts maize roots. 2,825 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cr/a/bpnYzMgKy5Vf5zQx4sG55sd/?format=pdf&lang=pt",
+      "title": "Atributos físicos e rendimento de grãos de trigo, soja e milho em dois Latossolos compactados e escarificados",
+      "publisher": "Ciência Rural (SciELO)",
+      "tier": 3,
+      "year": 2009,
+      "pages": [
+        7,
+        7
+      ],
+      "why": "Conclusions on compaction states and chiseling in clayey and very clayey Latossolos. 4,913 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/vzPcnvW55TPRjN4r6ckqDKj/?format=pdf&lang=pt",
+      "title": "Relação de atributos do solo com a agregação de um Latossolo Vermelho sob sistemas de preparo e plantas de verão para cobertura do solo",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2005,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How tillage and summer cover crops change aggregation of a very clayey Latossolo. 2,646 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/MghmZtQxLjjTkKjxdh3Nyvy/?format=pdf&lang=pt",
+      "title": "Variabilidade temporal da resistência à penetração de um Latossolo argiloso sob semeadura direta com rotação de culturas",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2004,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How penetration resistance of a very clayey Latossolo varies over time under no-till with rotation. 2,606 characters."
+    }
+  ]
+}
