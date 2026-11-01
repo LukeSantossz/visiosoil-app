@@ -1039,38 +1039,26 @@ void main() {
     expect(tester.getSize(find.text('PREFERÊNCIAS')).height, 16);
   });
 
-  // SPEC 0216: the backup row follows the account tile on an auth error.
-  testWidgets(
-    'backup_stays_available_when_sign_out_fails_leaving_the_account',
-    (tester) async {
-      await tester.pumpWidget(
-        _app(
-          const AuthAccount(email: 'agro@example.com', displayName: 'Agro'),
-          signOutError: Exception('revoke failed'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Sair'));
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-
-      final backup = find.widgetWithText(SettingsTile, 'Backup na conta');
-      await tester.scrollUntilVisible(backup, 200);
-      expect(tester.widget<SettingsTile>(backup).enabled, isTrue);
-    },
-  );
-
-  // SPEC 0216: PNG 23 greys the backup row until an account is linked.
-  testWidgets('backup_is_unavailable_without_an_account', (tester) async {
+  testWidgets('settings_hides_sync_rows_without_a_backend', (tester) async {
     await tester.pumpWidget(_app(null));
     await tester.pumpAndSettle();
 
-    final backup = find.widgetWithText(SettingsTile, 'Backup na conta');
-    await tester.scrollUntilVisible(backup, 200);
-    final tile = tester.widget<SettingsTile>(backup);
-    expect(tile.enabled, isFalse);
+    await tester.scrollUntilVisible(find.text('Exportar análises'), 200);
+
+    expect(find.text('Backup na conta'), findsNothing);
+    expect(find.text('Sincronizar só no Wi-Fi'), findsNothing);
+  });
+
+  testWidgets('settings_keeps_local_data_actions_without_a_backend', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Exportar análises'), 200);
+
+    expect(find.text('Exportar análises'), findsOneWidget);
+    expect(find.text('Limpar dados do aparelho'), findsOneWidget);
   });
 }
 
