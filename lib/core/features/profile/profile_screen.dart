@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
+import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -256,14 +257,21 @@ class ProfileScreen extends ConsumerWidget {
                             ? null
                             : '$collected de ${total!.length} classes na coleção',
                       ),
-                      StatCell(
-                        value:
-                            '${account == null ? list.length : list.where((record) => record.syncStatus == 'synced').length}',
-                        label: account == null ? 'só no aparelho' : 'enviadas',
-                        icon: account == null
-                            ? LucideIcons.hardDriveDownload
-                            : LucideIcons.cloudCheck,
-                      ),
+                      // Without a backend nothing is ever sent, so every
+                      // record counts as on this device only (SPEC 0235).
+                      if (account == null || !syncBackendWired)
+                        StatCell(
+                          value: '${list.length}',
+                          label: 'só no aparelho',
+                          icon: LucideIcons.hardDriveDownload,
+                        )
+                      else
+                        StatCell(
+                          value:
+                              '${list.where((record) => record.syncStatus == 'synced').length}',
+                          label: 'enviadas',
+                          icon: LucideIcons.cloudCheck,
+                        ),
                     ],
                   ),
                 const SizedBox(height: AppSpacing.xl),

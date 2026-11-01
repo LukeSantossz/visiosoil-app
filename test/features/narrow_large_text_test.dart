@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/onboarding/onboarding_screen.dart';
 import 'package:visiosoil_app/core/services/auth/auth_account.dart';
@@ -11,7 +12,6 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
-import 'package:visiosoil_app/core/widgets/status_pill.dart';
 import 'package:visiosoil_app/core/widgets/swipe_to_delete.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/auth_provider.dart';
@@ -122,16 +122,21 @@ void main() {
       await tester.ensureVisible(row);
       await tester.pumpAndSettle();
       final before = tester.getRect(row);
-      final pill = find.descendant(of: row, matching: find.byType(StatusPill));
-      final pillBefore = tester.getRect(pill);
+      // The row's trailing chevron: no sync status shows while no backend is
+      // wired (SPEC 0235).
+      final chevron = find.descendant(
+        of: row,
+        matching: find.byIcon(LucideIcons.chevronRight),
+      );
+      final chevronBefore = tester.getRect(chevron);
       final visible = before.intersect(
         tester.getRect(find.byType(CustomScrollView)),
       );
       await tester.dragFrom(visible.center, const Offset(-160, 0));
       await tester.pumpAndSettle();
       expect(tester.getRect(row), before);
-      expect(tester.getSize(pill).height, pillBefore.height);
-      return (before, pillBefore);
+      expect(tester.getSize(chevron).height, chevronBefore.height);
+      return (before, chevronBefore);
     }
 
     testWidgets('revealed_row_keeps_its_size', (tester) async {
@@ -140,14 +145,14 @@ void main() {
     });
 
     testWidgets('revealed_row_recedes_under_the_action', (tester) async {
-      final (row, pill) = await reveal(tester);
+      final (row, chevron) = await reveal(tester);
       final content = find.descendant(
         of: find.byType(SwipeToDelete).first,
-        matching: find.byType(StatusPill),
+        matching: find.byIcon(LucideIcons.chevronRight),
       );
       // PNG 34: the row recedes 12 dp and "Excluir" covers its end.
-      expect(tester.getRect(content).left, closeTo(pill.left - 12, .01));
-      expect(tester.getSize(content).width, closeTo(pill.width, .01));
+      expect(tester.getRect(content).left, closeTo(chevron.left - 12, .01));
+      expect(tester.getSize(content).width, closeTo(chevron.width, .01));
       final action = tester.getRect(
         find.descendant(
           of: find.byType(SwipeToDelete).first,
