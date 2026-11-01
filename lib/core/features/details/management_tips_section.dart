@@ -803,30 +803,24 @@ class _DisclaimerBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = context.palette;
-    // Borderless outside high contrast, radius 12, the text at 15/20
-    // (PNG 20, SPEC 0205).
+    // Radius 12, the text at 14/20 (PNG 20, SPEC 0205). No fill and a
+    // card's edge, so the notice every page carries stays quiet; only the
+    // icon is in colour (SPEC 0243).
     return Container(
       key: const Key('tips-disclaimer'),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: palette.warningContainer,
         borderRadius: AppRadius.borderRadiusMd,
-        border: palette.highContrast
-            ? Border.all(
-                color: palette.bannerBorder(
-                  accent: palette.warning,
-                  onContainer: palette.onWarningContainer,
-                ),
-                width: palette.edgeWidth,
-              )
-            : null,
+        border: Border.all(
+          color: palette.cardBorder,
+          width: palette.edgeWidth,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // onWarningContainer, as the confidence banner's icon: warning on
-          // this container is 2.51 : 1, below 3 : 1 (SPEC 0127).
-          Icon(LucideIcons.info, size: 20, color: palette.onWarningContainer),
+          // warningText, the warning tint made to read on a surface.
+          Icon(LucideIcons.info, size: 20, color: palette.warningText),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -835,7 +829,7 @@ class _DisclaimerBanner extends StatelessWidget {
                 theme.textTheme.bodyMedium!,
                 14,
                 height: 20 / 14,
-              ).copyWith(color: palette.onWarningContainer),
+              ).copyWith(color: palette.onSurfaceVariant),
             ),
           ),
         ],

@@ -485,8 +485,8 @@ void main() {
         findsOneWidget);
   });
 
-  // The disclaimer's icon is meaningful, so it needs 3 : 1 on its banner, as
-  // the confidence banner's already has (SPEC 0127).
+  // The disclaimer's icon is meaningful, so it needs 3 : 1 on what it sits
+  // on (SPEC 0127); the banner has no fill, so that is the page (SPEC 0243).
   testWidgets('disclaimer_icon_reads_on_its_banner', (tester) async {
     double contrast(Color a, Color b) {
       final la = a.computeLuminance();
@@ -498,6 +498,9 @@ void main() {
     for (final (theme, palette) in [
       (AppTheme.light, AppPalette.light),
       (AppTheme.dark, AppPalette.dark),
+      (AppTheme.lightHighContrast, AppPalette.lightHighContrast),
+      (AppTheme.darkHighContrast, AppPalette.darkHighContrast),
+      (AppTheme.sun, AppPalette.sun),
     ]) {
       final repo = FakeManagementTipsRepository()
         ..seed('rec-1', groundedTips());
@@ -527,9 +530,9 @@ void main() {
         of: banner.first,
         matching: find.byIcon(LucideIcons.info),
       ));
-      expect(icon.color, palette.onWarningContainer);
+      expect(icon.color, palette.warningText);
       expect(
-        contrast(icon.color!, palette.warningContainer),
+        contrast(icon.color!, palette.background),
         greaterThanOrEqualTo(3),
       );
 
@@ -537,8 +540,8 @@ void main() {
     }
   });
 
-  // In high contrast the disclaimer's edge is its own text colour, solid and
-  // 2 dp wide (SPEC 0135).
+  // In high contrast the disclaimer's edge is a card's, solid and 2 dp wide
+  // (SPEC 0135, SPEC 0243).
   testWidgets('hc_banner_edges_read: the tips disclaimer', (tester) async {
     final repo = FakeManagementTipsRepository()..seed('rec-1', groundedTips());
     await tester.pumpWidget(ProviderScope(
@@ -569,7 +572,7 @@ void main() {
         )
         .first);
     final edge = ((banner.decoration! as BoxDecoration).border! as Border).top;
-    expect(edge.color, AppPalette.lightHighContrast.onWarningContainer);
+    expect(edge.color, AppPalette.lightHighContrast.outline);
     expect(edge.width, 2);
   });
 
@@ -753,9 +756,27 @@ void main() {
         tester.getTopLeft(banner).dy,
         lessThan(tester.getTopLeft(find.text('Preparo do solo')).dy),
       );
+      // No fill and a card's hairline edge (SPEC 0243).
       final decoration =
           tester.widget<Container>(banner).decoration! as BoxDecoration;
-      expect(decoration.border, isNull);
+      expect(decoration.color, isNull);
+      final edge = (decoration.border! as Border).top;
+      expect(edge.color, AppPalette.light.cardBorder);
+      expect(edge.width, 1);
+    });
+
+    testWidgets('disclaimer_colours_only_its_icon', (tester) async {
+      await pumpPage(tester);
+
+      final banner = find.byKey(const Key('tips-disclaimer'));
+      final icon = tester.widget<Icon>(
+        find.descendant(of: banner, matching: find.byType(Icon)),
+      );
+      expect(icon.color, AppPalette.light.warningText);
+      final text = tester.widget<Text>(
+        find.descendant(of: banner, matching: find.text('Conteudo consultivo.')),
+      );
+      expect(text.style?.color, AppPalette.light.onSurfaceVariant);
     });
 
     testWidgets('timeline_matches_the_mock', (tester) async {
