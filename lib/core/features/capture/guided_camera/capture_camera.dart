@@ -10,9 +10,11 @@ import 'package:visiosoil_app/core/features/capture/guided_camera/live_frame.dar
 sealed class GuidedCaptureResult {
   const GuidedCaptureResult();
 
-  /// A photograph was taken.
-  const factory GuidedCaptureResult.captured(XFile file) =
-      GuidedCaptureCaptured;
+  /// A photograph was taken, with the conditions the chips showed for it.
+  const factory GuidedCaptureResult.captured(
+    XFile file, {
+    CaptureConditions conditions,
+  }) = GuidedCaptureCaptured;
 
   /// The user closed the camera, or a revoked permission closed it.
   const factory GuidedCaptureResult.cancelled() = GuidedCaptureCancelled;
@@ -22,9 +24,25 @@ sealed class GuidedCaptureResult {
 }
 
 final class GuidedCaptureCaptured extends GuidedCaptureResult {
-  const GuidedCaptureCaptured(this.file);
+  const GuidedCaptureCaptured(
+    this.file, {
+    this.conditions = const CaptureConditions(),
+  });
 
   final XFile file;
+  final CaptureConditions conditions;
+}
+
+/// The light in lux, the sheet's estimated distance in millimetres and the
+/// focus verdict the quality chips showed when the shutter fired (SPEC 0240).
+/// Each is null when its chip showed none.
+@immutable
+class CaptureConditions {
+  const CaptureConditions({this.lux, this.distanceMm, this.sharp});
+
+  final double? lux;
+  final double? distanceMm;
+  final bool? sharp;
 }
 
 final class GuidedCaptureCancelled extends GuidedCaptureResult {
@@ -70,6 +88,10 @@ abstract interface class CaptureCamera {
 
   bool get canSwitchCamera;
   Future<void> switchCamera();
+
+  /// The open camera's Camera2 id on Android, which its optics are read by
+  /// (SPEC 0238); null when none is open.
+  String? get cameraId;
 
   /// Takes a still at the camera's largest resolution.
   Future<XFile> takePicture();
@@ -161,6 +183,10 @@ class PluginCaptureCamera implements CaptureCamera {
     await controller.setFlashMode(FlashMode.off);
     await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
   }
+
+  /// `camera_android_camerax` names each camera by its Camera2 id.
+  @override
+  String? get cameraId => _controller?.description.name;
 
   @override
   Size get previewSize {

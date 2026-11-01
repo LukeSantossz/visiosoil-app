@@ -301,11 +301,12 @@ def test_a_reply_without_one_query_is_refused(reply):
 
 def test_the_prompt_versions_moved():
     """The transform prompt now writes one query about one topic (SPEC 0153);
-    the generate prompt names the key `Solo` rather than `Chave` (SPEC 0152)."""
+    the generate prompt says where a citation belongs and carries the lines a
+    retry is told (SPEC 0237)."""
     versions = OllamaClient().prompt_versions
 
     assert versions["transform"] == "3"
-    assert versions["generate"] == "6"
+    assert versions["generate"] == "7"
 
 
 def test_the_generate_prompt_asks_for_the_direction_not_the_number():
@@ -321,8 +322,8 @@ def test_the_generate_prompt_asks_for_the_direction_not_the_number():
     prompt = requests[0]["prompt"]
     assert "Nunca doses e nunca números" in prompt
     assert "escreva a direção que os números mostram" in prompt
-    assert "nunca pelo nome" in prompt
-    assert client.prompt_versions["generate"] == "6"
+    assert "nunca escreva o índice nem o nome" in prompt
+    assert client.prompt_versions["generate"] == "7"
 
 
 def test_the_generate_prompt_asks_for_what_the_class_does_not_mean():
@@ -336,7 +337,43 @@ def test_the_generate_prompt_asks_for_what_the_class_does_not_mean():
     assert '"kind": "nao_significa"' in prompt
     assert "leitura_do_laudo" in prompt
     assert "pelo menos uma dica" in prompt
-    assert client.prompt_versions["generate"] == "6"
+    assert client.prompt_versions["generate"] == "7"
+
+
+def test_the_rejected_tips_reach_the_generate_prompt():
+    """A retry under temperature 0 and a fixed seed differs from its first
+    attempt only by what it is told (SPEC 0237)."""
+    client, requests = recording_client('{"status": "abstained", "tips": []}')
+    line = '"Uma dica.": os documentos citados não sustentam esta dica'
+
+    client.generate_cell("Solo argiloso", [document("Texto.")], [line])
+
+    prompt = requests[0]["prompt"]
+    assert "Sua resposta anterior foi recusada" in prompt
+    assert f"- {line}" in prompt
+    assert prompt.index(f"- {line}") > prompt.index("Texto.")
+
+
+def test_an_untold_prompt_names_no_refusal():
+    client, requests = recording_client('{"status": "abstained", "tips": []}')
+
+    client.generate_cell("Solo argiloso", [document("Texto.")])
+
+    prompt = requests[0]["prompt"]
+    assert "recusada" not in prompt
+    assert "{{rejected}}" not in prompt
+
+
+def test_the_generate_prompt_keeps_citations_out_of_the_text():
+    """The model read "só pelos índices" as leave to write the index in the tip,
+    which SPEC 0229 refuses (SPEC 0237)."""
+    client, requests = recording_client('{"status": "abstained", "tips": []}')
+
+    client.generate_cell("Solo argiloso", [document("Texto.")])
+
+    prompt = requests[0]["prompt"]
+    assert 'só no campo `"citations"`' in prompt
+    assert "nunca escreva o índice nem o nome" in prompt
 
 
 # --- The grader scores relevance (SPEC 0154) -----------------------------------
@@ -535,4 +572,38 @@ def test_the_generate_prompt_no_longer_asks_for_limitations():
     client.generate_cell("Solo argiloso", [document("Texto.")])
 
     assert '"limitations"' not in requests[0]["prompt"]
-    assert client.prompt_versions["generate"] == "6"
+    assert client.prompt_versions["generate"] == "7"
+
+
+def test_a_model_call_waits_long_enough_to_quote_a_whole_passage(monkeypatch):
+    """A grounding check copies its support word for word, and a passage may
+    hold `PASSAGE_CHAR_LIMIT` characters, so a correct answer can take that
+    long to write (SPEC 0244)."""
+    import io
+
+    import src.llm as llm
+    from src.sources import PASSAGE_CHAR_LIMIT
+
+    waits = []
+
+    def urlopen(request, timeout):
+        waits.append(timeout)
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", urlopen)
+    llm._post("http://localhost:11434/api/generate", {})
+
+    assert waits == [llm.MODEL_TIMEOUT_SECONDS]
+    assert llm.MODEL_TIMEOUT_SECONDS == (
+        PASSAGE_CHAR_LIMIT
+        // llm.MIN_CHARS_PER_TOKEN
+        // llm.SLOWEST_TOKENS_PER_SECOND
+    )
+
+
+def test_the_wait_covers_the_measured_long_quote():
+    """The Muito Argilosa check that timed out four times answered in 409 s
+    when nothing cut it short (SPEC 0244)."""
+    from src.llm import MODEL_TIMEOUT_SECONDS
+
+    assert MODEL_TIMEOUT_SECONDS > 409

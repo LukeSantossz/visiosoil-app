@@ -238,6 +238,75 @@ void main() {
     expect(result.tips.single.phase, TipPhase.beforePlanting);
   });
 
+  // Every class has a generic cell, and it answers whenever no family-specific
+  // cell does (SPEC 0234).
+  group('the generic cell', () {
+    Map<String, dynamic> cell(String status, String text) => {
+          'status': status,
+          'disclaimer': 'x',
+          'tips': [
+            if (status == 'grounded') {'text': text, 'citations': [0]},
+          ],
+          'sources': [
+            {'title': text, 'url': 'https://example.org/$text'},
+          ],
+        };
+
+    final corpus = Corpus.fromJson(
+      {
+        'corpusVersion': 'generic',
+        'disclaimer': 'x',
+        'substance': {
+          Corpus.genericKey('Argilosa'): cell('grounded', 'genérica'),
+          'Argilosa|tb_oxidic': cell('grounded', 'oxídica'),
+          'Argilosa|intermediate': cell('abstained', 'intermediária'),
+        },
+      },
+      fetchedAt: fetchedAt,
+    );
+
+    ManagementTipsResult compose(SiteKey site) => const CorpusComposer()
+        .compose(
+            corpus: corpus, textureClass: 'Argilosa', site: site, landUse: null);
+
+    test('a_record_without_a_family_composes_the_generic_cell', () {
+      final result = compose(const SiteKey.unresolved());
+
+      expect(result.status, ManagementTipsStatus.grounded);
+      expect(result.tips.single.text, 'genérica');
+      expect(result.coverage?.substanceIsGeneric, isTrue);
+      expect(result.coverage?.clayActivity, isNull);
+    });
+
+    test('a_family_without_a_cell_composes_the_generic_cell', () {
+      final result =
+          compose(const SiteKey(clayActivity: ClayActivity.taLessWeathered));
+
+      expect(result.tips.single.text, 'genérica');
+      expect(result.coverage?.substanceIsGeneric, isTrue);
+      expect(result.coverage?.clayActivity, isNull);
+      expect(result.coverage?.clayActivityAssumed, isFalse);
+    });
+
+    test('an_abstained_family_cell_falls_back_to_the_generic_cell', () {
+      final result =
+          compose(const SiteKey(clayActivity: ClayActivity.intermediate));
+
+      expect(result.status, ManagementTipsStatus.grounded);
+      expect(result.tips.single.text, 'genérica');
+      expect(result.sources.single.title, 'genérica');
+      expect(result.coverage?.substanceIsGeneric, isTrue);
+    });
+
+    test('a_family_cell_with_tips_is_used', () {
+      final result = compose(const SiteKey(clayActivity: ClayActivity.tbOxidic));
+
+      expect(result.tips.single.text, 'oxídica');
+      expect(result.coverage?.substanceIsGeneric, isFalse);
+      expect(result.coverage?.clayActivity, 'tb_oxidic');
+    });
+  });
+
   group('corpus parsing', () {
     test('a_corpus_without_optional_sections_parses', () {
       final corpus = Corpus.fromJson(

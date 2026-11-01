@@ -125,8 +125,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   @visibleForTesting
   CaptureUiState get uiState => _state;
 
-  late final CameraImagePicker _pickFromCamera =
-      widget.pickFromCamera ?? _defaultPickFromCamera;
+  /// The photograph the screen holds was taken with these conditions; null
+  /// for one from the system camera, an injected picker or a restart
+  /// (SPEC 0240).
+  CaptureConditions? _conditions;
+
   late final GuidedCameraOpener _openGuidedCamera =
       widget.openGuidedCamera ??
       (context) => context.push<GuidedCaptureResult>('/camera');
@@ -169,14 +172,20 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
-  /// The guided camera, and the system camera only when the guided one is
-  /// unavailable (SPEC 0165, ADR 0028).
-  Future<XFile?> _defaultPickFromCamera() async {
+  /// The injected picker when there is one; otherwise the guided camera, and
+  /// the system camera only when the guided one is unavailable (SPEC 0165,
+  /// ADR 0028). Only a guided shot knows its conditions (SPEC 0240).
+  Future<(XFile?, CaptureConditions?)> _pickShot() async {
+    final injected = widget.pickFromCamera;
+    if (injected != null) return (await injected(), null);
     final result = await _openGuidedCamera(context);
     return switch (result) {
-      GuidedCaptureCaptured(:final file) => file,
-      GuidedCaptureUnavailable() => _pickFromSystemCamera(),
-      GuidedCaptureCancelled() || null => null,
+      GuidedCaptureCaptured(:final file, :final conditions) => (
+        file,
+        conditions,
+      ),
+      GuidedCaptureUnavailable() => (await _pickFromSystemCamera(), null),
+      GuidedCaptureCancelled() || null => (null, null),
     };
   }
 
@@ -215,6 +224,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _state = _state.copyWith(isCapturing: true);
 
     XFile? image;
+    CaptureConditions? conditions;
     try {
       final status = await _checkCameraPermission();
       if (!mounted) return;
@@ -246,7 +256,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
 
       if (!await _passCaptureGuide()) return;
-      image = await _pickFromCamera();
+      (image, conditions) = await _pickShot();
     } catch (e) {
       developer.log('Camera capture failed: $e', name: 'CaptureScreen');
       if (mounted) {
@@ -264,7 +274,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     // The shutter's return; a recovered photograph gets none (SPEC 0126).
     unawaited(AppHaptics.confirm());
     final previous = ref.read(imageProvider).file;
-    final replaced = _useCapturedImage(image.path);
+    final replaced = _useCapturedImage(image.path, conditions: conditions);
     // A retake: the new photograph has replaced the previous one, whose picker
     // file goes as "Descartar" deletes it (SPEC 0147).
     if (previous != null && previous.path != image.path) {
@@ -296,8 +306,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   /// Shows the photograph at [path] as the capture and saves it, whether it
   /// was just picked or recovered after a restart.
-  Future<void> _useCapturedImage(String path) async {
+  Future<void> _useCapturedImage(
+    String path, {
+    CaptureConditions? conditions,
+  }) async {
     ref.read(imageProvider.notifier).setImage(File(path));
+    _conditions = conditions;
 
     // Tags this capture so late results from a superseded one are ignored.
     final generation = _state.generation + 1;
@@ -340,6 +354,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           imagePath: path,
           address: AppStrings.addressUnavailable,
           timestamp: DateTime.now().toIso8601String(),
+          captureLux: _conditions?.lux,
+          captureDistanceMm: _conditions?.distanceMm,
+          captureSharp: _conditions?.sharp,
         ),
       );
     } catch (e) {

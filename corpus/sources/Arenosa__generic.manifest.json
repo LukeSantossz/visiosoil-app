@@ -1,0 +1,186 @@
+{
+  "_note": "The curated sources of the Arenosa class's generic cell, the cell that answers when no clay-activity family refines the class (SPEC 0234). Curated on 2026-10-29 to the Developer's floor of fifteen excerpts per class, which admits peer-reviewed SciELO articles at tier 3 beside Embrapa and state material. A URL that is not listed here cannot be fetched; adding a source is a reviewed act. `pages` is [first, last] in physical pages of the file, 1-based and inclusive, not the numbers printed on them. Every entry was fetched through src.llm.http_transport on 2026-10-29 and returned a PDF directly, without a redirect, with a text layer, and a passage within PASSAGE_CHAR_LIMIT; the tier column is the source policy of research-agent.md §8.1.",
+  "cell": "Arenosa|generic",
+  "sources": [
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1046511/1/CT116.pdf",
+      "title": "Soja em solos arenosos: papel do Sistema Plantio Direto e da Integração Lavoura-Pecuária",
+      "publisher": "Embrapa (Circular Técnica 116, 2016)",
+      "tier": 1,
+      "year": 2016,
+      "pages": [
+        6,
+        6
+      ],
+      "why": "Why soybean on sandy soil depends on no-till and crop-livestock integration: straw cover, organic matter and water held in a light soil. 4,501 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+      "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+      "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        4,
+        4
+      ],
+      "why": "Questions and answers on how a sandy soil's texture governs erosion, water retention and the care its tillage needs. 5,228 characters."
+    },
+    {
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+      "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+      "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
+      "tier": 1,
+      "year": 2021,
+      "pages": [
+        11,
+        11
+      ],
+      "why": "How no-till changes the quality of soils by texture, including the low organic matter and water storage of a sandy soil. 2,887 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1022415/1/ILPFcap17.pdf",
+      "title": "Potencial para adoção da estratégia de integração lavoura-pecuária-floresta para o uso sustentável de solos arenosos",
+      "publisher": "Embrapa (chapter 17 of ILPF: 500 perguntas, 500 respostas, 2015)",
+      "tier": 1,
+      "year": 2015,
+      "pages": [
+        9,
+        11
+      ],
+      "why": "What a sandy soil is, how it is classified, and why integrated crop-livestock-forest systems suit its use. 5,395 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/HQcWhPqMBK43vSgQdgctnBc/?format=pdf&lang=pt",
+      "title": "Caracterização, potencial agrícola e perspectivas de manejo de solos leves no Brasil",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2016,
+      "pages": [
+        11,
+        11
+      ],
+      "why": "Management prospects for light soils in Brazil: cover, organic matter and the limits that their low clay sets. 4,900 characters."
+    },
+    {
+      "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+      "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+      "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+      "tier": 2,
+      "year": 2016,
+      "pages": [
+        87,
+        87
+      ],
+      "why": "Conservation practices for sugarcane by soil texture, including how a sandy soil's erodibility changes the terracing it needs. 2,780 characters."
+    },
+    {
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1181201/1/Atributos-solos-arenosos-2025.pdf",
+      "title": "Atributos de solos arenosos sob diferentes usos e coberturas da terra no Cerrado Sul-mato-grossense",
+      "publisher": "Geografia Ensino & Pesquisa (Embrapa repository)",
+      "tier": 1,
+      "year": 2025,
+      "pages": [
+        13,
+        13
+      ],
+      "why": "Conclusions on how use and cover change the attributes of sandy Cerrado soils. 2,490 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbeaa/a/4N3MSsWnyLz97SqSScMhXsQ/?format=pdf&lang=pt",
+      "title": "Resistência à penetração em Neossolo Quartzarênico submetido a diferentes formas de manejo",
+      "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+      "tier": 3,
+      "year": 2012,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Penetration resistance of a sandy Neossolo Quartzarênico under different management, and what it means for roots. 3,824 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/9wXptnjV4VqFGkm87wZZkRC/?format=pdf&lang=pt",
+      "title": "Dinâmica da matéria orgânica de um Neossolo Quartzarênico de Cerrado convertido para cultivo em sucessão de soja e milheto",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2013,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How organic matter of a sandy Cerrado soil responds when it is converted to a soybean-millet succession. 3,072 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/BGHnbXhvSYsx3WGXPctkWLj/?format=pdf&lang=pt",
+      "title": "Propriedades químicas de um Neossolo Quartzarênico sob diferentes sistemas de manejo no Cerrado mato-grossense",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2008,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Chemical properties of a sandy soil under different management systems in the Mato Grosso Cerrado. 4,148 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/wLJCqwNfhNRfttVzxmNHbVM/?format=pdf&lang=pt",
+      "title": "Estoques de carbono e nitrogênio e fração leve da matéria orgânica em Neossolo Quartzarênico sob uso agrícola",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2010,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Carbon and nitrogen stocks of a sandy soil under agricultural use, and how quickly they are lost. 4,477 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/pab/a/GFz9kJmkBKdVrZpk8FRQKDd/?format=pdf&lang=pt",
+      "title": "Atributos físicos de um Neossolo Quartzarênico e um Latossolo Vermelho sob diferentes sistemas de manejo",
+      "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+      "tier": 3,
+      "year": 2005,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Physical attributes of a sandy soil beside a Latossolo under the same management systems. 3,953 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/rbcs/a/sRmgZYmNGTfFFxNfcx9nGjJ/?format=pdf&lang=pt",
+      "title": "Influência das frações de areia na retenção e disponibilidade de água em solos das formações Caiuá e Paranavaí",
+      "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+      "tier": 3,
+      "year": 2013,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "How the sand fractions of a sandy soil set the water it retains and makes available. 2,769 characters."
+    },
+    {
+      "url": "https://www.scielo.br/j/cagro/a/BNmHRt5mz5VbQ4MnyWqwWQH/?format=pdf&lang=pt",
+      "title": "Qualidade física de Neossolo Quartzarênico submetido a diferentes sistemas de uso agrícola",
+      "publisher": "Ciência e Agrotecnologia (SciELO)",
+      "tier": 3,
+      "year": 2010,
+      "pages": [
+        1,
+        1
+      ],
+      "why": "Physical quality of a sandy soil under different agricultural uses. 5,044 characters."
+    },
+    {
+      "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965477/1/comtec272004solosoestebaiano.pdf",
+      "title": "Comportamento físico-químico dos solos de textura arenosa e média do Oeste Baiano",
+      "publisher": "Embrapa Solos (Comunicado Técnico 27, 2004)",
+      "tier": 1,
+      "year": 2004,
+      "pages": [
+        6,
+        6
+      ],
+      "why": "Final considerations on managing the sandy and medium-textured soils of western Bahia. 3,128 characters."
+    }
+  ]
+}

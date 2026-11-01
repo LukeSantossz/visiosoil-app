@@ -197,7 +197,8 @@ void main() {
     expect(shadows, isEmpty);
   });
 
-  testWidgets('home_recent_rows_show_a_status_dot', (tester) async {
+  // No sync backend is wired, so no row names a sync status (SPEC 0235).
+  testWidgets('home_recent_rows_show_no_sync_status', (tester) async {
     // Wide enough that the test font's square glyphs keep the row on one
     // line, as Inter keeps it on a phone.
     tester.view.physicalSize = const Size(600, 900);
@@ -215,12 +216,13 @@ void main() {
       find.descendant(of: row, matching: find.byType(StatusPill)),
       findsNothing,
     );
-    final sent = find.descendant(of: row, matching: find.text('Enviada'));
-    expect(sent, findsOneWidget);
-    expect(tester.widget<Text>(sent).style?.color, AppPalette.light.statusSent);
+    expect(
+      find.descendant(of: row, matching: find.text('Enviada')),
+      findsNothing,
+    );
     expect(
       find.descendant(of: row, matching: find.byKey(const Key('status-dot'))),
-      findsOneWidget,
+      findsNothing,
     );
     // Rows every 64 dp, the rule included (PNG 08, SPEC 0210).
     expect(tester.getSize(row).height, 63);
@@ -313,11 +315,7 @@ void main() {
   });
 
   testWidgets('history_rows_match_the_mock', (tester) async {
-    // Wider than the phone: the test font's square glyphs would otherwise
-    // need the room a pending row's pill leaves Inter, and stack it.
-    tester.view.physicalSize = const Size(600, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+    _phone(tester);
     await _pump(tester, home: const HistoryScreen());
 
     final sent = find.byType(AnalysisTile).first;
@@ -339,24 +337,24 @@ void main() {
       findsOneWidget,
     );
 
+    // No backend is wired, so a pending row shows what a sent row shows
+    // (SPEC 0235).
     final pending = find.byType(AnalysisTile).at(1);
-    final pill = find.descendant(
-      of: pending,
-      matching: find.byType(StatusPill),
-    );
-    expect(pill, findsOneWidget);
-    final title = find.descendant(of: pending, matching: find.text('Argilosa'));
     expect(
-      (tester.getCenter(pill).dy - tester.getCenter(title).dy).abs(),
-      lessThan(16),
+      find.descendant(of: pending, matching: find.byType(StatusPill)),
+      findsNothing,
     );
     expect(
-      tester.getTopRight(pill).dx,
-      greaterThan(tester.getTopRight(title).dx),
+      find.descendant(
+        of: pending,
+        matching: find.byIcon(LucideIcons.chevronRight),
+      ),
+      findsOneWidget,
     );
   });
 
-  // SPEC 0205: the Dicas tab has its app bar, and back selects Início.
+  // SPEC 0205: the Dicas tab has its app bar. SPEC 0246: like the other
+  // tabs, it has no back arrow, and its title starts 16 dp in.
   testWidgets('tips_tab_has_an_app_bar', (tester) async {
     _phone(tester);
     final container = await _pump(tester, home: const MainScreen());
@@ -365,7 +363,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.widgetWithText(AppBar, 'Dicas de manejo'), findsOneWidget);
-    await tester.tap(find.byTooltip('Voltar'));
+    expect(find.byTooltip('Voltar'), findsNothing);
+    expect(tester.getTopLeft(find.text('Dicas de manejo')).dx, 16);
+  });
+
+  // SPEC 0246: the system back still selects Início from Dicas.
+  testWidgets('tips_tab_system_back_selects_home', (tester) async {
+    _phone(tester);
+    final container = await _pump(tester, home: const MainScreen());
+    container.read(mainTabIndexProvider.notifier).select(2);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.binding.handlePopRoute();
     await tester.pump();
     expect(container.read(mainTabIndexProvider), 0);
   });

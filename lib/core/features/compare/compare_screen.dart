@@ -113,8 +113,8 @@ class _Comparison extends StatelessWidget {
           ),
           _ValueRow(
             caption: 'Data da coleta',
-            left: _Value(older.formattedTimestamp),
-            right: _Value(newer.formattedTimestamp),
+            left: _Value(older.formattedTimestampDotted),
+            right: _Value(newer.formattedTimestampDotted),
           ),
           _ValueRow(
             caption: 'Localização',

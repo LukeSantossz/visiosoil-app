@@ -128,8 +128,8 @@ const _destinations = [
 ];
 
 /// Reuses the existing record-based tips instead of inventing sample advice.
-/// The tab has its app bar, whose back selects Início as the system back
-/// does, and 16 dp margins (PNG 20, SPEC 0205).
+/// The tab has its app bar and 16 dp margins (PNG 20, SPEC 0205). Like the
+/// other tabs it has no back arrow; the system back selects Início (SPEC 0246).
 class _TipsTab extends ConsumerStatefulWidget {
   const _TipsTab();
 
@@ -161,11 +161,6 @@ class _TipsTabState extends ConsumerState<_TipsTab> {
     return Scaffold(
       appBar: VisioAppBar(
         title: 'Dicas de manejo',
-        leading: VisioIconButton(
-          label: 'Voltar',
-          icon: LucideIcons.arrowLeft,
-          onPressed: () => ref.read(mainTabIndexProvider.notifier).select(0),
-        ),
         // PNG 20's filter (SPEC 0209).
         actions: [
           VisioIconButton(
