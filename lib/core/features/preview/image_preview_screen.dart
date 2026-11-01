@@ -163,9 +163,9 @@ class _ImageViewer extends StatelessWidget {
 }
 
 /// The rows PNG 19 lists, for the facts the app knows: a fact it does not
-/// measure, such as the mock's lux or distance, has no row (SPEC 0198), and
-/// the accuracy and the address are left to the result's Detalhes tab
-/// (SPEC 0202). Each row is 56 dp, a 14 sp label in grey and a 15 sp value
+/// know has no row (SPEC 0198), the shot's light, distance and focus are
+/// kept since SPEC 0240, and the accuracy and the address are left to the
+/// result's Detalhes tab (SPEC 0202). Each row is 56 dp, a 14 sp label in grey and a 15 sp value
 /// in white, over a #333 rule.
 class _RecordFacts extends StatelessWidget {
   const _RecordFacts({required this.record});
@@ -176,6 +176,14 @@ class _RecordFacts extends StatelessWidget {
   Widget build(BuildContext context) {
     final score = record.confidenceScore;
     final model = record.modelVersion;
+    final lux = record.captureLux;
+    final distance = record.captureDistanceMm;
+    final sharp = record.captureSharp;
+    final capture = [
+      if (lux != null) Formatters.lux(lux),
+      if (distance != null) Formatters.distanceCm(distance),
+      if (sharp != null) sharp ? 'nítido' : 'desfocado',
+    ].join(' · ');
     final rows = <(String, String)>[
       if (record.hasClassification) ...[
         ('Classe estimada', record.displayTextureClass),
@@ -192,6 +200,7 @@ class _RecordFacts extends StatelessWidget {
           'Coordenadas',
           Formatters.coordinatesShort(record.latitude!, record.longitude!),
         ),
+      if (capture.isNotEmpty) ('Captura', capture),
       if (model != null) ('Modelo', 'no aparelho · v$model'),
     ];
     final theme = Theme.of(context);

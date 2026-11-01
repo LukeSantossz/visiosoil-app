@@ -73,6 +73,9 @@ class FakeSoilRecordRepository implements SoilRecordRepository {
       modelVersion: modelVersion,
       datasetVersion: datasetVersion,
       classificationFailure: classificationFailure,
+      captureLux: record.captureLux,
+      captureDistanceMm: record.captureDistanceMm,
+      captureSharp: record.captureSharp,
     );
   }
 

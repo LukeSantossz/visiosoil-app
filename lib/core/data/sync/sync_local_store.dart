@@ -99,6 +99,9 @@ class SyncLocalStore {
             trueTextureClass: Value(remote.trueTextureClass),
             classificationFailure:
                 Value(remote.classificationFailure?.name),
+            captureLux: Value(remote.captureLux),
+            captureDistanceMm: Value(remote.captureDistanceMm),
+            captureSharp: Value(remote.captureSharp),
           ),
         );
   }
@@ -130,6 +133,9 @@ class SyncLocalStore {
         sampleLabel: Value(remote.sampleLabel),
         trueTextureClass: Value(remote.trueTextureClass),
         classificationFailure: Value(remote.classificationFailure?.name),
+        captureLux: Value(remote.captureLux),
+        captureDistanceMm: Value(remote.captureDistanceMm),
+        captureSharp: Value(remote.captureSharp),
       ),
     );
   }
