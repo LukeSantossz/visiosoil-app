@@ -338,7 +338,7 @@ class _LinkedAccountRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Icon(LucideIcons.cloudCheck, size: 20, color: palette.onSurface),
+          Icon(LucideIcons.circleCheck, size: 20, color: palette.onSurface),
         ],
       ),
     );
