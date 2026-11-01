@@ -14,8 +14,11 @@ from src.sources import (
     PASSAGE_CHAR_LIMIT,
     SourceFetchError,
     SourceManifest,
+    SOURCES_DIR,
     SourceNotAllowed,
     fetch_sources,
+    key_of_manifest,
+    manifest_path_for,
 )
 from tests.pdf_documents import make_pdf
 
@@ -281,9 +284,7 @@ def test_the_committed_substance_manifest_loads():
     """The manifest the probe reads by default parses under the schema, and the
     Developer's 2026-09-18 decision holds in it: the substance of the cell comes
     from tier 1, Embrapa's extension material."""
-    from src.probe import DEFAULT_MANIFEST
-
-    committed = SourceManifest.load(DEFAULT_MANIFEST)
+    committed = SourceManifest.load(manifest_path_for("Argilosa|tb_oxidic"))
 
     assert sum(1 for source in committed.entries if source.tier == 1) >= 2
 
@@ -308,9 +309,7 @@ def test_a_manifest_source_without_a_year_is_refused(tmp_path, year):
 
 
 def test_the_manifest_states_each_sources_year():
-    from src.probe import DEFAULT_MANIFEST
-
-    committed = SourceManifest.load(DEFAULT_MANIFEST)
+    committed = SourceManifest.load(manifest_path_for("Argilosa|tb_oxidic"))
 
     assert [source.year for source in committed.entries] == [2016, 2015, 2005]
 
@@ -340,3 +339,52 @@ def test_a_pdf_the_reader_cannot_decrypt_fails_the_build(tmp_path, monkeypatch):
         fetch_sources(allowed, transport=lambda url: make_pdf(["Texto."]))
 
     assert PDF_URL in str(excinfo.value)
+
+
+# --- One manifest per cell (SPEC 0234) -----------------------------------------
+
+
+def test_manifest_cell_must_match_its_file(tmp_path):
+    path = tmp_path / "Arenosa__generic.manifest.json"
+    path.write_text(
+        json.dumps({"cell": "Argilosa|generic", "sources": [entry("https://a.br/x")]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        SourceManifest.load(path)
+
+    assert "Arenosa|generic" in str(excinfo.value)
+    assert "Argilosa|generic" in str(excinfo.value)
+
+
+def test_every_manifest_is_on_the_allowlist():
+    """A manifest is the one place a page enters the build, so each URL in one
+    must be on the source policy's domains, and a generic cell must have a source
+    that may carry a claim on its own (tier 1 to 3, research-agent §8.1)."""
+    from urllib.parse import urlparse
+
+    from src.keys import GENERIC
+    from src.search import tier_for_domain
+
+    manifests = sorted(SOURCES_DIR.glob("*.manifest.json"))
+    assert manifests
+    for path in manifests:
+        tiers = []
+        for source in SourceManifest.load(path).entries:
+            tier = tier_for_domain(urlparse(source.url).hostname or "")
+            assert tier is not None, f"{path.name}: {source.url}"
+            tiers.append(tier)
+        if key_of_manifest(path).endswith(f"|{GENERIC}"):
+            assert any(tier <= 3 for tier in tiers), path.name
+
+
+def test_every_generic_manifest_has_fifteen_excerpts():
+    """The Developer's floor for a class's sources (SPEC 0234 amendment). A
+    manifest keys its entries by URL, so fifteen excerpts are fifteen URLs."""
+    from src.keys import generic_keys
+
+    for key in generic_keys():
+        path = manifest_path_for(key)
+        urls = {source.url for source in SourceManifest.load(path).entries}
+        assert len(urls) >= 15, f"{path.name}: {len(urls)} excerpt(s)"
