@@ -134,8 +134,9 @@ class TipsCoverage {
     required this.landUseLayerPresent,
   });
 
-  /// The clay-activity family the substance lookup used: the grid's when it
-  /// resolved one, otherwise the biome default's, otherwise null.
+  /// The clay-activity family of the substance cell that composed: the grid's
+  /// when it resolved one, otherwise the biome default's. Null when the class's
+  /// generic cell composed instead (SPEC 0234).
   final String? clayActivity;
 
   /// True when the biome default supplied [clayActivity] rather than the grid
@@ -144,8 +145,10 @@ class TipsCoverage {
   /// read as false.
   final bool clayActivityAssumed;
 
-  /// True when no family was known, so no family-specific substance cell could
-  /// answer. A cell reached through the biome default is not generic.
+  /// True when no family-specific substance cell answered: no family was
+  /// known, its cell is absent or it abstained, so the class's generic cell
+  /// composed (SPEC 0234). A cell reached through the biome default is not
+  /// generic.
   final bool substanceIsGeneric;
 
   final String? unit;

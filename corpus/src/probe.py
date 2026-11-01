@@ -22,9 +22,6 @@ from typing import Any
 from src.manifest import RunManifest
 
 DEFAULT_OUT_DIR = Path(__file__).resolve().parent.parent / "out"
-DEFAULT_MANIFEST = (
-    Path(__file__).resolve().parent.parent / "sources" / "substance.manifest.json"
-)
 
 
 @dataclass(frozen=True)
@@ -58,19 +55,22 @@ def write_output(
 def main(argv: list[str] | None = None) -> int:
     from src.llm import OllamaClient, http_transport
     from src.pipeline import build_cell
-    from src.sources import SourceManifest, fetch_sources
+    from src.sources import SourceManifest, fetch_sources, manifest_path_for
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cell", required=True, help='e.g. "Argilosa|tb_oxidic"')
     parser.add_argument("--model", default="qwen2.5:7b")
     parser.add_argument("--seed", type=int, default=1234)
-    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="defaults to the cell's own manifest under corpus/sources/ (SPEC 0234)",
+    )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_DIR)
     args = parser.parse_args(argv)
 
-    sources = fetch_sources(
-        SourceManifest.load(args.manifest), transport=http_transport
-    )
+    manifest_path = args.manifest or manifest_path_for(args.cell)
+    sources = fetch_sources(SourceManifest.load(manifest_path), transport=http_transport)
     client = OllamaClient(model=args.model, seed=args.seed)
     # Before the chain, not after: a server that cannot name the model would
     # otherwise discard a cell it has already spent the build on (SPEC 0151).

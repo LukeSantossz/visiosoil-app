@@ -1,8 +1,8 @@
 {
-  "corpusVersion": "2026.10.28.1",
+  "corpusVersion": "2026.10.31.1",
   "classListVersion": "v1-four-class",
   "model": "qwen2.5:7b",
-  "builtAt": "2026-10-29T00:14:05.396Z",
+  "builtAt": "2026-10-31T23:36:43.378Z",
   "humanReview": false,
   "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
   "clayActivityDefaultByBiome": {
@@ -14,264 +14,535 @@
     "pantanal": "intermediate"
   },
   "substance": {
-    "Arenosa|tb_oxidic": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
-        {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T18:39:03.514221Z"
-        },
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T18:39:03.514221Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T18:39:03.514221Z"
-        }
-      ],
-      "limitations": []
-    },
-    "Arenosa|intermediate": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
-        {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:46:50.244723Z"
-        },
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:46:50.244723Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:46:50.244723Z"
-        }
-      ],
-      "limitations": []
-    },
-    "Arenosa|ta_less_weathered": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
-        {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:20:29.199286Z"
-        },
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:20:29.199286Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:20:29.199286Z"
-        }
-      ],
-      "limitations": []
-    },
-    "Media|tb_oxidic": {
+    "Arenosa|generic": {
       "status": "grounded",
       "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
       "tips": [
         {
-          "text": "O teor de fósforo no solo não indica diretamente a necessidade de adubação fosfatada, pois a interpretação dos níveis críticos de fósforo depende do teor de argila do solo.",
+          "text": "A textura arenosa não necessariamente implica em menor aeração do solo, pois solos com maior quantidade de poros médios e grandes podem permitir maior entrada de ar.",
           "citations": [
-            0,
             1
+          ]
+        },
+        {
+          "text": "O solo de textura arenosa, sem distinção da atividade da argila, não significa que a presença de argila não afeta as propriedades físicas do solo, como a densidade e a porosidade. Os documentos indicam que o uso e manejo do solo podem alterar essas propriedades, independentemente da presença de argila.",
+          "citations": [
+            8,
+            10,
+            11
+          ]
+        },
+        {
+          "text": "A textura arenosa do solo não implica em baixa retenção de água, pois a presença de areia fina e grossa pode variar significativamente a capacidade de retenção de água do solo.",
+          "citations": [
+            12
           ]
         }
       ],
       "sources": [
         {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "title": "Soja em solos arenosos: papel do Sistema Plantio Direto e da Integração Lavoura-Pecuária",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1046511/1/CT116.pdf",
+          "publisher": "Embrapa (Circular Técnica 116, 2016)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:39:47.419358Z"
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
         },
         {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+          "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:39:47.419358Z"
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
         },
         {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+          "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
           "tier": 1,
-          "accessedAt": "2026-10-28T21:39:47.419358Z"
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Potencial para adoção da estratégia de integração lavoura-pecuária-floresta para o uso sustentável de solos arenosos",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1022415/1/ILPFcap17.pdf",
+          "publisher": "Embrapa (chapter 17 of ILPF: 500 perguntas, 500 respostas, 2015)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Caracterização, potencial agrícola e perspectivas de manejo de solos leves no Brasil",
+          "url": "https://www.scielo.br/j/pab/a/HQcWhPqMBK43vSgQdgctnBc/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+          "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+          "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+          "tier": 2,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Atributos de solos arenosos sob diferentes usos e coberturas da terra no Cerrado Sul-mato-grossense",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1181201/1/Atributos-solos-arenosos-2025.pdf",
+          "publisher": "Geografia Ensino & Pesquisa (Embrapa repository)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Resistência à penetração em Neossolo Quartzarênico submetido a diferentes formas de manejo",
+          "url": "https://www.scielo.br/j/rbeaa/a/4N3MSsWnyLz97SqSScMhXsQ/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Dinâmica da matéria orgânica de um Neossolo Quartzarênico de Cerrado convertido para cultivo em sucessão de soja e milheto",
+          "url": "https://www.scielo.br/j/rbcs/a/9wXptnjV4VqFGkm87wZZkRC/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Propriedades químicas de um Neossolo Quartzarênico sob diferentes sistemas de manejo no Cerrado mato-grossense",
+          "url": "https://www.scielo.br/j/pab/a/BGHnbXhvSYsx3WGXPctkWLj/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Estoques de carbono e nitrogênio e fração leve da matéria orgânica em Neossolo Quartzarênico sob uso agrícola",
+          "url": "https://www.scielo.br/j/pab/a/wLJCqwNfhNRfttVzxmNHbVM/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Atributos físicos de um Neossolo Quartzarênico e um Latossolo Vermelho sob diferentes sistemas de manejo",
+          "url": "https://www.scielo.br/j/pab/a/GFz9kJmkBKdVrZpk8FRQKDd/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Influência das frações de areia na retenção e disponibilidade de água em solos das formações Caiuá e Paranavaí",
+          "url": "https://www.scielo.br/j/rbcs/a/sRmgZYmNGTfFFxNfcx9nGjJ/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Qualidade física de Neossolo Quartzarênico submetido a diferentes sistemas de uso agrícola",
+          "url": "https://www.scielo.br/j/cagro/a/BNmHRt5mz5VbQ4MnyWqwWQH/?format=pdf&lang=pt",
+          "publisher": "Ciência e Agrotecnologia (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
+        },
+        {
+          "title": "Comportamento físico-químico dos solos de textura arenosa e média do Oeste Baiano",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965477/1/comtec272004solosoestebaiano.pdf",
+          "publisher": "Embrapa Solos (Comunicado Técnico 27, 2004)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T13:04:16.486908Z"
         }
       ],
       "limitations": [
-        "As fontes consultadas não tratam do que a classe de textura implica e do que não implica.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
         "Uma das fontes consultadas é de 2015, há mais de dez anos.",
-        "Uma das fontes consultadas é de 2005, há mais de dez anos."
+        "Uma das fontes consultadas é de 2012, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2013, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2008, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2010, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2013, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2010, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos."
       ]
     },
-    "Media|intermediate": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
+    "Media|generic": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
         {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:54:47.809700Z"
+          "text": "O solo de textura média não significa que é propenso a compactação severa, pois a compactação tem sido mais associada a solos argilosos e arenosos.",
+          "citations": [
+            0,
+            1
+          ]
         },
         {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:54:47.809700Z"
+          "text": "A textura média do solo não implica em maior lixiviação de nutrientes, como K, do que solos de textura argilosa.",
+          "citations": [
+            6
+          ]
         },
         {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T21:54:47.809700Z"
+          "text": "A textura média do solo não impede a deposição de resíduos vegetais, pois os teores de carbono orgânico total (COT) podem ser semelhantes aos de sistemas conservacionistas em camadas superiores.",
+          "citations": [
+            8
+          ]
         }
       ],
-      "limitations": []
+      "sources": [
+        {
+          "title": "Comportamento físico-químico, aspectos mineralógicos e resposta ao manejo de Latossolos de textura média do Oeste da Bahia",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/869677/1/ALBAERTO.pdf",
+          "publisher": "Embrapa (XVIII Reunião Brasileira de Manejo e Conservação do Solo e da Água, 2010)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+          "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+          "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Nota de esclarecimento: nova classificação de solos adotada no Zoneamento Agrícola de Risco Climático (Zarc)",
+          "url": "https://www.gov.br/agricultura/pt-br/assuntos/riscos-seguro/programa-nacional-de-zoneamento-agricola-de-risco-climatico/documentos/NotadeEsclarescimentoZARC22.05.2023.pdf/@@download/file",
+          "publisher": "Ministério da Agricultura e Pecuária (2023)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Caracterização, potencial agrícola e perspectivas de manejo de solos leves no Brasil",
+          "url": "https://www.scielo.br/j/pab/a/HQcWhPqMBK43vSgQdgctnBc/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Atributos físicos do solo relacionados ao armazenamento de água em um Argissolo Vermelho sob diferentes sistemas de preparo",
+          "url": "https://www.scielo.br/j/cr/a/TnVFHfSrK94rmgpQ3yyWNcL/?format=pdf&lang=pt",
+          "publisher": "Ciência Rural (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Lixiviação de potássio em função da textura e da disponibilidade do nutriente no solo",
+          "url": "https://www.scielo.br/j/rbcs/a/bWXMZQPNWW8FQTp7m48C7Bs/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Lixiviação de potássio no solo de acordo com suas doses aplicadas sobre palha de milheto",
+          "url": "https://www.scielo.br/j/rbcs/a/9DsKpCvFVXrvCDdNHWwXbMm/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Estoque de carbono e atributos físicos de um Latossolo em cronossequência sob diferentes manejos",
+          "url": "https://www.scielo.br/j/rbeaa/a/5H5nyswDZjxNkKwcRDsmP5c/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Atributos físicos, químicos e biológicos relacionados com a estabilidade de agregados de dois Latossolos em plantio direto no estado de São Paulo",
+          "url": "https://www.scielo.br/j/rbcs/a/XRSSNbLXbnYZhM7wRm5WGqv/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Análise multivariada e variabilidade espacial na estimativa da erodibilidade de um Argissolo Vermelho-Amarelo",
+          "url": "https://www.scielo.br/j/rbcs/a/XzxbTTp8Bc86vN4h3gDmkrp/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Alteração de atributos físicos em Latossolo com aplicação superficial de escória de aciaria, lama cal, lodos de esgoto e calcário",
+          "url": "https://www.scielo.br/j/rbcs/a/RvbSjhKcHp9Y8xwDytYLdvs/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Influência da textura do solo receptor e das condições climáticas e ambientais na taxa e fração de mineralização da matéria orgânica no solo",
+          "url": "https://www.scielo.br/j/esa/a/V3kk4qXyWVxVNws6vtH59fN/?format=pdf&lang=pt",
+          "publisher": "Engenharia Sanitária e Ambiental (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        },
+        {
+          "title": "Intervalo hídrico ótimo e produtividade de cultivares de soja",
+          "url": "https://www.scielo.br/j/rbeaa/a/mmnzyLvY8qwpzpnTnZy8Rdg/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Engenharia Agrícola e Ambiental (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T14:30:43.218490Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 2010, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2008, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2006, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2011, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2009, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2006, há mais de dez anos."
+      ]
     },
-    "Media|ta_less_weathered": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
+    "Muito Argilosa|generic": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
         {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:08:57.721046Z"
+          "text": "O solo muito argiloso não significa necessariamente que a infiltração de água será reduzida, pois a presença de agregados fortes pode permitir uma boa infiltração mesmo com uma alta proporção de argila.",
+          "citations": [
+            2,
+            3
+          ]
         },
         {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:08:57.721046Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:08:57.721046Z"
+          "text": "O revolvimento ocasional do solo não tem efeitos duradouros na redução da densidade do solo.",
+          "citations": [
+            4
+          ]
         }
       ],
-      "limitations": []
+      "sources": [
+        {
+          "title": "Compactação do solo (chapter 8 of 500 perguntas, 500 respostas: Sistema Plantio Direto)",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1134304/1/500perguntassistemaplantiodireto-p.103.pdf",
+          "publisher": "Embrapa (500 Perguntas 500 Respostas, 1998)",
+          "tier": 1,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Soja: recomendações técnicas para o Mato Grosso do Sul",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/255165/1/CT221992.pdf",
+          "publisher": "Embrapa (Circular Técnica 22, 1992)",
+          "tier": 1,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+          "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+          "tier": 1,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Mineralogia, estrutura e comportamento físico-hídrico de Latossolos brasileiros",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1163287/1/Mineralogia-estrutura-e-comportamento-fisico-hidrico-de-Latossolos-Brasileiros-2024.pdf",
+          "publisher": "Embrapa (2024)",
+          "tier": 1,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Revolvimento ocasional e calagem em Latossolo muito argiloso em sistema plantio direto consolidado",
+          "url": "https://www.scielo.br/j/rbcs/a/hZv6ztrV4vFWYVkfRgbFzWv/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Propriedades físicas e taxa de estratificação de carbono orgânico num Latossolo Vermelho após dez anos sob dois sistemas de manejo",
+          "url": "https://www.scielo.br/j/rbcs/a/xVSy9RqzNh5hm7MHB3xH5dy/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+          "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+          "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+          "tier": 2,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Eficiência da escarificação mecânica e biológica na melhoria dos atributos físicos de um Latossolo muito argiloso e no incremento do rendimento de soja",
+          "url": "https://www.scielo.br/j/rbcs/a/p4q4Ds46LZ95rhxgwvRympp/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Atributos físicos de um Latossolo Vermelho e produtividade de culturas cultivadas em sucessão e rotação",
+          "url": "https://www.scielo.br/j/cr/a/v65DDd4Mz4HDR8xjWs5Qdyp/?format=pdf&lang=pt",
+          "publisher": "Ciência Rural (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Compactação em um Latossolo Vermelho distroférrico e suas relações com o crescimento radicular do milho",
+          "url": "https://www.scielo.br/j/rbcs/a/sgxJsJyxNqQjT6J7gQ8YHBb/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Relação de atributos do solo com a agregação de um Latossolo Vermelho sob sistemas de preparo e plantas de verão para cobertura do solo",
+          "url": "https://www.scielo.br/j/rbcs/a/vzPcnvW55TPRjN4r6ckqDKj/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        },
+        {
+          "title": "Variabilidade temporal da resistência à penetração de um Latossolo argiloso sob semeadura direta com rotação de culturas",
+          "url": "https://www.scielo.br/j/rbcs/a/MghmZtQxLjjTkKjxdh3Nyvy/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-31T21:12:32.799666Z"
+        }
+      ],
+      "limitations": [
+        "Uma das fontes consultadas é de 1998, há mais de dez anos.",
+        "Uma das fontes consultadas é de 1992, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2008, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2009, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2010, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2005, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos."
+      ]
     },
-    "Muito Argilosa|tb_oxidic": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
+    "Argilosa|generic": {
+      "status": "grounded",
+      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
+      "tips": [
         {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:22:48.048393Z"
+          "text": "A textura argilosa não significa que o solo é mais propenso a formação de agregados devido à presença de microagregados dentro de macroagregados, pois isso é mais associado a solos com maior capacidade de estocar carbono.",
+          "citations": [
+            0
+          ]
         },
         {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:22:48.048393Z"
+          "text": "O solo argiloso não significa que o potássio não-trocável é predominantemente indisponível para as plantas.",
+          "citations": [
+            12
+          ]
         }
       ],
-      "limitations": []
-    },
-    "Muito Argilosa|intermediate": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
       "sources": [
         {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
+          "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1138133/1/Aspectos-relevantes.pdf",
+          "publisher": "Embrapa (chapter in Inovação e tecnologia nas ciências agrárias, 2021)",
           "tier": 1,
-          "accessedAt": "2026-10-28T22:37:53.751157Z"
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
         },
         {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
+          "title": "Compactação do solo (chapter 8 of 500 perguntas, 500 respostas: Sistema Plantio Direto)",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1134304/1/500perguntassistemaplantiodireto-p.103.pdf",
+          "publisher": "Embrapa (500 Perguntas 500 Respostas, 1998)",
           "tier": 1,
-          "accessedAt": "2026-10-28T22:37:53.751157Z"
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
         },
         {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
+          "title": "Soja: recomendações técnicas para o Mato Grosso do Sul",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/255165/1/CT221992.pdf",
+          "publisher": "Embrapa (Circular Técnica 22, 1992)",
           "tier": 1,
-          "accessedAt": "2026-10-28T22:37:53.751157Z"
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Parâmetros técnicos relacionados ao manejo e conservação do solo, água e vegetação: perguntas e respostas",
+          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/965484/1/comtec282004parametros.pdf",
+          "publisher": "Embrapa Solos (Comunicado Técnico 28, 2004)",
+          "tier": 1,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Propriedades físicas e taxa de estratificação de carbono orgânico num Latossolo Vermelho após dez anos sob dois sistemas de manejo",
+          "url": "https://www.scielo.br/j/rbcs/a/xVSy9RqzNh5hm7MHB3xH5dy/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Recomendações gerais para a conservação do solo na cultura da cana-de-açúcar",
+          "url": "https://www.iac.sp.gov.br/media/publicacoes/iacbt126.pdf",
+          "publisher": "Instituto Agronômico (Boletim Técnico IAC 216, 2016)",
+          "tier": 2,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Alterações nos atributos físicos de um Latossolo Vermelho sob plantio direto induzidas por diferentes tipos de escarificadores e o rendimento da soja",
+          "url": "https://www.scielo.br/j/rbcs/a/yd3Z3MSRrPBbKT5pKMJWLwg/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Propriedades físicas do solo sob plantio direto influenciadas por calagem, preparo inicial e tráfego",
+          "url": "https://www.scielo.br/j/rbcs/a/Jcjq7JXCGMmL7pdZKyvk6xt/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Duração das alterações em propriedades físico-hídricas de Latossolo argiloso decorrentes da escarificação mecânica",
+          "url": "https://www.scielo.br/j/pab/a/6njnqQ8BbdgvdtWfgkrvDxh/?format=pdf&lang=pt",
+          "publisher": "Pesquisa Agropecuária Brasileira (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Compactação de um Latossolo Vermelho Distroférrico com diferentes quantidades e manejos de palha em superfície",
+          "url": "https://www.scielo.br/j/brag/a/pT8hwVBpG6V7rJBsxFR5mZL/?format=pdf&lang=pt",
+          "publisher": "Bragantia (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Determinação da densidade relativa do solo por uma função de pedotransferência para a densidade do solo máxima",
+          "url": "https://www.scielo.br/j/asagr/a/FYDpW7pWXWTP6tccWNCP3Mz/?format=pdf&lang=pt",
+          "publisher": "Acta Scientiarum. Agronomy (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Atributos físicos e rendimento de grãos de trigo, soja e milho em dois Latossolos compactados e escarificados",
+          "url": "https://www.scielo.br/j/cr/a/bpnYzMgKy5Vf5zQx4sG55sd/?format=pdf&lang=pt",
+          "publisher": "Ciência Rural (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Lixiviação de potássio em função da textura e da disponibilidade do nutriente no solo",
+          "url": "https://www.scielo.br/j/rbcs/a/bWXMZQPNWW8FQTp7m48C7Bs/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
+        },
+        {
+          "title": "Fatores controladores da compressibilidade de um Argissolo Vermelho-Amarelo distrófico arênico e de um Latossolo Vermelho distrófico típico. I - Estado inicial de compactação",
+          "url": "https://www.scielo.br/j/rbcs/a/4R3ywLm8LMfRWTSqVXt4tLN/?format=pdf&lang=pt",
+          "publisher": "Revista Brasileira de Ciência do Solo (SciELO)",
+          "tier": 3,
+          "accessedAt": "2026-10-29T16:51:07.462863Z"
         }
       ],
-      "limitations": []
-    },
-    "Muito Argilosa|ta_less_weathered": {
-      "status": "abstained",
-      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
-      "tips": [],
-      "sources": [
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:52:45.227174Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T22:52:45.227174Z"
-        }
-      ],
-      "limitations": []
+      "limitations": [
+        "Uma das fontes consultadas é de 1998, há mais de dez anos.",
+        "Uma das fontes consultadas é de 1992, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2004, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2011, há mais de dez anos.",
+        "Uma das fontes consultadas é de 1998, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2012, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2011, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2009, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2008, há mais de dez anos.",
+        "Uma das fontes consultadas é de 2002, há mais de dez anos."
+      ]
     },
     "Argilosa|tb_oxidic": {
       "status": "grounded",
@@ -291,100 +562,21 @@
           "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
           "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
           "tier": 1,
-          "accessedAt": "2026-10-28T18:16:34.080145Z"
+          "accessedAt": "2026-10-31T17:55:10.149740Z"
         },
         {
           "title": "Guia prático para interpretação de resultados de análises de solo",
           "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
           "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
           "tier": 1,
-          "accessedAt": "2026-10-28T18:16:34.080145Z"
+          "accessedAt": "2026-10-31T17:55:10.149740Z"
         },
         {
           "title": "Uso de gesso agrícola nos solos do Cerrado",
           "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
           "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
           "tier": 1,
-          "accessedAt": "2026-10-28T18:16:34.080145Z"
-        }
-      ],
-      "limitations": [
-        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
-        "Uma das fontes consultadas é de 2005, há mais de dez anos."
-      ]
-    },
-    "Argilosa|intermediate": {
-      "status": "grounded",
-      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
-      "tips": [
-        {
-          "text": "A textura argilosa do solo não significa necessariamente que o teor de fósforo será mais alto ou mais baixo do que em solos de textura média ou arenosos.",
-          "citations": [
-            0,
-            1
-          ]
-        }
-      ],
-      "sources": [
-        {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:06:39.839369Z"
-        },
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:06:39.839369Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:06:39.839369Z"
-        }
-      ],
-      "limitations": [
-        "Uma das fontes consultadas é de 2015, há mais de dez anos.",
-        "Uma das fontes consultadas é de 2005, há mais de dez anos."
-      ]
-    },
-    "Argilosa|ta_less_weathered": {
-      "status": "grounded",
-      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
-      "tips": [
-        {
-          "text": "A textura argilosa do solo não significa necessariamente que o teor de cálcio no solo será alto.",
-          "citations": [
-            2
-          ]
-        }
-      ],
-      "sources": [
-        {
-          "title": "Manejo da adubação fosfatada para culturas anuais no Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1061419/1/CT33.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 33, 2016)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:21:49.969433Z"
-        },
-        {
-          "title": "Guia prático para interpretação de resultados de análises de solo",
-          "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1042994/1/Doc206.pdf",
-          "publisher": "Embrapa Tabuleiros Costeiros (Documentos 206, 2015)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:21:49.969433Z"
-        },
-        {
-          "title": "Uso de gesso agrícola nos solos do Cerrado",
-          "url": "https://www.infoteca.cnptia.embrapa.br/bitstream/doc/568533/1/cirtec32.pdf",
-          "publisher": "Embrapa Cerrados (Circular Técnica 32, 2nd ed., 2005)",
-          "tier": 1,
-          "accessedAt": "2026-10-28T23:21:49.969433Z"
+          "accessedAt": "2026-10-31T17:55:10.149740Z"
         }
       ],
       "limitations": [
