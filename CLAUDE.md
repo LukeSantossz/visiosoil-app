@@ -209,7 +209,7 @@ lib/
 │   │                                  #   app_links.dart (the published privacy policy URL,
 │   │                                  #   SPEC 0157), capture_protocol.dart (the capture
 │   │                                  #   guide's steps)
-│   ├── widgets/                       # 12 reusable: VisioAppBar, VisioButton, VisioIconButton,
+│   ├── widgets/                       # 25 reusable, among them: VisioAppBar, VisioButton, VisioIconButton,
 │   │                                  #   VisioSoilLogo, EmptyState, ErrorState, LoadingIndicator,
 │   │                                  #   PermissionDeniedView, RouteErrorView, PressScale,
 │   │                                  #   CollapseOnCorrection, confirmDestructiveAction
@@ -244,7 +244,7 @@ lib/
 ├── models/                            # SoilRecord, HomeStats, ConfidenceLevel,
 │                                      #   ManagementTipsResult + TipsCoverage,
 │                                      #   SiteKey, ClayActivity, Biome, LandUse
-└── providers/                         # 24 files declaring 60 providers (database, repository,
+└── providers/                         # 24 files declaring 63 providers (database, repository,
                                        #   inference, image, auth, connectivity, share, research,
                                        #   corpus store, site resolver, management tips, image
                                        #   storage, lost capture, appearance, error report,

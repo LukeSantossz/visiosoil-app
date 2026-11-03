@@ -74,7 +74,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Repository pattern abstracting Drift | UI queries Drift directly | UI imports only the interface, so the persistence backend (local DB, remote API, cache) can be swapped without touching screens |
 | Classification in a separate isolate | Run it on the main thread | Decoding, resampling and describing up to 25 patches never block the UI; the parsed contract is copied into the isolate, since `rootBundle` cannot be used there |
 | Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The integration contract is `spec.json`, which the app reads at run time |
-| Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v9) |
+| Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v12) |
 | Image files stored outside the cache, repository-owned lifecycle ([ADR 0002](docs/adr/0002-image-file-storage-and-lifecycle.md)) | Keep the `image_picker` cache path in the DB | The picker's cache path is transient, so a stored record could outlive its photo; the repository copies into durable storage before the row is written |
 | Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
 | Flutter toolchain version has a single source of truth ([ADR 0004](docs/adr/0004-flutter-toolchain-version-single-source.md)) | Let each contributor use any Flutter 3.x | Another 3.x SDK silently rewrites `pubspec.lock`, and a local/CI mismatch hid a widget-finder failure that only surfaced on CI |
@@ -83,7 +83,7 @@ The UI talks only to Riverpod providers, which depend on an abstract `SoilRecord
 | Share omits location by default, opt-in per share ([ADR 0007](docs/adr/0007-share-location-opt-in.md)) | Coarsen coordinates to ~1 km, or omit location entirely | Preserves the legitimate use of sending a colleague the sample's location while defaulting to non-disclosure of a client's field coordinates |
 | Research agent is advisory and web-grounded ([ADR 0001](docs/adr/0001-research-agent-advisory-web-grounded.md)) — **Retired**, superseded by ADR 0022 | Ship canned agronomic guidance, or omit tips entirely | Soil management advice is regional and changes; grounding each tip in a citable source keeps it useful without the app appearing to prescribe. Its advisory stance, citation requirement and app↔proxy boundary survive in ADR 0022; its provider stack, its per-request pipeline tier and the latency that pipeline implied are withdrawn |
 | Local JSON for experiment tracking | MLflow / Weights & Biases | Disproportionate overhead for the project size; each model version emits `metrics.json` + `config.json` under `ml/models/vN/` |
-| TFLite stays the only on-device inference runtime ([ADR 0008](docs/adr/0008-tflite-remains-the-mobile-inference-runtime.md)) | Core ML on iOS alongside TFLite on Android; ONNX Runtime Mobile; ExecuTorch | A second runtime doubles the export path, the parity gate and the failure surface, and none of the alternatives solves a problem this project has measured |
+| TFLite stays the only on-device inference runtime ([ADR 0008](docs/adr/0008-tflite-remains-the-mobile-inference-runtime.md)) — **Amended** by [ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md): it governs neural models, and v1 ships no ML runtime | Core ML on iOS alongside TFLite on Android; ONNX Runtime Mobile; ExecuTorch | A second runtime doubles the export path, the parity gate and the failure surface, and none of the alternatives solves a problem this project has measured |
 | Target isolation is a fixed ROI plus a heuristic quality gate ([ADR 0009](docs/adr/0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md)) | Classical segmentation; a MobileNet-backbone segmentation model; a detector feeding the classifier | The capture protocol is enforced rather than compensated for. Detection is deferred rather than discarded — it is what would recover a real millimetres-per-pixel scale from the coin the protocol already asks for |
 | Synthetic image generation is deferred behind a measured gap ([ADR 0010](docs/adr/0010-synthetic-image-generation-deferred-behind-a-measured-gap.md)) | cGAN conditioned on the class and a VAE for minority-class oversampling, both rejected; diffusion img2img at low strength, deferred rather than rejected | Collection, corrected augmentation and compositing come first, and generation only if an ablation proves a downstream gain on a real-only test set. If field collection stalls, this is the record to revisit |
 | Classification uncertainty is a four-state verdict from the margin and the mass ([ADR 0011](docs/adr/0011-classification-verdict-from-margin-and-mass.md)) | A top-1 confidence percentage; Shannon entropy of the distribution | With four classes a single number cannot separate "one class, confidently" from "two classes, tied"; the app abstains when it can assert nothing and names two candidates when two hold the mass |
@@ -210,7 +210,7 @@ visiosoil-app/
 │   │   │                    #   AppSpacing, AppRadius, AppMotion, AppHaptics, SoilTextureColors
 │   │   ├── routes/          # GoRouter config (10 routes + errorBuilder)
 │   │   ├── constants/       # pt-BR UI strings, published links, capture protocol steps
-│   │   ├── widgets/         # 12 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
+│   │   ├── widgets/         # 25 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
 │   │   │                    #   EmptyState, ErrorState, LoadingIndicator, PressScale, ...
 │   │   ├── utils/           # LocationService (GPS + geocoding), formatters
 │   │   ├── services/        # InferenceService (descriptor path, isolate), ImageStorageService,
@@ -227,7 +227,7 @@ visiosoil-app/
 │   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide, guided camera),
 │   │                        #          history, details, preview, compare, settings
 │   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 20 files declaring 44 Riverpod providers (database, repository,
+│   └── providers/           # 24 files declaring 63 Riverpod providers (database, repository,
 │                            #   inference, image, auth, connectivity, share, research,
 │                            #   management tips, image storage, history filter/derived stats)
 ├── ml/                      # E0's evaluation arms and the descriptor release fit
@@ -253,7 +253,7 @@ visiosoil-app/
 - [x] History grid with texture filters, search, multi-select, batch delete, paging past the first 150, and a side-by-side comparison of two records
 - [x] Details screen with graded confidence banner, classification display, and delete action
 - [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
-- [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v9, soft deletes)
+- [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v12, soft deletes)
 - [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract, with the scale read from the A4 sheet — graded on synthetic scenes and on one session of real photographs ([SPEC 0140](docs/specs/0140-find-the-a4-sheet-on-a-pale-table.md)), with classification of a real photograph still owed
 - [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
 - [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
