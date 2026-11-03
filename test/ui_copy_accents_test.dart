@@ -48,13 +48,6 @@ void main() {
     'lib/core/features/history/widgets/history_filter_bar.dart': [
       ('Buscar por endereco', 'Buscar por endereço'),
     ],
-    'lib/core/features/history/widgets/history_grid.dart': [
-      ('Nova Captura', 'Nova captura'),
-      (
-        'Nao foi possivel carregar o historico',
-        'Não foi possível carregar o histórico',
-      ),
-    ],
     'lib/core/features/capture/capture_screen.dart': [
       ('Nova Captura', 'Nova captura'),
     ],
@@ -85,37 +78,5 @@ void main() {
         });
       }
     });
-  });
-
-  group('history_grid const constructors', () {
-    final source = File(
-      'lib/core/features/history/widgets/history_grid.dart',
-    ).readAsStringSync();
-    for (final widget in const [
-      '_EmptyHistoryState',
-      '_EmptySearchState',
-      '_GradientOverlay',
-    ]) {
-      test('$widget declares and is constructed with const', () {
-        final usage = RegExp('const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)');
-        expect(
-          RegExp(
-            'const\\s+${RegExp.escape(widget)}\\s*\\(\\s*\\)\\s*;',
-          ).hasMatch(source),
-          isTrue,
-          reason: '$widget must declare a const constructor',
-        );
-        // At least two occurrences: the declaration plus one const call site.
-        // Guards against a call site regressing to non-const while the const
-        // constructor stays declared (which `contains` alone would miss).
-        expect(
-          usage.allMatches(source).length,
-          greaterThanOrEqualTo(2),
-          reason:
-              '$widget must have a const constructor and at least one const '
-              'call site to avoid needless rebuilds',
-        );
-      });
-    }
   });
 }

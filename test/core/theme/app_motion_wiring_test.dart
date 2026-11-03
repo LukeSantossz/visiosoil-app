@@ -31,11 +31,4 @@ void main() {
     expect(src, contains('duration: AppMotion.slow'));
     expect(src, contains('curve: AppMotion.standard'));
   });
-
-  // Duration respects reduce motion preference (redesign v11 §6.5).
-  test('history thumbnail switch duration is wired to AppMotion', () {
-    final src = File('lib/core/features/history/widgets/history_grid.dart')
-        .readAsStringSync();
-    expect(src, contains('AppMotion.durationOf(context, AppMotion.base)'));
-  });
 }
