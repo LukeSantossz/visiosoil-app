@@ -34,9 +34,6 @@ abstract final class AppStrings {
       'Não foi possível recuperar a foto da última captura. '
       'Capture a amostra novamente.';
 
-  /// Settings' row that shares the local report of uncaught errors (SPEC 0110).
-  static const String errorReportTitle = 'Relatório de erros';
-
   /// Under the row, whatever the report holds: nothing leaves the phone unless
   /// the user shares it.
   static const String errorReportPrivacy =
@@ -53,18 +50,6 @@ abstract final class AppStrings {
   /// exception's text is not for the screen.
   static const String errorReportShareFailed =
       'Não foi possível compartilhar o relatório. Tente novamente.';
-
-  /// Settings' base theme selector (redesign v11 §3.11, SPEC 0184): segmented
-  /// Sistema | Claro | Escuro. Modo Sol is a separate switch, below.
-  static const String themeChoiceSystem = 'Sistema';
-  static const String themeChoiceLight = 'Claro';
-  static const String themeChoiceDark = 'Escuro';
-  static const String themeChoiceSun = 'Modo Sol';
-
-  /// Caption under the Modo Sol switch, describing what it does
-  /// (redesign v11 §3.11, SPEC 0184).
-  static const String themeChoiceCaption =
-      'Alto contraste e letras maiores para o campo';
 
   /// The saved record laid out as the result screen (redesign v11 §3.6,
   /// SPEC 0194).
@@ -95,7 +80,6 @@ abstract final class AppStrings {
   static const String resultRetake = 'Fotografar de novo';
 
   /// The result's bookmark (SPEC 0196).
-  static const String resultSaved = 'Salvo';
   static const String resultRemoveSaved = 'Remover dos salvos';
   static const String resultRetry = 'Tentar de novo';
 
