@@ -48,7 +48,7 @@ from tests.test_crossval import fabricate, folds  # noqa: F401 - `folds` is a fi
 from tests.test_encoder_arm import SOIL_LEVELS, _config, _photograph, _write_measured_version
 
 ML_ROOT = Path(__file__).resolve().parents[1]
-VERDICT = ML_ROOT.parent / "docs" / "ml" / "e0-verdict.md"
+VERDICT = ML_ROOT.parent / "docs" / "studies" / "ml" / "e0-verdict.md"
 GATE_SPEC = "0044-four-arm-e0-feasibility-gate.md"
 CONTROL = "shuffled_control"
 REAL_ARMS = ("cnn", "descriptors", "encoder_probe")
