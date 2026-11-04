@@ -25,13 +25,13 @@ class _RecordingCanvas implements Canvas {
 
   @override
   void drawCircle(Offset c, double radius, Paint paint) => circles.add((
-        center: c,
-        radius: radius,
-        style: paint.style,
-        strokeWidth: paint.strokeWidth,
-        cap: paint.strokeCap,
-        color: paint.color,
-      ));
+    center: c,
+    radius: radius,
+    style: paint.style,
+    strokeWidth: paint.strokeWidth,
+    cap: paint.strokeCap,
+    color: paint.color,
+  ));
 
   @override
   void drawLine(Offset p1, Offset p2, Paint paint) {
@@ -51,9 +51,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: Center(
-            child: VisioSoilLogo(size: 48, color: Colors.white),
-          ),
+          body: Center(child: VisioSoilLogo(size: 48, color: Colors.white)),
         ),
       ),
     );
@@ -62,8 +60,9 @@ void main() {
     expect(find.bySemanticsLabel('VisioSoil'), findsOneWidget);
   });
 
-  testWidgets('paints at its declared size even under tight constraints',
-      (tester) async {
+  testWidgets('paints at its declared size even under tight constraints', (
+    tester,
+  ) async {
     // The call sites place the logo in a fixed-size Container (tight
     // constraints); the mark must still render at `size`, not stretch to fill.
     await tester.pumpWidget(
@@ -87,47 +86,53 @@ void main() {
     expect(paintSize, const Size(24, 24));
   });
 
-  test('paintVisioSoilMark draws the design-system mark geometry and styling',
-      () {
-    // The shared routine feeds both the widget and the launcher-icon generator;
-    // asserting its primitives directly gives shared_paint_reused executable
-    // coverage in CI (the generator that also uses it is CI-skipped). At a
-    // 48-unit size the scale is 1, so coordinates equal the viewBox values.
-    const white = Color(0xFFFFFFFF);
-    final canvas = _RecordingCanvas();
-    paintVisioSoilMark(canvas, const Size(48, 48), white);
+  test(
+    'paintVisioSoilMark draws the design-system mark geometry and styling',
+    () {
+      // The shared routine feeds both the widget and the launcher-icon generator;
+      // asserting its primitives directly gives shared_paint_reused executable
+      // coverage in CI (the generator that also uses it is CI-skipped). At a
+      // 48-unit size the scale is 1, so coordinates equal the viewBox values.
+      const white = Color(0xFFFFFFFF);
+      final canvas = _RecordingCanvas();
+      paintVisioSoilMark(canvas, const Size(48, 48), white);
 
-    expect(canvas.circles.length, 4);
+      expect(canvas.circles.length, 4);
 
-    // Lens ring: a round-capped stroke of width 3.2.
-    final ring = canvas.circles[0];
-    expect(ring.center, const Offset(20, 20));
-    expect(ring.radius, 13);
-    expect(ring.style, PaintingStyle.stroke);
-    expect(ring.strokeWidth, closeTo(3.2, 1e-4));
-    expect(ring.cap, StrokeCap.round);
-    expect(ring.color, white);
+      // Lens ring: a round-capped stroke of width 3.6 (SPEC 0255).
+      final ring = canvas.circles[0];
+      expect(ring.center, const Offset(20, 20));
+      expect(ring.radius, closeTo(12.6, 1e-9));
+      expect(ring.style, PaintingStyle.stroke);
+      expect(ring.strokeWidth, closeTo(3.6, 1e-4));
+      expect(ring.cap, StrokeCap.round);
+      expect(ring.color, white);
 
-    // Three decreasing soil grains: filled, white.
-    final grains = canvas.circles.sublist(1);
-    expect(grains.map((g) => g.center), <Offset>[
-      const Offset(16.5, 18),
-      const Offset(23.5, 19.5),
-      const Offset(19.5, 24.5),
-    ]);
-    expect(grains.map((g) => g.radius), [3, closeTo(2.1, 1e-9), closeTo(1.4, 1e-9)]);
-    for (final g in grains) {
-      expect(g.style, PaintingStyle.fill);
-      expect(g.color, white);
-    }
+      // Three decreasing soil grains: filled, white.
+      final grains = canvas.circles.sublist(1);
+      expect(grains.map((g) => g.center), <Offset>[
+        const Offset(16.2, 17.6),
+        const Offset(23.6, 19.2),
+        const Offset(19.4, 24.6),
+      ]);
+      expect(grains.map((g) => g.radius), [
+        closeTo(3.2, 1e-9),
+        closeTo(2.2, 1e-9),
+        closeTo(1.5, 1e-9),
+      ]);
+      for (final g in grains) {
+        expect(g.style, PaintingStyle.fill);
+        expect(g.color, white);
+      }
 
-    // Handle: a round-capped stroke of width 3.4.
-    expect(canvas.lineStart, const Offset(29.5, 29.5));
-    expect(canvas.lineEnd, const Offset(39, 39));
-    expect(canvas.lineStrokeWidth, closeTo(3.4, 1e-4));
-    expect(canvas.lineCap, StrokeCap.round);
-    expect(canvas.lineColor, white);
-  });
+      // Handle: a round-capped stroke of width 4.0 (SPEC 0255).
+      expect(canvas.lineStart, const Offset(29.4, 29.4));
+      expect(canvas.lineEnd, const Offset(39.5, 39.5));
+      expect(canvas.lineStrokeWidth, closeTo(4.0, 1e-4));
+      expect(canvas.lineCap, StrokeCap.round);
+      expect(canvas.lineColor, white);
+    },
+  );
 
   test('paintVisioSoilMark scales geometry and stroke widths with size', () {
     // At 96 units the scale is 2, so every coordinate, radius and stroke width
@@ -137,10 +142,10 @@ void main() {
 
     final ring = canvas.circles[0];
     expect(ring.center, const Offset(40, 40));
-    expect(ring.radius, closeTo(26, 1e-9));
-    expect(ring.strokeWidth, closeTo(6.4, 1e-4));
-    expect(canvas.lineStart, const Offset(59, 59));
-    expect(canvas.lineEnd, const Offset(78, 78));
-    expect(canvas.lineStrokeWidth, closeTo(6.8, 1e-4));
+    expect(ring.radius, closeTo(25.2, 1e-9));
+    expect(ring.strokeWidth, closeTo(7.2, 1e-4));
+    expect(canvas.lineStart, const Offset(58.8, 58.8));
+    expect(canvas.lineEnd, const Offset(79, 79));
+    expect(canvas.lineStrokeWidth, closeTo(8.0, 1e-4));
   });
 }
