@@ -7,7 +7,9 @@ SPEC 0253 fixed where each document sits. Four problems remain in what they say.
 - **The design of record is in pt-BR, stale, and named like a spec.**
   - `docs/design/spec/SPEC.md`, `docs/design/spec/haptics.md` and `docs/design/README.md` are written in pt-BR. The project allows pt-BR only for UI strings and for the capture protocol's copy (`docs/agents/project.md`).
   - `SPEC.md` points at `../app-completo-v11/index.html`, which does not exist. SPEC 0253 deleted the prototype.
-  - Its §0 lists five divergences "to resolve first". SPECs 0178 to 0182 resolved all five: `ConfidenceLevel.highThreshold` is `0.75`, `AppHaptics` has `blocked()` and `linked()`, `AppMotion` has the five M3 curves, and `AppPalette.sun` and `AppDensity` exist.
+  - Its §0 lists five divergences "to resolve first". All five are resolved:
+    - SPECs 0178, 0179, 0181 and 0182 resolved four of them. `ConfidenceLevel.highThreshold` is `0.75`, `AppHaptics` has `blocked()` and `linked()`, `AppMotion` has the five M3 curves, and `AppPalette.sun` and `AppDensity` exist.
+    - The fifth asked only that the UI not show the per-class scores. It does not: the capture screen stores the distribution (SPEC 0097) and shows only the winning class.
   - Its §12 lists fifteen PRs to build. SPECs 0178 to 0200 built them, and nothing says so.
   - Later specs changed parts of it on purpose. The document still describes the earlier design:
     - the collection counts the contract's four classes (SPEC 0223);
@@ -89,7 +91,7 @@ Each correction states the current fact and cites the spec that made it true. No
 - `docs/README.md` describes it, and its moved-paths table adds both maps.
 - Every reference to the maps follows the move:
   - `corpus/README.md`;
-  - ADRs 0014, 0017 and 0021;
+  - ADRs 0014 and 0017;
   - `corpus-assets.md` and `research-agent.md`;
   - the relative links inside the maps.
 - ADRs keep their decision and status. Only a path changes, as SPEC 0253 did.
@@ -136,7 +138,7 @@ The directory stays a durable archive, and the index changes no document in it.
   - the status section and the "Delivered by" column in `redesign.md`, and the fixed prototype pointer;
   - the status corrections in the four living documents;
   - `docs/plans/`, `docs/studies/ml/README.md`, and the `docs/README.md` updates;
-  - the path updates in `corpus/README.md`, ADRs 0014, 0017 and 0021, and the ML record guards;
+  - the path updates in `corpus/README.md`, ADRs 0014 and 0017, and the ML record guards;
   - the two new standards tests and the layout-test change.
 - Does NOT include:
   - editing any file under `docs/specs/` or any study's content under `docs/studies/ml/`;

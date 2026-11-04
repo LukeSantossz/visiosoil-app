@@ -17,7 +17,7 @@ import pytest
 
 from tests.test_records import (
     ADR_DIR,
-    ARCHITECTURE_DIR,
+    PLANS_DIR,
     PENDING_MARKERS,
     README,
     REPOSITORY_ROOT,
@@ -177,7 +177,7 @@ def test_no_living_record_calls_the_gate_next():
     offenders = []
 
     for name in ("ml-implementation-map.md",):
-        path = ARCHITECTURE_DIR / name
+        path = PLANS_DIR / name
         assert VERDICT in path.read_text(encoding="utf-8"), (
             f"{name} does not link {VERDICT}"
         )

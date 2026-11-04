@@ -6,15 +6,16 @@ here, because a declared asset folder ships everything in it.
 
 | File | What it is |
 |---|---|
-| `corpus.json` | One reviewed corpus release: the substance, land-use and institutional layers, plus the biome-to-clay-activity defaults |
+| `corpus.json` | The released corpus: the substance layer, plus the biome-to-clay-activity defaults. The format also has land-use and institutional layers, and release `2026.10.31.1` carries neither |
 | `clay-activity-grid.bin` | The packed 0.1° grid that keys the substance layer |
 | `biome-grid.bin` | The packed 0.1° grid that selects the Embrapa unit |
 
-**All three are build products and none is tracked**, the treatment
-`assets/models/` gave the `.tflite` artifact until SPEC 0084 removed it. They are produced by the corpus
-build (`docs/studies/architecture/research-agent-implementation-map.md`, Lane B) and are
-git-ignored until a reviewed release exists and a decision equivalent to ADR 0012
-is taken for them.
+**All three are build products, and all three are tracked since SPEC 0227**,
+the way `assets/models/spec.json` is. They are produced by the corpus build
+([`research-agent-implementation-map.md`](../../plans/research-agent-implementation-map.md),
+Lane B). Release `2026.10.31.1` was published without human review, by the
+Developer's decision of 2026-10-28, so it says `humanReview: false` and every
+cell carries the advisory disclaimer.
 
 **The app works without them.** A missing corpus means the composition answers
 that there is no coverage; a missing grid leaves its key part null and the
