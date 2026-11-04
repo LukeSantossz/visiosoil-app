@@ -51,23 +51,18 @@ SoilRecord classifiedRecord({
 
 void main() {
   // The fit check measures real glyphs, so the width scenarios load the bundled
-  // Inter faces instead of the test font, whose square glyphs are far wider.
+  // InterVariable, the face the app draws with, instead of the test font,
+  // whose square glyphs are far wider.
   setUpAll(() async {
-    for (final family in ['Inter', 'InterVariable']) {
-      final loader = FontLoader(family);
-      for (final face in ['Regular', 'Medium', 'SemiBold']) {
-        final bytes = File('assets/fonts/Inter-$face.ttf').readAsBytesSync();
-        loader.addFont(Future.value(ByteData.view(bytes.buffer)));
-      }
-      loader.addFont(
+    final loader = FontLoader('InterVariable')
+      ..addFont(
         Future.value(
           ByteData.view(
             File('assets/fonts/InterVariable.ttf').readAsBytesSync().buffer,
           ),
         ),
       );
-      await loader.load();
-    }
+    await loader.load();
   });
 
   for (final scenario in [
