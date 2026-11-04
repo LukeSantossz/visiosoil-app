@@ -19,7 +19,7 @@ document records a decision taken, not a state reached.
 ## Status
 
 Accepted. Recorded during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §24 question 6), which listed this
+([`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md), §24 question 6), which listed this
 as an open question blocking #79 and #116. Nothing depends on it yet, because no
 artifact exists; the decision is made now so that the work which does depend on
 it can be specified rather than waiting on a model.

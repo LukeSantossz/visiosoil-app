@@ -32,10 +32,10 @@ steady for one second, and the manual shutter is never disabled.
 2026-10-05, 31 photographs were taken to the protocol of ADR 0017. The reader
 refused 5 for a sheet cropped or not found, and stopped the other 26 before the
 grid: 24 for a soil patch of about 5 cm where the protocol asks for 8 to 10, and
-2 for a photograph too coarse ([the check](../ml/sheet-reader-real-photographs.md)).
+2 for a photograph too coarse ([the check](../studies/ml/sheet-reader-real-photographs.md)).
 Every one of these can be seen while the photograph is framed, and none could
 be shown: the system camera gives the app no preview and no surface to draw on
-(`docs/design/ux-2026/06-capture-experience.md` §1). The first Play release
+([`docs/design/ux-2026/06-capture-experience.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/design/ux-2026/06-capture-experience.md) §1). The first Play release
 waits for a photograph that classifies (ADR 0026), so this is on its critical
 path.
 

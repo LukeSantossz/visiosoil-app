@@ -178,7 +178,7 @@ so read it.
 ## Dataset
 
 New collection follows the manifest-backed protocol in
-[`docs/ml/collection-protocol.md`](../docs/ml/collection-protocol.md): an
+[`docs/studies/ml/collection-protocol.md`](../docs/studies/ml/collection-protocol.md): an
 immutable `data/datasets/vN/` directory whose `manifest.csv` is the authoritative
 record, admitted by the quality criteria and checked by two tools that need no
 TensorFlow installed.
@@ -485,7 +485,7 @@ threshold is the 0.99 quantile of the held-out soil scores. With `--field`,
 SPEC 0174's export is scored by the fit on the whole archive. It writes
 `models/v1/ood_study/report.json` and prints the refusals and the
 pre-registered rule's verdict. On `v1` the verdict is `fail`; see
-`docs/ml/descriptor-distance-guard.md`. The study writes no contract.
+`docs/studies/ml/descriptor-distance-guard.md`. The study writes no contract.
 
 ## Full Pipeline
 

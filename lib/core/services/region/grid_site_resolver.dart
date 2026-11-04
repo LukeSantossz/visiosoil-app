@@ -15,7 +15,7 @@ abstract final class GridKind {
 ///
 /// The format is deliberately trivial: lookup is an array index from latitude
 /// and longitude — constant time, no parsing after load, no dependency
-/// (`docs/architecture/research-agent.md` §5.2). Each grid records its
+/// (`docs/studies/architecture/research-agent.md` §5.2). Each grid records its
 /// resolution and its source map, so refining either is a data change rather
 /// than a code change.
 ///

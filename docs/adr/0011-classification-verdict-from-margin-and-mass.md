@@ -53,7 +53,7 @@ Accepted. Promoted at the Spec Gate for
 [`docs/specs/0031-classification-distribution-and-verdict.md`](../specs/0031-classification-distribution-and-verdict.md),
 whose Design Decision it records. Design rationale and the presentation rules
 that follow from it are in
-[`docs/design/ux-2026/08-results-and-uncertainty.md`](../design/ux-2026/08-results-and-uncertainty.md).
+[`docs/design/ux-2026/08-results-and-uncertainty.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/design/ux-2026/08-results-and-uncertainty.md).
 
 ### Decided
 

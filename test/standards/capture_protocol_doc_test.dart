@@ -7,7 +7,7 @@ import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
 import 'package:visiosoil_app/core/services/descriptors/descriptor_contract.dart';
 import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 
-/// `docs/capture-protocol.md` and its pt-BR version tell a photographer two
+/// `docs/guides/capture-protocol.md` and its pt-BR version tell a photographer two
 /// limits the code derives from the released contract (SPEC 0164). A contract
 /// re-released with another scale, patch size or floor would move them while
 /// the documents kept the old figures, and the next session of photographs
@@ -15,8 +15,8 @@ import 'package:visiosoil_app/core/services/descriptors/patch_grid.dart';
 /// both figures and read each document for them.
 void main() {
   const documents = [
-    'docs/capture-protocol.md',
-    'docs/capture-protocol.pt-BR.md',
+    'docs/guides/capture-protocol.md',
+    'docs/guides/capture-protocol.pt-BR.md',
   ];
   late DescriptorContract contract;
 

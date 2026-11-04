@@ -52,7 +52,7 @@ Two further consequences land on the criteria themselves, both from
 the region of interest becomes a grid of patches rather than one centred square,
 so `minRoiSidePx` is re-scoped to the disc; and a colour-cast threshold stops
 being load-bearing, because the model no longer sees colour. Recorded during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §16). SPEC 0030 implements the
+([`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md), §16). SPEC 0030 implements the
 acceptance criteria in both languages with a conformance test; wiring the gate
 into the capture flow is a follow-up spec, deliberately separated because
 `capture_screen.dart` is shared with the UI/UX terminal.
@@ -212,7 +212,7 @@ photographing the archive.
 - Segmentation and detection stay available as later increments. Nothing decided
   here forecloses them, and the criteria set is where a fill measurement would
   be added if one is ever justified.
-- `docs/design/ux-2026/06-capture-experience.md` §3 reaches the same conclusion
+- [`docs/design/ux-2026/06-capture-experience.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/design/ux-2026/06-capture-experience.md) §3 reaches the same conclusion
   from the presentation side and states the constraint this ADR must honour: the
   "target not found" and "multiple targets" states have no available signal, and
   neither may be simulated by a colour or saturation heuristic standing in for

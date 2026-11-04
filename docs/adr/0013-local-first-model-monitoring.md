@@ -9,7 +9,7 @@ contents are never included in it, under any setting.
 ## Status
 
 Accepted. Recorded during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §18). It answers the brief's
+([`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md), §18). It answers the brief's
 requirement to separate anonymous telemetry, technical metadata, and sensitive
 data before any monitoring is built.
 

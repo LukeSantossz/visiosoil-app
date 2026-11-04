@@ -4,7 +4,7 @@
 /// carries the clay-activity family that keys the substance layer, the
 /// federative unit that keys the institutional overlay, and the biome that
 /// selects the Embrapa unit. Calling it a region would describe the smallest of
-/// the three (`docs/architecture/research-agent.md` §19.3).
+/// the three (`docs/studies/architecture/research-agent.md` §19.3).
 ///
 /// Every part but [country] may be null and none of them is fatal: a null
 /// [clayActivity] falls back to a generic substance cell, a null [unit] drops

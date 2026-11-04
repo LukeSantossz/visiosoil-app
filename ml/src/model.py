@@ -104,7 +104,7 @@ def unfreeze_model(model: keras.Model, cfg: dict) -> keras.Model:
     # and overwrites the ImageNet moving mean and variance with statistics
     # estimated from this dataset. Here that dataset is 221 photographs taken on
     # one rig, one device and one lighting condition
-    # (`docs/ml/collection-protocol.md`), so the statistics it would learn
+    # (`docs/studies/ml/collection-protocol.md`), so the statistics it would learn
     # describe a single capture configuration rather than the population the
     # model is deployed against.
     #

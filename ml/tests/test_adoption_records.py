@@ -5,7 +5,7 @@ the dataset or imports TensorFlow: these are assertions about documents, so they
 run everywhere the suite runs.
 
 The block and section helpers are SPEC 0062's, imported rather than copied, so
-both guards read the documents the same way. `docs/specs/` and `docs/ml/` stay
+both guards read the documents the same way. `docs/specs/` and `docs/studies/ml/` stay
 out of every scan for the reason given there: an approved spec and a run verdict
 keep the text they were written with.
 """
@@ -31,7 +31,7 @@ GATE_SPEC = "0044-four-arm-e0-feasibility-gate.md"
 AMENDMENT_HEADING = "### Amended 2026-09-22"
 
 #: SPEC 0044's four adoption conditions, each with the outcome
-#: `docs/ml/e0-verdict.md` records for it. A record that names a condition
+#: `docs/studies/ml/e0-verdict.md` records for it. A record that names a condition
 #: without its outcome reads as though the condition were still to be checked.
 CONDITION_OUTCOMES = {
     "executed": "yes",
@@ -176,7 +176,7 @@ def test_no_living_record_calls_the_gate_next():
     only beside a link to the verdict that says it ran."""
     offenders = []
 
-    for name in ("ml-handoff.md", "ml-implementation-map.md"):
+    for name in ("ml-implementation-map.md",):
         path = ARCHITECTURE_DIR / name
         assert VERDICT in path.read_text(encoding="utf-8"), (
             f"{name} does not link {VERDICT}"

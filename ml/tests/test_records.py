@@ -4,7 +4,7 @@ One test per acceptance criterion, named after the criterion. Nothing here reads
 the dataset or imports TensorFlow: these are assertions about documents, so they
 run everywhere the suite runs.
 
-**Two directories are deliberately not scanned.** `docs/specs/` and `docs/ml/`
+**Two directories are deliberately not scanned.** `docs/specs/` and `docs/studies/ml/`
 are durable archives — an approved spec keeps the text it was approved with, and
 a run verdict records what was measured — so both legitimately still say ADR 0021
 is the decision they point forward to. What this module checks is the *living*
@@ -19,7 +19,7 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ADR_DIR = REPOSITORY_ROOT / "docs" / "adr"
-ARCHITECTURE_DIR = REPOSITORY_ROOT / "docs" / "architecture"
+ARCHITECTURE_DIR = REPOSITORY_ROOT / "docs" / "studies" / "architecture"
 README = REPOSITORY_ROOT / "README.md"
 
 #: Joined with rather than written inline, so the separator a block is rebuilt
@@ -108,7 +108,7 @@ def section(text: str, heading: str) -> str:
 #: directories and calling the rest out of scope: SPEC 0062's criterion says "no
 #: file under `docs/`", and a scan narrower than its own criterion lets a stale
 #: block in `docs/adr/` or `docs/agents/` pass.
-DURABLE_ARCHIVES = ("specs", "ml")
+DURABLE_ARCHIVES = ("specs", "studies/ml")
 
 
 def living_pointers() -> list[Path]:
@@ -119,11 +119,11 @@ def living_pointers() -> list[Path]:
             "the exclusion below would silently widen"
         )
 
+    archives = [REPOSITORY_ROOT / "docs" / name for name in DURABLE_ARCHIVES]
     return [
         path
         for path in sorted((REPOSITORY_ROOT / "docs").rglob("*.md"))
-        if path.relative_to(REPOSITORY_ROOT / "docs").parts[0]
-        not in DURABLE_ARCHIVES
+        if not any(path.is_relative_to(archive) for archive in archives)
     ] + [README]
 
 
@@ -299,15 +299,15 @@ def test_no_record_still_waits_on_adr_0021():
 
 
 def test_the_records_agree_on_what_blocks_the_gate():
-    """Neither the handoff nor the map names ADR 0021 as the gate's blocker.
+    """The map does not name ADR 0021 as the gate's blocker.
 
-    Checked as a pair rather than one document at a time: the failure this
-    guards is the two disagreeing, which is what sent an earlier session down a
-    path the other document had already closed.
+    It was checked as a pair with the ML handoff, because the failure this
+    guards is two records disagreeing. SPEC 0253 deleted the handoff, so the
+    map is the one record left to check.
     """
     offenders = []
 
-    for name in ("ml-handoff.md", "ml-implementation-map.md"):
+    for name in ("ml-implementation-map.md",):
         path = ARCHITECTURE_DIR / name
         assert path.exists(), f"{path} is missing"
         for number, block in blocks(path):

@@ -75,7 +75,7 @@ abstract class ResearchService {
   /// user supplies. Both are resolved by the caller rather than here: resolving
   /// is orchestration, `ManagementTipsController` already owns orchestration,
   /// and keeping the resolver out of an implementation leaves it fakeable
-  /// without a grid asset (`docs/architecture/research-agent.md` §19.3).
+  /// without a grid asset (`docs/studies/architecture/research-agent.md` §19.3).
   Future<ResearchResult> fetchTips(
     SoilRecord record, {
     String? locale,

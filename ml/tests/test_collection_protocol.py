@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 PROTOCOL_PATH = (
-    Path(__file__).resolve().parents[2] / "docs" / "ml" / "collection-protocol.md"
+    Path(__file__).resolve().parents[2] / "docs" / "studies" / "ml" / "collection-protocol.md"
 )
 
 

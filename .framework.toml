@@ -205,7 +205,7 @@ unavailable_patterns = [
 # a heuristic or a model. It is crude on purpose: a gate nobody can predict is a
 # gate people route around, and widening this list is visible in review.
 #
-# `docs/ml/*` holds run verdicts, and it is exempt for a reason the other entries
+# `docs/studies/ml/*` holds run verdicts, and it is exempt for a reason the other entries
 # do not need (SPEC 0058). A verdict's content cannot exist until the spec that
 # mandates it has merged and its code has run, so it can never ride on the branch
 # that adds its spec: SPEC 0055's probe took two hours and its verdict fit in
@@ -217,13 +217,13 @@ unavailable_patterns = [
 # The trailing `*` is load-bearing and is not a wildcard for a filename. The
 # matcher tries `path.Match` first, which cannot cross a `/`, and then a prefix
 # branch that fires only when the pattern ends in `*`, using the pattern minus
-# that `*` as the prefix. So `docs/ml/*` exempts everything under the directory,
-# while `docs/ml/` exempts nothing at all and `docs/ml/**` leaves the literal
-# prefix `docs/ml/*`, which no path starts with. Both wrong forms were tried
+# that `*` as the prefix. So `docs/studies/ml/*` exempts everything under the directory,
+# while `docs/studies/ml/` exempts nothing at all and `docs/studies/ml/**` leaves the literal
+# prefix `docs/studies/ml/*`, which no path starts with. Both wrong forms were tried
 # against the gate before this one; neither reported an error, they simply did
 # not match.
 [checks]
-exempt_paths = ["README.md", "LICENSE", ".gitignore", "docs/ml/*"]
+exempt_paths = ["README.md", "LICENSE", ".gitignore", "docs/studies/ml/*"]
 
 # --- agent instruction files --------------------------------------------------
 

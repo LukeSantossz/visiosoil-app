@@ -28,7 +28,7 @@ typedef FieldPhotograph = ({
 });
 
 /// The Markdown table of [photographs] in file-name order, in the shape of
-/// `docs/ml/sheet-reader-real-photographs.md`, closed by how many of them
+/// `docs/studies/ml/sheet-reader-real-photographs.md`, closed by how many of them
 /// were classified. Labelled photographs add the expected class and whether
 /// the read matched, then the accuracy per class in [classes], the refusals
 /// by cause and the confusion matrix (SPEC 0174).

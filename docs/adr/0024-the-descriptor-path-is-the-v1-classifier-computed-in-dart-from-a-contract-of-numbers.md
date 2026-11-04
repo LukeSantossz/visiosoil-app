@@ -23,7 +23,7 @@ averaged into one. That is what
 [SPEC 0044](../specs/0044-four-arm-e0-feasibility-gate.md)'s pre-registered rule
 returns: the frozen encoder ships only if all four conditions below hold, three
 of them do not, and so the descriptor path ships. The numbers are
-[`docs/ml/e0-verdict.md`](../ml/e0-verdict.md)'s.
+[`docs/studies/ml/e0-verdict.md`](../studies/ml/e0-verdict.md)'s.
 
 **2. It runs as Dart arithmetic, and the contract carries numbers rather than a
 model.** The descriptors are reimplemented in Dart. The fitted standardiser — a

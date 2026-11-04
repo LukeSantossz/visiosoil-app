@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-VERDICT = REPOSITORY_ROOT / "docs" / "ml" / "e0-verdict.md"
+VERDICT = REPOSITORY_ROOT / "docs" / "studies" / "ml" / "e0-verdict.md"
 
 #: The archive's vocabulary. Named here to assert their **absence**: a per-class
 #: figure is a diagnostic this document is forbidden to quote as a result, and

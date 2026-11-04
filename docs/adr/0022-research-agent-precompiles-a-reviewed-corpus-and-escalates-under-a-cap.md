@@ -20,7 +20,7 @@ the project can use.
 Accepted. Supersedes [ADR 0001](0001-research-agent-advisory-web-grounded.md),
 which is marked Retired in place per the durable-numbering rule. The full design
 is modelled in
-[`docs/architecture/research-agent.md`](../architecture/research-agent.md).
+[`docs/studies/architecture/research-agent.md`](../studies/architecture/research-agent.md).
 
 Accepting this ADR records the decision *direction*. It is **not** a Spec Gate
 pass. No `lib/` code and no proxy code ships with it, and every delivery slice

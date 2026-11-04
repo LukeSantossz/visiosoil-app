@@ -69,7 +69,7 @@ class ImageQualityCriteria:
 
     **Every default here is PROVISIONAL.** They are engineering starting points,
     not calibrated values: no real soil images exist to calibrate against
-    (`docs/architecture/soil-classification.md` §4). They are a value object so
+    (https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md §4). They are a value object so
     a later phase can recalibrate without touching the analyzer, and so an audit
     run and a capture gate can be pinned to the same criteria.
     """

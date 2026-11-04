@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 /// Haptic tiers mirroring the microinteraction strategy
-/// (`docs/design/ux-2026/09-microinteractions.md` §5, SPEC 0126, redesign v11 §7).
+/// (https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/design/ux-2026/09-microinteractions.md §5, SPEC 0126, redesign v11 §7).
 ///
 /// Haptics confirm, they do not decorate: one tier per class of event.
 /// [selection] for a chip, tab or list choice; [confirm] for the photograph

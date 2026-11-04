@@ -30,7 +30,7 @@ enum ManagementTipsStatus {
   const ManagementTipsStatus(this.wireName);
 
   /// The value carried in JSON, which is not the Dart identifier for the
-  /// multi-word member. The contract in `docs/architecture/research-agent.md`
+  /// multi-word member. The contract in `docs/studies/architecture/research-agent.md`
   /// §7 fixes the wire spelling.
   final String wireName;
 
@@ -50,7 +50,7 @@ enum ManagementTipsStatus {
 }
 
 /// What a tip is about. Closed enumeration, resolved from
-/// `docs/design/ux-2026/05-design-system.md` §5: the app groups by category when
+/// https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/design/ux-2026/05-design-system.md §5: the app groups by category when
 /// present and renders a flat list when absent.
 enum TipCategory {
   water('water'),
@@ -201,7 +201,7 @@ class TipSource {
   /// only. Kept as the artifact's string rather than parsed, like [date].
   final String? accessedAt;
 
-  /// The source-policy tier of `docs/architecture/research-agent.md` §8. Absent
+  /// The source-policy tier of `docs/studies/architecture/research-agent.md` §8. Absent
   /// means show no tier.
   final int? tier;
 
