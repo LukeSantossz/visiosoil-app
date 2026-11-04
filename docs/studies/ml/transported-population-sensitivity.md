@@ -1,11 +1,11 @@
 # Does the transported population change the answer?
 
-The verdict of [SPEC 0057](../../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
+The verdict of [SPEC 0057](../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md),
 run over dataset version `v1`. It asks whether capture population `B` — the
 transported samples SPEC 0040 D6 restricts to training sides — changes a result
 scored on the groups D6 protects.
 
-**Read this before [ADR 0021](../../../adr), which is the decision it exists to
+**Read this before [ADR 0021](../../adr), which is the decision it exists to
 inform and which this document deliberately does not take.**
 
 ## Verdict
@@ -100,7 +100,7 @@ Pooling across repeats is an ensemble and reads higher than any single repeat.
 | Run libraries | scikit-learn 1.5.2, numpy 1.26.4, TensorFlow 2.21.0, Keras 3.14.0 |
 
 The Keras pin has since moved to 3.15.1
-([SPEC 0060](../../../specs/0060-close-the-keras-model-loading-advisories.md), closing
+([SPEC 0060](../../specs/0060-close-the-keras-model-loading-advisories.md), closing
 seven model-loading advisories), so `ml/requirements.txt` no longer names the
 version these arms recorded. The row above is what ran and is not restated to
 match the file. Nothing measured here moves — the folds are not re-run — but a
@@ -171,7 +171,7 @@ which SPEC 0044 permits to be recorded as *not executed*.
 **What this does not establish.** A null at this resolution is not proof of
 absence. The planning estimate for a paired contrast at 77 groups was about 16
 percentage points; the descriptor arm resolved to 10.8 and the incumbent only to
-19.4. With a dataset [ADR 0016](../../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+19.4. With a dataset [ADR 0016](../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
 closed at 105 samples, no larger `N` is coming, so this is the resolution the
 question will ever be answered at.
 
@@ -212,7 +212,7 @@ On Linux the fold manifest's absolute paths must be re-rooted first, for the
 reason the provenance section above records; issue #233 is the durable fix.
 
 The run was interrupted three times and resumed under
-[SPEC 0056](../../../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)
+[SPEC 0056](../../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)
 each time — a killed parent session, an environment missing `ptxas` that trained
 27× slower until corrected, and a WSL2 VM shutdown. **No completed fold was ever
 recomputed**; each interruption cost only the fold in flight, which is the

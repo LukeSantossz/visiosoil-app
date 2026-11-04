@@ -2,8 +2,8 @@
 
 Status: **design reference — pre-SPEC, not an implementation authorization.** The
 headline decisions are recorded in
-[ADR 0022](../../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md),
-which supersedes [ADR 0001](../../../adr/0001-research-agent-advisory-web-grounded.md).
+[ADR 0022](../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md),
+which supersedes [ADR 0001](../../adr/0001-research-agent-advisory-web-grounded.md).
 No `lib/` code and no proxy code ships with this document. Every delivery slice
 (§15) passes its own Spec Gate (`.standards/docs/standards/spec_method.md`)
 before any code is written.
@@ -649,7 +649,7 @@ claim on its own. Tier 5 may only corroborate a claim already carried by a lower
 tier. A cell that cannot reach that bar emits `insufficient_evidence` rather
 than a weaker tip.
 
-**Falsified by [ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+**Falsified by [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
 on 2026-09-17.** This paragraph said domains were an explicit allowlist passed to
 the search tool, "so the constraint is enforced by the platform rather than by a
 post-filter". With the build on local models there is no such platform, and that
@@ -700,7 +700,7 @@ that is currently degraded.
 
 > **Out of v1 since 2026-09-17, and not because the service is down.**
 > `regionalContradiction` is a **Tier 2 escalation predicate**, and
-> [ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+> [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
 > took Tier 2 out of v1. The sampled fractions have no other consumer, so
 > sampling SoilGrids is work v1 does not owe. It returns with Tier 2, alongside
 > the `.tflite` artifact the predicate also waits on.
@@ -1023,7 +1023,7 @@ slice 5 is the proxy's; slices 6–10 are app changes here. Each passes its own
 Spec Gate.
 
 > **Narrowed by
-> [ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+> [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
 > on 2026-09-17.** The $50 allowance was never
 > released, so the build runs on local open-source models and **slices 10a and
 > 10b leave v1**. The slice table below is kept as written and the amendments are
@@ -1619,7 +1619,7 @@ the Tier 2 endpoint, is the proxy's.
 
 ### 20.3 Model and search providers
 
-**Replaced on 2026-09-17 by [ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).** The table below records what a
+**Replaced on 2026-09-17 by [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).** The table below records what a
 *funded* build uses; it is not what runs today.
 
 | Use | Today (ADR 0023) | With a budget (ADR 0022) |
@@ -1654,7 +1654,7 @@ instead of a platform guarantee.
 
 ### 20.5 How the build runs
 
-**Replaced on 2026-09-17 by [ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md): the build runs on the Developer's
+**Replaced on 2026-09-17 by [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md): the build runs on the Developer's
 machine, not in CI.**
 
 ADR 0022 put it in CI under manual dispatch, and named the two guards that

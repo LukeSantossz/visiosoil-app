@@ -3,7 +3,7 @@
 > **Withdrawn 2026-09-01.** There will be no further collection and no
 > re-photography: the delivered archive is the whole dataset and the laboratory
 > takes no part in the project in any aspect
-> ([ADR 0016](../../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md),
+> ([ADR 0016](../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md),
 > amended). This document described a collection to be performed, and the
 > paragraph below already recorded that it was not performed this way; what is
 > new is that it will not be performed at all. It is kept because three of its
@@ -16,7 +16,7 @@
 >
 > Its `texture_class` column says "one of the five Embrapa groups, spelled exactly
 > as `ml/config.yaml` spells it". The five is right and the citation is not:
-> since [SPEC 0046](../../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)
+> since [SPEC 0046](../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)
 > `ml/config.yaml` declares the **four** the model emits, and the vocabulary a
 > manifest row may use is `src.manifest.ARCHIVE_CLASSES`. The table below is left
 > as written, as the rest of this withdrawn document is.
@@ -24,7 +24,7 @@
 > **Superseded for the current dataset, 2026-08-25.** This document describes a
 > collection to be performed. It was not performed this way: 221 photographs of
 > 194 samples were delivered on 2026-08-25, already taken, and
-> [ADR 0016](../../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+> [ADR 0016](../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
 > describes what they are. Read this document as the protocol for **any future
 > re-photography**, not as a description of `v1`.
 >
@@ -61,9 +61,9 @@ stated alternative; the reasons are kept next to the rules because a rule whose
 reason is lost gets dropped the first time it is inconvenient.
 
 Specified by
-[`docs/specs/0033-dataset-protocol-manifest-and-splits.md`](../../../specs/0033-dataset-protocol-manifest-and-splits.md).
+[`docs/specs/0033-dataset-protocol-manifest-and-splits.md`](../../specs/0033-dataset-protocol-manifest-and-splits.md).
 The capture presentation and the unresolved scale question are recorded in
-[ADR 0014](../../../adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md).
+[ADR 0014](../../adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md).
 
 ## 1. What this collection is
 

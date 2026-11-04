@@ -4,9 +4,9 @@ The ordered backlog for the Research Agent workstream. Every item is scoped, nam
 the files it touches and the tests that gate it, so executing it is implementation
 rather than design. The reasoning lives in
 [`research-agent.md`](research-agent.md); the decisions live in
-[ADR 0022](../../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md)
+[ADR 0022](../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md)
 and
-[ADR 0023](../../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
+[ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
 Last updated: 2026-10-15. **Lane A is done through A4's bundled half**

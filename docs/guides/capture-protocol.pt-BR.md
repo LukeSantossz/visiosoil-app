@@ -3,7 +3,7 @@
 Como tirar uma foto de solo que o VisioSoil consegue classificar. Siga todos os
 passos. O app lê a escala pela folha A4, e uma foto cuja folha ou cujo solo ele
 não consegue ler é recusada com o motivo, nunca estimada
-([ADR 0017](../../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
+([ADR 0017](../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
 Ele não confere todos os passos: a secagem e o preparo do solo, a luz, o foco e o
 tamanho máximo do círculo ficam por sua conta, e uma foto que falhe num deles
 ainda pode ser lida.
@@ -14,7 +14,7 @@ Os dois documentos trazem os mesmos passos e limites.
 **Nenhuma foto real foi classificada ainda.** O código aplica dois dos limites
 abaixo, 2299 px e 63 mm. Eles dizem o que o app vai ler, não quão precisa é a
 leitura em fotos de campo
-([`docs/studies/ml/sheet-reader-real-photographs.md`](../../studies/ml/sheet-reader-real-photographs.md)).
+([`docs/studies/ml/sheet-reader-real-photographs.md`](../studies/ml/sheet-reader-real-photographs.md)).
 
 ## 1. O que você precisa
 
@@ -25,7 +25,7 @@ leitura em fotos de campo
 - **Solo seco ao ar e peneirado**, destorroado, sem torrões, raízes ou pedras. É o
   único material com que o modelo foi treinado. Solo úmido de campo pode ser
   fotografado, mas a leitura fica fora do que o modelo conhece
-  ([ADR 0014](../../adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)).
+  ([ADR 0014](../adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)).
 - **A câmera do celular na maior resolução.**
 
 ## 2. Prepare a amostra

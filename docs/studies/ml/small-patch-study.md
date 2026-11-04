@@ -1,6 +1,6 @@
 # A nine-patch grid at 128 px, on the cross-validated folds
 
-[SPEC 0143](../../../specs/0143-study-a-nine-patch-grid-on-small-soil-discs.md)
+[SPEC 0143](../../specs/0143-study-a-nine-patch-grid-on-small-soil-discs.md)
 asks whether smaller descriptor patches can preserve the nine-patch floor on a
 47.2 mm soil disc. At the released scale of 0.12920342774728033 mm/px and the
 unchanged half-patch stride, nine centred 128 px patches fit that disc. The

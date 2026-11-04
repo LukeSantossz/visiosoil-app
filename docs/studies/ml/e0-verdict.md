@@ -1,6 +1,6 @@
 # Is textural class recoverable from a photograph of a soil dish?
 
-The verdict of [SPEC 0044](../../../specs/0044-four-arm-e0-feasibility-gate.md), run
+The verdict of [SPEC 0044](../../specs/0044-four-arm-e0-feasibility-gate.md), run
 over dataset version `v1`. It is the gate the programme was built on top of
 without ever having tested: if no arm clears a label-shuffled control — an exact
 McNemar test significant at α = 0.05 after Holm correction within the primary
@@ -106,7 +106,7 @@ is not reported as having lost a comparison it never entered.
 The arm that ships is four groups of features, and the gate asks which of them
 the result rests on. Each group was removed in turn — four arms over the same
 folds, paired against the full arm, Holm-corrected **within the ablation family
-alone** ([SPEC 0065](../../../specs/0065-the-descriptor-ablation-the-gate-reports.md)).
+alone** ([SPEC 0065](../../specs/0065-the-descriptor-ablation-the-gate-reports.md)).
 No ablation arm is registered in `evaluation.contrasts`, so none of this can
 enter the decision rule above.
 
@@ -208,7 +208,7 @@ fire and Lane C continues.
 Every arm ran under **TensorFlow 2.21.0, Keras 3.14.0, scikit-learn 1.5.2,
 numpy 1.26.4**, recorded per fold in `runtime.json`.
 
-`ml/requirements.txt` has pinned **Keras 3.15.1** since [SPEC 0060](../../../specs/0060-close-the-keras-model-loading-advisories.md)
+`ml/requirements.txt` has pinned **Keras 3.15.1** since [SPEC 0060](../../specs/0060-close-the-keras-model-loading-advisories.md)
 moved it, and this run does not use that pin. The choice was made deliberately on
 2026-09-17: `cnn` and `descriptors` were already complete under 3.14.0, and the
 alternatives were to finish the gate under the stack its finished arms recorded,
@@ -280,6 +280,6 @@ refuses the two if they disagree.
 
 The machine-readable results are `models/v1/contrasts.json`, each arm's
 `models/v1/<arm>/metrics.json`, and `models/v1/descriptor_ablation/ablation.json`.
-None of them is committed: [ADR 0019](../../../adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md)
+None of them is committed: [ADR 0019](../../adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md)
 makes everything under a dataset version a build product, and this document is
 the committed record of what they said.

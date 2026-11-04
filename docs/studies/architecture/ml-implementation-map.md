@@ -19,7 +19,7 @@ Last updated: 2026-09-29.
 >   +0.4805, both clauses; **the incumbent `cnn` fails both clauses** (+0.1688,
 >   Holm p = 0.0596, below its 0.2434 minimum detectable effect). Lane C
 >   continues.
-> - **[ADR 0024](../../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+> - **[ADR 0024](../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
 >   adopts the descriptor path** by SPEC 0044's pre-registered rule — the encoder
 >   failed conditions 2, 3 and 4 — **and decides that it runs as Dart
 >   arithmetic** over a `spec.json` of numbers, held to Python by a
@@ -39,18 +39,18 @@ Last updated: 2026-09-29.
 > because every item's acceptance criteria still hold.
 >
 > - **§7 question 6, the scale reference, is closed** by
->   [ADR 0017](../../../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md):
+>   [ADR 0017](../../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md):
 >   read from an object of known size by a classical operator — dish rim in the
 >   dataset, A4 sheet in the app — with a refusal when neither is found.
 > - **§7 questions 1 and 5 are answered by measurement.** 194 samples: 57 / 36 /
 >   3 / 59 / 39. Siltosa is below the floor, so
->   [ADR 0016](../../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+>   [ADR 0016](../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
 >   excludes it and the first model classifies four classes. ADR 0014 is Retired.
 > - **C0's inventory half is done and its E0 half is issue #197**, runnable now.
 >   Its blockers are #196 (58 % of the set is HEIC and unreadable), #178, #179
 >   and #180 — the defects that would bias the gate.
 > - **A1's region of interest is superseded.** It is a patch grid now
->   ([ADR 0018](../../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
+>   ([ADR 0018](../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
 >   the model sees greyscale, and SPEC 0030 is revised accordingly.
 > - **A4 is a release blocker, not a next item.** A four-class model cannot run
 >   against a five-entry Dart label list.
@@ -60,7 +60,7 @@ Last updated: 2026-09-29.
 >   it (#187).
 >
 > **Revised 2026-09-01.** The evaluation design changed under every item in
-> Lanes B and C. [ADR 0020](../../../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md)
+> Lanes B and C. [ADR 0020](../../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md)
 > replaces the single seeded `train`/`val`/`test` split with repeated stratified
 > group k-fold (k = 5, R = 5) and nested selection; the sample group is the unit
 > of every interval and every paired contrast; contrasts are pre-registered; and
@@ -71,14 +71,14 @@ Last updated: 2026-09-29.
 > Where this revision and the text below disagree, this revision wins.
 >
 > **Revised 2026-09-02.** This map's identifiers are the project's only roadmap
-> vocabulary ([SPEC 0049](../../../specs/0049-one-roadmap-vocabulary.md)). The
+> vocabulary ([SPEC 0049](../../specs/0049-one-roadmap-vocabulary.md)). The
 > 2026-09-01 method study used a parallel set in which `A1` and `A4` named
 > different work from the items below, and six issues were opened under it. Those
 > names are retired; this table says where each one's work lives now.
 >
 > | Retired name | Work | Now |
 > |---|---|---|
-> | A8 | four-class list alignment | **done** — [SPEC 0046](../../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md), #211 |
+> | A8 | four-class list alignment | **done** — [SPEC 0046](../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md), #211 |
 > | A0 | recompute the canonical millimetres per pixel | **B2** (#212) |
 > | A0b | capture-population predictability probe | **C0** (#213) |
 > | A1 *(study)* | Python 3.12 environment with the pinned TensorFlow | **B1** (#214) |
@@ -94,16 +94,16 @@ Last updated: 2026-09-29.
 >   now named in the table, and it is done. A4 is the `spec.json` runtime
 >   contract, below, and is still open.
 > - **C0's E0 half is no longer issue #197.** That issue is closed; the gate is
->   specified by [SPEC 0044](../../../specs/0044-four-arm-e0-feasibility-gate.md) and
+>   specified by [SPEC 0044](../../specs/0044-four-arm-e0-feasibility-gate.md) and
 >   tracked as #216.
 > - **Of the blockers it lists, #196 and #179 are closed.** #178 and #180 remain,
 >   and #180 is folded into A6.
 >
 > **Revised 2026-09-03.** Two items on the recommended order below are done, and
 > nothing about the lanes changes. B1's environment landed as
-> [SPEC 0051](../../../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214) and
+> [SPEC 0051](../../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214) and
 > B2's scale recomputation as
-> [SPEC 0052](../../../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md)
+> [SPEC 0052](../../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md)
 > (#212), which built the dish-rim reader SPEC 0037 specified and nobody had
 > written, read all 221 photographs without a single refusal, and **confirmed the
 > canonical at 0.1292 mm/px** against the 0.130 that had been measured over 42 %
@@ -115,7 +115,7 @@ Last updated: 2026-09-29.
 
 > **Revised 2026-09-04. C0's probe (#213) is done and it returned positive,
 > which moves the item after it.** The capture-population probe
-> ([SPEC 0055](../../../specs/0055-probe-whether-the-capture-population-is-predictable.md),
+> ([SPEC 0055](../../specs/0055-probe-whether-the-capture-population-is-predictable.md),
 > verdict in [docs/studies/ml/capture-population-probe.md](../ml/capture-population-probe.md))
 > recovered the capture population from the same patches the E0 arms see:
 > **90 / 97 sample groups, Wilson 95 % lower bound 0.858 against a
@@ -126,7 +126,7 @@ Last updated: 2026-09-29.
 > that provably cannot exploit an encoding signature — is an ADR written against
 > those numbers. SPEC 0055 scoped that decision out deliberately, so it is a new
 > item and not part of the probe. *Answered 2026-09-11 by
-> [ADR 0021](../../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md),
+> [ADR 0021](../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md),
 > which took neither option: SPEC 0057 measured the effect and found none above
 > its own floor.*
 >
@@ -153,19 +153,19 @@ Last updated: 2026-09-29.
 > **Revised 2026-09-05. The queue between the probe's verdict and the gate is
 > three items in a fixed order, and each is scoped here so that writing it is
 > drafting rather than deciding.** Two items landed since the revision above:
-> [SPEC 0055](../../../specs/0055-probe-whether-the-capture-population-is-predictable.md)
+> [SPEC 0055](../../specs/0055-probe-whether-the-capture-population-is-predictable.md)
 > (#213), whose verdict re-opened SPEC 0040 D6, and
-> [SPEC 0056](../../../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)
+> [SPEC 0056](../../specs/0056-an-interrupted-arm-resumes-instead-of-starting-over.md)
 > (#26), which makes an arm resume what it can prove and refuse what it cannot —
 > without which neither of the runs below survives an interruption.
 >
 > | # | Item | What it settles | Blocked on | Cost |
 > |---|---|---|---|---|
-> | [**SPEC 0057**](../../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | **measured 46.5 h**, estimated ~2 h |
-> | [**ADR 0021**](../../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md) | what D6 becomes | **taken 2026-09-11: D6 stands unchanged, so no arm moves** | SPEC 0057's numbers — landed | — |
+> | [**SPEC 0057**](../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) | the D6 sensitivity comparison | whether population `B` in the training sides changes the answer | SPEC 0056 — landed | **measured 46.5 h**, estimated ~2 h |
+> | [**ADR 0021**](../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md) | what D6 becomes | **taken 2026-09-11: D6 stands unchanged, so no arm moves** | SPEC 0057's numbers — landed | — |
 > | **SPEC 0044** (#216) | the E0 gate | whether textural class is visually determinable | nothing; ADR 0021 is taken | ~20 h on CPU, revised — see below |
 >
-> **[SPEC 0057](../../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** *Ran 2026-09-05 to 2026-09-08; its verdict is [docs/studies/ml/transported-population-sensitivity.md](../ml/transported-population-sensitivity.md) and it cost 46.5 hours, not the two estimated here.* The
+> **[SPEC 0057](../../specs/0057-measure-whether-the-transported-population-changes-the-answer.md) — decide D6 by measurement rather than by argument.** *Ran 2026-09-05 to 2026-09-08; its verdict is [docs/studies/ml/transported-population-sensitivity.md](../ml/transported-population-sensitivity.md) and it cost 46.5 hours, not the two estimated here.* The
 > Developer's instruction on 2026-09-05 was to measure before deciding, and this
 > is that measurement. It runs the descriptor arm **twice over one partition** —
 > once with population `B` in the training sides as D6 permits, once with `B`
@@ -261,17 +261,17 @@ honestly when it cannot decide, and records enough about the analysis that an ol
 result can still be interpreted a year later. All of it offline.
 
 Four and not five: the delivered archive holds five groups and
-[ADR 0016](../../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
+[ADR 0016](../../adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)
 keeps Siltosa out of the first model, so the archive's vocabulary and the model's
-class list are two different lists ([SPEC 0046](../../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)).
+class list are two different lists ([SPEC 0046](../../specs/0046-the-archive-vocabulary-and-the-model-class-list-are-two-lists.md)).
 
 Concretely, the end state is:
 
 | Stage | End state |
 |---|---|
 | Capture | The declared protocol is enforced, not merely described. One criteria set (SPEC 0030) governs both what enters the dataset and what the app accepts, so the two populations cannot drift apart **in photographic quality**. They still differ in subject: collection is bench-prepared, air-dried and sieved, deployment is in situ. Shared admission criteria cannot close that, and ADR 0009 records why |
-| Region of interest | A grid of fixed-size greyscale patches at a known physical scale, applied identically in Python and Dart ([ADR 0018](../../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md), SPEC 0037, item A6). No aspect-ratio squashing, no segmentation, no detector (ADR 0009). It was the largest centred square until ADR 0018 |
-| Inference | The descriptor path computed in Dart ([ADR 0024](../../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)): 26 descriptors per patch, standardised and scored by a logistic regression, reading the class list, the descriptor fixed points, the standardiser, the coefficients and the band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart. **Today's code still runs the TFLite path in an isolate (ADR 0008)**; it is replaced when the wiring spec lands |
+| Region of interest | A grid of fixed-size greyscale patches at a known physical scale, applied identically in Python and Dart ([ADR 0018](../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md), SPEC 0037, item A6). No aspect-ratio squashing, no segmentation, no detector (ADR 0009). It was the largest centred square until ADR 0018 |
+| Inference | The descriptor path computed in Dart ([ADR 0024](../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)): 26 descriptors per patch, standardised and scored by a logistic regression, reading the class list, the descriptor fixed points, the standardiser, the coefficients and the band constants from a tracked `spec.json` (ADR 0012). No value hardcoded in Dart. **Today's code still runs the TFLite path in an isolate (ADR 0008)**; it is replaced when the wiring spec lands |
 | Result | A calibrated distribution over all classes plus a status, not a single label. `failed` when the analysis could not run, and the UI derives its verdict bands from top-1 and the top1−top2 margin. `rejectedOod` is a **reserved** status for the "not soil" signal — whether it is produced by a trained negative class or by the quality gate plus a threshold is open, informed by E12 |
 | Persistence | Status, quality flags, model version, and dataset version stored beside the record (schema v5) |
 | Monitoring | Local-first aggregates, nothing transmitted (ADR 0013) |
@@ -472,9 +472,9 @@ by explicit action.
 
 ### A6 — Scale-normalised greyscale patch pipeline
 
-**Record:** [SPEC 0037](../../../specs/0037-scale-normalised-greyscale-patch-pipeline.md),
+**Record:** [SPEC 0037](../../specs/0037-scale-normalised-greyscale-patch-pipeline.md),
 gate-approved. **Depends on:** B2's scale recomputation (#212) — **satisfied
-2026-09-03** by [SPEC 0052](../../../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
+2026-09-03** by [SPEC 0052](../../specs/0052-read-the-dish-rim-and-recompute-the-canonical-scale.md),
 which lands the dish-rim reader and confirms the canonical at 0.1292 mm/px over
 all 221 photographs. A6 inherits the reader rather than writing one, and its
 patch geometry is unchanged.
@@ -482,12 +482,12 @@ patch geometry is unchanged.
 
 The preprocessing on both sides: the model sees a grid of fixed-size greyscale
 patches at a known physical scale rather than a resized frame
-([ADR 0018](../../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
+([ADR 0018](../../adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)),
 and the same grid is produced in Python for training and in Dart for inference.
 
 The 2026-08-25 revision above said "a new item sits between A4 and B3" without
 naming it; this is that item. The method study called it A4, which collided with
-A4 below — the collision [SPEC 0049](../../../specs/0049-one-roadmap-vocabulary.md)
+A4 below — the collision [SPEC 0049](../../specs/0049-one-roadmap-vocabulary.md)
 removes.
 
 **Absorbs #180**, the anti-aliasing defect on both downsample paths: the
@@ -495,7 +495,7 @@ resample to canonical scale is the downsample that matters, and fixing it
 anywhere else would be fixing a path this item replaces.
 
 **The Python half is done, 2026-09-03**, as
-[SPEC 0053](../../../specs/0053-train-on-scale-normalised-greyscale-patches.md).
+[SPEC 0053](../../specs/0053-train-on-scale-normalised-greyscale-patches.md).
 Training resamples every photograph to the canonical 0.12920342774728033 mm/px,
 cuts a grid of 160 px greyscale patches inset by a patch half-diagonal, scores
 each patch, and averages a photograph's patch distributions back into one
@@ -543,7 +543,7 @@ Dart, and scored by the contract's standardiser and regression.
   **Split in two on 2026-09-29, at the Developer's call.** SPEC 0081 is the
   first half, the grid from a measured scale. It covers the resample, the grey
   plane, the geometry and the cut, ported from `_photograph_patches` byte for
-  byte ([ADR 0025](../../../adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md)).
+  byte ([ADR 0025](../../adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md)).
   The second half comes next: the A4-sheet reader, the homography and the soil
   region on paper. The mean aggregation was already `DescriptorContract.distribution`
   (SPEC 0079). The dispersion metric moves to the wiring, because it has no
@@ -581,7 +581,7 @@ Dart descriptors to exist.
 
 It is here rather than inside C0 because it is an application measurement rather
 than an experiment over the dataset, and because
-[SPEC 0044](../../../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
+[SPEC 0044](../../specs/0044-four-arm-e0-feasibility-gate.md)'s decision rule reads
 it as one of four separately auditable conditions.
 
 **Revised 2026-09-05, and corrected the same day.** No physical mid-range device
@@ -620,7 +620,7 @@ already boots one for the `smoke` job.
 
 **Record:** SPEC, spec-lite. Closes #80, #25, #81; the config-validation half of
 #29; #28. The environment half is
-[SPEC 0051](../../../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214).
+[SPEC 0051](../../specs/0051-a-training-run-has-somewhere-to-happen.md) (#214).
 **Depends on:** nothing.
 **Blocks:** B2, C0.
 
@@ -776,20 +776,20 @@ stood. What was left of the TFLite path, `export.py`, is removed by SPEC 0084.
 **Gate for:** everything below.
 
 **Done 2026-09-18.** The gate ran under
-[SPEC 0044](../../../specs/0044-four-arm-e0-feasibility-gate.md), and its verdict is
+[SPEC 0044](../../specs/0044-four-arm-e0-feasibility-gate.md), and its verdict is
 [docs/studies/ml/e0-verdict.md](../ml/e0-verdict.md): signal demonstrated by two arms,
 the incumbent CNN failing its own control, and the descriptor path shipping by
 the pre-registered rule, adopted in ADR 0024. Lane C continues.
 
 **Every number below is produced under the evaluation protocol**, which is
 repeated stratified group k-fold with nested selection —
-[ADR 0020](../../../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md),
-[SPEC 0042](../../../specs/0042-repeated-group-k-fold-evaluation-protocol.md). A result
+[ADR 0020](../../adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md),
+[SPEC 0042](../../specs/0042-repeated-group-k-fold-evaluation-protocol.md). A result
 reported from a single `train`/`val`/`test` split is not a VisioSoil result, and
 that path no longer exists in `ml/`.
 
 **Which of those criteria a CI run actually checks is audited, not assumed.**
-`ml/tests/test_criteria_coverage.py` ([SPEC 0043](../../../specs/0043-guard-criteria-covered-where-it-ships.md))
+`ml/tests/test_criteria_coverage.py` ([SPEC 0043](../../specs/0043-guard-criteria-covered-where-it-ships.md))
 reads the criterion names out of `docs/specs/` and reports every one whose only
 test is gated on the git-ignored archive, so a criterion verified solely on a
 machine that has the data cannot pass for one the pipeline ships with.
@@ -942,7 +942,7 @@ Not scheduled.
 ## 6. Order of execution
 
 **Rewritten 2026-09-22.** The gate ran — [docs/studies/ml/e0-verdict.md](../ml/e0-verdict.md) —
-and [ADR 0024](../../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
+and [ADR 0024](../../adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)
 adopted the descriptor path computed in Dart. Everything after the gate is now
 the release path of that decision:
 
@@ -997,7 +997,7 @@ Recommended order, and why:
    byte-exact on Windows and on an AVX-512 Linux host. **Next: the A4-sheet
    reader, the homography and the soil region on paper.** **Since 2026-09-29 it
    is also the Google Play release's critical path**
-   ([ADR 0026](../../../adr/0026-the-first-play-release-waits-for-classification.md)):
+   ([ADR 0026](../../adr/0026-the-first-play-release-waits-for-classification.md)):
    v1 ships only once a photograph taken in the app gets a class. **Split in
    two and started without real photographs, at the Developer's call.** SPEC
    0091 finds the sheet: its four corners, refused as `notFound` or `cropped`.
@@ -1083,7 +1083,7 @@ resamples to a measured canonical rather than to an assumed one.
 **Rewritten 2026-09-11, superseding the 2026-09-05 correction this replaces:
 both items that stood between the probe and the gate are done, and the gate is
 the next thing to run.** SPEC 0057 measured the D6 question and
-[ADR 0021](../../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
+[ADR 0021](../../adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)
 settled it — **D6 stands unchanged**, so the gate runs the incumbent arms and
 nothing in the pipeline moved. SPEC 0057's runs carry over rather than being
 discarded, checked by SPEC 0056's reuse rule. A7 (#215) runs on an emulator and

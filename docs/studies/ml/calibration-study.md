@@ -1,6 +1,6 @@
 # A temperature and conformal verdict bands, on the cross-validated predictions
 
-The study [SPEC 0098](../../../specs/0098-study-a-temperature-and-conformal-verdict-bands.md)
+The study [SPEC 0098](../../specs/0098-study-a-temperature-and-conformal-verdict-bands.md)
 specifies, and the E15 experiment #193 asks for. It reads the `descriptors`
 arm's stored predictions on `v1`, the same run SPEC 0095 measured, and answers
 two questions with numbers. Would a temperature correct the calibration? How do
