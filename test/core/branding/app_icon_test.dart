@@ -3,7 +3,6 @@
 // under test/tools/ does that locally). See spec 0025.
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
