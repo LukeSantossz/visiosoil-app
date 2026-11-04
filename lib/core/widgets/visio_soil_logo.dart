@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 /// three decreasing soil grains — vision and inspection fused with the texture
 /// being measured.
 ///
-/// Painted directly from the design system's canonical `assets/logo-mark.svg`
-/// (viewBox `0 0 48 48`), so it needs no SVG runtime. [color] plays the role of
-/// the SVG's `currentColor`, letting the mark sit on any background.
+/// Painted in code on a 48-unit viewBox, so it needs no SVG runtime. The
+/// geometry was first taken from the design system's `assets/logo-mark.svg`
+/// (SPEC 0024) and refined by SPEC 0255; [VisioSoilMarkGeometry] is now its
+/// canonical source. [color] plays the role of the SVG's `currentColor`,
+/// letting the mark sit on any background.
 class VisioSoilLogo extends StatelessWidget {
   const VisioSoilLogo({super.key, required this.size, required this.color});
 
@@ -40,19 +42,19 @@ abstract final class VisioSoilMarkGeometry {
   static const double viewBox = 48;
 
   static const Offset ringCentre = Offset(20, 20);
-  static const double ringRadius = 13;
-  static const double ringStrokeWidth = 3.2;
+  static const double ringRadius = 12.6;
+  static const double ringStrokeWidth = 3.6;
 
   /// Largest first.
   static const List<({Offset centre, double radius})> grains = [
-    (centre: Offset(16.5, 18), radius: 3.0),
-    (centre: Offset(23.5, 19.5), radius: 2.1),
-    (centre: Offset(19.5, 24.5), radius: 1.4),
+    (centre: Offset(16.2, 17.6), radius: 3.2),
+    (centre: Offset(23.6, 19.2), radius: 2.2),
+    (centre: Offset(19.4, 24.6), radius: 1.5),
   ];
 
-  static const Offset handleStart = Offset(29.5, 29.5);
-  static const Offset handleEnd = Offset(39, 39);
-  static const double handleStrokeWidth = 3.4;
+  static const Offset handleStart = Offset(29.4, 29.4);
+  static const Offset handleEnd = Offset(39.5, 39.5);
+  static const double handleStrokeWidth = 4.0;
 }
 
 /// Paints the official VisioSoil mark in [color], scaled to fill [size], onto
@@ -95,7 +97,8 @@ class _VisioSoilLogoPainter extends CustomPainter {
   final Color color;
 
   @override
-  void paint(Canvas canvas, Size size) => paintVisioSoilMark(canvas, size, color);
+  void paint(Canvas canvas, Size size) =>
+      paintVisioSoilMark(canvas, size, color);
 
   @override
   bool shouldRepaint(_VisioSoilLogoPainter oldDelegate) =>

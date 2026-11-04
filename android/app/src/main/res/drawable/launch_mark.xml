@@ -9,23 +9,23 @@
     android:viewportHeight="48">
     <!-- Lens ring. -->
     <path
-        android:pathData="M7,20 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"
+        android:pathData="M7.4,20 a12.6,12.6 0 1,0 25.2,0 a12.6,12.6 0 1,0 -25.2,0"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3.2" />
+        android:strokeWidth="3.6" />
     <!-- Three decreasing soil grains, largest first. -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M13.5,18 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+        android:pathData="M13,17.6 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M21.4,19.5 a2.1,2.1 0 1,0 4.2,0 a2.1,2.1 0 1,0 -4.2,0" />
+        android:pathData="M21.4,19.2 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M18.1,24.5 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" />
+        android:pathData="M17.9,24.6 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0" />
     <!-- Handle. -->
     <path
-        android:pathData="M29.5,29.5 L39,39"
+        android:pathData="M29.4,29.4 L39.5,39.5"
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="3.4" />
+        android:strokeWidth="4.0" />
 </vector>
