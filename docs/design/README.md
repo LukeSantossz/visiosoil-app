@@ -12,8 +12,7 @@ Documentação de design aprovada para o redesign do VisioSoil.
 - **prototipo-v11/** — Protótipo HTML navegável:
   - `index.html` — página inicial do protótipo
   - `app.html` — aplicação completa com todas as telas
-  - `haptics.md` — referência de haptics
-  - `telas/` — imagens usadas no protótipo
+  - as imagens e o mapa de haptics vêm de `spec/telas/` e `spec/haptics.md`
 
 ## Como visualizar o protótipo
 

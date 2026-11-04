@@ -127,12 +127,6 @@ void main() {
       expect(src, contains('SizedBox(height:AppSpacing.xs)'));
     });
 
-    test('history_grid tokenizes its thumbnail radius to md', () {
-      final src = _packed('lib/core/features/history/widgets/history_grid.dart');
-      expect(src, isNot(contains('circular(12)')));
-      expect(src, contains('circular(AppRadius.md)'));
-    });
-
     test('history_filter_bar tokenizes its search-field radius to md', () {
       final src =
           _packed('lib/core/features/history/widgets/history_filter_bar.dart');

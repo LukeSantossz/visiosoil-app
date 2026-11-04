@@ -567,42 +567,102 @@ void main() {
         ),
     ];
 
-    Widget appWithAll() => ProviderScope(
+    Widget appWithAll([List<SoilRecord>? records]) => ProviderScope(
       overrides: [
         connectivityStatusProvider.overrideWithValue(
           const AsyncData(ConnectivityStatus.online),
         ),
         soilRecordsStreamProvider.overrideWithValue(
-          AsyncValue<List<SoilRecord>>.data(all),
+          AsyncValue<List<SoilRecord>>.data(records ?? all),
         ),
         soilRecordRepositoryProvider.overrideWithValue(
-          _ListSoilRecordRepository(all),
+          _ListSoilRecordRepository(records ?? all),
         ),
       ],
       child: const MaterialApp(home: HistoryScreen()),
     );
 
-    int gridCount(WidgetTester tester) {
-      final grid = tester.widget<SliverList>(find.byType(SliverList));
-      return (grid.delegate as SliverChildBuilderDelegate).childCount!;
+    SliverChildBuilderDelegate delegate(WidgetTester tester) =>
+        tester.widget<SliverList>(find.byType(SliverList)).delegate
+            as SliverChildBuilderDelegate;
+
+    int gridCount(WidgetTester tester) => delegate(tester).childCount!;
+
+    // The ids the list shows, in its order, read from each row's key.
+    List<int> shownIds(WidgetTester tester) {
+      final context = tester.element(find.byType(SliverList));
+      return [
+        for (var index = 0; index < gridCount(tester); index++)
+          (delegate(tester).builder(context, index)!.key! as ValueKey<int>)
+              .value,
+      ];
     }
+
+    Finder downScrollable() => find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        )
+        .first;
 
     Future<void> tapShowMore(WidgetTester tester) async {
       await tester.scrollUntilVisible(
         find.text(showMore),
         3000,
-        scrollable: find
-            .byWidgetPredicate(
-              (widget) =>
-                  widget is Scrollable &&
-                  widget.axisDirection == AxisDirection.down,
-            )
-            .first,
+        scrollable: downScrollable(),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text(showMore));
       await tester.pumpAndSettle();
     }
+
+    // The notice sits above the rows, so it is built only near the top.
+    Future<void> scrollToTop(WidgetTester tester) async {
+      await tester.drag(downScrollable(), const Offset(0, 100000));
+      await tester.pumpAndSettle();
+    }
+
+    // Ported from the retired HistoryGrid's tests (SPEC 0252): the list shows
+    // a page at a time, says how much of the total it shows (SPEC 0128), and
+    // a button at its end adds the next page (SPEC 0145).
+    testWidgets('show_more_reveals_the_next_records', (tester) async {
+      await tester.pumpWidget(appWithAll());
+      await tester.pumpAndSettle();
+      expect(shownIds(tester), [for (var id = 400; id > 250; id--) id]);
+      expect(
+        find.text('Mostrando os 150 registros mais recentes de 400.'),
+        findsOneWidget,
+      );
+
+      await tapShowMore(tester);
+      expect(shownIds(tester), [for (var id = 400; id > 100; id--) id]);
+      await scrollToTop(tester);
+      expect(
+        find.text('Mostrando os 300 registros mais recentes de 400.'),
+        findsOneWidget,
+      );
+
+      await tapShowMore(tester);
+      expect(shownIds(tester), [for (var id = 400; id > 0; id--) id]);
+      expect(find.text(showMore), findsNothing);
+      await scrollToTop(tester);
+      expect(find.textContaining('Mostrando os'), findsNothing);
+    });
+
+    testWidgets('no_button_when_all_are_shown', (tester) async {
+      for (final count in [150, 3]) {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(appWithAll(all.sublist(400 - count)));
+        await tester.pumpAndSettle();
+
+        expect(gridCount(tester), count);
+        expect(find.textContaining('Mostrando os'), findsNothing);
+        await tester.drag(downScrollable(), const Offset(0, -100000));
+        await tester.pumpAndSettle();
+        expect(find.text(showMore), findsNothing, reason: '$count records');
+      }
+    });
 
     testWidgets('show_more_keeps_the_filters', (tester) async {
       await tester.pumpWidget(appWithAll());

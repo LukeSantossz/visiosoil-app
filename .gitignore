@@ -122,3 +122,6 @@ corpus/data/
 # GPS in their EXIF and run to tens of megabytes; the reduced copies the tests
 # read are under test/fixtures/sheet_photos/.
 /images/
+
+# Golden failure images written by flutter test
+test/**/failures/
