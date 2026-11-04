@@ -1,12 +1,19 @@
 # Research Agent — Architecture
 
-Status: **design reference — pre-SPEC, not an implementation authorization.** The
+Status: **design study of September 2026, adopted and implemented.** The
 headline decisions are recorded in
 [ADR 0022](../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md),
-which supersedes [ADR 0001](../../adr/0001-research-agent-advisory-web-grounded.md).
-No `lib/` code and no proxy code ships with this document. Every delivery slice
-(§15) passes its own Spec Gate (`.standards/docs/standards/spec_method.md`)
-before any code is written.
+which supersedes [ADR 0001](../../adr/0001-research-agent-advisory-web-grounded.md),
+and [ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)
+narrows it. The app composes management tips on the device from a bundled
+corpus: SPECs 0068 to 0070 built the composer, its cache and its asset loader,
+SPEC 0071 the corpus build, and SPECs 0227, 0230 and 0234 released corpus
+`2026.10.31.1` into the app. §1 and §2 describe the code in September 2026,
+which is the state this design answered. The current state is in
+[`docs/agents/project.md`](../../agents/project.md), and the order of the work is
+in [`research-agent-implementation-map.md`](../../plans/research-agent-implementation-map.md).
+Each delivery slice (§15) passed its own Spec Gate
+(`.standards/docs/standards/spec_method.md`) before its code was written.
 
 Prices, rate limits and deprecation dates in this document were checked against
 primary sources in September 2026 and are dated where they appear. Token counts
@@ -14,7 +21,7 @@ attributed to a pipeline are **this document's estimates**, not measurements;
 slice 1 of §15 exists to replace them with measured values before any budget is
 committed.
 
-## 1. Diagnosis of the current state
+## 1. Diagnosis of the state in September 2026
 
 ### 1.1 What exists
 
@@ -90,7 +97,7 @@ recorded where each decision lives: the substance key (§5.1), the land-use axis
 (§5.3), the editorial rules (§12.3), the soil-map dependency (§8.4), and the
 naming question raised to the UI/UX terminal (§18.2).
 
-## 2. Map of existing integrations
+## 2. Map of the integrations in September 2026
 
 ```mermaid
 flowchart TD
@@ -1030,7 +1037,7 @@ Spec Gate.
 > marked in place, because the plan's shape did not change — only its providers
 > and its last two rows. The ordered backlog, with what exists today and the
 > dependency order the slice numbers do not carry, is
-> [`research-agent-implementation-map.md`](research-agent-implementation-map.md).
+> [`research-agent-implementation-map.md`](../../plans/research-agent-implementation-map.md).
 
 | # | Slice | Repo | Gate |
 |---|---|---|---|

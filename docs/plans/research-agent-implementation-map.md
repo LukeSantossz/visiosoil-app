@@ -3,19 +3,27 @@
 The ordered backlog for the Research Agent workstream. Every item is scoped, names
 the files it touches and the tests that gate it, so executing it is implementation
 rather than design. The reasoning lives in
-[`research-agent.md`](research-agent.md); the decisions live in
-[ADR 0022](../../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md)
+[`research-agent.md`](../studies/architecture/research-agent.md); the decisions live in
+[ADR 0022](../adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md)
 and
-[ADR 0023](../../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
+[ADR 0023](../adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md).
 This file is the plan, and only the plan.
 
-Last updated: 2026-10-15. **Lane A is done through A4's bundled half**
+Last revised: 2026-10-28.
+
+> **Status (SPEC 0254).** The app holds corpus `2026.10.31.1`, with five
+> grounded substance cells: a generic cell per texture class and the family
+> cell `Argilosa|tb_oxidic` (SPECs 0227, 0230 and 0234). It was published
+> without human review, so the release says `humanReview: false`. The
+> paragraphs and items below are dated, and where they speak of twelve cells
+> they record SPEC 0227's first release, which SPECs 0230 and 0234 rebuilt.
+> The current state is in [`docs/agents/project.md`](../agents/project.md).
+
+**Lane A is done through A4's bundled half**
 (SPECs 0068, 0069, 0070): the composition path is wired end to end on the device,
 `researchServiceProvider` no longer returns `UnavailableResearchService`, the
 cache records which corpus answered, and the app reads `assets/corpus/` at first
-use. **It has no corpus to compose from yet** — no reviewed artifact exists to
-put there, so every key answers `insufficient_evidence` and the surface reads
-that as absent coverage. Content comes from Lane B.
+use. Content comes from Lane B, which released the corpus above.
 
 **Lane B has built its pipeline and measured it once** (SPEC 0071, plus the part
 of B2 recorded below). The verdict was that the pipeline works and the cell is

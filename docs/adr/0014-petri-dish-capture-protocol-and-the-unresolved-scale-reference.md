@@ -57,7 +57,7 @@ pricing was wrong, and ADR 0017 records why.
 ## Status (as accepted 2026-08-11)
 
 Accepted for the collection protocol. **The deployment scale reference is open**
-and is registered as an input in `docs/studies/architecture/ml-implementation-map.md` §7.
+and is registered as an input in `docs/plans/ml-implementation-map.md` §7.
 
 Recorded 2026-08-11 from the project owner's answers to the §7 inputs. Supersedes
 the coin decision in SPEC 0033 for the collection side only — see *Consequences*,

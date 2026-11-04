@@ -19,7 +19,7 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ADR_DIR = REPOSITORY_ROOT / "docs" / "adr"
-ARCHITECTURE_DIR = REPOSITORY_ROOT / "docs" / "studies" / "architecture"
+PLANS_DIR = REPOSITORY_ROOT / "docs" / "plans"
 README = REPOSITORY_ROOT / "README.md"
 
 #: Joined with rather than written inline, so the separator a block is rebuilt
@@ -308,7 +308,7 @@ def test_the_records_agree_on_what_blocks_the_gate():
     offenders = []
 
     for name in ("ml-implementation-map.md",):
-        path = ARCHITECTURE_DIR / name
+        path = PLANS_DIR / name
         assert path.exists(), f"{path} is missing"
         for number, block in blocks(path):
             lowered = block.lower()
