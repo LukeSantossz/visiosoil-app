@@ -7,7 +7,7 @@
 /// query — but it would change the capture flow the UI/UX terminal is
 /// redesigning and add a column to a shared table. Moving it to capture later is
 /// a migration plus a request-field change, both small
-/// (`docs/architecture/research-agent.md` §5.3).
+/// (`docs/studies/architecture/research-agent.md` §5.3).
 library;
 
 /// The five values of §5.3. It changes which constraint dominates in a way

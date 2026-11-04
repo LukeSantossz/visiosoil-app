@@ -1,12 +1,12 @@
 # The descriptor path's cost per photograph
 
-The measurement [SPEC 0086](../specs/0086-measure-the-descriptor-path-cost-per-photograph.md)
+The measurement [SPEC 0086](../../../specs/0086-measure-the-descriptor-path-cost-per-photograph.md)
 specifies, and item A7 of the implementation map asks for. It covers what one
 classification costs on an Android emulator, phase by phase, against the 15 s
 timeout `InferenceService.classify` enforces. It is engineering feedback on the
 adopted path (ADR 0024), not a gate.
 
-[SPEC 0092](../specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)
+[SPEC 0092](../../../specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)
 re-ran it once the A4-sheet reader became the service's measurer. That run is
 the next section. The sections after it are SPEC 0086's run, kept as it was.
 

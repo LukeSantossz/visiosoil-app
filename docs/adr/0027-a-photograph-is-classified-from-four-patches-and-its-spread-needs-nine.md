@@ -5,7 +5,7 @@
 Withdrawn — SPEC 0141's archive study found that classifying from the centred
 five patches or the half-stride four loses quality, 0.047 and 0.059 of
 photograph macro-F1 below the full grid against a margin of 0.02, so ADR 0018's
-floor of nine stands ([the study](../ml/small-disc-study.md)).
+floor of nine stands ([the study](../studies/ml/small-disc-study.md)).
 
 ## Decision
 

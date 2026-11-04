@@ -12,7 +12,7 @@ here, because a declared asset folder ships everything in it.
 
 **All three are build products and none is tracked**, the treatment
 `assets/models/` gave the `.tflite` artifact until SPEC 0084 removed it. They are produced by the corpus
-build (`docs/architecture/research-agent-implementation-map.md`, Lane B) and are
+build (`docs/studies/architecture/research-agent-implementation-map.md`, Lane B) and are
 git-ignored until a reviewed release exists and a decision equivalent to ADR 0012
 is taken for them.
 

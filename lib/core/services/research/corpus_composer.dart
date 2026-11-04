@@ -169,7 +169,7 @@ class Corpus {
 /// Pure by design: no async, no assets, no clock. `retrievedAt` comes from the
 /// corpus rather than from `DateTime.now()`, which is what makes the golden
 /// fixture possible and keeps the rule testable without a device
-/// (`docs/architecture/research-agent.md` §19.3).
+/// (`docs/studies/architecture/research-agent.md` §19.3).
 class CorpusComposer {
   const CorpusComposer();
 

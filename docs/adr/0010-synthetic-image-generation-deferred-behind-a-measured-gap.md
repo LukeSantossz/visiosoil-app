@@ -11,7 +11,7 @@ real-only test set shows a gain exceeding run-to-run variance.
 
 Accepted, and re-checked on 2026-08-25 with a sixth condition added. Recorded
 during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §6 to §11).
+([`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md), §6 to §11).
 
 ### Amended 2026-09-01: collection is gone, and the decision survives it on a different argument
 

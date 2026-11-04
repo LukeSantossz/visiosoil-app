@@ -12,7 +12,7 @@ delivered as transported copies — **may train, and may never be validated or
 tested on.** Nothing in the pipeline, the configuration or the arms changes.
 
 Taken 2026-09-11 by the Developer, against the numbers in
-[SPEC 0057's verdict](../ml/transported-population-sensitivity.md).
+[SPEC 0057's verdict](../studies/ml/transported-population-sensitivity.md).
 
 ## Why this record exists at all
 
@@ -158,7 +158,7 @@ could wait for a measurement instead of blocking on one.
 - **Defer the decision until after the E0 gate runs.** Rejected: running twenty
   hours of arms under a rule nobody has written is the failure pre-registration
   exists to prevent. The dependency is real but it lives in
-  `ml-implementation-map.md` and `ml-handoff.md`, not in SPEC 0044 — that spec
+  `ml-implementation-map.md` and [`ml-handoff.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/ml-handoff.md), not in SPEC 0044 — that spec
   names neither this record, nor D6, nor SPEC 0057, and an earlier draft of this
   bullet claimed it "waits on this record by name", which is false.
 

@@ -1,6 +1,6 @@
 # What a soil disc too small for nine patches costs, on the cross-validated folds
 
-[SPEC 0141](../specs/0141-classify-a-soil-patch-too-small-for-nine.md) asks
+[SPEC 0141](../../../specs/0141-classify-a-soil-patch-too-small-for-nine.md) asks
 whether a photograph could be classified from fewer than nine patches without
 losing quality. The first real photographs carry a soil disc of 46.5 to 51.4 mm
 ([the check](sheet-reader-real-photographs.md)), and the floor of nine needs

@@ -10,7 +10,7 @@ import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// [ResearchService] over the documented app↔proxy HTTP contract
-/// (`POST /v1/management-tips`; see docs/architecture/research-agent.md §4).
+/// (`POST /v1/management-tips`; see docs/studies/architecture/research-agent.md §4).
 ///
 /// Resilience mirrors `InferenceService`: a per-attempt [_timeout], up to
 /// [_maxAttempts] tries with a [_retryDelay] backoff on transient failures, and

@@ -7,7 +7,7 @@ Python pipeline inside a Flutter repository.
 The design is [ADR 0022](../docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md);
 the provider decision is [ADR 0023](../docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md);
 the ordered backlog is
-[`research-agent-implementation-map.md`](../docs/architecture/research-agent-implementation-map.md).
+[`research-agent-implementation-map.md`](../docs/studies/architecture/research-agent-implementation-map.md).
 
 ## State
 

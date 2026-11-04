@@ -1,12 +1,12 @@
 # The A4-sheet reader on real photographs: the check
 
-[SPEC 0091](../specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md) built the A4-sheet
+[SPEC 0091](../../../specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md) built the A4-sheet
 reader against synthetic scenes, and recorded that it owed a check against real
-photographs. [ADR 0026](../adr/0026-the-first-play-release-waits-for-classification.md)
+photographs. [ADR 0026](../../../adr/0026-the-first-play-release-waits-for-classification.md)
 puts that check on the critical path to the Play release. This document records
 the first one: 31 photographs from one session, the reader's verdict on each
-before and after [SPEC 0140](../specs/0140-find-the-a4-sheet-on-a-pale-table.md)
-and [SPEC 0144](../specs/0144-find-the-a4-sheet-past-a-lighting-gradient.md),
+before and after [SPEC 0140](../../../specs/0140-find-the-a4-sheet-on-a-pale-table.md)
+and [SPEC 0144](../../../specs/0144-find-the-a4-sheet-past-a-lighting-gradient.md),
 and what the session could not show.
 
 ## The answer

@@ -14,7 +14,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 /// **Resolving is orchestration, so it lives here** rather than inside a
 /// service: keeping the resolver out of an implementation leaves that
 /// implementation fakeable without a grid asset
-/// (`docs/architecture/research-agent.md` §19.3).
+/// (`docs/studies/architecture/research-agent.md` §19.3).
 ///
 /// **There is no connectivity gate.** One was correct while every result came
 /// from a proxy, but Tier 1 composes on the device and works offline by design,

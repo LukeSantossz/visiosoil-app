@@ -3,7 +3,7 @@
 How to take a soil photograph VisioSoil can classify. Follow every step. The app
 reads the scale from the A4 sheet, and a photograph whose sheet or soil it
 cannot read is refused by name rather than guessed at
-([ADR 0017](adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
+([ADR 0017](../../adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)).
 It does not check every step: the soil's dryness and preparation, the light, the
 focus and the circle's upper size are yours to get right, and a photograph that
 misses one may still be read.
@@ -14,7 +14,7 @@ This file is its source, and the two state the same steps and limits.
 **No real photograph has been classified yet.** The code enforces two of the
 limits below, 2299 px and 63 mm. They say what the app will read, not how
 accurate the reading is on field photographs
-([`docs/ml/sheet-reader-real-photographs.md`](ml/sheet-reader-real-photographs.md)).
+([`docs/studies/ml/sheet-reader-real-photographs.md`](../../studies/ml/sheet-reader-real-photographs.md)).
 
 ## 1. What you need
 
@@ -25,7 +25,7 @@ accurate the reading is on field photographs
 - **Air-dried, sieved soil**, crumbled, with no clods, roots or stones. It is the
   only material the model was trained on. Moist field soil can be photographed,
   but its reading is outside the model's evidence
-  ([ADR 0014](adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)).
+  ([ADR 0014](../../adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)).
 - **A phone camera set to its highest resolution.**
 
 ## 2. Prepare the sample

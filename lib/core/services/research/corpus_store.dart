@@ -5,7 +5,7 @@ import 'package:visiosoil_app/core/services/research/corpus_composer.dart';
 /// The seam exists because where a corpus comes from changes and what composes
 /// from it does not: today nothing holds one, slice A4 adds the bundled asset
 /// and the fetched release, and version comparison between them belongs here
-/// rather than in the service (`docs/architecture/research-agent.md` §19.3).
+/// rather than in the service (`docs/studies/architecture/research-agent.md` §19.3).
 abstract class CorpusStore {
   /// The corpus currently held, or null when none is.
   ///

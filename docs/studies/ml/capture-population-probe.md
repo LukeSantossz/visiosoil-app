@@ -1,6 +1,6 @@
 # Capture-population probe: the verdict
 
-The diagnostic [SPEC 0055](../specs/0055-probe-whether-the-capture-population-is-predictable.md)
+The diagnostic [SPEC 0055](../../../specs/0055-probe-whether-the-capture-population-is-predictable.md)
 specifies, run over dataset version `v1`. It asks whether the **capture
 population** is recoverable from the same scale-normalised greyscale patches the
 E0 texture arms see. It is a statement about the data, not an arm: it takes no

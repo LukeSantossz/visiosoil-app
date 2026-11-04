@@ -31,7 +31,7 @@ other product, and a listing keeps its ratings.
 
 **The only accuracy that exists was measured on something else.** E0's
 cross-validated estimate of the released procedure is group accuracy 0.6883
-and photograph macro-F1 0.6232 (`docs/ml/e0-verdict.md`). It was measured on
+and photograph macro-F1 0.6232 (`docs/studies/ml/e0-verdict.md`). It was measured on
 Petri-dish photographs of the laboratory's archive. The app photographs soil on
 an A4 sheet (ADR 0017), and nothing has measured what that shift costs. A
 number quoted to a user who captures on paper would describe a measurement

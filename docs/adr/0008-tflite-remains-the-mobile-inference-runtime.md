@@ -10,7 +10,7 @@ ONNX Runtime Mobile, and ExecuTorch are not adopted.
 ## Status
 
 Accepted. Recorded during the 2026-07-30 ML architecture study
-(`docs/architecture/soil-classification.md`, §12.3 and §15). No model artifact
+([`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md), §12.3 and §15). No model artifact
 exists yet, so this decision governs the pipeline being built rather than one in
 production. Amended on 2026-09-22.
 

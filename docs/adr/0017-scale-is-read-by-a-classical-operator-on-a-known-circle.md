@@ -13,7 +13,7 @@ scale.
 Accepted 2026-08-25. Amends
 [ADR 0009](0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md) on
 one point and narrows its central thesis on another. Resolves the open input
-registered as question 6 in `docs/architecture/ml-implementation-map.md` §7,
+registered as question 6 in `docs/studies/architecture/ml-implementation-map.md` §7,
 and the issue that tracked it (#184). Amended on 2026-09-29.
 
 ### Amended 2026-09-29: the sheet is rectified at native resolution, before the byte-exact resample

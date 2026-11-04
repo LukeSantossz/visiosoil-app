@@ -57,7 +57,7 @@ pricing was wrong, and ADR 0017 records why.
 ## Status (as accepted 2026-08-11)
 
 Accepted for the collection protocol. **The deployment scale reference is open**
-and is registered as an input in `docs/architecture/ml-implementation-map.md` §7.
+and is registered as an input in `docs/studies/architecture/ml-implementation-map.md` §7.
 
 Recorded 2026-08-11 from the project owner's answers to the §7 inputs. Supersedes
 the coin decision in SPEC 0033 for the collection side only — see *Consequences*,
@@ -262,7 +262,7 @@ evidence.** All three are preprocessing variants over one dataset, so they cost
 almost nothing to compare and the choice is made by measurement.
 
 It is registered as **E13** in the experiment table in
-`docs/architecture/soil-classification.md` §22, depending on E1, and it is a
+[`docs/architecture/soil-classification.md`](https://github.com/LukeSantossz/visiosoil-app/blob/10f490937fc4787423e1b90889303a8a597be479/docs/architecture/soil-classification.md) §22, depending on E1, and it is a
 deliverable of C1. It is not folded into E1 itself, which is defined as the
 real-only no-augmentation floor: an experiment that also swept preprocessing
 would no longer be a floor, and the comparison needs a fixed baseline to be
