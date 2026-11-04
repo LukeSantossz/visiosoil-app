@@ -9,14 +9,7 @@ Documentação de design aprovada para o redesign do VisioSoil.
   - `haptics.md` — mapeamento de eventos hápticos
   - `telas/` — 38 PNGs de referência (390×844 @2x)
 
-- **prototipo-v11/** — Protótipo HTML navegável:
-  - `index.html` — página inicial do protótipo
-  - `app.html` — aplicação completa com todas as telas
-  - as imagens e o mapa de haptics vêm de `spec/telas/` e `spec/haptics.md`
-
-## Como visualizar o protótipo
-
-Abra `prototipo-v11/index.html` no navegador. A navegação entre telas funciona localmente, sem necessidade de servidor.
+O protótipo HTML navegável do v11 foi removido pela SPEC 0253. Ele continua no histórico do git, em [`docs/design/prototipo-v11/`](https://github.com/LukeSantossz/visiosoil-app/tree/10f490937fc4787423e1b90889303a8a597be479/docs/design/prototipo-v11).
 
 ## Card Trello
 
