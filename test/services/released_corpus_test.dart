@@ -104,6 +104,39 @@ void main() {
     }
   });
 
+  // QA on PR #473 rejected these class-denying claims (SPEC 0260).
+  const qaRejectedSubstrings = [
+    'A textura arenosa do solo não implica em baixa retenção de água',
+    'A textura argilosa não significa que o solo é mais propenso a formação de agregados',
+  ];
+
+  test('qa_rejected_tip_claims_are_absent', () async {
+    final corpus = await load();
+
+    expect(corpus.corpusVersion, '2026.10.31.2');
+    for (final cell in corpus.substance.values) {
+      for (final tip in cell.tips) {
+        for (final rejected in qaRejectedSubstrings) {
+          expect(
+            tip.text.contains(rejected),
+            isFalse,
+            reason: 'tip must not contain "$rejected"',
+          );
+        }
+      }
+    }
+  });
+
+  test('generic_cells_still_grounded_after_drop', () async {
+    final corpus = await load();
+
+    for (final key in ['Arenosa|generic', 'Argilosa|generic']) {
+      final cell = corpus.substance[key]!;
+      expect(cell.status, ManagementTipsStatus.grounded, reason: key);
+      expect(cell.tips.length, greaterThanOrEqualTo(1), reason: key);
+    }
+  });
+
   test('a_biome_alone_composes', () async {
     final corpus = await load();
 

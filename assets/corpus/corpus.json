@@ -1,5 +1,5 @@
 {
-  "corpusVersion": "2026.10.31.1",
+  "corpusVersion": "2026.10.31.2",
   "classListVersion": "v1-four-class",
   "model": "qwen2.5:7b",
   "builtAt": "2026-10-31T23:36:43.378Z",
@@ -30,12 +30,6 @@
             8,
             10,
             11
-          ]
-        },
-        {
-          "text": "A textura arenosa do solo não implica em baixa retenção de água, pois a presença de areia fina e grossa pode variar significativamente a capacidade de retenção de água do solo.",
-          "citations": [
-            12
           ]
         }
       ],
@@ -417,12 +411,6 @@
       "status": "grounded",
       "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
       "tips": [
-        {
-          "text": "A textura argilosa não significa que o solo é mais propenso a formação de agregados devido à presença de microagregados dentro de macroagregados, pois isso é mais associado a solos com maior capacidade de estocar carbono.",
-          "citations": [
-            0
-          ]
-        },
         {
           "text": "O solo argiloso não significa que o potássio não-trocável é predominantemente indisponível para as plantas.",
           "citations": [

@@ -210,7 +210,7 @@ visiosoil-app/
 - [x] GPS capture with accuracy and reverse-geocoded address, and EXIF stripped at storage
 - [x] Descriptor path into four texture classes, run in an isolate under a timeout, with the scale read from the A4 sheet and every refusal named. The preview offers a retry only after a timeout, an isolate failure or a computation error (SPEC 0105)
 - [x] History, search, filters, batch delete, comparison, CSV export and per-share location opt-in
-- [x] Management tips composed on the device from bundled corpus `2026.10.31.1`
+- [x] Management tips composed on the device from bundled corpus `2026.10.31.2`
 - [x] Optional Google sign-in, account deletion, and the published privacy and account-deletion pages
 - [x] Light, dark and "Modo Sol" themes, with text scaling and reduced motion honoured
 - [x] Drift persistence at schema v12 with cumulative, tested migrations and soft deletes
@@ -228,7 +228,7 @@ visiosoil-app/
 ## Known Issues & Limitations
 
 - **Real field photographs are not reliably classified yet.** The A4-sheet reader is graded on synthetic scenes and on 31 real photographs from 2026-10-05: it finds the sheet on 26, refuses the other 5 by name, and none of the 26 reach the patch grid (24 at `soilRegionTooSmall`, 2 at `photographTooCoarse`) ([sheet reader on real photographs](docs/studies/ml/sheet-reader-real-photographs.md)). A labelled field session on 2026-10-19 took 54 photographs to the capture protocol; the app classified 5 and all 5 were correct, and refused the other 49 (47 at `photographTooCoarse`) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). The limit today is not refusal alone: among photographs that score, the classifier skews toward clay. On that session, every classified photograph was Argilosa or Muito Argilosa, and upsampling the coarse photographs still reads Media and Arenosa soils as Muito Argilosa (0 of 24 right across those classes) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). Photographs taken fully to the [capture protocol](docs/guides/capture-protocol.md) must still validate the path before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)), so no general accuracy on production captures is stated.
-- **The corpus was published without human review.** Corpus `2026.10.31.1` holds five grounded cells built by a 7B local model, and says `humanReview: false`. A grounding check can quote a real passage that does not support the tip, so every cell carries the advisory disclaimer until an agronomist reviews it.
+- **The corpus was published without human review.** Corpus `2026.10.31.2` holds five grounded cells built by a 7B local model, and says `humanReview: false`. Two tips that QA rejected were removed from it by hand (SPEC 0260). A grounding check can quote a real passage that does not support the tip, so every cell carries the advisory disclaimer until an agronomist reviews it.
 - **The corpus cannot refresh.** There is no release endpoint yet, so a device reads only the bundled snapshot.
 - **Records are not synced.** The sync foundation exists, but no backend is implemented and `SyncEngine` is not wired, so records live only on the device that made them.
 - **Release builds are debug-signed.** `android/key.properties` is absent and CI has no keystore step, so neither the APK nor the bundle CI builds is distributable. iOS is compiled in CI without code signing and has no development team set.

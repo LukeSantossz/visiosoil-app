@@ -11,9 +11,10 @@ This file is the plan, and only the plan.
 
 Last revised: 2026-10-28.
 
-> **Status (SPEC 0254).** The app holds corpus `2026.10.31.1`, with five
+> **Status (SPEC 0260).** The app holds corpus `2026.10.31.2`, with five
 > grounded substance cells: a generic cell per texture class and the family
-> cell `Argilosa|tb_oxidic` (SPECs 0227, 0230 and 0234). It was published
+> cell `Argilosa|tb_oxidic` (SPECs 0227, 0230 and 0234), less two tips that
+> QA rejected (SPEC 0260). It was published
 > without human review, so the release says `humanReview: false`. The
 > paragraphs and items below are dated, and where they speak of twelve cells
 > they record SPEC 0227's first release, which SPECs 0230 and 0234 rebuilt.
