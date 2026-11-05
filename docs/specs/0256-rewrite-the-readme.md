@@ -71,6 +71,7 @@ A cover image is a separate decision: the Developer picks one of three proposals
 - Every relative link resolves (`docs_links_resolve_test.dart`).
 - `android_signing_test.dart` passes.
 - The README states schema v12, the bundled corpus `2026.10.31.1` with `humanReview: false`, and the guided camera, and does not state that no corpus has shipped.
+- Known Issues & Limitations cites the 2026-10-05 sheet-reader check (31 photographs, none classified at the grid) and the 2026-10-19 field session (54 photographs, 5 classified and 5 correct), and states the classifier's clay skew from `docs/studies/ml/field-photographs-2026-10-19.md`, without claiming that no real photograph has been classified.
 - `flutter test` shows no failures beyond those this machine has on `main`.
 - `mf check` passes.
 
