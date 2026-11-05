@@ -206,7 +206,7 @@ visiosoil-app/
 
 - [x] Guided in-app camera with live sheet reading and light, distance and focus chips
 - [x] GPS capture with accuracy and reverse-geocoded address, and EXIF stripped at storage
-- [x] Descriptor path into four texture classes, run in an isolate with timeout and retry, with the scale read from the A4 sheet and every refusal named
+- [x] Descriptor path into four texture classes, run in an isolate under a timeout, with the scale read from the A4 sheet and every refusal named. The preview offers a retry only after a timeout, an isolate failure or a computation error (SPEC 0105)
 - [x] History, search, filters, batch delete, comparison, CSV export and per-share location opt-in
 - [x] Management tips composed on the device from bundled corpus `2026.10.31.1`
 - [x] Optional Google sign-in, account deletion, and the published privacy and account-deletion pages
