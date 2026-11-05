@@ -202,7 +202,7 @@ visiosoil-app/
 
 ## Project Status
 
-**In development.** The latest tag is `v2.0.0` (2026-05-03), and `main` has moved far beyond it. The first Play release is tracked in [#265](https://github.com/LukeSantossz/visiosoil-app/issues/265).
+**In development.** The current version is `3.0.0` (build 3), the first since the `v2.0.0` tag of 2026-05-03 (SPEC 0259). The first Play release is tracked in [#265](https://github.com/LukeSantossz/visiosoil-app/issues/265).
 
 ### Done
 
