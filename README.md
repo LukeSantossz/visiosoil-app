@@ -1,117 +1,105 @@
-[![Flutter](https://img.shields.io/badge/Flutter-3.44.1-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.12.1-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=main&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions)
+[![Flutter](https://img.shields.io/badge/Flutter-3.44.1-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=main&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4A7C59)](LICENSE)
 
-# VisioSoil — Geolocated Soil Texture Analysis
+# VisioSoil: Geolocated Soil Texture Analysis
 
-> A cross-platform Flutter app that turns a phone photo of a soil sample into a georeferenced texture record, classified on-device — no connectivity required in the field.
-
----
+> A Flutter app that turns a phone photograph of a soil sample on an A4 sheet into a georeferenced record with an estimated texture class, computed on the device and kept on it.
 
 ## What It Does
 
-VisioSoil lets agronomists and field technicians capture, classify, and catalog soil samples directly from a mobile device.
+VisioSoil lets an agronomist photograph a soil sample in the field, record where it was taken, and get an estimate of its texture class without a network.
 
-- **Guided field workflow** — a 3-step onboarding tutorial explains capture, and capture asks for the camera and location when it needs them
-- **Geolocated capture** — takes a photo and automatically records GPS coordinates and a reverse-geocoded address, stripping EXIF metadata at the storage boundary so the original location tags never persist
-- **On-device classification path** — an isolate-based descriptor pipeline ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) labels the sample into one of 4 soil texture classes with a confidence score (shown as a graded confidence banner), fully offline. It resamples the photograph to a canonical scale, cuts a grid of patches, describes each with 26 texture features and scores them with the released contract, `assets/models/spec.json`. The scale is read from the bare A4 sheet the soil is photographed on ([SPEC 0091](docs/specs/0091-find-the-a4-sheet-and-rectify-it-at-native-resolution.md), [SPEC 0092](docs/specs/0092-measure-the-soil-on-the-a4-sheet-and-classify-with-it.md)): the sheet's corners give millimetres per pixel, and the round soil patch on it gives the region the grid reads. A photograph with no readable sheet, or no soil on it, is refused with a named cause. **The reader has met one session of real photographs, and none of them is classified yet** (see Known Issues)
-- **Local catalog** — every sample is persisted to a local database with grid history (paged past the first 150), texture filters, search over the address and the field and sample names, multi-select, batch delete, a side-by-side comparison of two records, and a zoomable full-screen viewer
-- **Management tips** — advisory soil-management tips composed on the device from a reviewed corpus, offline and with every tip citing its source ([ADR 0022](docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md), [ADR 0023](docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)). No reviewed corpus has shipped yet, so the section reads as no coverage
-- **Privacy-preserving share** — a record can be shared as text plus photo; precise coordinates are omitted unless the user opts in on that specific share
-- **Account** — optional Google sign-in, with the session held in secure storage, groundwork for the sync layer. The account can be deleted from Settings
-- **Privacy** — the [privacy policy](https://lukesantossz.github.io/visiosoil-app/privacidade.html) and the [account-deletion page](https://lukesantossz.github.io/visiosoil-app/excluir-conta.html) are published from `site/`; Settings links the privacy policy
-- **Accessible in the field** — light and dark themes, a high-contrast mode for sunlight, text that scales to 200 %, reduced motion honoured, and haptics on confirmations
+- **Guided capture.** An in-app camera reads the A4 sheet live and shows chips for light, distance and focus before the shutter fires ([ADR 0028](docs/adr/0028-capture-uses-an-in-app-camera-that-reads-the-sheet-live.md)). The system camera remains as a fallback. Gallery import is not offered, by design.
+- **Location.** Each record keeps the GPS fix, its reported accuracy and a reverse-geocoded address. EXIF metadata is stripped when the photo is stored, so the original location tags never persist.
+- **On-device texture estimate.** The photograph is measured from the A4 sheet, cut into patches of fixed physical size and scored against a released contract of numbers, `assets/models/spec.json`, into one of four texture classes ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)). A photograph the reader cannot measure is refused with a named cause, never scored at a guessed scale.
+- **Catalogue.** History with paging, texture filters, search by address and sample name, multi-select, batch delete, side-by-side comparison of two records, and a zoomable photo viewer. The agronomist can name the sample and record its true class with "Corrigir".
+- **Management tips.** Advisory tips composed on the device from a bundled corpus, each citing its source. The current corpus is published without human review, and every tip says so (see Known Issues).
+- **Export and share.** Records export as a CSV, optionally with dates, approximate location and a `.zip` of photos. A single record shares as text plus photo, and precise coordinates go out only when the user opts in on that share.
+- **Account.** Optional Google sign-in, with the session in secure storage, and account deletion from Settings.
+- **Field use.** Light and dark themes, a "Modo Sol" with high contrast and larger text for sunlight, text scaling, reduced motion, and haptics on confirmations.
 
 ## What It Is
 
-VisioSoil is a **cross-platform mobile app** (Android + iOS) that produces a persistent, georeferenced record of each soil sample together with its predicted texture class. It targets fieldwork where connectivity is unreliable: capture, inference, and storage all happen on the device, so an agronomist can survey a plot end-to-end without a network.
+VisioSoil is a **cross-platform mobile app** (Android and iOS). It produces a persistent, georeferenced record of each soil sample with its estimated texture class, for fieldwork where connectivity is unreliable: capture, analysis and storage all run on the device. Two Python side-builds produce the assets the app reads and ship nothing at run time: `ml/` fits and releases the classifier contract, and `corpus/` builds the management-tips corpus.
 
 ## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
-| Language | Dart 3.12.1 (pinned to match CI; `pubspec.yaml` requires `^3.12.0`) |
-| Framework / Runtime | Flutter 3.44.1, pinned to match CI (Android + iOS) |
-| State management | Riverpod (`flutter_riverpod`) |
-| Navigation | GoRouter |
-| Data layer | Drift + SQLite (`sqlite3_flutter_libs`) |
-| On-device inference | Descriptor arithmetic in Dart, isolate-based, from the released `spec.json` contract |
-| Model training | scikit-learn logistic probe over 26 classical texture descriptors, fitted and released in `ml/` (ADR 0024). The TensorFlow / Keras CNN stays only as E0's control arms |
-| Corpus build | Python 3.12 with local open-source models served by Ollama (`qwen2.5:7b`), in `corpus/`; ships nothing at run time |
-| Device I/O | `image_picker` (camera), `geolocator` + `geocoding` (GPS), `share_plus`, `url_launcher` (the privacy policy) |
-| Auth | `google_sign_in`, session persisted via `flutter_secure_storage` |
-| Connectivity / network | `connectivity_plus`, `http` (the corpus-release transport, which has no caller yet) |
-| Testing / CI | `flutter_test`, `pytest`, GitHub Actions (`ci.yml`, and `pages.yml` for `site/`) |
+| Language | Dart 3.12.1; Python 3.12 for the side-builds |
+| Framework | Flutter 3.44.1 (Android and iOS), pinned to match CI |
+| State and navigation | `flutter_riverpod`, `go_router` |
+| Data layer | Drift on SQLite, schema v12 |
+| On-device analysis | Texture descriptors computed in Dart in a separate isolate, scored with the `spec.json` contract; no ML runtime |
+| Classifier fit | scikit-learn over 26 classical texture descriptors, in `ml/` |
+| Corpus build | Local open-source models served by Ollama, in `corpus/` |
+| Device | `camera` (guided camera), `image_picker` (system-camera fallback), `geolocator`, `geocoding`, `share_plus` |
+| Auth | `google_sign_in`, `flutter_secure_storage` |
+| Testing and CI | `flutter_test`, `pytest`, GitHub Actions |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Cam[Camera + GPS] --> Cap[Capture screen]
-    Cap --> Inf[InferenceService\ndescriptor path in isolate]
-    Cap --> Repo[SoilRecordRepository]
-    Inf --> Repo
+    Cam[Guided camera + GPS] --> Cap[Capture]
+    Cap --> Inf[InferenceService<br/>descriptor path in an isolate]
+    Inf --> Repo[SoilRecordRepository]
+    Cap --> Repo
     Repo --> DB[(Drift / SQLite)]
-    DB --> UI[Home / History / Details\nreactive streams]
+    DB --> UI[Home, History, Details<br/>reactive streams]
+    Corpus[(Bundled corpus)] --> Tips[CorpusResearchService]
+    Tips --> UI
+    ML[ml/ release fit] -. spec.json .-> Inf
+    CB[corpus/ build] -. corpus.json .-> Corpus
 ```
 
-### Database schema (v9)
-
-Three tables: `soil_records`, `sync_queue` (the outbox `SyncEngine` drains) and `management_tips` (a read-through cache, keyed by record and carrying the `corpus_version` that answered).
-
-`soil_records` holds `id` (PK auto), `uuid` (unique index), `remote_id?`, `sync_status` (default `pending`), `image_path`, `latitude?`, `longitude?`, `address?`, `timestamp`, `updated_at`, `deleted` (default `false`), `texture_class?`, `confidence_score?`, `class_distribution?`, `model_version?` and `dataset_version?` (what scored the photograph, SPEC 0097), `horizontal_accuracy?` (the GPS fix's radius, SPEC 0148), and `field_name?` and `sample_label?` (SPEC 0149).
-
-Migrations are cumulative: **v1→v2** adds the classification columns; **v2→v3** adds the sync metadata, creates `sync_queue`, backfills `uuid`/`updated_at` per row, normalizes legacy timestamps to UTC and enqueues an `upsert` per legacy record; **v3→v4** creates `management_tips`; **v4→v5** adds its `corpus_version`; **v5→v6** erases every tombstone's content; **v6→v7**, **v7→v8** and **v8→v9** add the provenance, accuracy and field and sample columns, null on every existing row.
-
-Deletes are soft: a tombstone keeps only what sync reads (uuid, `remote_id`, `updated_at` and the flag), erases the record's content and cached tips (SPEC 0093), and enqueues a sync operation; every read excludes tombstoned rows.
-
-The UI talks only to Riverpod providers, which depend on an abstract `SoilRecordRepository` — never on Drift types directly. Classification runs in a separate Dart isolate to keep the UI thread free. The contract is read from assets and parsed once, then copied into the isolate, because `rootBundle` is unavailable there. The model itself is produced by a separate training pipeline under `ml/`, which is decoupled from the app and integrates through one file: the `spec.json` contract of numbers that `ml/src/release.py` writes and `ml/scripts/deploy_to_app.sh` copies into `assets/models/`. The app takes its class labels from that contract and from nowhere else.
+Screens read Riverpod providers, which depend on abstract repositories and never on Drift types. The classifier and the corpus each reach the app through one tracked file, written by its Python side-build: `assets/models/spec.json` and `assets/corpus/corpus.json`. Deletes are soft, and a tombstone keeps only what a future sync needs.
 
 ## Engineering Decisions
 
-| Decision | Alternative considered | Why this approach |
+Each decision is recorded, with its alternatives and reasons, in its ADR under [`docs/adr/`](docs/adr/).
+
+| ADR | Decision | Status |
 | --- | --- | --- |
-| Repository pattern abstracting Drift | UI queries Drift directly | UI imports only the interface, so the persistence backend (local DB, remote API, cache) can be swapped without touching screens |
-| Classification in a separate isolate | Run it on the main thread | Decoding, resampling and describing up to 25 patches never block the UI; the parsed contract is copied into the isolate, since `rootBundle` cannot be used there |
-| Training pipeline isolated in `ml/` (TF/Keras) | Train or fine-tune inside the Flutter app | Keeps the mobile codebase free of Python/ML weight. The integration contract is `spec.json`, which the app reads at run time |
-| Drift + SQLite with schema versioning | Hive / raw `sqflite` | Typed queries, reactive `watchAll()` streams that auto-refresh history, and explicit migrations (currently schema v12) |
-| Image files stored outside the cache, repository-owned lifecycle ([ADR 0002](docs/adr/0002-image-file-storage-and-lifecycle.md)) | Keep the `image_picker` cache path in the DB | The picker's cache path is transient, so a stored record could outlive its photo; the repository copies into durable storage before the row is written |
-| Image file deleted at tombstone time, repository-owned ([ADR 0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md)) | Delete inside the DB transaction, or defer to a tombstone purge | DB stays the source of truth; a best-effort delete after commit never aborts the tombstone, and no purge step exists to defer to |
-| Flutter toolchain version has a single source of truth ([ADR 0004](docs/adr/0004-flutter-toolchain-version-single-source.md)) | Let each contributor use any Flutter 3.x | Another 3.x SDK silently rewrites `pubspec.lock`, and a local/CI mismatch hid a widget-finder failure that only surfaced on CI |
-| EXIF stripped at the image-storage boundary ([ADR 0005](docs/adr/0005-strip-exif-at-image-storage-boundary.md)) | Ask `image_picker` for reduced metadata at the capture site | The capture-site flag is ignored for Android camera captures, so GPS survived on the primary platform; the orientation tag is deliberately kept, since both display and inference apply it |
-| Android OS backup disabled ([ADR 0006](docs/adr/0006-disable-android-os-backup.md)) | Rely on `allowBackup="false"` alone | That flag does not govern Android 12+ device-to-device transfer, so the cleartext database and photos still left the device; `dataExtractionRules` closes both paths |
-| Share omits location by default, opt-in per share ([ADR 0007](docs/adr/0007-share-location-opt-in.md)) | Coarsen coordinates to ~1 km, or omit location entirely | Preserves the legitimate use of sending a colleague the sample's location while defaulting to non-disclosure of a client's field coordinates |
-| Research agent is advisory and web-grounded ([ADR 0001](docs/adr/0001-research-agent-advisory-web-grounded.md)) — **Retired**, superseded by ADR 0022 | Ship canned agronomic guidance, or omit tips entirely | Soil management advice is regional and changes; grounding each tip in a citable source keeps it useful without the app appearing to prescribe. Its advisory stance, citation requirement and app↔proxy boundary survive in ADR 0022; its provider stack, its per-request pipeline tier and the latency that pipeline implied are withdrawn |
-| Local JSON for experiment tracking | MLflow / Weights & Biases | Disproportionate overhead for the project size; each model version emits `metrics.json` + `config.json` under `ml/models/vN/` |
-| TFLite stays the only on-device inference runtime ([ADR 0008](docs/adr/0008-tflite-remains-the-mobile-inference-runtime.md)) — **Amended** by [ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md): it governs neural models, and v1 ships no ML runtime | Core ML on iOS alongside TFLite on Android; ONNX Runtime Mobile; ExecuTorch | A second runtime doubles the export path, the parity gate and the failure surface, and none of the alternatives solves a problem this project has measured |
-| Target isolation is a fixed ROI plus a heuristic quality gate ([ADR 0009](docs/adr/0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md)) | Classical segmentation; a MobileNet-backbone segmentation model; a detector feeding the classifier | The capture protocol is enforced rather than compensated for. Detection is deferred rather than discarded — it is what would recover a real millimetres-per-pixel scale from the coin the protocol already asks for |
-| Synthetic image generation is deferred behind a measured gap ([ADR 0010](docs/adr/0010-synthetic-image-generation-deferred-behind-a-measured-gap.md)) | cGAN conditioned on the class and a VAE for minority-class oversampling, both rejected; diffusion img2img at low strength, deferred rather than rejected | Collection, corrected augmentation and compositing come first, and generation only if an ablation proves a downstream gain on a real-only test set. If field collection stalls, this is the record to revisit |
-| Classification uncertainty is a four-state verdict from the margin and the mass ([ADR 0011](docs/adr/0011-classification-verdict-from-margin-and-mass.md)) | A top-1 confidence percentage; Shannon entropy of the distribution | With four classes a single number cannot separate "one class, confidently" from "two classes, tied"; the app abstains when it can assert nothing and names two candidates when two hold the mass |
-| The released model artifact and its `spec.json` are tracked in git ([ADR 0012](docs/adr/0012-released-model-artifact-tracked-in-git.md)) — **in effect for `spec.json`** since SPEC 0082. v1 ships no `.tflite` (ADR 0024), so that entry stays ignored | A GitHub Release plus a CI download step; Git LFS; a model registry | A clone at any commit builds an APK whose behaviour that commit fully determines, which is what makes a regression bisectable. Experiment outputs under `ml/models/` stay ignored |
-| Model monitoring is local-first ([ADR 0013](docs/adr/0013-local-first-model-monitoring.md)) | Server-side monitoring with sampled image upload | Aggregates stay on the device and no image, coordinate or record is transmitted; the field data is a client's, and there is no backend to receive it |
-| A classification reports an outcome and a named cause, never an absent value ([ADR 0015](docs/adr/0015-classification-reports-a-named-failure-cause.md)) | Keep returning `null` and add a separate failure getter; throw a typed exception per failure | One `null` reported a model that was never shipped and a run that timed out alike, so the interface could not tell "nothing to retry" from "retry is exactly right"; a second getter would be a separate read of mutable state with a classification in flight between them |
-| Dataset is the laboratory's sample archive photographed on a fixed rig, carrying the class name and no granulometry ([ADR 0014](docs/adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md)) — **Retired**, superseded by ADR 0016 | Run a field collection campaign; link the laboratory reports into the pipeline | Described a collection that turned out to have already happened, under an arrangement differing on every axis it fixed. Its granulometry exclusion, its bench-to-field limitation and its Siltosa policy survive in ADR 0016; its rig, conditions, counts and scale-constancy claims are withdrawn |
-| Dataset is the archive already photographed in Petri dishes, and Siltosa is out of the first model ([ADR 0016](docs/adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md)) | Treat the delivered images as pre-training only and wait for a rig collection; re-photograph all 194 samples first; run five classes anyway | 194 samples exist with the laboratory number in the filename and the dish rim giving scale per image, so the go/no-go gate moves from a schedule item to this week. Siltosa holds three samples, which is the arithmetic minimum for a split and not a measurement, so the first model classifies four groups and the app says so |
-| Scale is read from an object of known size by a classical operator ([ADR 0017](docs/adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md)) | A printed fiducial marker; a coin; a physical spacer; the phone estimating its own distance; assuming a typical distance | Particle size in an image is meaningless without scale, and both sides now measure it — the dish rim in the dataset, the A4 sheet in the app. A photograph without a readable reference is refused rather than analysed at a guessed scale, because a guess fails silently and confidently |
-| The model sees greyscale patches of a fixed physical size, and their disagreement is a quality signal ([ADR 0018](docs/adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md)) | One centred square over the whole disc; a single zoomed patch; majority vote; the most confident patch; a learned aggregator | A 224-pixel view of a 90 mm disc is coarser than the photograph itself. Patches measured in millimetres cover the same soil on every camera, and because they are not independent they are not an ensemble — so their spread measures how evenly the sample was spread, not how sure the model is, and it is reported as a criterion the user can act on |
-| A dataset version is a build product and nothing under it is versioned ([ADR 0019](docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md)) | Keep committing manifest.csv; commit a reduced inventory of counts and digests; keep it and move the directory off the synchronised folder | Ingestion is deterministic, so a version is a function of the archive and the code rather than a human judgement worth preserving. The price is stated rather than discovered: CI can no longer re-check the archive's inventory, and a clone holds no archive, so the reproducibility argument covers the transformation and not its input |
-| Evaluation is repeated stratified group k-fold with nested selection, and uncertainty is never the spread across folds ([ADR 0020](docs/adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md)) | Keep the single seeded train/val/test split with an interval; leave-one-group-out; k = 10; report the standard error across folds; un-nested selection; let group B into the test sides | Twelve test groups cannot carry an interval, so every eligible group is tested once per repeat, every selection is nested and audited, the sample group is the unit of every interval and paired contrast, and the minimum detectable effect is a recorded output. The price is 25 refits per deep-learning arm on CPU and an MDE the protocol can only make visible, not small |
-| The transported capture population stays in training and out of every test side ([ADR 0021](docs/adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md)) | Drop population B from training entirely; restrict it to arms that provably cannot exploit an encoding signature; defer the decision until after the gate runs | The probe showed the capture population is recoverable, which re-opened SPEC 0040 D6; the sensitivity comparison then showed neither arm exploits it, both contrasts falling below their own measurement floor. B is already excluded from every test side, so it cannot inflate a score — and dropping it would cost Argilosa 48 % of the sample groups the partition holds, leaving no class above ADR 0016's floor of 30 |
-| The research agent runs at build time and ships a reviewed corpus, with live research as a capped escalation ([ADR 0022](docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md)) | Keep ADR 0001's per-request pipeline on a free tier; run it per request on paid providers; drop live research entirely | The named free-tier model was shut down on 2026-08-16, and the ten-step chain admits roughly four requests per day against the published daily token ceiling while exceeding the client's own 20-second timeout. The inputs are thin by ADR 0001's own admission, so the domain is small enough to enumerate: the same pipeline runs once per cell, a human reviews every cell before a user reads it, and the request path becomes a lookup that works offline and carries no coordinate |
-| The corpus is built by local open-source models, and Tier 2 leaves v1 ([ADR 0023](docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md)) | Wait for the budget; pin a local provider; keep the paid path as the default; ship Tier 2 disabled behind a flag | The $50 allowance ADR 0022 assumed was never released, so three of its decisions had nothing under them and the plan had no first slice that could run. The build is grounded generation over retrieved documents, which is the regime where a small model is closest to a large one, and the machine to serve one is already here. The price is named rather than absorbed: the source allowlist moves from the provider's `allowed_domains` into our own code, and the quality gap is unmeasured until the probe runs. Tier 2 leaves v1 because a cap with nothing in it is not a feature, and a third implemented-and-uncalled feature would repeat a debt this repository already carries twice |
-| The descriptor path is the v1 classifier, computed in Dart from a contract of numbers ([ADR 0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md)) | Ship the frozen encoder, which scored 6.5 points higher; export the descriptors as a TensorFlow graph to keep TFLite the only runtime; run the scikit-learn pipeline through ONNX Runtime; keep the incumbent CNN | The E0 gate's pre-registered rule ships the descriptor path when the encoder fails any of its four adoption conditions, and it failed three — most decisively the secondary contrast, +0.0649 against a minimum detectable effect of 0.1336. The incumbent CNN failed its own control. The adopted model is 160 numbers and one matrix product per patch, so an interpreter would wrap a dot product, and the scale reading and patch grid are Dart either way. The price is named rather than absorbed: a second implementation of the features, held to Python by a cross-language golden that stands in for TFLite's post-conversion parity gate |
-| The Dart resample reproduces Pillow's BILINEAR byte for byte ([ADR 0025](docs/adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md)) | Each language's own box filter, as #180 proposed; a simpler kernel adopted on both sides; pixels equal within a tolerance | The descriptors read the resampled pixels directly: spectral bands measure the very frequencies a low-pass shapes, and LBP, which E0 found carries 15.6 points, reads the neighbours a kernel mixes. Exactness costs nothing extra because Pillow's resample calls no libm function, so a byte-exact golden holds across CPUs. The price is named rather than absorbed: Python's half-to-even rounding becomes a Dart helper, and 13,178 RGB triples whose luma is exactly .5 show why |
-| The first Play release waits for classification ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)) | Ship a georeferenced field notebook first; quote E0's accuracy with a caveat | The product the README, onboarding and listing describe is texture classification, and a release without it would be rated as something else. E0's 0.6883 group accuracy was measured on Petri-dish photographs, not on the A4-sheet captures the app makes, so the listing states no accuracy until one is measured on them |
-| A photograph is classified from four patches, and its spread needs nine ([ADR 0027](docs/adr/0027-a-photograph-is-classified-from-four-patches-and-its-spread-needs-nine.md)) — **Withdrawn**, never implemented | Keep ADR 0018's floor of nine; halve the stride; narrow the soil margin | The first real photographs carry a soil disc of 46.5 to 51.4 mm, too small for nine patches. [SPEC 0141](docs/specs/0141-classify-a-soil-patch-too-small-for-nine.md)'s archive study scored the centred five and a half-stride four against the full grid: they lost 0.047 and 0.059 of photograph macro-F1 against a margin of 0.02, and kept the top class on 84 % and 81 % of readings ([the study](docs/studies/ml/small-disc-study.md)). ADR 0018's floor stands, and the remedy is a bigger soil patch |
-| Capture uses an in-app camera that reads the sheet live ([ADR 0028](docs/adr/0028-capture-uses-an-in-app-camera-that-reads-the-sheet-live.md)) | Keep the system camera and teach the protocol before it; a platform document scanner; a lighter live detector; manual capture only | Every refusal that stopped the first real session (sheet cropped or missing, soil too small, photograph too coarse) is visible while framing, and the system camera shows the app nothing. The live guidance is the sheet reader itself, so the user is told what the still will be judged by |
+| [0001](docs/adr/0001-research-agent-advisory-web-grounded.md) | Research agent is advisory and web-grounded | Retired, superseded by 0022 |
+| [0002](docs/adr/0002-image-file-storage-and-lifecycle.md) | Captures are copied into app storage, and the repository owns the file | Accepted |
+| [0003](docs/adr/0003-image-file-deletion-and-write-exclusivity.md) | The image file is deleted at tombstone time, after the commit | Accepted |
+| [0004](docs/adr/0004-flutter-toolchain-version-single-source.md) | One pinned Flutter version, shared by CI and local work | Accepted |
+| [0005](docs/adr/0005-strip-exif-at-image-storage-boundary.md) | EXIF is stripped at the image-storage boundary | Accepted |
+| [0006](docs/adr/0006-disable-android-os-backup.md) | Android OS backup and device transfer are disabled | Accepted |
+| [0007](docs/adr/0007-share-location-opt-in.md) | A share omits the location unless the user opts in | Accepted |
+| [0008](docs/adr/0008-tflite-remains-the-mobile-inference-runtime.md) | TensorFlow Lite stays the only neural runtime | Amended by 0024 |
+| [0009](docs/adr/0009-fixed-roi-and-heuristic-quality-gate-over-segmentation.md) | Target isolation is a fixed region plus a quality gate, not segmentation | Accepted, amended |
+| [0010](docs/adr/0010-synthetic-image-generation-deferred-behind-a-measured-gap.md) | Synthetic image generation waits for a measured gap | Accepted |
+| [0011](docs/adr/0011-classification-verdict-from-margin-and-mass.md) | Uncertainty is a four-state verdict from margin and mass | Accepted |
+| [0012](docs/adr/0012-released-model-artifact-tracked-in-git.md) | The released classifier contract is tracked in git | Accepted |
+| [0013](docs/adr/0013-local-first-model-monitoring.md) | Model monitoring stays on the device | Accepted |
+| [0014](docs/adr/0014-petri-dish-capture-protocol-and-the-unresolved-scale-reference.md) | Collection on a fixed Petri-dish rig | Retired, superseded by 0016 |
+| [0015](docs/adr/0015-classification-reports-a-named-failure-cause.md) | A classification reports an outcome and a named cause | Accepted |
+| [0016](docs/adr/0016-dataset-is-the-existing-dish-archive-and-siltosa-is-out-of-v1.md) | The dataset is the existing dish archive, and Siltosa is out of the first model | Accepted |
+| [0017](docs/adr/0017-scale-is-read-by-a-classical-operator-on-a-known-circle.md) | Scale is read from an object of known size, never guessed | Accepted |
+| [0018](docs/adr/0018-model-sees-fixed-size-greyscale-patches-and-their-spread-is-a-quality-signal.md) | The model sees fixed-size greyscale patches, and their spread is a quality signal | Accepted |
+| [0019](docs/adr/0019-a-dataset-version-is-a-build-product-and-nothing-under-it-is-versioned.md) | A dataset version is a build product and is not versioned | Accepted |
+| [0020](docs/adr/0020-evaluation-is-repeated-group-k-fold-with-nested-selection.md) | Evaluation is repeated group k-fold with nested selection | Accepted |
+| [0021](docs/adr/0021-the-transported-population-stays-in-training-and-out-of-every-test-side.md) | The transported population stays in training and out of every test side | Accepted |
+| [0022](docs/adr/0022-research-agent-precompiles-a-reviewed-corpus-and-escalates-under-a-cap.md) | The research agent runs at build time and ships a corpus | Accepted, narrowed by 0023 |
+| [0023](docs/adr/0023-the-corpus-is-built-by-local-open-source-models-and-tier-2-leaves-v1.md) | The corpus is built by local open-source models | Accepted |
+| [0024](docs/adr/0024-the-descriptor-path-is-the-v1-classifier-computed-in-dart-from-a-contract-of-numbers.md) | The v1 classifier is descriptor arithmetic in Dart | Accepted |
+| [0025](docs/adr/0025-the-dart-resample-reproduces-pillows-bilinear-byte-for-byte.md) | The Dart resample matches Pillow's BILINEAR byte for byte | Accepted |
+| [0026](docs/adr/0026-the-first-play-release-waits-for-classification.md) | The first Play release waits for classification of real photographs | Accepted |
+| [0027](docs/adr/0027-a-photograph-is-classified-from-four-patches-and-its-spread-needs-nine.md) | Classify from four patches | Withdrawn, never implemented |
+| [0028](docs/adr/0028-capture-uses-an-in-app-camera-that-reads-the-sheet-live.md) | Capture uses an in-app camera that reads the sheet live | Accepted |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Flutter 3.44.1 (Dart 3.12.1) — pinned to match CI (`.github/workflows/ci.yml`); a different 3.x SDK will rewrite `pubspec.lock`
-- Android Studio with an emulator, or a connected device
-- Xcode (for iOS builds)
+- Flutter 3.44.1 with Dart 3.12.1. Another 3.x SDK rewrites `pubspec.lock` and `analysis_options.yaml` on `flutter pub get`.
+- An Android emulator or device, or Xcode for iOS.
+- Python 3.12, only to run the `ml/` or `corpus/` tests.
+- [`mf`](https://github.com/LukeSantossz/my-framework) on `PATH`, only to commit: the hooks run its gates.
 
 ### Installation
 
@@ -122,54 +110,46 @@ cd visiosoil-app
 # git submodule update --init
 
 flutter pub get
-# Generate Drift adapters (required after changes to DB tables / models)
+# Generate the Drift code; it is not tracked
 dart run build_runner build --delete-conflicting-outputs
 
-# Wire the commit-msg and pre-push gates, and report what has no route.
-# Needs `mf` on PATH; see .standards/README.md for the install command.
+# Once per clone, to commit: wire the commit-msg and pre-push gates
 bash scripts/setup.sh
 ```
 
-`.standards/` is the development-standards harness, vendored as a submodule. The
-gates read the corpus it supplies; a clone without it has no standards to check
-against. Both hooks fail closed, so `mf` missing from `PATH` refuses the next
-commit rather than passing it.
+`.standards/` is a submodule holding the development standards the gates check against. Both hooks fail closed, so a missing `mf` refuses the next commit rather than passing it.
 
 ### Running
 
 ```bash
-# Run on a connected emulator or device
 flutter run
-
-# Static analysis
-flutter analyze
 ```
 
 ### Tests
 
 ```bash
+flutter analyze
 flutter test
+
+# Python side-builds, each in a Python 3.12 environment with its requirements.txt installed
+(cd ml && python -m pytest tests -q)
+(cd corpus && python -m pytest tests -q)
 ```
 
 ### Release Signing (Android)
 
-No keystore is configured in this repository today, so `flutter build apk --release`
-falls back to the debug key (with a warning) and contributors and CI still build
-it — but that APK is not distributable. `flutter build appbundle --release` refuses
-the debug key instead and fails naming `key.properties`, because the bundle's only
-consumer is Play (SPEC 0111). `VISIOSOIL_ALLOW_DEBUG_BUNDLE=true` lifts that refusal
-for a bundle that only proves it builds; it is CI's switch, not one to export in a
-shell profile. To produce a genuinely release-signed build:
+No keystore is configured in this repository, so `flutter build apk --release` falls back to the debug key with a warning, and that APK is not distributable. `flutter build appbundle --release` refuses the debug key and fails naming `key.properties`, because the bundle's only consumer is Play (SPEC 0111). CI sets `VISIOSOIL_ALLOW_DEBUG_BUNDLE=true` to prove the bundle builds; it is not a switch for a shell profile.
 
-1. Generate a keystore (store it and its passwords safely and back them up —
-   losing the key means you can no longer update a published app):
+To produce a release-signed build:
+
+1. Generate a keystore, and back it and its passwords up. Losing the key means the published app can no longer be updated.
 
    ```bash
    keytool -genkey -v -keystore visiosoil-release.jks \
      -keyalg RSA -keysize 2048 -validity 10000 -alias visiosoil
    ```
 
-2. Create `android/key.properties` (already git-ignored) with:
+2. Create `android/key.properties`, which is git-ignored:
 
    ```properties
    storePassword=<store password>
@@ -178,13 +158,9 @@ shell profile. To produce a genuinely release-signed build:
    storeFile=C:/Users/you/visiosoil-release.jks
    ```
 
-   `key.properties` is a Java properties file, so a backslash is an escape
-   character. On Windows, write `storeFile` with forward slashes
-   (`C:/Users/...`) or doubled backslashes (`C:\\Users\\...`); a plain
-   `C:\Users\...` will not resolve.
+   It is a Java properties file, so a backslash is an escape character. On Windows, write `storeFile` with forward slashes or doubled backslashes.
 
-3. Build and verify the signing certificate. Play takes the app bundle; the APK
-   is what installs directly on a device:
+3. Build, then read the signing certificate. Play takes the bundle; the APK installs directly on a device.
 
    ```bash
    flutter build appbundle --release
@@ -194,9 +170,6 @@ shell profile. To produce a genuinely release-signed build:
    apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk
    ```
 
-   A bundle carries a JAR signature, which `keytool` reads; `apksigner` reads
-   only APKs.
-
 Never commit the keystore or `key.properties`.
 
 ## Project Structure
@@ -204,100 +177,65 @@ Never commit the keystore or `key.properties`.
 ```
 visiosoil-app/
 ├── lib/
-│   ├── main.dart            # Entry: ProviderScope + MaterialApp.router
 │   ├── core/
-│   │   ├── theme/           # AppTheme (light + dark), AppPalette, AppColors, AppTypography,
-│   │   │                    #   AppSpacing, AppRadius, AppMotion, AppHaptics, SoilTextureColors
-│   │   ├── routes/          # GoRouter config (10 routes + errorBuilder)
-│   │   ├── constants/       # pt-BR UI strings, published links, capture protocol steps
-│   │   ├── widgets/         # 25 shared widgets: VisioAppBar, VisioButton, VisioIconButton,
-│   │   │                    #   EmptyState, ErrorState, LoadingIndicator, PressScale, ...
-│   │   ├── utils/           # LocationService (GPS + geocoding), formatters
-│   │   ├── services/        # InferenceService (descriptor path, isolate), ImageStorageService,
-│   │   │   │                #   ShareService, ConnectivityService, PermissionService,
-│   │   │   │                #   SyncEngine, ErrorReportStore, LostCaptureService
-│   │   │   ├── descriptors/ # A4-sheet reader, patch grid, patch descriptors, contract
-│   │   │   ├── auth/        # AuthService + Google implementation, secure credential store
-│   │   │   ├── region/      # Site resolution from the packed grids
-│   │   │   └── research/    # CorpusResearchService, CorpusComposer, corpus store, tips controller
-│   │   ├── database/        # Drift DB class + tables/ + generated code + row mapper
-│   │   ├── data/
-│   │   │   ├── repositories/# Interfaces + Drift impls (soil records, management tips)
-│   │   │   └── sync/        # RemoteSyncBackend contract, local store, sync operations
-│   │   └── features/        # Screens: splash, onboarding, main, home, capture (+ guide, guided camera),
-│   │                        #          history, details, preview, compare, settings
-│   ├── models/              # SoilRecord, ConfidenceLevel, HomeStats, ManagementTipsResult
-│   └── providers/           # 24 files declaring 63 Riverpod providers (database, repository,
-│                            #   inference, image, auth, connectivity, share, research,
-│                            #   management tips, image storage, history filter/derived stats)
-├── ml/                      # E0's evaluation arms and the descriptor release fit
-├── corpus/                  # The management-tips corpus build (Python, local models)
-├── site/                    # The privacy policy and account-deletion page (GitHub Pages)
-├── assets/models/           # The released descriptor contract, spec.json (tracked)
-├── docs/                    # specs/ (durable SPEC archive), adr/, architecture/
-└── test/                    # Unit, widget and repository tests (in-memory SQLite)
+│   │   ├── features/      # One folder per screen: capture (with the guided camera), history,
+│   │   │                  #   details, compare, settings, onboarding, home, splash, ...
+│   │   ├── services/      # InferenceService and the descriptor path, auth, research, region,
+│   │   │                  #   image storage, share, sync engine
+│   │   ├── database/      # Drift database, tables and migrations
+│   │   ├── data/          # Repository interfaces and Drift implementations, sync contract
+│   │   ├── theme/         # Palette, typography, spacing, motion and haptics tokens
+│   │   └── widgets/       # Shared widgets, among them the brand mark
+│   ├── models/            # SoilRecord and the value types around it
+│   └── providers/         # Riverpod providers
+├── assets/
+│   ├── models/spec.json   # The released classifier contract (tracked)
+│   └── corpus/            # The bundled management-tips corpus and its site grids (tracked)
+├── ml/                    # Python: dataset ingestion, evaluation, release fit of spec.json
+├── corpus/                # Python: the management-tips corpus build
+├── site/                  # Privacy policy and account-deletion page, on GitHub Pages
+├── docs/                  # specs/, adr/, design/, guides/, plans/, studies/
+└── test/                  # Unit, widget, migration and repository-policy tests
 ```
 
 ## Project Status
 
-**Status: in development.** The most recent tag is `v2.0.0` (2026-05-03); `main` has advanced well beyond it, so the tag does not describe the state below. ADRs 0002–0007, the EXIF strip, the Android backup hardening and the share opt-in all landed after it.
+**In development.** The latest tag is `v2.0.0` (2026-05-03), and `main` has moved far beyond it. The first Play release is tracked in [#265](https://github.com/LukeSantossz/visiosoil-app/issues/265).
 
 ### Done
 
-- [x] Material 3 theme in light and dark, with a high-contrast mode, Riverpod state management, GoRouter navigation (10 routes)
-- [x] Splash screen, and runtime permissions asked by capture when it needs them (SPEC 0099)
-- [x] 3-step onboarding capture tutorial
-- [x] Bottom navigation shell (`MainScreen`) with home and history tabs
-- [x] Camera capture with real GPS (`geolocator` + `geocoding` via `LocationService`)
-- [x] Image preview after capture and zoomable full-screen viewer
-- [x] History grid with texture filters, search, multi-select, batch delete, paging past the first 150, and a side-by-side comparison of two records
-- [x] Details screen with graded confidence banner, classification display, and delete action
-- [x] Settings screen (app version, re-run onboarding, data wipe, account tile)
-- [x] Persistence on Drift + SQLite via `SoilRecordRepository` (schema v12, soft deletes)
-- [x] On-device descriptor path into 4 soil texture classes, running in an isolate with retry and timeout handling, and the released contract, with the scale read from the A4 sheet — graded on synthetic scenes and on one session of real photographs ([SPEC 0140](docs/specs/0140-find-the-a4-sheet-on-a-pale-table.md)), with classification of a real photograph still owed
-- [x] EXIF metadata stripped at the image-storage boundary, orientation deliberately preserved
-- [x] Android hardened for release: OS backup and device-transfer disabled, guarded by a config test
-- [x] Share with per-share location opt-in, falling back to text-only when the photo is unusable
-- [x] Optional Google sign-in with the session in secure storage, and account deletion from Settings
-- [x] Privacy policy and account-deletion page published on GitHub Pages, with the privacy policy linked from Settings
-- [x] Management tips composed on the device from a corpus (`CorpusResearchService`), cached per record with the corpus version
-- [x] Sync foundation: uuid, `updated_at`, tombstones, `sync_queue` outbox, `SyncEngine`, backend contract
-- [x] Repository, widget, migration and repository-policy tests with `NativeDatabase.memory()` — 992 Dart tests on `main` on 2026-10-15, plus 810 Python test functions under `ml/tests/` and 189 under `corpus/tests/`. Ten Dart tests are skipped, among them an icon-generation test gated on `GENERATE_ICONS` and guards that run on `main` only
-- [x] CI pipeline of eight jobs — `analyze`, `test`, `ml-tests`, `corpus-tests` and `gates` (the standards gates at the `mf` version `.framework.lock` pins, [SPEC 0085](docs/specs/0085-run-the-standards-gates-in-ci.md)) in parallel, then `build` (release APK and app bundle) and `build-ios` (unsigned), then `smoke` booting the minified APK on emulators at API 34, 35 and 36 — with the Flutter toolchain pinned in each of the four jobs that use it
-- [x] ML pipeline under `ml/`: dataset ingestion, repeated group k-fold evaluation (ADR 0020), the E0 gate, and the release fit of the descriptor contract
+- [x] Guided in-app camera with live sheet reading and light, distance and focus chips
+- [x] GPS capture with accuracy and reverse-geocoded address, and EXIF stripped at storage
+- [x] Descriptor path into four texture classes, run in an isolate under a timeout, with the scale read from the A4 sheet and every refusal named. The preview offers a retry only after a timeout, an isolate failure or a computation error (SPEC 0105)
+- [x] History, search, filters, batch delete, comparison, CSV export and per-share location opt-in
+- [x] Management tips composed on the device from bundled corpus `2026.10.31.1`
+- [x] Optional Google sign-in, account deletion, and the published privacy and account-deletion pages
+- [x] Light, dark and "Modo Sol" themes, with text scaling and reduced motion honoured
+- [x] Drift persistence at schema v12 with cumulative, tested migrations and soft deletes
+- [x] Sync foundation: uuid, `updated_at`, tombstones, an outbox and `SyncEngine`
+- [x] CI: analysis, the Dart, `ml/` and `corpus/` test suites, the standards gates, a release APK and app bundle, an unsigned iOS build, and a smoke boot of the release APK on Android API 34, 35 and 36
 
 ### Pending
 
-- [ ] Validate the A4-sheet reader on real photographs taken to the capture protocol (ADR 0017), before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)). The first session, on 2026-10-05, is read on 26 of 31 photographs ([the check](docs/studies/ml/sheet-reader-real-photographs.md)), and none of them classifies yet, because the soil patch on them is smaller than the patch grid needs, and two were also taken too coarse for it
-- [x] Ingest the delivered archive as a dataset version — 221 photographs of 194 samples are ingested as `v1` ([SPEC 0040](docs/specs/0040-ingest-the-delivered-archive-as-dataset-version-v1.md)), and the collection premise the protocol described is withdrawn ([SPEC 0041](docs/specs/0041-close-the-collection-premise-in-the-records.md)). The images stay git-ignored; the manifest is committed
-- [ ] Track the artifacts a training run would produce — no checkpoint or metrics file is versioned, so no published run is reproducible from this repository
-- [x] Add a contract test asserting the label list agrees across the two languages — `test/standards/class_list_test.dart` reads the `classes:` block of `ml/config.yaml` and compares it to the shipped contract's classes ([SPEC 0048](docs/specs/0048-correct-the-records-that-still-say-five-classes.md), [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md)). The Python fixtures that still carry a literal carry the *archive's* five, which is a different list and is tied to `src.manifest.ARCHIVE_CLASSES` by `test_manifest.py`
-- [ ] Produce a genuinely release-signed APK in CI. A missing contract can no longer pass a green suite: `the_shipped_contract_loads` fails without `assets/models/spec.json`
-- [x] Read the class labels from `spec.json` at runtime instead of hardcoding them in `InferenceService` — done on the descriptor path by [SPEC 0083](docs/specs/0083-wire-the-descriptor-path-into-the-inference-service.md). The input size and normalization [SPEC 0035](docs/specs/0035-spec-json-runtime-contract.md) specified belonged to the TFLite contract that ADR 0024 retired
-- [ ] Implement a concrete `RemoteSyncBackend` and wire `SyncEngine` into the provider graph
-- [ ] Build and review the management-tips corpus: the calibration cell was re-probed on 2026-10-15 and judged worth reading by a preliminary, delegated model review ([#251](https://github.com/LukeSantossz/visiosoil-app/issues/251)); the agronomist's judgement of it, the other cells (B3) and the human review gate (B4) remain
+- [ ] Classify real photographs taken to the capture protocol, before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md))
+- [ ] Have the management-tips corpus reviewed by an agronomist
+- [ ] Build the corpus release endpoint, so a device can refresh the bundled snapshot
+- [ ] Implement a sync backend and wire `SyncEngine` into the app
+- [ ] Release-sign the Android build in CI, and sign the iOS build
 
 ## Known Issues & Limitations
 
-- **The A4-sheet reader has met one session of real photographs, and none of them classifies yet** — it finds the sheet, rectifies it and measures the soil patch. It is graded against synthetic scenes a separate geometry draws (SPEC 0091, SPEC 0092), and against six photographs from a session of 31, taken with one phone on one table under one light (SPEC 0140, SPEC 0144). It reads 26 of the 31 and refuses the other 5 by name ([the check](docs/studies/ml/sheet-reader-real-photographs.md)). Every photograph it reads stops before the grid: 24 at `soilRegionTooSmall`, because the soil on them is about 5 cm across against the protocol's 8 to 10 cm, and 2 at `photographTooCoarse`, because they were taken at 3200 × 1440. Photographs taken fully to the protocol, from more than one session, must still validate it before the Play release. A photograph without a readable sheet is refused, never measured at a guessed scale (ADR 0017).
-- **Release builds are debug-signed** — `android/key.properties` is git-ignored and absent, so `flutter build apk --release` falls back to the debug key with a warning, `flutter build appbundle --release` refuses to build (SPEC 0111), and CI has no keystore step. The APK and the bundle CI builds with `VISIOSOIL_ALLOW_DEBUG_BUNDLE=true` are therefore not distributable through Play. The signing procedure below is the path to fixing that, not a description of the current state.
-- **iOS is compiled but not signed** — the `build-ios` CI job runs `flutter build ios --release --no-codesign` on every change, so a platform-config break fails the pipeline; there is still no `Podfile` and no `DEVELOPMENT_TEAM`, so no distributable iOS build is produced.
-- **Camera-only capture** — gallery selection is intentionally not supported.
-- **Sync is not usable yet** — the foundation is implemented, but no concrete backend exists and `SyncEngine` is not wired into the provider graph, so all data remains device-local.
-- **No management-tips corpus has shipped** — tips compose on the device, but `assets/corpus/` holds no reviewed corpus yet, so every key composes to `insufficient_evidence` and the section reads as no coverage. A device can only read the bundled snapshot: there is no corpus-release endpoint to refresh from.
-- **`drift_flutter` pinned to `>=0.2.0 <0.2.4`** — do not bump without verifying compatibility.
+- **Real field photographs are not reliably classified yet.** The A4-sheet reader is graded on synthetic scenes and on 31 real photographs from 2026-10-05: it finds the sheet on 26, refuses the other 5 by name, and none of the 26 reach the patch grid (24 at `soilRegionTooSmall`, 2 at `photographTooCoarse`) ([sheet reader on real photographs](docs/studies/ml/sheet-reader-real-photographs.md)). A labelled field session on 2026-10-19 took 54 photographs to the capture protocol; the app classified 5 and all 5 were correct, and refused the other 49 (47 at `photographTooCoarse`) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). The limit today is not refusal alone: among photographs that score, the classifier skews toward clay. On that session, every classified photograph was Argilosa or Muito Argilosa, and upsampling the coarse photographs still reads Media and Arenosa soils as Muito Argilosa (0 of 24 right across those classes) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). Photographs taken fully to the [capture protocol](docs/guides/capture-protocol.md) must still validate the path before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)), so no general accuracy on production captures is stated.
+- **The corpus was published without human review.** Corpus `2026.10.31.1` holds five grounded cells built by a 7B local model, and says `humanReview: false`. A grounding check can quote a real passage that does not support the tip, so every cell carries the advisory disclaimer until an agronomist reviews it.
+- **The corpus cannot refresh.** There is no release endpoint yet, so a device reads only the bundled snapshot.
+- **Records are not synced.** The sync foundation exists, but no backend is implemented and `SyncEngine` is not wired, so records live only on the device that made them.
+- **Release builds are debug-signed.** `android/key.properties` is absent and CI has no keystore step, so neither the APK nor the bundle CI builds is distributable. iOS is compiled in CI without code signing and has no development team set.
+- **Camera only.** Gallery import is not offered, so no photograph is classified without the guided frame (SPEC 0211).
+- **`drift_flutter` is pinned to `>=0.2.0 <0.2.4`.** A newer version must be checked against the Drift code generation before the pin moves.
 
 ## Contributing
 
-Branch from `main` (`type/short-description`), keep `flutter analyze` and `flutter test` green, use single-line Conventional Commits (`type(scope): subject`), and open a PR with type and complexity labels.
-
-Run `bash scripts/setup.sh` once per clone; it is what wires the gates. Then per
-change of any substance: a spec under `docs/specs/NNNN-<slug>.md` before the
-code — a typo or a one-line fix needs none — then `mf author declare` once per
-branch, and `mf check` before pushing — the same gates the
-hooks run. The binding standards are in `.standards/docs/standards/`, and
-`CLAUDE.md` and `AGENTS.md` are generated from them plus this repository's own
-sections in `docs/agents/project.md`; edit that file, never the generated ones.
+Branch from `main` as `type/short-description`, keep `flutter analyze` and `flutter test` green, and write single-line Conventional Commits (`type(scope): subject`). A change of any substance starts with a spec under `docs/specs/NNNN-<slug>.md`, approved before the code. Run `mf check` before pushing; it runs the same gates as the hooks. The binding standards live in `.standards/docs/standards/`. `CLAUDE.md` and `AGENTS.md` are generated from them and from `docs/agents/project.md`, so edit that file and never the generated ones.
 
 ## License
 
