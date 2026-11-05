@@ -13,7 +13,7 @@ beside them (SPEC 0253, SPEC 0254).
 | [`plans/`](plans/) | Implementation maps: the ordered backlogs of the [ML](plans/ml-implementation-map.md) and [research agent](plans/research-agent-implementation-map.md) workstreams. Each says the date it was last revised |
 | [`studies/architecture/`](studies/architecture/) | Design studies: the [research agent](studies/architecture/research-agent.md) and the [corpus assets](studies/architecture/corpus-assets.md) |
 | [`studies/ml/`](studies/ml/) | Run verdicts and ML studies, listed with their status in its [README](studies/ml/README.md). A durable archive like `specs/`, and exempt from the Spec Gate because a verdict lands after the spec that orders it (`.framework.toml`, SPEC 0058) |
-| [`design/`](design/) | The design of record for redesign v11 ([`design/v11/`](design/v11/)) |
+| [`design/`](design/) | The design of record for redesign v11 ([`design/v11/`](design/v11/)), and the README cover and logo files ([`design/brand/`](design/brand/), SPEC 0258) |
 
 ## Where moved and deleted documents went
 
