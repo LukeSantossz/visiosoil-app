@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/design/brand/readme-cover.svg" alt="VisioSoil: photograph a soil sample on an A4 sheet and the phone estimates its texture class" width="100%"></p>
+
 [![Dart](https://img.shields.io/badge/Dart-3.12.1-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44.1-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![CI](https://img.shields.io/github/actions/workflow/status/LukeSantossz/visiosoil-app/ci.yml?branch=main&logo=github&label=CI)](https://github.com/LukeSantossz/visiosoil-app/actions/workflows/ci.yml)
