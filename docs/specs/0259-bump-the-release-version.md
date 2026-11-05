@@ -41,7 +41,7 @@ On 2026-11-04 the Developer asked for the release version to be updated.
 ## Acceptance Criteria
 
 - `release_version_test.dart` fails before the change and passes after.
-- `flutter build apk --release` reports, in `build/app/outputs/flutter-apk/output-metadata.json`, `versionName` `3.0.0` and `versionCode` `3`.
+- `flutter build apk --release` reports, in `build/app/outputs/apk/release/output-metadata.json`, `versionName` `3.0.0` and `versionCode` `3`.
 - No produced text holds U+2013 or U+2014.
 - `flutter test` shows no failures beyond those this machine has on `main`, and `mf check` passes.
 
