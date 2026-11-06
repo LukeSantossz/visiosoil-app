@@ -11,7 +11,8 @@ abstract interface class AmbientLightSource {
 }
 
 /// [AmbientLightSource] over `MainActivity`'s channel (SPEC 0238). Empty off
-/// Android; a sensor error or a missing plugin ends in silence, not an error.
+/// Android; a sensor error or a missing plugin ends in silence, not an error,
+/// and a reading that is not finite or is negative is dropped (SPEC 0263).
 class PlatformAmbientLightSource implements AmbientLightSource {
   const PlatformAmbientLightSource();
 
@@ -25,7 +26,9 @@ class PlatformAmbientLightSource implements AmbientLightSource {
     return _channel.receiveBroadcastStream().transform(
       StreamTransformer.fromHandlers(
         handleData: (event, sink) {
-          if (event is num) sink.add(event.toDouble());
+          if (event is num && event.isFinite && event >= 0) {
+            sink.add(event.toDouble());
+          }
         },
         handleError: (error, stack, sink) {
           developer.log(

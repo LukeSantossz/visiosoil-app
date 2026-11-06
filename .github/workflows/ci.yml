@@ -213,6 +213,12 @@ jobs:
       - name: Generate Drift adapters
         run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build apk --release
+      - name: Kotlin unit tests
+        # The camera arithmetic MainActivity's channels use (SPEC 0263). It runs
+        # after the release build, which writes the Gradle wrapper and a plugin
+        # registrant that matches the release variant.
+        working-directory: android
+        run: ./gradlew :app:testReleaseUnitTest --console=plain
       - name: Verify R8 kept the auth classes in the release APK
         run: |
           set -euo pipefail

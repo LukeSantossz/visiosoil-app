@@ -11,16 +11,25 @@ enum QualityStatus { failed, adjusting, ready }
 /// A passive preview reading, announced when it changes. Drawn on the
 /// camera's own dark chrome as PNG 10 to 12 measure it (SPEC 0211); Modo Sol
 /// keeps a light card.
+///
+/// It is a live region, announced each time its label changes, so a value
+/// that carries a changing number passes its verdict as [spokenValue]
+/// (SPEC 0263).
 class QualityChip extends StatelessWidget {
   const QualityChip({
     super.key,
     required this.label,
     required this.value,
     required this.status,
+    this.spokenValue,
     this.highlight = false,
   });
   final String label;
   final String value;
+
+  /// What the chip announces in place of [value], when [value] carries a
+  /// number that changes more often than its verdict.
+  final String? spokenValue;
   final QualityStatus status;
   final bool highlight;
 
@@ -53,7 +62,7 @@ class QualityChip extends StatelessWidget {
     final inset = math.max(0.0, edge - context.density.borderWidth);
     return Semantics(
       liveRegion: true,
-      label: '$label, $value',
+      label: '$label, ${spokenValue ?? value}',
       excludeSemantics: true,
       child: Container(
         // A refused chip's thicker edge eats into its padding, so the chip
@@ -100,8 +109,11 @@ class QualityChip extends StatelessWidget {
             ),
             // The 16 dp icon sets the row; 1 dp more makes PNG 10's 51 dp.
             const SizedBox(height: 1),
+            // One line, so the chip's height does not follow its value.
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: text.bodySmall?.copyWith(
                 color: sun ? palette.onSurfaceVariant : _muted,
               ),
