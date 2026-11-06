@@ -113,7 +113,7 @@ void main() {
   test('qa_rejected_tip_claims_are_absent', () async {
     final corpus = await load();
 
-    expect(corpus.corpusVersion, '2026.10.31.2');
+    expect(corpus.corpusVersion, '2026.10.31.3');
     for (final cell in corpus.substance.values) {
       for (final tip in cell.tips) {
         for (final rejected in qaRejectedSubstrings) {
@@ -130,11 +130,42 @@ void main() {
   test('generic_cells_still_grounded_after_drop', () async {
     final corpus = await load();
 
-    for (final key in ['Arenosa|generic', 'Argilosa|generic']) {
-      final cell = corpus.substance[key]!;
-      expect(cell.status, ManagementTipsStatus.grounded, reason: key);
-      expect(cell.tips.length, greaterThanOrEqualTo(1), reason: key);
+    final cell = corpus.substance['Arenosa|generic']!;
+    expect(cell.status, ManagementTipsStatus.grounded);
+    expect(cell.tips.length, greaterThanOrEqualTo(1));
+  });
+
+  // Denies a claim instead of advising a practice, and was the last tip of
+  // its cell (SPEC 0261).
+  test('potassium_denial_tip_is_absent', () async {
+    final corpus = await load();
+
+    for (final cell in corpus.substance.values) {
+      for (final tip in cell.tips) {
+        expect(
+          tip.text.contains(
+            'potássio não-trocável é predominantemente indisponível',
+          ),
+          isFalse,
+        );
+      }
     }
+  });
+
+  // The cell is the abstention `corpus/src/pipeline.py` writes: no tips, the
+  // consulted sources kept, and the build's abstention disclaimer (SPEC 0261).
+  test('argilosa_generic_abstains', () async {
+    final corpus = await load();
+
+    final cell = corpus.substance['Argilosa|generic']!;
+    expect(cell.status, ManagementTipsStatus.abstained);
+    expect(cell.tips, isEmpty);
+    expect(cell.sources, isNotEmpty);
+    expect(
+      cell.disclaimer,
+      'Nenhuma fonte elegível sustentou uma orientação para esta combinação. '
+      'Consulte a assistência técnica local.',
+    );
   });
 
   test('a_biome_alone_composes', () async {
