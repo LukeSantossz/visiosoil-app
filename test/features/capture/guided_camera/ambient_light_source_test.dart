@@ -34,6 +34,25 @@ void main() {
     expect(read.errors, isEmpty);
   });
 
+  // A reading that is not finite, or is negative, is not an illuminance, and
+  // would crash the chip's formatter (SPEC 0263).
+  test('platform_light_drops_a_reading_that_is_not_a_measurement', () async {
+    messenger.setMockStreamHandler(
+      channel,
+      MockStreamHandler.inline(
+        onListen: (arguments, events) {
+          events.success(double.nan);
+          events.success(double.infinity);
+          events.success(-1.0);
+          events.success(57.0);
+        },
+      ),
+    );
+    final read = await collect();
+    expect(read.values, [57.0]);
+    expect(read.errors, isEmpty);
+  });
+
   group('platform_light_stays_quiet_on_an_error', () {
     test('an error event', () async {
       messenger.setMockStreamHandler(

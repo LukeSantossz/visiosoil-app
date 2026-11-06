@@ -53,6 +53,35 @@ void main() {
     }
   });
 
+  // An infinite input would give an infinite distance, which the chip's
+  // formatter cannot round (SPEC 0263).
+  test('distance_is_unknown_for_a_reading_that_is_not_finite', () {
+    expect(
+      estimatedDistanceMm(
+        optics: (focalLengthMm: double.infinity, activeLongSideMm: 7.3),
+        sheetLongSidePx: 700,
+        readLongSidePx: 1024,
+      ),
+      isNull,
+    );
+    expect(
+      estimatedDistanceMm(
+        optics: (focalLengthMm: 5.6, activeLongSideMm: double.infinity),
+        sheetLongSidePx: 700,
+        readLongSidePx: 1024,
+      ),
+      isNull,
+    );
+    expect(
+      estimatedDistanceMm(
+        optics: optics,
+        sheetLongSidePx: double.nan,
+        readLongSidePx: 1024,
+      ),
+      isNull,
+    );
+  });
+
   group('platform_optics_reads_the_channel_reply', () {
     const channel = MethodChannel('com.visiosoil.app/camera_optics');
     final messenger =

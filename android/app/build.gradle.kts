@@ -97,3 +97,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // The JVM tests of the camera arithmetic (SPEC 0263).
+    testImplementation("junit:junit:4.13.2")
+}
