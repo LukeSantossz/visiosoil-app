@@ -1,0 +1,26 @@
+[
+  {
+    "phrase": "não necessariamente significa baixo teor de argila",
+    "foundIn": "Arenosa|generic",
+    "reason": "Says a sandy soil need not have low clay, which is false by the class's definition. QA rejected it, and it was removed by hand in 5d9e5c2.",
+    "reference": "https://github.com/LukeSantossz/visiosoil-app/pull/457"
+  },
+  {
+    "phrase": "não implica em baixa retenção de água",
+    "foundIn": "Arenosa|generic",
+    "reason": "Denies that a sandy texture holds little water, which reads as wrong to an agronomist. QA rejected it, and SPEC 0260 removed it by hand.",
+    "reference": "https://github.com/LukeSantossz/visiosoil-app/pull/473#issuecomment-6550881626"
+  },
+  {
+    "phrase": "não significa que o solo é mais propenso a formação de agregados",
+    "foundIn": "Argilosa|generic",
+    "reason": "Denies that a clayey texture favours aggregation, which reads as wrong to an agronomist. QA rejected it, and SPEC 0260 removed it by hand.",
+    "reference": "https://github.com/LukeSantossz/visiosoil-app/pull/473#issuecomment-6550881626"
+  },
+  {
+    "phrase": "potássio não-trocável é predominantemente indisponível",
+    "foundIn": "Argilosa|generic",
+    "reason": "Denies a claim nobody made instead of advising a practice, and non-exchangeable potassium is by definition the fraction plants cannot take up readily. The Developer rejected it on 2026-11-05.",
+    "reference": "docs/specs/0261-drop-the-potassium-denial-tip.md"
+  }
+]

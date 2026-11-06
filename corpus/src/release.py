@@ -8,6 +8,11 @@ missing or extra, cells from two builds, a cell the app's reader would reject,
 or a grid that is not the one its name says. Every refusal names its cause, and
 nothing is written unless everything passes.
 
+A tip QA or the Developer rejected is listed in `corpus/rejected_tips.json`,
+and the release drops every tip that carries a listed phrase, in any cell, so a
+rebuild cannot ship it again. A grounded cell left without tips is released as
+the build's abstention (SPEC 0262).
+
 The Developer decided on 2026-10-28 to publish these cells without B4's named
 human review. The release records that in the artifact as `humanReview: false`.
 
@@ -28,10 +33,13 @@ from src.build_grids import BIOME_KIND, CLAY_KIND
 from src.cell import CellValidationError, validate_cell
 from src.grids import MAGIC
 from src.keys import BIOMES, CLAY_ACTIVITIES, generic_keys, substance_keys
-from src.pipeline import SUBSTANCE_DISCLAIMER
+from src.pipeline import ABSTENTION_DISCLAIMER, SUBSTANCE_DISCLAIMER
 from src.sources import SOURCES_DIR, manifest_path_for
 
 DEFAULT_OUT_DIR = Path(__file__).resolve().parents[2] / "assets" / "corpus"
+REJECTED_TIPS = Path(__file__).resolve().parents[1] / "rejected_tips.json"
+"""The claims QA or the Developer rejected, which no release may ship (SPEC 0262)."""
+REJECTION_FIELDS = ("phrase", "reason", "reference")
 CLASS_LIST_VERSION = "v1-four-class"
 """The class list the substance keys are drawn from (research-agent.md §6.1)."""
 
@@ -136,6 +144,67 @@ def _read_cells(
     return {key: cells[key] for key in expected}, models.pop()
 
 
+def normalized(text: str) -> str:
+    """Lowercased, with every run of whitespace one space: how a tip and a
+    rejected phrase are compared."""
+    return " ".join(text.lower().split())
+
+
+def read_rejected_tips(path: Path = REJECTED_TIPS) -> list[dict[str, Any]]:
+    """The rejection list, refused by name unless every entry can match."""
+    path = Path(path)
+    if not path.is_file():
+        raise ReleaseError(f"{path.name} is missing")
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list):
+        raise ReleaseError(f"{path.name} must hold a JSON array of rejections")
+    for position, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ReleaseError(f"{path.name}: entry {position} is not an object")
+        for field in REJECTION_FIELDS:
+            value = entry.get(field)
+            if not isinstance(value, str) or not value.strip():
+                # A blank phrase would match every tip.
+                raise ReleaseError(
+                    f"{path.name}: entry {position} has no {field}"
+                )
+    return entries
+
+
+def drop_rejected(
+    cells: dict[str, dict[str, Any]], rejected: list[dict[str, Any]]
+) -> list[tuple[str, str]]:
+    """Removes every tip carrying a rejected phrase, in place, and returns each
+    drop as (cell key, phrase).
+
+    Citations point into the cell's own sources, so the tips that remain keep
+    theirs. A grounded cell left without tips becomes the abstention
+    `src.pipeline` writes, its sources and limitations kept.
+    """
+    phrases = [entry["phrase"] for entry in rejected]
+    drops: list[tuple[str, str]] = []
+    for key, cell in cells.items():
+        kept = []
+        for tip in cell["tips"]:
+            text = normalized(tip["text"])
+            hit = next((p for p in phrases if normalized(p) in text), None)
+            if hit is None:
+                kept.append(tip)
+            else:
+                drops.append((key, hit))
+        if len(kept) == len(cell["tips"]):
+            continue
+        cell["tips"] = kept
+        if not kept and cell["status"] == "grounded":
+            cell["status"] = "abstained"
+            cell["disclaimer"] = ABSTENTION_DISCLAIMER
+        try:
+            validate_cell(cell, source_count=len(cell["sources"]))
+        except CellValidationError as error:
+            raise ReleaseError(f"{key}: {error}") from error
+    return drops
+
+
 def _timestamp(instant: datetime) -> str:
     utc = instant.astimezone(timezone.utc)
     return utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc.microsecond // 1000:03d}Z"
@@ -147,10 +216,13 @@ def release(
     grids_dir: Path,
     sources_dir: Path = SOURCES_DIR,
     out_dir: Path = DEFAULT_OUT_DIR,
+    rejected_tips: Path = REJECTED_TIPS,
     version: str,
     built_at: datetime,
 ) -> dict[str, Any]:
-    """Checks the build and writes `corpus.json` and both grids into [out_dir]."""
+    """Checks the build, drops the rejected tips, and writes `corpus.json` and
+    both grids into [out_dir]."""
+    rejected = read_rejected_tips(rejected_tips)
     cells, model = _read_cells(cells_dir, sources_dir)
     grids = [
         (name, *_read_grid(Path(grids_dir) / name, kind)) for name, kind in GRIDS
@@ -158,6 +230,8 @@ def release(
     (_, _, clay_lattice, clay), (_, _, biome_lattice, biome) = grids
     if clay_lattice != biome_lattice:
         raise ReleaseError("the two grids are on different lattices")
+    for key, phrase in drop_rejected(cells, rejected):
+        print(f"dropped a rejected tip from {key}: {phrase!r}")
 
     corpus = {
         "corpusVersion": version,
