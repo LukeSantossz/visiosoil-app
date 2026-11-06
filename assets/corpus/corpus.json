@@ -1,5 +1,5 @@
 {
-  "corpusVersion": "2026.10.31.2",
+  "corpusVersion": "2026.10.31.3",
   "classListVersion": "v1-four-class",
   "model": "qwen2.5:7b",
   "builtAt": "2026-10-31T23:36:43.378Z",
@@ -408,16 +408,9 @@
       ]
     },
     "Argilosa|generic": {
-      "status": "grounded",
-      "disclaimer": "Orientação consultiva, baseada em fontes públicas citadas. Não substitui análise laboratorial nem avaliação técnica presencial.",
-      "tips": [
-        {
-          "text": "O solo argiloso não significa que o potássio não-trocável é predominantemente indisponível para as plantas.",
-          "citations": [
-            12
-          ]
-        }
-      ],
+      "status": "abstained",
+      "disclaimer": "Nenhuma fonte elegível sustentou uma orientação para esta combinação. Consulte a assistência técnica local.",
+      "tips": [],
       "sources": [
         {
           "title": "Aspectos relevantes da semeadura direta na qualidade do solo e na produtividade das culturas",
