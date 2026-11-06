@@ -152,6 +152,36 @@ void main() {
     }
   });
 
+  // The release drops these claims; this checks the file it wrote, compared
+  // the way `corpus/src/release.py` compares them (SPEC 0262).
+  test('no_released_tip_is_on_the_rejection_list', () async {
+    final corpus = await load();
+    String normalized(String text) => text
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .join(' ');
+    final phrases = [
+      for (final entry in jsonDecode(
+        File('corpus/rejected_tips.json').readAsStringSync(),
+      ) as List<dynamic>)
+        normalized((entry as Map<String, dynamic>)['phrase'] as String),
+    ];
+
+    expect(phrases, isNotEmpty);
+    for (final entry in corpus.substance.entries) {
+      for (final tip in entry.value.tips) {
+        for (final phrase in phrases) {
+          expect(
+            normalized(tip.text).contains(phrase),
+            isFalse,
+            reason: '${entry.key} ships the rejected claim "$phrase"',
+          );
+        }
+      }
+    }
+  });
+
   // The cell is the abstention `corpus/src/pipeline.py` writes: no tips, the
   // consulted sources kept, and the build's abstention disclaimer (SPEC 0261).
   test('argilosa_generic_abstains', () async {

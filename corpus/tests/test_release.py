@@ -11,7 +11,14 @@ from src.build_grids import BIOME_KIND, CLAY_KIND
 from src.grids import GridSpec, write_packed_grid
 from src.keys import BIOMES, CLAY_ACTIVITIES, generic_keys
 from src.pipeline import ABSTENTION_DISCLAIMER, SUBSTANCE_DISCLAIMER
-from src.release import ReleaseError, default_by_biome, release
+from src.cell import validate_cell
+from src.release import (
+    REJECTED_TIPS,
+    ReleaseError,
+    default_by_biome,
+    read_rejected_tips,
+    release,
+)
 
 FIXTURE = (
     Path(__file__).resolve().parents[2] / "test" / "fixtures" / "corpus" / "corpus.json"
@@ -124,11 +131,12 @@ def run(build, **overrides):
         out_dir=out,
         version=overrides.get("version", "2026.10.28"),
         built_at=BUILT_AT,
+        rejected_tips=overrides.get("rejected_tips", REJECTED_TIPS),
     )
 
 
-def written(build):
-    run(build)
+def written(build, **overrides):
+    run(build, **overrides)
     return json.loads((build[2] / "corpus.json").read_text(encoding="utf-8"))
 
 
@@ -287,3 +295,140 @@ def test_a_biome_with_no_resolved_cell_gets_no_default():
 
 def test_the_release_says_no_person_reviewed_it(build):
     assert written(build)["humanReview"] is False
+
+
+# The rejection list (SPEC 0262).
+
+
+def rejection(phrase, *, found_in="Arenosa|generic"):
+    return {
+        "phrase": phrase,
+        "foundIn": found_in,
+        "reason": "QA rejected it.",
+        "reference": "https://example.org/review",
+    }
+
+
+def write_rejections(tmp_path, entries):
+    path = tmp_path / "rejected_tips.json"
+    path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def cell_with(*texts):
+    cell = grounded()
+    cell["tips"] = [{"text": text, "citations": [0]} for text in texts]
+    return cell
+
+
+def test_a_rejected_tip_is_dropped_in_any_cell_and_any_casing(build, tmp_path, capsys):
+    write_cell(
+        build[0],
+        "Media|generic",
+        cell_with("Uma dica boa.", "O solo NÃO significa   baixa retenção, e ponto."),
+    )
+    rejected = write_rejections(
+        tmp_path, [rejection("não significa baixa retenção", found_in="Arenosa|generic")]
+    )
+
+    corpus = written(build, rejected_tips=rejected)
+
+    assert corpus["substance"]["Media|generic"]["tips"] == [
+        {"text": "Uma dica boa.", "citations": [0]}
+    ]
+    printed = capsys.readouterr().out
+    assert "Media|generic" in printed
+    assert "não significa baixa retenção" in printed
+
+
+def test_a_cell_left_without_tips_is_released_as_the_abstention(build, tmp_path):
+    cell = cell_with("Uma afirmação rejeitada.")
+    write_cell(build[0], "Argilosa|generic", cell)
+    rejected = write_rejections(tmp_path, [rejection("afirmação rejeitada")])
+
+    released = written(build, rejected_tips=rejected)["substance"]["Argilosa|generic"]
+
+    assert released["status"] == "abstained"
+    assert released["tips"] == []
+    assert released["disclaimer"] == ABSTENTION_DISCLAIMER
+    assert released["sources"] == cell["sources"]
+    assert released["limitations"] == cell["limitations"]
+    validate_cell(released, source_count=len(released["sources"]))
+
+
+def test_tips_that_match_nothing_are_released_unchanged(build, tmp_path):
+    cell = grounded()
+    cell["sources"].append(dict(cell["sources"][0], url="https://example.org/1"))
+    cell["tips"] = [
+        {"text": "Primeira dica.", "citations": [1]},
+        {"text": "Segunda dica.", "citations": [0, 1]},
+    ]
+    write_cell(build[0], "Arenosa|generic", cell)
+    rejected = write_rejections(tmp_path, [rejection("nada disso aparece")])
+
+    assert written(build, rejected_tips=rejected)["substance"]["Arenosa|generic"] == cell
+
+
+def test_dropping_a_tip_keeps_the_citations_of_the_rest(build, tmp_path):
+    cell = grounded()
+    cell["sources"].append(dict(cell["sources"][0], url="https://example.org/1"))
+    cell["tips"] = [
+        {"text": "Dica rejeitada.", "citations": [0]},
+        {"text": "Dica mantida.", "citations": [1]},
+    ]
+    write_cell(build[0], "Arenosa|generic", cell)
+    rejected = write_rejections(tmp_path, [rejection("dica rejeitada")])
+
+    released = written(build, rejected_tips=rejected)["substance"]["Arenosa|generic"]
+
+    assert released["status"] == "grounded"
+    assert released["tips"] == [{"text": "Dica mantida.", "citations": [1]}]
+    assert released["sources"] == cell["sources"]
+
+
+@pytest.mark.parametrize(
+    "entries, cause",
+    [
+        ({"phrase": "x"}, "array"),
+        ([dict(rejection("x"), phrase=" ")], "phrase"),
+        ([{k: v for k, v in rejection("x").items() if k != "reason"}], "reason"),
+        ([dict(rejection("x"), reference="")], "reference"),
+        ([dict(rejection("x"), phrase=3)], "phrase"),
+        (["x"], "entry 0"),
+    ],
+)
+def test_a_malformed_rejection_list_is_refused(build, tmp_path, entries, cause):
+    rejected = write_rejections(tmp_path, entries)
+    with pytest.raises(ReleaseError, match=cause):
+        run(build, rejected_tips=rejected)
+    assert not build[2].exists() or not any(build[2].iterdir())
+
+
+def test_a_missing_rejection_list_is_refused(build, tmp_path):
+    with pytest.raises(ReleaseError, match="rejected_tips.json"):
+        run(build, rejected_tips=tmp_path / "rejected_tips.json")
+
+
+def test_the_shipped_list_holds_the_known_rejections():
+    entries = read_rejected_tips(REJECTED_TIPS)
+    by_reference = {}
+    for entry in entries:
+        by_reference.setdefault(entry["reference"], []).append(entry["phrase"])
+
+    known = [
+        "O solo arenoso não necessariamente significa baixo teor de argila.",
+        "A textura arenosa do solo não implica em baixa retenção de água",
+        "A textura argilosa não significa que o solo é mais propenso a formação "
+        "de agregados",
+        "O solo argiloso não significa que o potássio não-trocável é "
+        "predominantemente indisponível para as plantas.",
+    ]
+    phrases = [entry["phrase"] for entry in entries]
+    for text in known:
+        assert any(
+            " ".join(phrase.lower().split()) in " ".join(text.lower().split())
+            for phrase in phrases
+        ), text
+    assert any("pull/457" in reference for reference in by_reference)
+    assert any("pull/473" in reference for reference in by_reference)
+    assert any("0261" in reference for reference in by_reference)

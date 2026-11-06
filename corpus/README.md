@@ -85,8 +85,19 @@ unless all of it passes. It derives each biome's default clay-activity family
 from the grids, and writes `corpus.json` and both grids into `assets/corpus/`,
 which is tracked (SPEC 0227).
 
+A tip QA or the Developer rejected is listed in `corpus/rejected_tips.json`,
+one entry per claim: the `phrase` that identifies it, the cell it was found in,
+the `reason` and the `reference` that rejected it. The release drops every tip
+whose text, lowercased and with its spacing collapsed, contains a listed phrase,
+in any cell, and prints each drop. A grounded cell left without tips is released
+as the build's abstention, its sources and limitations kept. A list entry with a
+blank phrase, reason or reference is refused, since a blank phrase would match
+every tip. To keep a rejected claim out of every later release, add its entry
+here rather than editing `assets/corpus/corpus.json` alone (SPEC 0262). The list
+catches a claim that keeps its words, not one a rebuild rewords.
+
 The cells are not reviewed by a person: `corpus.json` carries
-`humanReview: false`, and every cell carries the advisory disclaimer.
+`humanReview: false`, and every grounded cell carries the advisory disclaimer.
 
 ## How it is shaped
 
