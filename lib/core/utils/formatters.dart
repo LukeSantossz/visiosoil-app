@@ -74,7 +74,8 @@ class Formatters {
   }
 
   /// An estimated distance in millimetres, as whole centimetres marked
-  /// approximate (SPEC 0238).
+  /// approximate (SPEC 0238). [millimetres] must be finite, which
+  /// `estimatedDistanceMm` guarantees (SPEC 0263).
   ///
   /// Example: 339 -> "≈ 34 cm"
   static String distanceCm(double millimetres) {
@@ -82,7 +83,8 @@ class Formatters {
   }
 
   /// An illuminance, whole below 100 lx and to the nearest 10 from there,
-  /// with a dot between thousands (SPEC 0238).
+  /// with a dot between thousands (SPEC 0238). [lux] must be finite, which
+  /// `PlatformAmbientLightSource` guarantees (SPEC 0263).
   ///
   /// Example: 1483 -> "1.480 lx"
   static String lux(double lux) {

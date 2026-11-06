@@ -49,7 +49,8 @@ class PlatformCameraOpticsSource implements CameraOpticsSource {
 
 /// The lens-to-sheet distance, in millimetres, of a sheet whose long side
 /// spans [sheetLongSidePx] of a read frame [readLongSidePx] long, by the
-/// thin-lens equation; null when any input is not positive.
+/// thin-lens equation; null when any input is not finite and positive, or the
+/// result is not finite (SPEC 0263).
 ///
 /// It assumes the read frame spans the active array's long side.
 double? estimatedDistanceMm({
@@ -59,9 +60,14 @@ double? estimatedDistanceMm({
 }) {
   final f = optics.focalLengthMm;
   final side = optics.activeLongSideMm;
-  if (!(f > 0 && side > 0 && sheetLongSidePx > 0 && readLongSidePx > 0)) {
+  bool usable(double value) => value.isFinite && value > 0;
+  if (!(usable(f) &&
+      usable(side) &&
+      usable(sheetLongSidePx) &&
+      usable(readLongSidePx))) {
     return null;
   }
   final imageMm = sheetLongSidePx * side / readLongSidePx;
-  return f * (1 + sheetHeightMm / imageMm);
+  final distance = f * (1 + sheetHeightMm / imageMm);
+  return distance.isFinite ? distance : null;
 }

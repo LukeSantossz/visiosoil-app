@@ -140,28 +140,26 @@ class MainActivity : FlutterActivity() {
     /**
      * The focal length and the active array's long side, in millimetres, of
      * the Camera2 camera [cameraId]; null when the camera reports either
-     * incompletely. The active array is the part of the sensor the frames
-     * come from, so its share of the physical size is what a frame spans.
+     * incompletely or not as a measurement (CameraReadings).
      */
     private fun opticsOf(cameraId: String): Map<String, Double>? {
         val manager = getSystemService(CameraManager::class.java) ?: return null
         val characteristics = manager.getCameraCharacteristics(cameraId)
-        val focal = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-            ?.firstOrNull() ?: return null
+        val focal = CameraReadings.focalLengthMm(
+            characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS),
+        ) ?: return null
         val physical = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
             ?: return null
         val pixels = characteristics.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
             ?: return null
         val active = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
             ?: return null
-        val pixelLong = maxOf(pixels.width, pixels.height)
-        if (focal <= 0f || pixelLong <= 0) return null
-        val activeLong = maxOf(active.width(), active.height())
-        val physicalLong = maxOf(physical.width, physical.height)
-        return mapOf(
-            "focalLengthMm" to focal.toDouble(),
-            "activeLongSideMm" to physicalLong.toDouble() * activeLong / pixelLong,
-        )
+        val side = CameraReadings.activeLongSideMm(
+            physicalLongMm = maxOf(physical.width, physical.height),
+            activeLongPx = maxOf(active.width(), active.height()),
+            pixelLongPx = maxOf(pixels.width, pixels.height),
+        ) ?: return null
+        return mapOf("focalLengthMm" to focal, "activeLongSideMm" to side)
     }
 
     /** Streams the ambient light sensor's lux while Dart listens. */
@@ -186,7 +184,9 @@ class MainActivity : FlutterActivity() {
         }
 
         override fun onSensorChanged(event: SensorEvent) {
-            events?.success(event.values[0].toDouble())
+            // A value that is not an illuminance is not sent (SPEC 0263).
+            val lux = CameraReadings.luxOf(event.values) ?: return
+            events?.success(lux)
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
