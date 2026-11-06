@@ -941,6 +941,11 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         ? 'Excessiva'
         : 'Baixa';
     final estimate = _distanceEstimate();
+    final distanceVerdict = distance == null
+        ? 'Ajustando…'
+        : distance
+        ? 'Enquadrada'
+        : 'Ajuste a moldura';
     final chips = [
       QualityChip(
         label: 'Luz',
@@ -949,6 +954,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             : _lux == null
             ? light
             : '$light · ${Formatters.lux(_lux!)}',
+        spokenValue: light ?? 'Ajustando…',
         status: _status(_shownQuality?.lightOk),
         highlight: _failedChips.contains('Luz'),
       ),
@@ -966,11 +972,8 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         label: 'Distância',
         value: estimate != null
             ? Formatters.distanceCm(estimate)
-            : distance == null
-            ? 'Ajustando…'
-            : distance
-            ? 'Enquadrada'
-            : 'Ajuste a moldura',
+            : distanceVerdict,
+        spokenValue: distanceVerdict,
         status: _status(distance),
         highlight: _failedChips.contains('Distância'),
       ),
