@@ -121,6 +121,35 @@ void main() {
     }
   });
 
+  // The cover's text is outlined, so each text path names its words in
+  // data-text, and the cover speaks the README's language (SPEC 0264).
+  test('cover_text_is_english', () {
+    const lines = [
+      'Light',
+      'Distance',
+      'Focus',
+      'Ready. Hold steady.',
+      'VisioSoil',
+      'Photograph a soil sample on an A4 sheet.',
+      'The phone estimates its texture class.',
+      'Guided camera',
+      '4 texture classes',
+      'Works offline',
+    ];
+    final paths = RegExp(
+      r'<path fill="#[^"]*"[^>]*>',
+    ).allMatches(_svg('readme-cover')).map((m) => m.group(0)!).toList();
+    final texts = [
+      for (final path in paths)
+        RegExp(r'data-text="([^"]*)"').firstMatch(path)?.group(1),
+    ];
+
+    expect(texts, lines);
+    for (final text in lines) {
+      expect(text.codeUnits.every((unit) => unit < 128), isTrue, reason: text);
+    }
+  });
+
   test('every_brand_png_has_its_declared_size', () {
     for (final name in _svgs) {
       final viewBox = RegExp(
