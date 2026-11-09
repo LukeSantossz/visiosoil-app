@@ -123,7 +123,7 @@ class SegmentedControl<T> extends StatelessWidget {
                             width: widths[selectedIndex],
                             child: Container(
                               color: palette.isSun
-                                  ? Colors.black
+                                  ? palette.onSurface
                                   : palette.selected,
                             ),
                           ),
@@ -239,7 +239,7 @@ class SegmentedControl<T> extends StatelessWidget {
     final option = options[index];
     final isSelected = option.value == value;
     final color = context.palette.isSun && isSelected
-        ? Colors.white
+        ? context.palette.background
         : context.palette.onSurface;
 
     // A 20 dp icon and the 14 sp label (PNG 16, SPEC 0203).

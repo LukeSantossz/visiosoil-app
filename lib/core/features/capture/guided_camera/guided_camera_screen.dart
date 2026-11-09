@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/features/capture/capture_guide_screen.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_quality.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/quality_chip.dart';
@@ -30,11 +31,14 @@ import 'package:visiosoil_app/core/services/error_report_store.dart';
 import 'package:visiosoil_app/core/services/still_size_store.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/camera_colors.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
+import 'package:visiosoil_app/core/widgets/size_reporter.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/error_report_provider.dart';
@@ -50,8 +54,15 @@ class GuidedCameraScreen extends ConsumerStatefulWidget {
   /// outline (SPEC 0211).
   static const double topInset = barHeight + pillGap + pillHeight + pillGap;
 
-  /// The black panel holding the chips, the shutter row and the caption.
+  /// The least room kept for the black panel holding the chips, the shutter
+  /// row and the caption. The panel's measured height is used when it is
+  /// taller, so the outline is never drawn under it (SPEC 0265).
   static const double bottomInset = 215;
+
+  /// The largest text scale the panel draws at. Past it the panel would take
+  /// the room the outline needs, and a smaller outline asks for the sheet
+  /// farther away (SPEC 0265).
+  static const double panelMaxTextScale = 1.3;
 
   static const double barHeight = 64;
   static const double pillHeight = 28;
@@ -156,6 +167,18 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   final AutoCaptureTrigger _trigger = AutoCaptureTrigger();
   late final DateTime Function() _clock;
   bool _flashing = false;
+
+  /// The panel's height at its last layout (SPEC 0265).
+  double _panelHeight = GuidedCameraScreen.bottomInset;
+
+  /// The room the overlay leaves the panel under the outline.
+  double get _bottomInset =>
+      math.max(GuidedCameraScreen.bottomInset, _panelHeight);
+
+  void _onPanelSize(Size size) {
+    if (!mounted || size.height == _panelHeight) return;
+    setState(() => _panelHeight = size.height);
+  }
 
   /// Whether Configurações' "Guia de enquadramento" is on (SPEC 0208). Off,
   /// the screen reads nothing live and draws only the camera and its
@@ -597,7 +620,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
       layout: CaptureGuideLayout.compute(
         padding.deflateSize(screen),
         topInset: GuidedCameraScreen.topInset,
-        bottomInset: GuidedCameraScreen.bottomInset,
+        bottomInset: _bottomInset,
         preview: preview,
       ),
       // The preview is drawn whole, so leaving it is leaving the frame.
@@ -978,18 +1001,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         highlight: _failedChips.contains('Distância'),
       ),
     ];
-    if (MediaQuery.textScalerOf(context).scale(1) >= 1.3) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final chip in chips)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: chip,
-            ),
-        ],
-      );
-    }
+    // One row at any text size: the panel's text is capped (SPEC 0265).
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1065,7 +1077,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
         ? const Guidance(
             tone: GuidanceTone.ready,
             message: 'Segure firme…',
-            icon: Icons.pan_tool_outlined,
+            icon: LucideIcons.hand,
           )
         : shown.guidance;
     final camera = _camera;
@@ -1103,7 +1115,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
             const IgnorePointer(
               child: ColoredBox(
                 key: ValueKey('guided-camera-flash'),
-                color: Color(0x8CFFFFFF),
+                color: CameraColors.flash,
               ),
             ),
           // PNG 10's scrim under the bar: black at 90 % fading out by 135 dp.
@@ -1118,7 +1130,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xE6000000), Color(0x00000000)],
+                    colors: [CameraColors.scrimTop, CameraColors.scrimEnd],
                   ),
                 ),
               ),
@@ -1129,7 +1141,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
               child: CaptureGuideOverlay(
                 preview: previewRect,
                 topInset: GuidedCameraScreen.topInset,
-                bottomInset: GuidedCameraScreen.bottomInset,
+                bottomInset: _bottomInset,
                 tilt: _tilt,
                 direction: _smoother.direction,
                 brackets: cropped
@@ -1155,7 +1167,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                   final layout = CaptureGuideLayout.compute(
                     constraints.biggest,
                     topInset: GuidedCameraScreen.topInset,
-                    bottomInset: GuidedCameraScreen.bottomInset,
+                    bottomInset: _bottomInset,
                     preview: previewRect,
                   );
                   return Stack(
@@ -1223,36 +1235,53 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            color: Colors.black,
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 560,
+                          // Measured, so the outline keeps above it, and its
+                          // text capped, so the outline keeps its room
+                          // (SPEC 0265).
+                          SizeReporter(
+                            key: const ValueKey('guided-camera-panel'),
+                            onSize: _onPanelSize,
+                            child: MediaQuery.withClampedTextScaling(
+                              maxScaleFactor:
+                                  GuidedCameraScreen.panelMaxTextScale,
+                              child: Container(
+                                width: double.infinity,
+                                color: Colors.black,
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.lg,
+                                  AppSpacing.lg,
+                                  AppSpacing.lg,
+                                  28,
                                 ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (_guide) ...[
-                                      _qualityChips(shown.row),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    _shutterRow(shown.row, camera),
-                                    if (_guide) ...[
-                                      const SizedBox(height: AppSpacing.md),
-                                      const Text(
-                                        'Captura liberada quando os 3 itens estiverem ok',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: _CameraInk.muted,
-                                          fontSize: 12,
-                                          height: 16 / 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: AppLayout.maxContentWidth,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_guide) ...[
+                                          _qualityChips(shown.row),
+                                          const SizedBox(height: 20),
+                                        ],
+                                        _shutterRow(shown.row, camera),
+                                        if (_guide) ...[
+                                          const SizedBox(height: AppSpacing.md),
+                                          Text(
+                                            'Captura liberada quando os 3 itens estiverem ok',
+                                            textAlign: TextAlign.center,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelMedium
+                                                ?.copyWith(
+                                                  color: CameraColors.muted,
+                                                ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1323,7 +1352,7 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
               height: 48,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: _CameraInk.control,
+                color: CameraColors.control,
               ),
               child: _control(
                 label: 'Trocar câmera',
@@ -1340,14 +1369,6 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
   }
 }
 
-/// The camera's own dark chrome, measured on PNG 10 to 12 (SPEC 0211). The
-/// camera draws it in every theme, as it draws its black panel.
-abstract final class _CameraInk {
-  static const muted = Color(0xFFBDBDBD);
-  static const control = Color(0xFF262626);
-  static const pill = Color(0xD1000000);
-}
-
 class _GuidancePill extends StatelessWidget {
   const _GuidancePill({required this.guidance});
 
@@ -1359,8 +1380,8 @@ class _GuidancePill extends StatelessWidget {
       key: const ValueKey('guided-camera-banner'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: _CameraInk.pill,
-        borderRadius: BorderRadius.circular(8),
+        color: CameraColors.pill,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         guidance.message,
@@ -1483,7 +1504,7 @@ class _ShutterFace extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: lit ? Colors.white : const Color(0xFF666666),
+          color: lit ? Colors.white : CameraColors.heldRing,
           width: 4,
         ),
       ),
@@ -1493,7 +1514,7 @@ class _ShutterFace extends StatelessWidget {
         height: size - 16,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: lit ? Colors.white : const Color(0xFF555555),
+          color: lit ? Colors.white : CameraColors.heldDisc,
         ),
       ),
     );

@@ -1,11 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guidance.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart'
     show FrameSide;
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// An A4 sheet's height over its width, portrait.
 const double sheetAspect = 297 / 210;
@@ -264,14 +267,14 @@ class _WarningCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.errorContainer,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.warning_amber_rounded, color: ink),
+            Icon(LucideIcons.triangleAlert, color: ink),
             const SizedBox(height: 4),
             Text(
               warning.title,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 
@@ -84,6 +85,7 @@ class SettingsRowFrame extends StatelessWidget {
     this.subtitle,
     this.subtitleMaxLines,
     this.trailing,
+    this.trailingBelow = false,
     this.dimmed = false,
   });
 
@@ -93,6 +95,10 @@ class SettingsRowFrame extends StatelessWidget {
   final String? subtitle;
   final int? subtitleMaxLines;
   final Widget? trailing;
+
+  /// Puts [trailing] under the title at the row's full width, as at large
+  /// text, where the two no longer fit side by side (SPEC 0265).
+  final bool trailingBelow;
 
   /// Draws the title and the line at 55 %, as PNG 23 greys an unavailable
   /// row (SPEC 0216).
@@ -122,8 +128,8 @@ class SettingsRowFrame extends StatelessWidget {
 
   static TextStyle subtitleStyle(BuildContext context) => AppTypography.resized(
     Theme.of(context).textTheme.bodySmall!,
-    13,
-    height: 18 / 13,
+    14,
+    height: 18 / 14,
   ).copyWith(color: context.palette.onSurfaceVariant);
 
   Color _dim(Color color) => dimmed ? color.withValues(alpha: 0.55) : color;
@@ -135,6 +141,30 @@ class SettingsRowFrame extends StatelessWidget {
     // starts its content under the rule and keeps the whole 56 dp target.
     final rule =
         context.dependOnInheritedWidgetOfExactType<_RuleAbove>()?.width ?? 0;
+    if (trailing != null && trailingBelow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SettingsRowFrame(
+            icon: icon,
+            title: title,
+            titleColor: titleColor,
+            subtitle: subtitle,
+            subtitleMaxLines: subtitleMaxLines,
+            dimmed: dimmed,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.md,
+            ),
+            child: trailing,
+          ),
+        ],
+      );
+    }
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 56),
       child: Padding(
@@ -186,7 +216,7 @@ class SettingsRowFrame extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) ...[
+              if (trailing != null && !trailingBelow) ...[
                 const SizedBox(width: AppSpacing.md),
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -218,7 +248,7 @@ class SettingsGroup extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: palette.highContrast
             ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
             : null,

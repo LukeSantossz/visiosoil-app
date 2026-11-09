@@ -49,7 +49,7 @@ void main() {
         expect(label.style?.fontWeight, FontWeight.w600);
         final container = tester.widget<Container>(find.byType(Container));
         final decoration = container.decoration! as BoxDecoration;
-        expect(decoration.borderRadius, BorderRadius.circular(6));
+        expect(decoration.borderRadius, BorderRadius.circular(8));
         expect(container.constraints?.minHeight, minHeight);
         expect(
           tester.getSize(find.byType(StatusPill)).height,

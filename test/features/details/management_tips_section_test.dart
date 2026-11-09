@@ -354,7 +354,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Este registro foi salvo sem a classe de textura, e as dicas '
+      find.text('Esta análise foi salva sem a classe de textura, e as dicas '
           'dependem dela. Para obtê-las, capture a amostra de novo seguindo o '
           'passo a passo.'),
       findsOneWidget,
@@ -753,7 +753,7 @@ void main() {
       final icon = tester.widget<Icon>(
         find.descendant(of: photo, matching: find.byType(Icon)),
       );
-      expect(icon.icon, Icons.landscape);
+      expect(icon.icon, LucideIcons.mountain);
       expect(icon.color, clay);
       final ground = tester.widget<ColoredBox>(
         find.descendant(of: photo, matching: find.byType(ColoredBox)).first,

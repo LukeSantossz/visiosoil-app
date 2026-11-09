@@ -29,7 +29,7 @@ void main() {
     final line = tester
         .widget<Text>(find.textContaining('aguarda envio'))
         .style!;
-    expect(line.fontSize, 13);
+    expect(line.fontSize, 14);
     expect(line.color, palette.onSurfaceVariant);
   });
 

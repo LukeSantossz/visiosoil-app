@@ -192,8 +192,8 @@ void main() {
     });
   });
 
-  // PNG 33 floats the snackbar 16 dp from the sides and 19 dp above the
-  // footer, in every theme (SPEC 0218).
+  // PNG 33 floats the snackbar 16 dp from the sides and, on the 4 dp grid,
+  // 20 dp above the footer, in every theme (SPEC 0218, SPEC 0265).
   test('snackbar_margins_match_the_mock', () {
     for (final theme in [
       AppTheme.light,
@@ -204,7 +204,7 @@ void main() {
     ]) {
       expect(
         theme.snackBarTheme.insetPadding,
-        const EdgeInsets.fromLTRB(16, 5, 16, 19),
+        const EdgeInsets.fromLTRB(16, 4, 16, 20),
       );
       expect(
         theme.snackBarTheme.contentTextStyle?.leadingDistribution,

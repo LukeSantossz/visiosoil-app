@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_filter_bar.dart';
 import 'package:visiosoil_app/core/features/history/widgets/history_list.dart';
@@ -118,11 +119,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<bool> _showDeleteConfirmation(int count) {
-    final itemLabel = count == 1 ? 'registro' : 'registros';
+    final itemLabel = count == 1 ? 'análise' : 'análises';
 
     return confirmDestructiveAction(
       context,
-      title: 'Excluir registros',
+      title: 'Excluir análises',
       message:
           'Tem certeza que deseja excluir $count $itemLabel? Esta ação não pode ser desfeita.',
       confirmLabel: 'Excluir',
@@ -142,10 +143,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void _showDeletionSnackbar(int count) {
     if (!mounted) return;
 
-    final message = count == 1 ? 'registro excluído' : 'registros excluídos';
+    final message = count == 1
+        ? 'Análise excluída.'
+        : '$count análises excluídas.';
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('$count $message.')));
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -189,7 +192,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             if (!_masterDetail) {
               return Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
+                  constraints: const BoxConstraints(
+                    maxWidth: AppLayout.maxContentWidth,
+                  ),
                   child: list,
                 ),
               );
@@ -238,7 +243,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       leading: _isSelectionMode
           ? VisioIconButton(
               label: 'Cancelar seleção',
-              icon: Icons.close,
+              icon: LucideIcons.x,
               onPressed: _cancelSelection,
             )
           : null,
@@ -248,7 +253,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               // (SPEC 0150).
               VisioIconButton(
                 label: 'Comparar selecionados',
-                icon: Icons.compare_arrows,
+                icon: LucideIcons.arrowLeftRight,
                 onPressed: count == 2
                     ? () =>
                           context.push('/compare', extra: _selectedIds.toList())
@@ -256,7 +261,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
               VisioIconButton(
                 label: 'Excluir selecionados',
-                icon: Icons.delete_outline,
+                icon: LucideIcons.trash2,
                 onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                 color: theme.colorScheme.error,
               ),

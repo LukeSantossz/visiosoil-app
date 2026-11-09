@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
+import 'package:visiosoil_app/core/theme/camera_colors.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
@@ -58,7 +60,7 @@ class _PreviewErrorView extends StatelessWidget {
     return Scaffold(
       appBar: const VisioAppBar(),
       body: ErrorState(
-        message: 'Não foi possível carregar o registro.',
+        message: 'Não foi possível carregar a análise.',
         onRetry: onRetry,
       ),
     );
@@ -72,7 +74,7 @@ class _RecordNotFoundView extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       appBar: VisioAppBar(),
-      body: ErrorState(message: 'Registro não encontrado'),
+      body: ErrorState(message: 'Análise não encontrada'),
     );
   }
 }
@@ -86,8 +88,10 @@ class _PreviewContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // The photograph, then what the app knows about it (redesign v11 §3.8,
     // SPEC 0198), on a black canvas with a square photograph as wide as the
-    // screen (PNG 19, SPEC 0202).
-    final width = MediaQuery.sizeOf(context).width;
+    // screen (PNG 19, SPEC 0202), and never taller than 60 % of the screen,
+    // so landscape keeps room for the facts (SPEC 0265).
+    final screen = MediaQuery.sizeOf(context);
+    final photoHeight = math.min(screen.width, 0.6 * screen.height);
     return Theme(
       data: AppTheme.dark,
       child: Scaffold(
@@ -112,14 +116,14 @@ class _PreviewContent extends ConsumerWidget {
         body: ListView(
           children: [
             SizedBox(
-              height: width,
+              height: photoHeight,
               child: _ImageViewer(record: record),
             ),
             _RecordFacts(record: record),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: VisioButton(
-                label: 'Excluir registro',
+                label: 'Excluir análise',
                 icon: LucideIcons.trash2,
                 variant: VisioButtonVariant.destructive,
                 onPressed: () => confirmAndDeleteRecord(context, ref, record),
@@ -154,7 +158,11 @@ class _ImageViewer extends StatelessWidget {
             width: double.infinity,
             height: double.infinity,
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                const Icon(
+                  LucideIcons.imageOff,
+                  color: Colors.white54,
+                  size: 64,
+                ),
           ),
         ),
       ),
@@ -213,14 +221,14 @@ class _RecordFacts extends StatelessWidget {
               constraints: const BoxConstraints(minHeight: 56),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFF333333))),
+                border: Border(bottom: BorderSide(color: CameraColors.edge)),
               ),
               child: Row(
                 children: [
                   Text(
                     label,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFFC8C8C8),
+                      color: CameraColors.label,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),

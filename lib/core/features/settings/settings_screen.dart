@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/constants/app_links.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
@@ -17,6 +18,7 @@ import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
@@ -57,7 +59,9 @@ class SettingsScreen extends ConsumerWidget {
       appBar: const VisioAppBar(title: 'Configurações'),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(
+            maxWidth: AppLayout.maxContentWidth,
+          ),
           // Cards at 16 dp, the first label right under the app bar
           // (PNG 23, SPEC 0204).
           child: ListView(
@@ -194,8 +198,9 @@ class SettingsScreen extends ConsumerWidget {
                       color: SettingsRowFrame.iconColor(context),
                     ),
                     title: 'Tamanho do texto',
+                    trailingBelow: isLargeText(context),
                     trailing: SegmentedControl<bool>(
-                      compact: true,
+                      compact: !isLargeText(context),
                       semanticLabel: 'Tamanho do texto',
                       value: ref.watch(largeTextProvider),
                       options: const [
@@ -215,7 +220,7 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   SettingsTile(
                     icon: LucideIcons.circleHelp,
-                    title: 'Como fotografar a amostra',
+                    title: 'Como fotografar',
                     onTap: () => context.push('/capture-guide'),
                   ),
                   const _PrivacyPolicyTile(),
@@ -433,8 +438,8 @@ class _AccountTile extends ConsumerWidget {
       title: 'Excluir conta',
       message:
           'Sua conta Google será desconectada do VisioSoil e o acesso '
-          'concedido ao app será revogado. Seus registros de solo continuam '
-          'neste aparelho; para apagá-los, use "Limpar dados do aparelho".',
+          'concedido ao app será revogado. Suas análises de solo continuam '
+          'neste aparelho; para apagá-las, use "Limpar dados do aparelho".',
       confirmLabel: 'Excluir conta',
     );
     if (!confirmed || !context.mounted) return;

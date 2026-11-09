@@ -66,9 +66,9 @@ void main() {
       );
       final value = tester.widget<Text>(find.text('90%'));
       final label = tester.widget<Text>(find.text('última confiança'));
-      // 24 sp weight 650 over a 12 sp label (PNG 08, SPEC 0203).
-      expect(value.style?.fontSize, 24);
-      expect(value.style?.height, 32 / 24);
+      // 22 sp weight 650 over a 12 sp label (PNG 08, SPEC 0203, SPEC 0265).
+      expect(value.style?.fontSize, 22);
+      expect(value.style?.height, 32 / 22);
       expect(
         value.style?.fontFeatures,
         contains(const FontFeature.tabularFigures()),

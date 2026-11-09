@@ -40,7 +40,7 @@ void main() {
         isClassifying: false,
       )));
 
-      expect(find.text('Selecione uma imagem'), findsOneWidget);
+      expect(find.text('Fotografe a amostra'), findsOneWidget);
     });
 
     // The soil sample replaces the photograph once it is cut (SPEC 0172).
@@ -372,7 +372,7 @@ void main() {
       )));
 
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.text('Salvar análise'), findsNothing);
     });
 
     testWidgets('shows save and discard once an image exists', (tester) async {
@@ -385,7 +385,7 @@ void main() {
         onDiscard: () {},
       )));
 
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
       expect(find.text('Tirar outra foto'), findsOneWidget);
       expect(find.text('Descartar'), findsOneWidget);
       expect(find.text('Câmera'), findsNothing);
@@ -405,7 +405,7 @@ void main() {
       // assert the disabled state through the widget's own onPressed.
       final saveButton = tester.widget<VisioButton>(
         find.byWidgetPredicate(
-          (w) => w is VisioButton && w.label == 'Salvar registro',
+          (w) => w is VisioButton && w.label == 'Salvar análise',
         ),
       );
       expect(saveButton.onPressed, isNull,
@@ -492,7 +492,7 @@ void main() {
     );
     expect(
       button('Tirar outra foto').top,
-      greaterThan(button('Salvar registro').bottom),
+      greaterThan(button('Salvar análise').bottom),
     );
   });
 

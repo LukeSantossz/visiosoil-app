@@ -3,6 +3,7 @@ import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 
@@ -53,7 +54,7 @@ class _ProcessingViewState extends State<ProcessingView> {
         children: [
           // PNG 13 sets the triangle 12.5 dp higher than the 32 dp gap did
           // (SPEC 0211).
-          const SizedBox(height: 19.5),
+          const SizedBox(height: 20),
           // The triangle's box keeps room under its labels that PNG 13 does
           // not: the chip sits 21.5 dp higher on a 300 dp triangle.
           Align(
@@ -77,12 +78,12 @@ class _ProcessingViewState extends State<ProcessingView> {
                 ? Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
+                        horizontal: 12,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: palette.selected,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                         border: palette.isSun
                             ? Border.all(
                                 color: palette.outline,
@@ -109,7 +110,7 @@ class _ProcessingViewState extends State<ProcessingView> {
                   )
                 : null,
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             AppStrings.processingTitle,
             textAlign: TextAlign.center,

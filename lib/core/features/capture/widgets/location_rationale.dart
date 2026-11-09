@@ -11,7 +11,7 @@ class LocationRationale extends StatefulWidget {
 
   static const String message =
       'A localização do aparelho marca onde a amostra foi coletada. '
-      'Sem ela, o registro é salvo sem coordenadas.';
+      'Sem ela, a análise é salva sem coordenadas.';
 
   /// Reads the location permission; defaults to
   /// [PermissionService.checkLocation]. Injected so tests can answer without

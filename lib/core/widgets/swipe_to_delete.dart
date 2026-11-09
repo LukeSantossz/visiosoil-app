@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -179,9 +180,9 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
                                   label: 'Excluir',
                                   child: InkWell(
                                     onTap: _delete,
-                                    child: const Center(
+                                    child: Center(
                                       child: Padding(
-                                        padding: EdgeInsets.symmetric(
+                                        padding: const EdgeInsets.symmetric(
                                           horizontal: AppSpacing.xs,
                                         ),
                                         child: FittedBox(
@@ -190,15 +191,17 @@ class _SwipeToDeleteState extends State<SwipeToDelete> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                Icons.delete_outline,
-                                                color: Colors.white,
+                                                LucideIcons.trash2,
+                                                color: palette.onDestructive,
                                                 size: 18,
                                               ),
-                                              SizedBox(width: AppSpacing.xs),
+                                              const SizedBox(
+                                                width: AppSpacing.xs,
+                                              ),
                                               Text(
                                                 'Excluir',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: palette.onDestructive,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),

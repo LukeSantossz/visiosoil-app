@@ -30,7 +30,7 @@ class OfflineBanner extends StatelessWidget {
         child: Container(
           key: const ValueKey('offline-card'),
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 43, 20, 23.5),
+          padding: const EdgeInsets.fromLTRB(20, 44, 20, AppSpacing.xl),
           decoration: BoxDecoration(
             color: palette.surface,
             borderRadius: AppRadius.borderRadiusLg,
@@ -59,7 +59,7 @@ class OfflineBanner extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 23.5),
+              const SizedBox(height: AppSpacing.xl),
               Text(
                 'Sem conexão',
                 textAlign: TextAlign.center,
@@ -68,7 +68,7 @@ class OfflineBanner extends StatelessWidget {
                   400,
                 ).copyWith(color: palette.onSurface),
               ),
-              const SizedBox(height: 4.5),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 switch (pendingCount) {
                   null => 'Tudo continua salvo neste aparelho.',
@@ -80,8 +80,8 @@ class OfflineBanner extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: AppTypography.resized(
                   text.bodySmall!,
-                  13,
-                  height: 18.5 / 13,
+                  14,
+                  height: 18.5 / 14,
                 ).copyWith(color: palette.onSurfaceVariant),
               ),
             ],

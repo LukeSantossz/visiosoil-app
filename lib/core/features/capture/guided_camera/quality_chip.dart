@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
+import 'package:visiosoil_app/core/theme/camera_colors.dart';
 
 enum QualityStatus { failed, adjusting, ready }
 
@@ -33,10 +36,10 @@ class QualityChip extends StatelessWidget {
   final QualityStatus status;
   final bool highlight;
 
-  static const _fill = Color(0xFF1C1C1C);
-  static const _edge = Color(0xFF333333);
-  static const _readyEdge = Color(0xFF3C5E46);
-  static const _muted = Color(0xFFBDBDBD);
+  static const _fill = CameraColors.chipFill;
+  static const _edge = CameraColors.edge;
+  static const _readyEdge = CameraColors.readyEdge;
+  static const _muted = CameraColors.muted;
 
   @override
   Widget build(BuildContext context) {
@@ -68,12 +71,12 @@ class QualityChip extends StatelessWidget {
         // A refused chip's thicker edge eats into its padding, so the chip
         // keeps its size and the panel does not move (PNG 12).
         padding: EdgeInsets.symmetric(
-          horizontal: 10 - inset,
+          horizontal: 12 - inset,
           vertical: 8 - inset,
         ),
         decoration: BoxDecoration(
           color: sun ? palette.surface : _fill,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: highlight
                 ? (sun ? palette.warning : dark.warning)
@@ -90,15 +93,15 @@ class QualityChip extends StatelessWidget {
             Row(
               children: [
                 Icon(icon, size: 16, color: iconColour),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     label,
                     style:
                         AppTypography.resized(
                           text.labelLarge!,
-                          13,
-                          height: 15 / 13,
+                          14,
+                          height: 15 / 14,
                         ).copyWith(
                           color: sun ? palette.onSurface : Colors.white,
                           letterSpacing: 0,

@@ -73,14 +73,10 @@ abstract final class AppTypography {
   static TextStyle get headlineMedium =>
       _inter(28, 650, height: 36 / 28, letterSpacing: -0.7);
 
-  /// The large title Início and Perfil open with: `headlineMedium` at 29 sp,
-  /// which PNG 08 and 21 measure 3 % wider than the 28 sp headline
-  /// (SPEC 0210).
-  static TextStyle pageTitle(BuildContext context) => resized(
-    Theme.of(context).textTheme.headlineMedium!,
-    29,
-    height: 36 / 29,
-  ).copyWith(letterSpacing: -0.725);
+  /// The large title Início and Perfil open with: `headlineMedium`. SPEC 0210
+  /// drew it at 29 sp, and SPEC 0265 put it back on the type scale.
+  static TextStyle pageTitle(BuildContext context) =>
+      Theme.of(context).textTheme.headlineMedium!;
 
   static TextStyle get headlineSmall =>
       _inter(22, 650, height: 28 / 22, letterSpacing: -0.55);

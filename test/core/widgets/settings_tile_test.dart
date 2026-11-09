@@ -47,7 +47,7 @@ void main() {
     expect(title.style?.fontWeight, FontWeight.w500);
     expect(
       tester.widget<Text>(find.text('Distância em cm')).style?.fontSize,
-      13,
+      14,
     );
     final chevron = tester.widget<Icon>(find.byIcon(LucideIcons.chevronRight));
     expect(chevron.color, AppPalette.light.textTertiary);

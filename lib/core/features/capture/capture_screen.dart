@@ -25,6 +25,7 @@ import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/location_service.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
@@ -375,7 +376,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       );
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível salvar o registro. Tente novamente.'),
+          content: Text('Não foi possível salvar a análise. Tente novamente.'),
         ),
       );
       return;
@@ -723,6 +724,59 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final image = selectedImage.file;
     final hasImage = selectedImage.hasImage;
 
+    final Widget preview = _state.isClassifying
+        ? ProcessingView(
+            key: ValueKey(_state.generation),
+            highlightClass: _processingClass,
+            phaseLabel: switch (_state.classificationPhase) {
+              null => 'Classificando...',
+              ClassificationPhase.readingPhotograph => 'Lendo a foto...',
+              ClassificationPhase.findingSheet => 'Procurando a folha A4...',
+              ClassificationPhase.describingTexture =>
+                'Descrevendo a textura...',
+              ClassificationPhase.scoring => 'Calculando a classe...',
+            },
+            onSettled: () {
+              final settlement = _settlement;
+              if (settlement != null && !settlement.isCompleted) {
+                settlement.complete();
+              }
+            },
+          )
+        : CaptureImagePreview(
+            image: image,
+            // Cut once the classification is done, so the two do not
+            // compete for the phone (SPEC 0172).
+            sample: image == null || _state.isClassifying
+                ? null
+                : ref.watch(soilSampleProvider(image.path)).value,
+            isLoading: _state.isLocating,
+            isClassifying: _state.isClassifying,
+            classificationPhase: _state.classificationPhase,
+            address: _state.address,
+            latitude: _state.latitude,
+            longitude: _state.longitude,
+            classificationResult: _state.classificationResult,
+            classificationFailed: _state.classificationFailed,
+            classificationFailureCause: _state.classificationFailureCause,
+          );
+    final actions = CaptureActions(
+      hasImage: hasImage,
+      // With a photograph only once its save has failed; Save retries it
+      // (SPEC 0219).
+      isBusy: _state.isClassifying || _state.isSaving,
+      onCapture: _pickImage,
+      onSave: _retrySave,
+      onRetake: _pickImage,
+      onDiscard: _discardImage,
+    );
+    // On a short screen or at large text the photograph cannot fill what
+    // the actions leave, so the body scrolls: the photograph in a 4:3 box,
+    // the actions below it (SPEC 0265).
+    final scrolls =
+        !_state.isClassifying &&
+        (isShortScreen(context) || isLargeText(context));
+
     // Handing the saved record to details replaces this route instead of
     // popping it (SPEC 0132), so only back runs this.
     return PopScope(
@@ -745,14 +799,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             backgroundColor: _state.isClassifying ? Colors.transparent : null,
             appBar: VisioAppBar(
               backgroundColor: _state.isClassifying ? Colors.transparent : null,
-              title: _state.isClassifying ? 'Resultado' : 'Nova captura',
-              centerTitle: !_state.isClassifying,
+              title: _state.isClassifying ? 'Resultado' : 'Nova análise',
               leading: _state.isClassifying
                   // The capture is saved, so back leaves it to finish
                   // (SPEC 0219).
                   ? VisioIconButton(
                       label: 'Voltar',
-                      icon: Icons.arrow_back,
+                      icon: LucideIcons.arrowLeft,
                       onPressed: () => Navigator.maybePop(context),
                     )
                   : null,
@@ -762,78 +815,39 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                       // The protocol on demand; it returns here and opens no camera
                       // (SPEC 0142).
                       VisioIconButton(
-                        label: 'Como capturar',
-                        icon: Icons.help_outline,
+                        label: 'Como fotografar',
+                        icon: LucideIcons.circleHelp,
                         onPressed: () => context.push('/capture-guide'),
                       ),
                     ],
             ),
             body: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _state.isClassifying
-                          ? ProcessingView(
-                              key: ValueKey(_state.generation),
-                              highlightClass: _processingClass,
-                              phaseLabel: switch (_state.classificationPhase) {
-                                null => 'Classificando...',
-                                ClassificationPhase.readingPhotograph =>
-                                  'Lendo a foto...',
-                                ClassificationPhase.findingSheet =>
-                                  'Procurando a folha A4...',
-                                ClassificationPhase.describingTexture =>
-                                  'Descrevendo a textura...',
-                                ClassificationPhase.scoring =>
-                                  'Calculando a classe...',
-                              },
-                              onSettled: () {
-                                final settlement = _settlement;
-                                if (settlement != null &&
-                                    !settlement.isCompleted) {
-                                  settlement.complete();
-                                }
-                              },
-                            )
-                          : CaptureImagePreview(
-                              image: image,
-                              // Cut once the classification is done, so the two do not
-                              // compete for the phone (SPEC 0172).
-                              sample: image == null || _state.isClassifying
-                                  ? null
-                                  : ref
-                                        .watch(soilSampleProvider(image.path))
-                                        .value,
-                              isLoading: _state.isLocating,
-                              isClassifying: _state.isClassifying,
-                              classificationPhase: _state.classificationPhase,
-                              address: _state.address,
-                              latitude: _state.latitude,
-                              longitude: _state.longitude,
-                              classificationResult: _state.classificationResult,
-                              classificationFailed: _state.classificationFailed,
-                              classificationFailureCause:
-                                  _state.classificationFailureCause,
-                            ),
-                    ),
-                    if (!_state.isClassifying) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      CaptureActions(
-                        hasImage: hasImage,
-                        // With a photograph only once its save has failed;
-                        // Save retries it (SPEC 0219).
-                        isBusy: _state.isClassifying || _state.isSaving,
-                        onCapture: _pickImage,
-                        onSave: _retrySave,
-                        onRetake: _pickImage,
-                        onDiscard: _discardImage,
+              child: ContentWidth(
+                child: scrolls
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AspectRatio(aspectRatio: 4 / 3, child: preview),
+                            const SizedBox(height: AppSpacing.lg),
+                            actions,
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: preview),
+                            if (!_state.isClassifying) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              actions,
+                            ],
+                          ],
+                        ),
                       ),
-                    ],
-                  ],
-                ),
               ),
             ),
           ),

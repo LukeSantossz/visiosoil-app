@@ -434,7 +434,7 @@ class _StepPage extends StatelessWidget {
                       Row(
                         children: [
                           for (var i = 0; i < _stepCount; i++) ...[
-                            if (i > 0) const SizedBox(width: 6),
+                            if (i > 0) const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Container(
                                 key: const Key('onboardingStepBar'),

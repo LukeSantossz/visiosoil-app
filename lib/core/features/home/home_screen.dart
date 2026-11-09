@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/features/home/widgets/hero_capture_card.dart';
 import 'package:visiosoil_app/core/features/home/widgets/home_data_error.dart';
@@ -57,7 +58,9 @@ class HomeScreen extends ConsumerWidget {
           child: Center(
             child: ConstrainedBox(
               key: const Key('homeContent'),
-              constraints: const BoxConstraints(maxWidth: 560),
+              constraints: const BoxConstraints(
+                maxWidth: AppLayout.maxContentWidth,
+              ),
               child: CustomPaint(
                 painter: context.density.borderWidth == 2
                     ? null
@@ -109,31 +112,38 @@ class HomeScreen extends ConsumerWidget {
                         children: [
                           const _SectionTitle('Recentes'),
                           if (records.isNotEmpty)
-                            Transform.translate(
-                              offset: const Offset(AppSpacing.sm, 0),
-                              child: VisioButton(
-                                label: 'Ver todas',
-                                variant: VisioButtonVariant.text,
-                                // 14 sp, in ink in Modo Sol (PNG 25,
-                                // SPEC 0213).
-                                // 48 dp, Material's least target, in Modo
-                                // Sol too: its 56 dp would push "Recentes"
-                                // and the list 4 and 8 dp down (PNG 25).
-                                style: const ButtonStyle(
-                                  minimumSize: WidgetStatePropertyAll(
-                                    Size(64, 48),
+                            VisioButton(
+                              label: 'Ver todas',
+                              variant: VisioButtonVariant.text,
+                              // 14 sp, in ink in Modo Sol (PNG 25,
+                              // SPEC 0213).
+                              // 48 dp, Material's least target, in Modo
+                              // Sol too: its 56 dp would push "Recentes"
+                              // and the list 4 and 8 dp down (PNG 25).
+                              // The end padding puts the text 4 dp from the
+                              // card's edge, inside the page (SPEC 0265).
+                              style: const ButtonStyle(
+                                minimumSize: WidgetStatePropertyAll(
+                                  Size(64, 48),
+                                ),
+                                padding: WidgetStatePropertyAll(
+                                  EdgeInsets.fromLTRB(
+                                    AppSpacing.md,
+                                    0,
+                                    AppSpacing.xs,
+                                    0,
                                   ),
                                 ),
-                                labelStyle: TextStyle(
-                                  fontSize: 14,
-                                  color: context.palette.isSun
-                                      ? context.palette.onSurface
-                                      : context.palette.primaryText,
-                                ),
-                                onPressed: () => ref
-                                    .read(mainTabIndexProvider.notifier)
-                                    .select(1),
                               ),
+                              labelStyle: TextStyle(
+                                fontSize: 14,
+                                color: context.palette.isSun
+                                    ? context.palette.onSurface
+                                    : context.palette.primaryText,
+                              ),
+                              onPressed: () => ref
+                                  .read(mainTabIndexProvider.notifier)
+                                  .select(1),
                             ),
                         ],
                       ),
@@ -161,9 +171,9 @@ class HomeScreen extends ConsumerWidget {
                             ? Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   AppSpacing.lg,
-                                  43,
+                                  44,
                                   AppSpacing.lg,
-                                  17,
+                                  16,
                                 ),
                                 child: Column(
                                   children: [
@@ -178,7 +188,7 @@ class HomeScreen extends ConsumerWidget {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 25),
+                                    const SizedBox(height: AppSpacing.xl),
                                     Text(
                                       'Suas análises aparecem aqui.',
                                       style: AppTypography.resized(
@@ -188,14 +198,14 @@ class HomeScreen extends ConsumerWidget {
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: AppSpacing.sm),
                                     Text(
                                       'Fotografe a camada de 0–20 cm, na sombra e sem palha.',
                                       style:
                                           AppTypography.resized(
                                             theme.textTheme.bodyMedium!,
-                                            13,
-                                            height: 18 / 13,
+                                            14,
+                                            height: 18 / 14,
                                           ).copyWith(
                                             color: context
                                                 .palette

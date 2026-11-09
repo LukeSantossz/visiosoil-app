@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
@@ -73,7 +74,7 @@ class CaptureImagePreview extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.add_a_photo,
+                LucideIcons.camera,
                 size: 64,
                 color: theme.colorScheme.onSurfaceVariant.withValues(
                   alpha: 0.5,
@@ -81,7 +82,7 @@ class CaptureImagePreview extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Selecione uma imagem',
+                'Fotografe a amostra',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -192,12 +193,12 @@ class CaptureImagePreview extends StatelessWidget {
   Widget _buildLocationChip() {
     if (isLoading) {
       return _InfoChip(
-        icon: Icons.location_on,
+        icon: LucideIcons.mapPin,
         label: 'Localizando...',
         isLoading: true,
       );
     }
-    return _InfoChip(icon: Icons.location_on, label: _locationLabel());
+    return _InfoChip(icon: LucideIcons.mapPin, label: _locationLabel());
   }
 
   String _locationLabel() {
@@ -218,7 +219,7 @@ class CaptureImagePreview extends StatelessWidget {
   Widget _buildClassificationChip() {
     if (isClassifying) {
       return _InfoChip(
-        icon: Icons.eco,
+        icon: LucideIcons.leaf,
         label: _phaseLabel(classificationPhase),
         isLoading: true,
       );
@@ -227,7 +228,7 @@ class CaptureImagePreview extends StatelessWidget {
       final confidence =
           (classificationResult!.confidenceScore * 100).toStringAsFixed(0);
       return _InfoChip(
-        icon: Icons.eco,
+        icon: LucideIcons.leaf,
         label: '${SoilTextureReference.labelFor(classificationResult!.textureClass)}'
             ' · $confidence%',
       );
@@ -241,10 +242,10 @@ class CaptureImagePreview extends StatelessWidget {
       if (chip.retryable) return _retryChip(chip.label);
       // Running the same file again would return the same cause, so the chip
       // says what to change and offers no tap (SPEC 0105).
-      return _InfoChip(icon: Icons.info_outline, label: chip.label);
+      return _InfoChip(icon: LucideIcons.info, label: chip.label);
     }
     return _InfoChip(
-      icon: Icons.eco_outlined,
+      icon: LucideIcons.leaf,
       label: 'Classificação indisponível',
     );
   }
@@ -273,7 +274,7 @@ class CaptureImagePreview extends StatelessWidget {
                 constraints: const BoxConstraints(minHeight: 48),
                 child: Align(
                   widthFactor: 1,
-                  child: _InfoChip(icon: Icons.refresh, label: label),
+                  child: _InfoChip(icon: LucideIcons.refreshCw, label: label),
                 ),
               ),
             ),

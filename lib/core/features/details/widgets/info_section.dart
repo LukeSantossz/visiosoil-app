@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
@@ -24,7 +25,7 @@ class InfoSection extends StatelessWidget {
         // The true class and the sample, each on its own line when the
         // record has it; the field label is not shown (SPEC 0220).
         _InfoTile(
-          icon: Icons.label_outline,
+          icon: LucideIcons.tag,
           title: 'Identificação',
           value: record.trueTextureClass != null || record.hasLabels
               ? [
@@ -44,7 +45,7 @@ class InfoSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         _InfoTile(
-          icon: Icons.location_on_outlined,
+          icon: LucideIcons.mapPin,
           title: 'Localização',
           value: record.hasValidAddress
               ? record.displayAddress
@@ -56,14 +57,14 @@ class InfoSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         _InfoTile(
-          icon: Icons.calendar_today_outlined,
+          icon: LucideIcons.calendar,
           title: 'Data da coleta',
           value: record.formattedTimestampDotted,
         ),
         if (record.hasClassification) ...[
           const SizedBox(height: AppSpacing.md),
           _InfoTile(
-            icon: Icons.eco_outlined,
+            icon: LucideIcons.leaf,
             title: 'Classe textural',
             value: record.displayTextureClass,
             subtitle: 'Confiança: ${record.formattedConfidence}',

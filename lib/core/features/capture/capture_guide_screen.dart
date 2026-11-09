@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/capture_protocol.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -55,7 +56,7 @@ class _CaptureGuideScreenState extends ConsumerState<CaptureGuideScreen> {
     return PopScope(
       canPop: !_isConfirming,
       child: Scaffold(
-        appBar: const VisioAppBar(title: 'Como capturar'),
+        appBar: const VisioAppBar(title: 'Como fotografar'),
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,7 +91,9 @@ class _CaptureGuideScreenState extends ConsumerState<CaptureGuideScreen> {
                 ),
                 child: VisioButton(
                   label: widget.beforeCamera ? 'Abrir câmera' : 'Entendi',
-                  icon: widget.beforeCamera ? Icons.camera_alt : Icons.check,
+                  icon: widget.beforeCamera
+                      ? LucideIcons.camera
+                      : LucideIcons.check,
                   onPressed: _confirm,
                   expanded: true,
                 ),

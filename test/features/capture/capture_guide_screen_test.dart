@@ -87,7 +87,7 @@ void main() {
     await tester.pumpWidget(_app(FakeCaptureGuideStore(), beforeCamera: true));
     await _open(tester);
 
-    expect(find.text('Como capturar'), findsOneWidget);
+    expect(find.text('Como fotografar'), findsOneWidget);
     var previousTop = double.negativeInfinity;
     for (var i = 0; i < _titles.length; i++) {
       final title = find.text('${i + 1}. ${_titles[i]}');

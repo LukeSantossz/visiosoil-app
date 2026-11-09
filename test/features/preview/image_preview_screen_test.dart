@@ -3,6 +3,7 @@
 // `existsSync()` pre-check. The private `_ImageViewer` is exercised through the
 // public screen, with `soilRecordByIdProvider` overridden to supply the record.
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/services/share_service.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
@@ -92,7 +93,7 @@ void main() {
         null,
       );
       expect(fallback, isA<Icon>());
-      expect((fallback as Icon).icon, Icons.broken_image);
+      expect((fallback as Icon).icon, LucideIcons.imageOff);
     },
   );
 
@@ -119,7 +120,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Análise não encontrada'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsNothing);
   });
 
@@ -149,13 +150,13 @@ void main() {
     testWidgets('preview load error', (tester) async {
       await pumpWith(tester, () async => throw Exception('boom'));
 
-      expectSharedErrorState(tester, 'Não foi possível carregar o registro.');
+      expectSharedErrorState(tester, 'Não foi possível carregar a análise.');
     });
 
     testWidgets('preview not found', (tester) async {
       await pumpWith(tester, () async => null);
 
-      expectSharedErrorState(tester, 'Registro não encontrado');
+      expectSharedErrorState(tester, 'Análise não encontrada');
     });
 
     // Riverpod retries a failing provider on its own until it gives up, which
@@ -224,7 +225,7 @@ void main() {
     expect(find.text('no aparelho · v1.0.0'), findsOneWidget);
     expect(find.byTooltip('Fechar'), findsOneWidget);
     expect(find.byTooltip('Compartilhar'), findsOneWidget);
-    expect(find.text('Excluir registro'), findsOneWidget);
+    expect(find.text('Excluir análise'), findsOneWidget);
   });
 
   testWidgets('a record without coordinates has no coordinates row',
@@ -306,7 +307,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(share.shared, isTrue);
 
-    await tester.tap(find.text('Excluir registro'));
+    await tester.tap(find.text('Excluir análise'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Excluir'));
     await tester.pumpAndSettle();

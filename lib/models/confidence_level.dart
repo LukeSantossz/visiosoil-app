@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 
 /// Confidence ranges for texture classification.
@@ -50,9 +51,9 @@ enum ConfidenceLevel {
 
   /// Icon representing the level.
   IconData get icon => switch (this) {
-        ConfidenceLevel.high => Icons.verified,
-        ConfidenceLevel.moderate => Icons.info_outline,
-        ConfidenceLevel.low => Icons.warning_amber_rounded,
+        ConfidenceLevel.high => LucideIcons.badgeCheck,
+        ConfidenceLevel.moderate => LucideIcons.info,
+        ConfidenceLevel.low => LucideIcons.triangleAlert,
       };
 
   /// Solid semantic accent — not a container color — for progress fills and

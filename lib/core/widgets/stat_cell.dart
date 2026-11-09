@@ -4,6 +4,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 
 /// A single stat card (redesign v11 §4 `StatCell`, PNG 08 as SPEC 0203
 /// measures it): an optional 20 dp [icon] in [color], then a 24 sp [value]
@@ -91,9 +92,9 @@ class StatCell extends StatelessWidget {
                   AppTypography.tabular(
                     AppTypography.weighted(
                       theme.textTheme.headlineMedium!.copyWith(
-                        fontSize: 24,
-                        height: 32 / 24,
-                        letterSpacing: -0.6,
+                        fontSize: 22,
+                        height: 32 / 22,
+                        letterSpacing: -0.55,
                       ),
                       650,
                     ),
@@ -119,7 +120,8 @@ class StatCell extends StatelessWidget {
 }
 
 /// Lays [cells] out in an equal-width row with the design system's spacing
-/// between them (redesign v11 §4 `StatsRow`).
+/// between them (redesign v11 §4 `StatsRow`), and one above the other at
+/// large text, where a third of the row no longer holds a label (SPEC 0265).
 class StatsRow extends StatelessWidget {
   const StatsRow({super.key, required this.cells, this.minHeight = 0});
 
@@ -131,6 +133,17 @@ class StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isLargeText(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cells.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.sm),
+            cells[i],
+          ],
+        ],
+      );
+    }
     // Every card takes the tallest one's height, and at least [minHeight].
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: minHeight),
@@ -212,7 +225,7 @@ class _StatCellSkeletonContentState extends State<_StatCellSkeletonContent>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               bar(14, 14),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.sm),
               bar(32, 20),
               const SizedBox(height: 4),
               bar(48, 12),

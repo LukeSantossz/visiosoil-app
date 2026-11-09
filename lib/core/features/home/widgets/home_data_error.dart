@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 
@@ -12,7 +13,7 @@ class HomeDataError extends StatelessWidget {
     liveRegion: true,
     child: Column(
       children: [
-        const Icon(Icons.error_outline),
+        const Icon(LucideIcons.circleAlert),
         const SizedBox(height: AppSpacing.md),
         const Text(
           'Não foi possível carregar suas análises.',

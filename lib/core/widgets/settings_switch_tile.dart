@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 
 /// A settings row with a trailing switch (redesign v11 §4 `SettingsSwitchTile`):
@@ -106,10 +108,10 @@ class _Thumb extends StatelessWidget {
         decoration: BoxDecoration(
           color:
               track ?? (value ? palette.primary : palette.surfaceContainerHigh),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
             color: palette.isSun
-                ? Colors.black
+                ? palette.onSurface
                 : (value ? palette.primary : palette.outline),
             width: 2,
           ),
@@ -129,9 +131,9 @@ class _Thumb extends StatelessWidget {
             ),
             child: value
                 ? Icon(
-                    Icons.check,
+                    LucideIcons.check,
                     size: 14,
-                    color: palette.isSun ? Colors.black : palette.primary,
+                    color: palette.isSun ? palette.onSurface : palette.primary,
                   )
                 : null,
           ),

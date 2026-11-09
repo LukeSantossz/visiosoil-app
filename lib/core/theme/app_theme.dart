@@ -262,7 +262,7 @@ abstract final class AppTheme {
       behavior: SnackBarBehavior.floating,
       // 16 dp from the sides and 19 dp above the footer, as PNG 33 floats it
       // (SPEC 0218).
-      insetPadding: const EdgeInsets.fromLTRB(16, 5, 16, 19),
+      insetPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: p.surface,

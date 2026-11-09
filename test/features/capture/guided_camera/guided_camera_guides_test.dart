@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_camera.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/capture_guide_overlay.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
-import 'package:visiosoil_app/core/features/capture/guided_camera/guided_camera_screen.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_frame.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart'
@@ -23,13 +22,19 @@ const _scale = 390 / 720;
 const _shownHeight = 1280 * _scale;
 const _originY = (844 - _shownHeight) / 2;
 
-final _layout = CaptureGuideLayout.compute(
-  _screen,
-  topInset: GuidedCameraScreen.topInset,
-  bottomInset: GuidedCameraScreen.bottomInset,
-  preview: const Rect.fromLTWH(0, _originY, 390, _shownHeight),
-);
-final _outline = _layout.outline;
+/// The outline the screen draws, read once the camera is open, since its
+/// inset follows the panel's measured height (SPEC 0265).
+late Rect _outline;
+
+void _readOutline(WidgetTester tester) {
+  final overlay = _overlay(tester);
+  _outline = CaptureGuideLayout.compute(
+    _screen,
+    topInset: overlay.topInset,
+    bottomInset: overlay.bottomInset,
+    preview: const Rect.fromLTWH(0, _originY, 390, _shownHeight),
+  ).outline;
+}
 
 final _warning = find.byKey(const ValueKey('guided-camera-warning'));
 final _ring = find.byKey(const ValueKey('guided-camera-ring'));
@@ -109,6 +114,7 @@ Future<GuidedCameraHarness> _open(WidgetTester tester) async {
   _phone(tester);
   final h = await openGuidedCamera(tester);
   await tiltTo(tester, h, 0);
+  _readOutline(tester);
   return h;
 }
 
@@ -144,6 +150,7 @@ void main() {
     final h = GuidedCameraHarness()..stillSizes.size = const Size(300, 400);
     await openGuidedCamera(tester, harness: h);
     await tiltTo(tester, h, 0);
+    _readOutline(tester);
     final shift = Offset(0.08 * _outline.width, 0);
     await _readTwice(
       tester,

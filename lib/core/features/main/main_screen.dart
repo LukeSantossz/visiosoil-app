@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/features/history/history_screen.dart';
 import 'package:visiosoil_app/core/features/home/home_screen.dart';
 import 'package:visiosoil_app/core/features/main/lost_capture_recovery.dart';
@@ -180,7 +181,9 @@ class _TipsTabState extends ConsumerState<_TipsTab> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
+                    constraints: const BoxConstraints(
+                      maxWidth: AppLayout.maxContentWidth,
+                    ),
                     child: ManagementTipsSection(
                       record: value,
                       asPage: true,

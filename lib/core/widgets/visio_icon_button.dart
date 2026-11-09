@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visiosoil_app/core/theme/camera_colors.dart';
 import 'package:visiosoil_app/core/widgets/press_scale.dart';
 
 /// Standardized VisioSoil icon-only button (SPEC 0131).
@@ -45,9 +46,9 @@ class VisioIconButton extends StatelessWidget {
         onPressed: onPressed,
         statesController: states,
         icon: Icon(icon, size: iconSize),
-        color: overPhoto ? Colors.white : color,
+        color: overPhoto ? CameraColors.onPhoto : color,
         style: overPhoto
-            ? IconButton.styleFrom(backgroundColor: Colors.black45)
+            ? IconButton.styleFrom(backgroundColor: CameraColors.photoScrim)
             : null,
       ),
     );
