@@ -53,8 +53,8 @@ flowchart LR
     DB --> UI[Home, History, Details<br/>reactive streams]
     Corpus[(Bundled corpus)] --> Tips[CorpusResearchService]
     Tips --> UI
-    ML[ml/ release fit] -. spec.json .-> Inf
-    CB[corpus/ build] -. corpus.json .-> Corpus
+    ML[ml/ release fit] -.->|"spec.json"| Inf
+    CB[corpus/ build] -.->|"corpus.json"| Corpus
 ```
 
 Screens read Riverpod providers, which depend on abstract repositories and never on Drift types. The classifier and the corpus each reach the app through one tracked file, written by its Python side-build: `assets/models/spec.json` and `assets/corpus/corpus.json`. Deletes are soft, and a tombstone keeps only what a future sync needs.
