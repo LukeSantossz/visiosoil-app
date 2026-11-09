@@ -88,8 +88,8 @@ class _DateChip extends StatelessWidget {
             AppTypography.weighted(
               AppTypography.resized(
                 Theme.of(context).textTheme.labelMedium!,
-                12.5,
-                height: 15 / 12.5,
+                12,
+                height: 15 / 12,
               ),
               500,
             ).copyWith(
@@ -200,10 +200,13 @@ class _LevelBadge extends StatelessWidget {
         child: Container(
           // As wide as its label, as PNG 14 draws it (SPEC 0210).
           constraints: BoxConstraints(minHeight: palette.isSun ? 28 : 24),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 2,
+          ),
           decoration: BoxDecoration(
             color: fill,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: palette.isSun
                 ? Border.all(color: palette.onSurface, width: 2)
                 : null,

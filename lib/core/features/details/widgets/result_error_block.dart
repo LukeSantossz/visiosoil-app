@@ -56,13 +56,13 @@ class ResultErrorBlock extends StatelessWidget {
               color: palette.onErrorContainer,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             AppStrings.resultErrorTitle,
             textAlign: TextAlign.center,
             style: AppTypography.resized(theme.textTheme.titleMedium!, 18),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             failure == null
                 ? AppStrings.resultErrorWithoutCause

@@ -194,7 +194,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(find.byType(StatsRow), findsNothing);
+      // StatsRow stacks its cells at large text (SPEC 0265).
+      final cells = find.byType(StatCell);
+      expect(cells, findsNWidgets(3));
+      final lefts = {
+        for (var i = 0; i < 3; i++) tester.getTopLeft(cells.at(i)).dx,
+      };
+      expect(lefts, hasLength(1));
     });
     testWidgets('${entry.key} loading has three stat and row skeletons', (
       tester,

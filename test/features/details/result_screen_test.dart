@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/features/details/details_screen.dart';
 import 'package:visiosoil_app/core/features/details/management_tips_section.dart';
@@ -264,7 +265,7 @@ void main() {
   testWidgets('app_bar_shares', (tester) async {
     await _pump(tester, _classified());
     expect(find.byTooltip('Compartilhar'), findsOneWidget);
-    expect(find.byTooltip('Nova captura'), findsNothing);
+    expect(find.byTooltip('Nova análise'), findsNothing);
   });
 
   testWidgets('lattice_only_outside_sun', (tester) async {
@@ -303,7 +304,7 @@ void main() {
     expect(find.byType(InfoSection), findsOneWidget);
     expect(find.bySemanticsLabel('Ampliar foto'), findsOneWidget);
     expect(find.text('Compartilhar'), findsOneWidget);
-    expect(find.text('Excluir registro'), findsOneWidget);
+    expect(find.text('Excluir análise'), findsOneWidget);
     expect(find.byType(ManagementTipsSection), findsNothing);
   });
 
@@ -325,7 +326,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     await _pump(tester, _classified());
 
-    expect(find.byIcon(Icons.bookmark), findsOneWidget);
+    expect(find.byIcon(LucideIcons.bookmark), findsOneWidget);
     // Filled, and a way to remove the record from the saved ones
     // (SPEC 0197).
     expect(find.byTooltip('Remover dos salvos'), findsOneWidget);
@@ -602,7 +603,7 @@ void main() {
         // is shared from the app bar.
         expect(find.bySemanticsLabel('Ampliar foto'), findsNothing);
         expect(find.byTooltip('Compartilhar'), findsOneWidget);
-        expect(find.text('Excluir registro'), findsNothing);
+        expect(find.text('Excluir análise'), findsNothing);
       });
     }
 
@@ -814,7 +815,7 @@ void main() {
     final sun = AppPalette.sun;
 
     final date = tester.widget<Text>(find.text('22/10/2026 · 10:42')).style!;
-    expect(date.fontSize, 12.5);
+    expect(date.fontSize, 12);
     expect(date.fontWeight, FontWeight.w500);
     expect(
       tester.widget<Text>(find.text(AppStrings.confidenceHigh)).style?.color,
@@ -850,7 +851,7 @@ void main() {
       matching: find.text('Visão geral'),
     );
     final style = tester.widget<Text>(label).style!;
-    expect(style.fontSize, 15.5);
+    expect(style.fontSize, 16);
     expect(style.color, AppPalette.sun.onSurface);
     expect(
       tester.getBottomLeft(find.byKey(const ValueKey('result-tab-indicator'))).dy,

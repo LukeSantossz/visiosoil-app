@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/camera_rationale.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/location_rationale.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
@@ -47,7 +48,7 @@ class CaptureActions extends StatelessWidget {
         children: [
           VisioButton(
             label: 'Câmera',
-            icon: Icons.camera_alt,
+            icon: LucideIcons.camera,
             onPressed: onCapture,
             expanded: true,
           ),
@@ -63,8 +64,8 @@ class CaptureActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         VisioButton(
-          label: 'Salvar registro',
-          icon: Icons.check,
+          label: 'Salvar análise',
+          icon: LucideIcons.check,
           onPressed: isBusy ? null : onSave,
           isLoading: isBusy,
           expanded: true,
@@ -74,7 +75,7 @@ class CaptureActions extends StatelessWidget {
         // (SPEC 0147).
         VisioButton(
           label: 'Tirar outra foto',
-          icon: Icons.camera_alt,
+          icon: LucideIcons.camera,
           onPressed: isBusy ? null : onRetake,
           variant: VisioButtonVariant.secondary,
           expanded: true,
@@ -84,7 +85,7 @@ class CaptureActions extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         VisioButton(
           label: 'Descartar',
-          icon: Icons.close,
+          icon: LucideIcons.x,
           onPressed: onDiscard,
           variant: VisioButtonVariant.secondary,
           expanded: true,

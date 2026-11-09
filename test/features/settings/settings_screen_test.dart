@@ -863,7 +863,7 @@ void main() {
     });
   }
 
-  // "Como capturar bem" opens the capture guide, which returns to Settings
+  // "Como fotografar" opens the capture guide, which returns to Settings
   // with no camera (SPEC 0142).
   testWidgets('guide_reachable_on_demand from settings', (tester) async {
     final store = FakeCaptureGuideStore();
@@ -886,10 +886,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Como fotografar a amostra').hitTestable(),
+      find.text('Como fotografar').hitTestable(),
       200,
     );
-    await tester.tap(find.text('Como fotografar a amostra'));
+    await tester.tap(find.text('Como fotografar'));
     await tester.pumpAndSettle();
     expect(find.byType(CaptureGuideScreen), findsOneWidget);
     expect(find.text('ONBOARDING_STUB'), findsNothing);

@@ -21,6 +21,7 @@ import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/widgets/confirm_destructive_action.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -74,7 +75,7 @@ class _DetailsErrorView extends StatelessWidget {
     return Scaffold(
       appBar: const VisioAppBar(title: 'Detalhes'),
       body: ErrorState(
-        message: 'Não foi possível carregar o registro.',
+        message: 'Não foi possível carregar a análise.',
         onRetry: onRetry,
       ),
     );
@@ -91,7 +92,7 @@ class _RecordNotFoundView extends StatelessWidget {
     // The shared error state, with nothing to retry (SPEC 0124).
     return const Scaffold(
       appBar: VisioAppBar(title: 'Detalhes'),
-      body: ErrorState(message: 'Registro não encontrado'),
+      body: ErrorState(message: 'Análise não encontrada'),
     );
   }
 }
@@ -229,7 +230,7 @@ class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
       scale: _scale,
       child: VisioIconButton(
         label: AppStrings.resultRemoveSaved,
-        icon: Icons.bookmark,
+        icon: LucideIcons.bookmark,
         color: context.palette.onSurface,
         onPressed: () {
           unawaited(AppHaptics.selection());
@@ -396,8 +397,7 @@ class _ResultContentState extends State<ResultContent>
     // large text, so there it ends the scrolling body (SPEC 0197).
     final inlineFooter =
         footer != null &&
-        (MediaQuery.sizeOf(context).height < 600 ||
-            MediaQuery.textScalerOf(context).scale(1) >= 1.3);
+        (MediaQuery.sizeOf(context).height < 600 || isLargeText(context));
     // 17 dp from the header to the tabs; the tab content starts on the rule.
     // Modo Sol's taller tab target takes its extra height from the gap
     // above, so the labels keep light mode's place (PNG 26, SPEC 0212).
@@ -421,7 +421,7 @@ class _ResultContentState extends State<ResultContent>
                 top: false,
                 sliver: SliverPadding(
                   padding: EdgeInsets.only(
-                    top: classified ? 169 : 44,
+                    top: classified ? 168 : 44,
                     bottom: AppSpacing.xxl,
                   ),
                   sliver: SliverToBoxAdapter(
@@ -665,7 +665,7 @@ class _SamplePhoto extends StatelessWidget {
                     color: context.palette.surfaceVariant,
                     child: Center(
                       child: Icon(
-                        Icons.broken_image,
+                        LucideIcons.imageOff,
                         size: 48,
                         color: context.palette.onSurfaceVariant,
                       ),
@@ -706,16 +706,16 @@ class _ActionButtons extends ConsumerWidget {
         // Share
         OutlinedButton.icon(
           onPressed: () => shareRecordWithConsent(context, ref, record),
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(LucideIcons.share2),
           label: const Text('Compartilhar'),
         ),
         // Delete keeps 24 dp from Share against a mis-tap (SPEC 0118).
         const SizedBox(height: AppSpacing.xl),
         // Delete
         VisioButton(
-          label: 'Excluir registro',
+          label: 'Excluir análise',
           onPressed: () => confirmAndDeleteRecord(context, ref, record),
-          icon: Icons.delete_outline,
+          icon: LucideIcons.trash2,
           variant: VisioButtonVariant.destructive,
         ),
       ],
@@ -724,7 +724,7 @@ class _ActionButtons extends ConsumerWidget {
 }
 
 /// Asks before deleting [record], then deletes it and returns home; from
-/// "Excluir registro" and from the saved bookmark (SPEC 0197).
+/// "Excluir análise" and from the saved bookmark (SPEC 0197).
 Future<void> confirmAndDeleteRecord(
   BuildContext context,
   WidgetRef ref,
@@ -732,9 +732,9 @@ Future<void> confirmAndDeleteRecord(
 ) async {
   final confirmed = await confirmDestructiveAction(
     context,
-    title: 'Excluir registro',
+    title: 'Excluir análise',
     message:
-        'Tem certeza que deseja excluir este registro? '
+        'Tem certeza que deseja excluir esta análise? '
         'Esta ação não pode ser desfeita.',
     confirmLabel: 'Excluir',
   );
@@ -744,7 +744,7 @@ Future<void> confirmAndDeleteRecord(
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
+      ).showSnackBar(const SnackBar(content: Text('Análise excluída.')));
       context.go('/');
     }
   }
@@ -795,7 +795,7 @@ Future<void> shareRecordWithConsent(
   } catch (_) {
     messenger.showSnackBar(
       const SnackBar(
-        content: Text('Não foi possível compartilhar o registro.'),
+        content: Text('Não foi possível compartilhar a análise.'),
       ),
     );
   }

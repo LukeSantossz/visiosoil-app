@@ -14,8 +14,8 @@ import 'app_colors.dart';
 /// mode [primary] is a pale accent, which must not become a large fill.
 ///
 /// Extended tokens outside M3 ([primaryText], [textTertiary], [divider],
-/// [selected], [destructive], [surfaceContainer], [surfaceContainerHigh]) are
-/// present in all palettes for the redesign (v11 §1.1).
+/// [selected], [destructive], [onDestructive], [surfaceContainer],
+/// [surfaceContainerHigh]) are present in all palettes for the redesign (v11 §1.1).
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -64,6 +64,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.statusPending,
     required this.statusError,
     required this.destructive,
+    this.onDestructive = const Color(0xFFFFFFFF),
     required this.surfaceContainer,
     required this.surfaceContainerHigh,
     this.brand = AppColors.primary,
@@ -140,6 +141,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Destructive action colour (delete button in swipe).
   final Color destructive;
+
+  /// Text and icons on [destructive] (SPEC 0265).
+  final Color onDestructive;
 
   /// M3 surfaceContainer (--surf2 in mock).
   final Color surfaceContainer;
@@ -492,6 +496,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       statusPending: statusPending,
       statusError: statusError,
       destructive: destructive,
+      onDestructive: onDestructive,
       surfaceContainer: surfaceContainer,
       surfaceContainerHigh: surfaceContainerHigh,
       brand: brand,
@@ -554,6 +559,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       statusPending: mix(statusPending, other.statusPending),
       statusError: mix(statusError, other.statusError),
       destructive: mix(destructive, other.destructive),
+      onDestructive: mix(onDestructive, other.onDestructive),
       surfaceContainer: mix(surfaceContainer, other.surfaceContainer),
       surfaceContainerHigh:
           mix(surfaceContainerHigh, other.surfaceContainerHigh),

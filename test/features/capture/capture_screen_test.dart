@@ -471,15 +471,15 @@ void main() {
       await capture(tester);
 
       expect(
-        find.text('Não foi possível salvar o registro. Tente novamente.'),
+        find.text('Não foi possível salvar a análise. Tente novamente.'),
         findsOneWidget,
       );
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
       expect(shownPath(tester), samplePath);
       expect(classified, isEmpty, reason: 'nothing to write a result into');
 
       repository.throwOnCreate = false;
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.text('Salvar análise'));
       await handOver(tester);
 
       expect(repository.createCalls, hasLength(2));
@@ -1137,12 +1137,12 @@ void main() {
       ));
       await openCapture(tester);
       await capture(tester);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
       await tester.pump();
       // The photograph leaves with the page instead of blanking under it.
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
       expect(deleted, isEmpty);
 
       await tester.pumpAndSettle();
@@ -1151,7 +1151,7 @@ void main() {
 
       await openCapture(tester);
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.text('Salvar análise'), findsNothing);
     });
 
     testWidgets('leaving_during_a_save_leaves_the_file_to_the_save',
@@ -1200,7 +1200,7 @@ void main() {
       await openCapture(tester);
 
       expect(find.text('Câmera'), findsOneWidget);
-      expect(find.text('Salvar registro'), findsNothing);
+      expect(find.text('Salvar análise'), findsNothing);
       final uiState =
           (tester.state(find.byType(CaptureScreen)) as dynamic).uiState
               as CaptureUiState;
@@ -1322,7 +1322,7 @@ void main() {
       expect(shownPath(tester), samplePath);
       expect(repository.createCalls, hasLength(1));
       expect(deleted, isEmpty);
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
     });
 
     testWidgets('a_failed_retake_keeps_the_photograph', (tester) async {
@@ -1380,7 +1380,7 @@ void main() {
         expect(find.text('Sem acesso à câmera. A foto atual foi mantida.'),
             findsOneWidget);
         expect(find.text('Acesso à câmera necessário'), findsNothing);
-        expect(find.text('Salvar registro'), findsOneWidget);
+        expect(find.text('Salvar análise'), findsOneWidget);
         expect(shownPath(tester), samplePath);
         expect(deleted, isEmpty);
       });
@@ -1405,7 +1405,7 @@ void main() {
       repository.throwOnCreate = false;
 
       await tester.tap(find.text('Tirar outra foto'));
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.text('Salvar análise'));
       await settle(tester);
       expect(repository.createCalls, hasLength(1),
           reason: 'no save while the camera is open for a retake');
@@ -1438,7 +1438,7 @@ void main() {
         ..throwOnCreate = false
         ..gate = saveGate.future;
 
-      await tester.tap(find.text('Salvar registro'));
+      await tester.tap(find.text('Salvar análise'));
       await tester.tap(find.text('Tirar outra foto'));
       await settle(tester);
       expect(picks, 1, reason: 'no camera while a save is in flight');
@@ -1524,7 +1524,7 @@ void main() {
 
       await capture(tester);
       await tester.pumpAndSettle();
-      expect(find.text('Salvar registro'), findsOneWidget);
+      expect(find.text('Salvar análise'), findsOneWidget);
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     });
@@ -1677,7 +1677,7 @@ void main() {
       await tester.pumpWidget(buildGuided(store, picks));
       await openCapture(tester);
 
-      await tester.tap(find.byTooltip('Como capturar'));
+      await tester.tap(find.byTooltip('Como fotografar'));
       await tester.pumpAndSettle();
       expect(find.byType(CaptureGuideScreen), findsOneWidget);
       expect(find.text('Abrir câmera'), findsNothing);

@@ -89,11 +89,12 @@ void main() {
     expect(text.style?.fontSize, 14);
     expect(text.style?.color, Colors.white);
     final overlay = find.byType(CaptureGuideOverlay);
+    final drawn = tester.widget<CaptureGuideOverlay>(overlay);
     final layout = CaptureGuideLayout.compute(
       tester.getSize(overlay),
       topInset: GuidedCameraScreen.topInset,
-      bottomInset: GuidedCameraScreen.bottomInset,
-      preview: tester.widget<CaptureGuideOverlay>(overlay).preview,
+      bottomInset: drawn.bottomInset,
+      preview: drawn.preview,
     );
     final outlineTop = tester.getTopLeft(overlay).dy + layout.outline.top;
     expect(tester.getBottomLeft(pill).dy, closeTo(outlineTop - 12, 0.5));
@@ -112,7 +113,7 @@ void main() {
     final label = tester.widget<Text>(
       find.descendant(of: chip, matching: find.text('Luz')),
     );
-    expect(label.style?.fontSize, 13);
+    expect(label.style?.fontSize, 14);
     expect(label.style?.fontWeight, FontWeight.w600);
     final value = tester.widget<Text>(
       find.descendant(of: chip, matching: find.text('Baixa')),

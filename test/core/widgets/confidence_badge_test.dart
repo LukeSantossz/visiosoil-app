@@ -6,6 +6,7 @@
 // threshold check.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_theme.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -115,7 +116,7 @@ void main() {
           expect(pill, findsOneWidget);
           final decoration =
               tester.widget<Container>(pill).decoration! as BoxDecoration;
-          expect(decoration.borderRadius, BorderRadius.circular(6));
+          expect(decoration.borderRadius, BorderRadius.circular(8));
           final icon = find.descendant(of: pill, matching: find.byType(Icon));
           expect(icon, findsOneWidget);
           final text = find.descendant(of: pill, matching: find.byType(Text));
@@ -204,7 +205,7 @@ void main() {
   ) async {
     await tester.pumpWidget(host(const ConfidenceBadge(score: 0.95)));
     expect(find.text('95% · Alta'), findsOneWidget);
-    expect(find.byIcon(Icons.verified), findsOneWidget);
+    expect(find.byIcon(LucideIcons.badgeCheck), findsOneWidget);
   });
 
   testWidgets('moderate confidence reads Média, not Moderada', (tester) async {
@@ -215,7 +216,7 @@ void main() {
   testWidgets('low confidence shows the warning icon', (tester) async {
     await tester.pumpWidget(host(const ConfidenceBadge(score: 0.3)));
     expect(find.text('30% · Baixa'), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+    expect(find.byIcon(LucideIcons.triangleAlert), findsOneWidget);
   });
 
   group('the percentage floors so it never crosses into the band above', () {
@@ -252,13 +253,13 @@ void main() {
 
     testWidgets('uses a smaller icon than the full badge', (tester) async {
       await tester.pumpWidget(host(const ConfidenceBadge(score: 0.82)));
-      final fullSize = tester.widget<Icon>(find.byIcon(Icons.verified)).size!;
+      final fullSize = tester.widget<Icon>(find.byIcon(LucideIcons.badgeCheck)).size!;
 
       await tester.pumpWidget(
         host(const ConfidenceBadge(score: 0.82, compact: true)),
       );
       final compactSize = tester
-          .widget<Icon>(find.byIcon(Icons.verified))
+          .widget<Icon>(find.byIcon(LucideIcons.badgeCheck))
           .size!;
 
       expect(compactSize, lessThan(fullSize));

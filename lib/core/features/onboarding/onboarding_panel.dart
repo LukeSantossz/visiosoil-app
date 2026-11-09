@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dar
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 
 /// What a step's panel draws (PNG 02 to 07, SPEC 0206).
 enum OnboardingArt { account, linked, photograph, triangle, camera }
@@ -24,9 +25,12 @@ class OnboardingPanel extends StatelessWidget {
     final sun = palette.isSun;
     final inset = MediaQuery.paddingOf(context).top;
     final screen = MediaQuery.sizeOf(context);
-    // §10 caps the art at 200 dp on a screen that fits within 360 × 640;
-    // a narrow but tall phone keeps the full panel (SPEC 0222).
-    final small = screen.width <= 360 && screen.height <= 640;
+    // On a short screen, as in landscape, the step's text and actions keep
+    // the screen (SPEC 0265).
+    if (isShortScreen(context)) return const SizedBox.shrink();
+    // §10 caps the art at 200 dp on a screen 640 dp tall or less, whatever
+    // its width; a tall phone keeps the full panel (SPEC 0222, SPEC 0265).
+    final small = screen.height <= 640;
     final height = (small ? 200 : 376) + inset;
     final width = screen.width;
     // The art sits on a 200 × 180 dp canvas, so each drawing keeps the
@@ -61,7 +65,7 @@ class OnboardingPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: sun ? palette.background : palette.surfaceContainer,
         border: sun
-            ? const Border(bottom: BorderSide(color: Colors.black, width: 2))
+            ? Border(bottom: BorderSide(color: palette.onSurface, width: 2))
             : null,
       ),
       child: Stack(

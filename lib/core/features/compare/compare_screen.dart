@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -24,7 +26,7 @@ class CompareScreen extends ConsumerWidget {
   final int firstId;
   final int secondId;
 
-  static const _title = 'Comparar registros';
+  static const _title = 'Comparar análises';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,13 +35,17 @@ class CompareScreen extends ConsumerWidget {
 
     // Loading first: a retry reloads while the previous error is still held.
     if (first.isLoading || second.isLoading) {
-      return const Scaffold(body: LoadingIndicator());
+      // The bar stays, so the user can go back while it loads (SPEC 0265).
+      return const Scaffold(
+        appBar: VisioAppBar(title: _title),
+        body: LoadingIndicator(),
+      );
     }
     if (first.hasError || second.hasError) {
       return Scaffold(
         appBar: const VisioAppBar(title: _title),
         body: ErrorState(
-          message: 'Não foi possível carregar os registros.',
+          message: 'Não foi possível carregar as análises.',
           onRetry: () {
             ref.invalidate(soilRecordByIdProvider(firstId));
             ref.invalidate(soilRecordByIdProvider(secondId));
@@ -53,7 +59,7 @@ class CompareScreen extends ConsumerWidget {
       // The shared error state, with nothing to retry (SPEC 0124).
       return const Scaffold(
         appBar: VisioAppBar(title: _title),
-        body: ErrorState(message: 'Registro não encontrado'),
+        body: ErrorState(message: 'Análise não encontrada'),
       );
     }
 
@@ -185,27 +191,35 @@ class _Photograph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final side = MediaQuery.sizeOf(context).width / 2;
+    // Half the width, square, and at most 40 % of the screen's height, so
+    // landscape keeps room for the facts (SPEC 0265).
+    final screen = MediaQuery.sizeOf(context);
+    final side = math.min(screen.width / 2, 0.4 * screen.height);
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     // Not a button: the comparison only reads (SPEC 0150). The identity
     // below names the record, so the photograph says nothing more.
-    return AspectRatio(
-      aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: AppRadius.borderRadiusMd,
-        child: Image.file(
-          File(record.imagePath),
-          fit: BoxFit.cover,
-          cacheWidth: (side * dpr).round(),
-          excludeFromSemantics: true,
-          errorBuilder: (_, _, _) => Container(
-            color: context.palette.surfaceVariant,
-            child: Center(
-              child: Icon(
-                Icons.broken_image,
-                size: 32,
-                color: context.palette.onSurfaceVariant,
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: side),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: ClipRRect(
+            borderRadius: AppRadius.borderRadiusMd,
+            child: Image.file(
+              File(record.imagePath),
+              fit: BoxFit.cover,
+              cacheWidth: (side * dpr).round(),
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => Container(
+                color: context.palette.surfaceVariant,
+                child: Center(
+                  child: Icon(
+                    LucideIcons.imageOff,
+                    size: 32,
+                    color: context.palette.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
           ),

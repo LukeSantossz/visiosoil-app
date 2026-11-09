@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/models/confidence_level.dart';
 
@@ -20,7 +21,6 @@ class ConfidenceBadge extends StatelessWidget {
 
   static const double _height = 24;
   static const double _sunHeight = 28;
-  static const double _pillRadius = 6;
   static const double _sunBorderWidth = 2;
 
   /// Confidence score (0.0 to 1.0).
@@ -69,7 +69,7 @@ class ConfidenceBadge extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           decoration: BoxDecoration(
             color: level.backgroundColor(context.palette),
-            borderRadius: BorderRadius.circular(_pillRadius),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: context.palette.isSun
                 ? Border.all(
                     color: context.palette.onSurface,

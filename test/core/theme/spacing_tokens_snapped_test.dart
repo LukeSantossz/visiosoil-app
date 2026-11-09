@@ -32,9 +32,10 @@ void main() {
     test('hero_capture_card uses compact v11 token radius and spacing', () {
       final src =
           _packed('lib/core/features/home/widgets/hero_capture_card.dart');
-      // 56 dp tall, its insets measured on PNG 08 (SPEC 0203).
+      // 56 dp tall, its insets measured on PNG 08 (SPEC 0203) and put on
+      // the 4 dp grid (SPEC 0265).
       expect(src, contains('minimumSize:constSize(0,56)'));
-      expect(src, contains('fromSTEB(20,0,69,0)'));
+      expect(src, contains('fromSTEB(20,0,68,0)'));
       expect(src, contains('AppRadius.borderRadiusPill'));
       expect(src, isNot(contains('circular(20)')));
       expect(src, isNot(contains('circular(32)')));

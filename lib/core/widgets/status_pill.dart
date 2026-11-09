@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 
 /// The three states a [StatusPill] can show (redesign v11 §4): a record sent
@@ -62,9 +63,9 @@ class StatusPill extends StatelessWidget {
           decoration: BoxDecoration(
             color: status.backgroundColor(palette),
             border: context.palette.isSun
-                ? Border.all(color: Colors.black, width: 2)
+                ? Border.all(color: palette.onSurface, width: 2)
                 : null,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

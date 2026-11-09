@@ -225,7 +225,7 @@ void main() {
       findsNothing,
     );
     // Rows every 64 dp, the rule included (PNG 08, SPEC 0210).
-    expect(tester.getSize(row).height, 63);
+    expect(tester.getSize(row).height, 64);
     expect(
       tester.getSize(
         find.descendant(
@@ -243,7 +243,7 @@ void main() {
 
     expect(find.byTooltip('Buscar'), findsOneWidget);
     expect(find.byTooltip('Filtros'), findsOneWidget);
-    expect(find.byTooltip('Nova captura'), findsNothing);
+    expect(find.byTooltip('Nova análise'), findsNothing);
     expect(find.byTooltip('Selecionar registros'), findsNothing);
     expect(find.byType(TextField), findsNothing);
     expect(find.text('Todas'), findsNothing);
@@ -399,11 +399,11 @@ void main() {
     expect(find.text('Filtrar dicas'), findsOneWidget);
   });
 
-  // SPEC 0210: the page titles, and the empty history of PNG 17.
-  testWidgets('page_titles_are_29_sp', (tester) async {
+  // SPEC 0210 and SPEC 0265: the page titles, and the empty history of PNG 17.
+  testWidgets('page_titles_are_28_sp', (tester) async {
     _phone(tester);
     await _pump(tester, home: const HomeScreen());
-    expect(tester.widget<Text>(find.text('Início')).style?.fontSize, 29);
+    expect(tester.widget<Text>(find.text('Início')).style?.fontSize, 28);
   });
 
   testWidgets('empty_history_matches_the_mock', (tester) async {
@@ -446,7 +446,7 @@ void main() {
       find.descendant(of: row, matching: find.byType(Text)).first,
     );
     expect(title.style?.fontSize, 16);
-    expect(tester.getSize(row).height, 63);
+    expect(tester.getSize(row).height, 64);
     final seeAll = tester.widget<Text>(find.text('Ver todas'));
     final seeAllStyle = DefaultTextStyle.of(
       tester.element(find.text('Ver todas')),

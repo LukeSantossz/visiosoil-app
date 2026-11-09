@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 
 /// The result's underlined tabs (redesign v11 PNG 14, SPEC 0202): the labels
@@ -30,7 +32,7 @@ class ResultTabBar<T> extends StatelessWidget {
     // Modo Sol sets the labels at 15.5/22 (PNG 26, SPEC 0212).
     final base = Theme.of(context).textTheme.titleSmall!;
     final style = palette.isSun
-        ? AppTypography.resized(base, 15.5, height: 22 / 15.5)
+        ? AppTypography.resized(base, 16, height: 22 / 16)
         : base.copyWith(fontWeight: FontWeight.w500);
     return Semantics(
       container: true,
@@ -127,7 +129,7 @@ class _Tab extends StatelessWidget {
                                 : palette.onSurfaceVariant,
                           ),
                   ),
-                  const SizedBox(height: 11),
+                  const SizedBox(height: AppSpacing.md),
                   Container(
                     key: selected
                         ? const ValueKey('result-tab-indicator')
@@ -136,7 +138,7 @@ class _Tab extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: selected ? palette.primaryText : null,
                       borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(3),
+                        top: Radius.circular(AppRadius.xs),
                       ),
                     ),
                   ),

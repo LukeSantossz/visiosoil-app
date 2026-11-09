@@ -5,6 +5,7 @@ import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
 import 'package:visiosoil_app/core/features/capture/widgets/texture_triangle.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 
 /// The result's "Visão geral" tab (redesign v11 §3.6, SPEC 0194): what the
@@ -18,6 +19,10 @@ class ResultOverview extends StatelessWidget {
   });
 
   final SoilRecord record;
+
+  /// The narrowest section that keeps the triangle beside its text: the
+  /// 360 dp mock's, inside the page's 16 dp margins (SPEC 0265).
+  static const double _besideMinWidth = 360 - 2 * AppSpacing.lg;
 
   /// The location is still being read: capture's draft, before a save
   /// (SPEC 0196).
@@ -34,55 +39,73 @@ class ResultOverview extends StatelessWidget {
     final note = theme.textTheme.bodySmall?.copyWith(
       color: context.palette.textTertiary,
     );
+    // The triangle's own box keeps room for its labels around it, so it is
+    // drawn 205 dp wide and shifted to put its base at 116 dp, 17 dp from
+    // the edge, and 3.5 dp up, as PNG 14 and 26 draw it (SPEC 0212).
+    final drawing = SizedBox(
+      width: 150,
+      height: 146,
+      child: OverflowBox(
+        alignment: Alignment.topLeft,
+        minWidth: 205,
+        maxWidth: 205,
+        child: Transform.translate(
+          offset: const Offset(-27, -3.5),
+          child: TextureTriangle(highlightClass: record.textureClass),
+        ),
+      ),
+    );
+    final explanation = [
+      Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: 'A região '),
+            TextSpan(
+              text: record.displayTextureClass,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const TextSpan(text: ' está destacada.'),
+          ],
+        ),
+        style: body,
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Text(AppStrings.textureDiagramDisclaimer, style: note),
+    ];
     // The class's region, never the sample's position (SPEC 0196): a 150 dp
-    // triangle beside its text, as PNG 14 lays it (SPEC 0202).
+    // triangle beside its text, as PNG 14 lays it (SPEC 0202), or above it
+    // where beside it would leave the text too narrow to read (SPEC 0265).
     final triangle = _ResultSection(
       title: AppStrings.resultTriangleTitle,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // The triangle's own box keeps room for its labels around it, so
-          // it is drawn 205 dp wide and shifted to put its base at 116 dp,
-          // 17 dp from the edge, and 3.5 dp up, as PNG 14 and 26 draw it
-          // (SPEC 0212).
-          SizedBox(
-            width: 150,
-            height: 146,
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minWidth: 205,
-              maxWidth: 205,
-              child: Transform.translate(
-                offset: const Offset(-27, -3.5),
-                child: TextureTriangle(highlightClass: record.textureClass),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < _besideMinWidth || isLargeText(context)) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 22),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: 'A região '),
-                      TextSpan(
-                        text: record.displayTextureClass,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const TextSpan(text: ' está destacada.'),
-                    ],
-                  ),
-                  style: body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(AppStrings.textureDiagramDisclaimer, style: note),
+                drawing,
+                const SizedBox(height: AppSpacing.md),
+                ...explanation,
               ],
-            ),
-          ),
-        ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              drawing,
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSpacing.xl),
+                    ...explanation,
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
     final information = [

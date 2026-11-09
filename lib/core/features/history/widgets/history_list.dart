@@ -14,6 +14,7 @@ import 'package:visiosoil_app/core/theme/app_typography.dart';
 import 'package:visiosoil_app/core/theme/soil_texture_colors.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
+import 'package:visiosoil_app/core/widgets/content_width.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/offline_banner.dart';
 import 'package:visiosoil_app/core/widgets/segmented_control.dart';
@@ -127,7 +128,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
             SliverFillRemaining(
               hasScrollBody: false,
               child: EmptyState(
-                icon: Icons.error_outline,
+                icon: LucideIcons.circleAlert,
                 title: 'Não foi possível carregar o histórico.',
                 action: VisioButton(
                   label: 'Tentar de novo',
@@ -167,7 +168,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: EmptyState(
-                    icon: Icons.search_off,
+                    icon: LucideIcons.searchX,
                     title: 'Nenhum resultado',
                     description:
                         'Tente ajustar os filtros ou o termo de busca.',
@@ -186,7 +187,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
               if (visible.length > _shown)
                 SliverToBoxAdapter(
                   child: Text(
-                    'Mostrando os $_shown registros mais recentes de ${visible.length}.',
+                    'Mostrando as $_shown análises mais recentes de ${visible.length}.',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -247,7 +248,7 @@ class _HistoryListState extends ConsumerState<HistoryList> {
                       (AppSpacing.lg + AppSpacing.xs),
                     ),
                     child: VisioButton(
-                      label: 'Mostrar mais registros',
+                      label: 'Mostrar mais análises',
                       variant: VisioButtonVariant.secondary,
                       onPressed: () =>
                           setState(() => _shown += widget.pageSize),
@@ -389,7 +390,10 @@ class _Collection extends StatelessWidget {
                     '${earned ? 'conquistada' : 'não conquistada'}',
                 child: ExcludeSemantics(
                   child: Container(
-                    width: (constraints.maxWidth - AppSpacing.sm) / 2,
+                    // One column at large text (SPEC 0265).
+                    width: isLargeText(context)
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - AppSpacing.sm) / 2,
                     constraints: BoxConstraints(minHeight: context.density.tap),
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
@@ -408,8 +412,8 @@ class _Collection extends StatelessWidget {
                       children: [
                         Icon(
                           earned
-                              ? Icons.check_circle_outline
-                              : Icons.circle_outlined,
+                              ? LucideIcons.circleCheck
+                              : LucideIcons.circle,
                           color: earned
                               ? context.palette.primaryText
                               : context.palette.onSurfaceVariant,
@@ -458,7 +462,7 @@ class _NoRecords extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 31),
+          const SizedBox(height: AppSpacing.xxl),
           Semantics(
             header: true,
             child: Text(
@@ -474,7 +478,7 @@ class _NoRecords extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Suas análises aparecem aqui, agrupadas por data, mesmo sem '
             'internet.',
@@ -485,7 +489,7 @@ class _NoRecords extends StatelessWidget {
               height: 20 / 14,
             ).copyWith(color: palette.onSurfaceVariant),
           ),
-          const SizedBox(height: 21),
+          const SizedBox(height: 20),
           VisioButton(
             label: 'Fazer primeira análise',
             icon: LucideIcons.camera,

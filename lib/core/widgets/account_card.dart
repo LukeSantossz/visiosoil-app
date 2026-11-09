@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
+import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
 
@@ -47,7 +48,7 @@ class AccountCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: palette.highContrast
             ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
             : null,
@@ -91,7 +92,7 @@ class AccountCard extends StatelessWidget {
                             ).copyWith(color: palette.primaryText),
                           ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpacing.lg),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +123,7 @@ class AccountCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.lg),
           child,
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:visiosoil_app/core/theme/app_layout.dart';
 import 'package:visiosoil_app/core/constants/app_strings.dart';
 import 'package:visiosoil_app/core/data/sync/sync_availability.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
@@ -61,7 +62,9 @@ class ProfileScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(
+              maxWidth: AppLayout.maxContentWidth,
+            ),
             // Cards at 16 dp, the title 20 dp in and 12 dp below the safe
             // area (PNG 21, SPEC 0204).
             child: ListView(
@@ -156,7 +159,7 @@ class ProfileScreen extends ConsumerWidget {
                           thickness: context.palette.edgeWidth,
                           color: context.palette.divider,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: AppSpacing.sm),
                         ConstrainedBox(
                           constraints: const BoxConstraints(minHeight: 48),
                           child: Row(
@@ -294,12 +297,6 @@ class ProfileScreen extends ConsumerWidget {
                       title: 'Configurações',
                       subtitle: 'Tema, câmera, dados e acessibilidade',
                       onTap: () => context.push('/settings'),
-                    ),
-                    SettingsTile(
-                      icon: LucideIcons.circleHelp,
-                      title: 'Como fotografar a amostra',
-                      subtitle: 'Luz, distância e preparo',
-                      onTap: () => context.push('/capture-guide'),
                     ),
                     if (account != null)
                       SettingsTile(

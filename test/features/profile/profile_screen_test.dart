@@ -245,7 +245,7 @@ void main() {
 
     expect(find.byType(ListTile), findsNothing);
     expect(find.byType(Card), findsNothing);
-    for (final title in ['Configurações', 'Como fotografar a amostra']) {
+    for (final title in ['Configurações']) {
       expect(
         find.ancestor(
           of: find.text(title),
@@ -282,7 +282,7 @@ void main() {
     final avatar = find.byKey(const Key('account-avatar'));
     final rule = find.byKey(const Key('account-sync-rule'));
     expect(find.descendant(of: card, matching: rule), findsOneWidget);
-    expect(tester.getTopLeft(rule).dy - tester.getBottomLeft(avatar).dy, 16);
+    expect(tester.getTopLeft(rule).dy - tester.getBottomLeft(avatar).dy, 18);
     final icon = find.byIcon(LucideIcons.cloud);
     expect(
       tester.getBottomLeft(card).dy - tester.getCenter(icon).dy,

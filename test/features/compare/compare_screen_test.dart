@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/compare/compare_screen.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
@@ -78,7 +79,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Comparar registros'), findsOneWidget);
+    expect(find.text('Comparar análises'), findsOneWidget);
     expect(find.byType(Image), findsNWidgets(2));
     for (final record in [older, newer]) {
       expect(find.text(record.labelsSummary), findsOneWidget);
@@ -132,7 +133,7 @@ void main() {
     await tester.pumpWidget(appWith(_RecordsById({1: older}), 1, 99));
     await tester.pumpAndSettle();
 
-    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Análise não encontrada'), findsOneWidget);
     expect(find.text(older.labelsSummary), findsNothing);
     expect(find.text('Tentar novamente'), findsNothing);
   });
@@ -142,7 +143,7 @@ void main() {
     await tester.pumpWidget(appWith(repository, 1, 2));
     await tester.pumpAndSettle();
 
-    expect(find.text('Não foi possível carregar os registros.'), findsOneWidget);
+    expect(find.text('Não foi possível carregar as análises.'), findsOneWidget);
 
     repository
       ..fail = false
@@ -176,10 +177,10 @@ void main() {
     await tester.pumpAndSettle();
 
     for (final icon in [
-      Icons.edit,
-      Icons.share_outlined,
-      Icons.delete_outline,
-      Icons.add_a_photo_outlined,
+      LucideIcons.pencil,
+      LucideIcons.share2,
+      LucideIcons.trash2,
+      LucideIcons.camera,
     ]) {
       expect(find.byIcon(icon), findsNothing);
     }
@@ -189,7 +190,7 @@ void main() {
     await tester.tap(find.byType(Image).first);
     await tester.pumpAndSettle();
     expect(find.textContaining('STUB'), findsNothing);
-    expect(find.text('Comparar registros'), findsOneWidget);
+    expect(find.text('Comparar análises'), findsOneWidget);
   });
 
   testWidgets('compare_scales_to_200_percent', (tester) async {

@@ -100,8 +100,8 @@ class AnalysisTile extends StatelessWidget {
     final metadataStyle = showSyncStatus
         ? AppTypography.tabular(
             theme.textTheme.bodySmall!.copyWith(
-              fontSize: 13,
-              height: 18 / 13,
+              fontSize: 14,
+              height: 18 / 14,
               color: palette.onSurfaceVariant,
             ),
           )
@@ -147,7 +147,7 @@ class AnalysisTile extends StatelessWidget {
               padding: showSyncStatus
                   ? const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
-                      vertical: 11.5,
+                      vertical: 12,
                     )
                   : history
                   ? const EdgeInsets.symmetric(vertical: AppSpacing.sm)
@@ -411,7 +411,7 @@ class AnalysisTileSkeleton extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     bar(120, 16),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppSpacing.sm),
                     bar(72, 12),
                   ],
                 ),
@@ -523,10 +523,11 @@ class _Thumbnail extends StatelessWidget {
               duration: AppMotion.durationOf(context, AppMotion.base),
               child: frame != null
                   ? child
-                  : _fallback(textureColor, Icons.landscape),
+                  : _fallback(textureColor, LucideIcons.mountain),
             );
           },
-          errorBuilder: (_, _, _) => _fallback(textureColor, Icons.landscape),
+          errorBuilder: (_, _, _) =>
+              _fallback(textureColor, LucideIcons.mountain),
         ),
       ),
     );
@@ -552,7 +553,7 @@ class _StatusDot extends StatelessWidget {
   static TextStyle? labelStyle(BuildContext context) => Theme.of(context)
       .textTheme
       .bodySmall
-      ?.copyWith(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w600);
+      ?.copyWith(fontSize: 14, height: 18 / 14, fontWeight: FontWeight.w600);
 
   @override
   Widget build(BuildContext context) {
@@ -571,7 +572,7 @@ class _StatusDot extends StatelessWidget {
           height: 7,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.sm),
         Text(status.label, style: labelStyle(context)?.copyWith(color: color)),
       ],
     );
@@ -592,7 +593,11 @@ class _Trailing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (failed) {
-      return Icon(Icons.error_outline, color: context.palette.error, size: 20);
+      return Icon(
+        LucideIcons.circleAlert,
+        color: context.palette.error,
+        size: 20,
+      );
     }
     if (isPending) {
       return const StatusPill(status: StatusPillStatus.pending);
@@ -600,6 +605,6 @@ class _Trailing extends StatelessWidget {
     if (record.confidenceScore != null) {
       return ConfidenceBadge(score: record.confidenceScore, compact: true);
     }
-    return Icon(Icons.chevron_right, color: context.palette.outline);
+    return Icon(LucideIcons.chevronRight, color: context.palette.outline);
   }
 }

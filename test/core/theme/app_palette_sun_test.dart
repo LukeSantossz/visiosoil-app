@@ -118,7 +118,7 @@ void main() {
 
     test('sun_destructive_meets_6_5_to_1', () {
       final p = AppPalette.sun;
-      expect(_contrast(Colors.white, p.destructive), greaterThanOrEqualTo(6.5),
+      expect(_contrast(p.onDestructive, p.destructive), greaterThanOrEqualTo(6.5),
           reason: 'destructive background/text');
     });
   });
@@ -170,7 +170,7 @@ void main() {
 
     test('light_destructive_meets_6_5_to_1', () {
       final p = AppPalette.light;
-      expect(_contrast(Colors.white, p.destructive), greaterThanOrEqualTo(6.5),
+      expect(_contrast(p.onDestructive, p.destructive), greaterThanOrEqualTo(6.5),
           reason: 'destructive background/text');
     });
   });

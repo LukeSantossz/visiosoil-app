@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
@@ -84,7 +85,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               const SizedBox(height: AppSpacing.lg),
               VisioButton(
                 label: 'Exportar',
-                icon: Icons.file_download_outlined,
+                icon: LucideIcons.download,
                 expanded: true,
                 isLoading: _busy,
                 loadingLabel: 'Exportando…',

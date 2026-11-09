@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/services/permission_service.dart';
 import 'package:visiosoil_app/core/widgets/permission_denied_view.dart';
 import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
@@ -25,7 +26,7 @@ class CameraPermissionDeniedView extends StatelessWidget {
     return Scaffold(
       appBar: const VisioAppBar(title: 'Nova análise'),
       body: PermissionDeniedView(
-        icon: Icons.camera_alt,
+        icon: LucideIcons.camera,
         title: isRestricted ? 'Câmera restrita' : 'Acesso à câmera necessário',
         description: isRestricted
             ? 'O acesso à câmera está restrito por configurações do dispositivo (controle parental ou MDM). Contacte o administrador.'

@@ -49,10 +49,10 @@ void main() {
       ('Buscar por endereco', 'Buscar por endereço'),
     ],
     'lib/core/features/capture/capture_screen.dart': [
-      ('Nova Captura', 'Nova captura'),
+      ('Nova Analise', 'Nova análise'),
     ],
     'lib/core/features/capture/widgets/capture_actions.dart': [
-      ('Salvar Registro', 'Salvar registro'),
+      ('Salvar Analise', 'Salvar análise'),
     ],
     // The splash's permission messages left with its requests (SPEC 0099).
     'lib/core/features/splash/splash_screen.dart': [

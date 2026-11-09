@@ -113,12 +113,12 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
     if (!_record.hasClassification || uuid == null) {
       final failure = _record.classificationFailure;
       body = EmptyState(
-        icon: Icons.eco_outlined,
+        icon: LucideIcons.leaf,
         title: 'Solo não classificado',
         description: [
           // The reason first, in the capture chip's words (SPEC 0173).
           if (failure != null) classificationFailureChip(failure).label,
-          'Este registro foi salvo sem a classe de textura, e as dicas '
+          'Esta análise foi salva sem a classe de textura, e as dicas '
               'dependem dela. Para obtê-las, capture a amostra de novo '
               'seguindo o passo a passo.',
         ].join('\n\n'),
@@ -193,12 +193,12 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
 
   Widget _empty() {
     return EmptyState(
-      icon: Icons.tips_and_updates_outlined,
+      icon: LucideIcons.lightbulb,
       title: 'Sem dicas de manejo ainda',
       description: 'Gere dicas com fontes para este solo.',
       action: VisioButton(
         label: 'Gerar dicas',
-        icon: Icons.tips_and_updates_outlined,
+        icon: LucideIcons.lightbulb,
         isLoading: _generating,
         onPressed: _generate,
       ),
@@ -284,7 +284,7 @@ class _TipsData extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
-              'Não encontramos dicas de manejo com fontes confiáveis para este registro.',
+              'Não encontramos dicas de manejo com fontes confiáveis para esta análise.',
               style: theme.textTheme.bodyMedium,
             ),
           )
@@ -323,7 +323,7 @@ class _TipsData extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         VisioButton(
           label: 'Atualizar dicas',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           variant: VisioButtonVariant.secondary,
           expanded: true,
           isLoading: generating,
@@ -501,7 +501,7 @@ class _TipsTimeline extends StatelessWidget {
                   width: AppSpacing.xl,
                   child: Column(
                     children: [
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.sm),
                       Container(
                         key: Key('tips-dot-$g'),
                         width: 12,
@@ -587,7 +587,7 @@ class _PhaseChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: now ? palette.selected : palette.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: palette.highContrast
             ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
             : null,
@@ -647,7 +647,7 @@ class _TipCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: palette.highContrast ? palette.cardBorder : palette.divider,
           width: palette.edgeWidth,
@@ -662,7 +662,7 @@ class _TipCard extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: palette.surfaceContainer,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(
               iconFor(tip.category),
@@ -704,7 +704,7 @@ class _TipCard extends StatelessWidget {
                       ),
                 ),
                 if (source != null) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
                       Icon(
@@ -857,7 +857,7 @@ class _RecordHeader extends StatelessWidget {
     final placeholder = ColoredBox(
       color: textureColor.withValues(alpha: 0.3),
       child: Center(
-        child: Icon(Icons.landscape, color: textureColor, size: 56 * 0.45),
+        child: Icon(LucideIcons.mountain, color: textureColor, size: 56 * 0.45),
       ),
     );
     return Row(
@@ -915,15 +915,15 @@ class _RecordHeader extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: palette.surfaceContainer,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Text(
               Formatters.count(tipCount!, 'dica', 'dicas'),
               style:
                   AppTypography.resized(
                     theme.textTheme.labelMedium!,
-                    13,
-                    height: 18 / 13,
+                    14,
+                    height: 18 / 14,
                   ).copyWith(
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0,

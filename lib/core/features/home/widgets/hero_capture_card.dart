@@ -22,7 +22,7 @@ class HeroCaptureCard extends StatelessWidget {
           alignment: Alignment.centerLeft,
           // 56 dp in every theme, Modo Sol's target included (PNG 08, 25).
           minimumSize: const Size(0, 56),
-          padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 69, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 68, 0),
           backgroundColor: context.palette.surface,
           foregroundColor: context.palette.onSurface,
           side: BorderSide(
@@ -36,7 +36,8 @@ class HeroCaptureCard extends StatelessWidget {
           ),
         ),
         // A 20 dp scan icon 20 dp in, the 17 sp text 16 dp after it, and the
-        // image icon 69 dp from the end, where PNG 08 draws it (SPEC 0203).
+        // image icon 68 dp from the end, on the 4 dp grid nearest where PNG 08
+        // draws it (SPEC 0203, SPEC 0265).
         child: Row(
           children: [
             ExcludeSemantics(

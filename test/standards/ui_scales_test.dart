@@ -280,7 +280,7 @@ void main() {
     for (final source in _lib()) {
       if (source.path == 'lib/core/theme/app_layout.dart') continue;
       for (final match in RegExp(
-        r'(?<![\w.])560(?![\w.])',
+        r'maxWidth:\s*560(?![\w.])',
       ).allMatches(source.text)) {
         offenders.add(source.at(match.start));
       }

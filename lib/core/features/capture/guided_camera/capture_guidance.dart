@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/guide_alignment.dart';
 import 'package:visiosoil_app/core/features/capture/guided_camera/live_reading.dart';
 import 'package:visiosoil_app/core/services/descriptors/a4_sheet.dart';
@@ -44,27 +45,27 @@ Guidance guidanceForTilt(double? tilt) {
     return const Guidance(
       tone: GuidanceTone.neutral,
       message: 'Encaixe a folha no contorno.',
-      icon: Icons.crop_portrait,
+      icon: LucideIcons.rectangleVertical,
     );
   }
   if (tilt <= levelTiltDegrees) {
     return const Guidance(
       tone: GuidanceTone.ready,
       message: 'Nivelado. Encaixe a folha no contorno.',
-      icon: Icons.check_circle_outline,
+      icon: LucideIcons.circleCheck,
     );
   }
   if (tilt <= maxTiltDegrees) {
     return const Guidance(
       tone: GuidanceTone.caution,
       message: 'Quase. Deixe o celular paralelo ao chão.',
-      icon: Icons.warning_amber_rounded,
+      icon: LucideIcons.triangleAlert,
     );
   }
   return const Guidance(
     tone: GuidanceTone.alert,
     message: 'Segure o celular paralelo ao chão, de cima.',
-    icon: Icons.error_outline,
+    icon: LucideIcons.circleAlert,
   );
 }
 
@@ -169,7 +170,7 @@ enum GuidanceRow {
         guidance: const Guidance(
           tone: GuidanceTone.alert,
           message: 'Enquadre a folha A4 inteira no contorno.',
-          icon: Icons.crop_free,
+          icon: LucideIcons.scan,
         ),
       );
     case LiveSheetCropped():
@@ -183,7 +184,7 @@ enum GuidanceRow {
           guidance: const Guidance(
             tone: GuidanceTone.caution,
             message: 'Aproxime o celular da folha.',
-            icon: Icons.zoom_in,
+            icon: LucideIcons.zoomIn,
           ),
         );
       }
@@ -200,7 +201,7 @@ enum GuidanceRow {
           guidance: const Guidance(
             tone: GuidanceTone.caution,
             message: 'Coloque o solo no meio da folha, num círculo de 8 a 10 cm.',
-            icon: Icons.grain,
+            icon: LucideIcons.circleDashed,
           ),
         );
       }
@@ -211,7 +212,7 @@ enum GuidanceRow {
             tone: GuidanceTone.caution,
             message: 'Pouco solo (${_centimetres(discDiameterMm)} cm). '
                 'Espalhe num círculo de 8 a 10 cm.',
-            icon: Icons.blur_circular,
+            icon: LucideIcons.circleDot,
           ),
         );
       }
@@ -225,7 +226,7 @@ enum GuidanceRow {
       tone: GuidanceTone.ready,
       // With no tilt, nothing says the phone is level.
       message: tilt == null ? 'Folha e solo certos.' : 'Pronto. Segure firme.',
-      icon: Icons.check_circle,
+      icon: LucideIcons.circleCheck,
     ),
   );
 }
@@ -273,7 +274,7 @@ bool _oneWayOut(List<FrameSide> sides) {
     guidance: Guidance(
       tone: GuidanceTone.alert,
       message: message,
-      icon: Icons.zoom_out_map,
+      icon: LucideIcons.maximize,
     ),
   );
 }
@@ -290,22 +291,22 @@ Guidance _misaligned(MisalignmentFix fix, FrameSide? arrow) => switch (fix) {
       MisalignmentFix.shift => Guidance(
           tone: GuidanceTone.caution,
           message: 'Leve o celular para ${_towards(arrow!)}.',
-          icon: Icons.open_with,
+          icon: LucideIcons.move,
         ),
       MisalignmentFix.closer => const Guidance(
           tone: GuidanceTone.caution,
           message: 'Aproxime o celular da folha.',
-          icon: Icons.zoom_in,
+          icon: LucideIcons.zoomIn,
         ),
       MisalignmentFix.farther => const Guidance(
           tone: GuidanceTone.caution,
           message: 'Afaste o celular da folha.',
-          icon: Icons.zoom_out_map,
+          icon: LucideIcons.maximize,
         ),
       MisalignmentFix.turn => const Guidance(
           tone: GuidanceTone.caution,
           message: 'Gire o celular até a folha ficar reta no contorno.',
-          icon: Icons.rotate_right,
+          icon: LucideIcons.rotateCw,
         ),
     };
 

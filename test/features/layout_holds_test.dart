@@ -235,6 +235,8 @@ void main() {
     expect(find.text('Como fotografar a amostra'), findsNothing);
     expect(find.text('Como fotografar'), findsNothing);
 
+    // A fresh scope: the two screens override different providers.
+    await tester.pumpWidget(const SizedBox());
     await _pumpSettings(tester);
     await tester.scrollUntilVisible(find.text('Como fotografar'), 200);
     expect(find.text('Como fotografar'), findsOneWidget);

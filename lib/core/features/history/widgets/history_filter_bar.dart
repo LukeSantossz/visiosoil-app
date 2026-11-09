@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/constants/soil_texture_reference.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -60,11 +62,11 @@ class HistoryFilterBar extends ConsumerWidget {
                 controller: searchController,
                 decoration: InputDecoration(
                   hintText: 'Buscar por endereço ou amostra...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  prefixIcon: const Icon(LucideIcons.search, size: 20),
                   suffixIcon: searchTerm.isNotEmpty
                       ? VisioIconButton(
                           label: 'Limpar busca',
-                          icon: Icons.clear,
+                          icon: LucideIcons.x,
                           iconSize: 20,
                           onPressed: onClearSearch,
                         )
@@ -103,7 +105,7 @@ class HistoryFilterBar extends ConsumerWidget {
                     builder: (context, constraints) => Row(
                       children: [
                         Icon(
-                          Icons.error_outline,
+                          LucideIcons.circleAlert,
                           size: 18,
                           color: context.palette.error.withValues(alpha: 0.8),
                         ),
@@ -196,9 +198,9 @@ class _FilterChip extends StatelessWidget {
 
     // The chip's own side animates over 75 ms inside Material. The catalogue
     // wants 140 ms, so the line is drawn in front and the chip draws none.
-    // shrinkWrap keeps that line on the material; the slot keeps the padded
-    // tap target the default chip had (SPEC 0137).
-    final adjustment = VisualDensity.compact.baseSizeAdjustment;
+    // shrinkWrap keeps that line on the material; the slot keeps the tap
+    // target, Modo Sol's 56 dp included (SPEC 0137, SPEC 0265).
+    final target = context.density.tap;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(end: isSelected ? 1 : 0),
       duration: MediaQuery.disableAnimationsOf(context)
@@ -207,10 +209,7 @@ class _FilterChip extends StatelessWidget {
       curve: AppMotion.standard,
       builder: (context, t, _) {
         return _ChipSlot(
-          minTarget: Size(
-            kMinInteractiveDimension + adjustment.dx,
-            kMinInteractiveDimension + adjustment.dy,
-          ),
+          minTarget: Size(target, target),
           child: Container(
             foregroundDecoration: BoxDecoration(
               borderRadius: AppRadius.borderRadiusSm,

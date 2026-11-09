@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/utils/formatters.dart';
 import 'package:visiosoil_app/core/widgets/stat_cell.dart';
 import 'package:visiosoil_app/core/widgets/confidence_badge.dart';
@@ -70,18 +69,6 @@ class StatsGrid extends StatelessWidget {
               icon: LucideIcons.sprout,
             ),
           ];
-    if (MediaQuery.textScalerOf(context).scale(1) >= 1.3) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final cell in cells)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: cell,
-            ),
-        ],
-      );
-    }
     // The cards take the tallest one's content: 104 dp in PNG 09, and 120 dp
     // in PNG 08, where "última confiança" wraps (SPEC 0216). The skeleton holds
     // the empty height, so "Recentes" does not move when the data arrives.

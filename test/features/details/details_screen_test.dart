@@ -258,13 +258,13 @@ void main() {
     await _openDetailsTab(tester);
 
     // Open the shared destructive dialog from the delete action, then confirm.
-    await tester.tap(find.text('Excluir registro'));
+    await tester.tap(find.text('Excluir análise'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Excluir'));
     await tester.pump(); // run the delete + snackbar before navigation settles
 
     expect(repository.deleteByIdCalls, [1]);
-    expect(find.text('Registro excluído.'), findsOneWidget);
+    expect(find.text('Análise excluída.'), findsOneWidget);
 
     await tester.pumpAndSettle();
 
@@ -312,7 +312,7 @@ void main() {
     await tester.pumpAndSettle();
     await _openDetailsTab(tester);
 
-    await tester.tap(find.text('Excluir registro'));
+    await tester.tap(find.text('Excluir análise'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
@@ -333,7 +333,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tentar novamente'), findsOneWidget);
-    expect(find.text('Registro não encontrado'), findsNothing);
+    expect(find.text('Análise não encontrada'), findsNothing);
   });
 
   testWidgets('a null record shows the not-found view with no retry',
@@ -346,7 +346,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Registro não encontrado'), findsOneWidget);
+    expect(find.text('Análise não encontrada'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsNothing);
   });
 
@@ -362,7 +362,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.widgetWithText(ErrorState, 'Registro não encontrado'),
+      find.widgetWithText(ErrorState, 'Análise não encontrada'),
       findsOneWidget,
     );
     expect(find.byType(VisioAppBar), findsOneWidget);
@@ -445,7 +445,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final delete = find.ancestor(
-      of: find.text('Excluir registro'),
+      of: find.text('Excluir análise'),
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
     );
     expect(delete, findsOneWidget);
@@ -486,7 +486,7 @@ void main() {
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
     );
     final delete = find.ancestor(
-      of: find.text('Excluir registro'),
+      of: find.text('Excluir análise'),
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
     );
     expect(
@@ -767,7 +767,7 @@ void main() {
       await _openDetailsTab(tester);
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
       await tester.pumpAndSettle();
-      expect(find.text('Excluir registro').hitTestable(), findsOneWidget);
+      expect(find.text('Excluir análise').hitTestable(), findsOneWidget);
       await expectMeetsGuidelines(tester);
       semantics.dispose();
     });

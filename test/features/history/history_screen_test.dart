@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/core/services/connectivity_service.dart';
 import 'package:visiosoil_app/core/widgets/analysis_tile.dart';
@@ -223,7 +224,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Trigger the delete action, then confirm the shared dialog.
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byIcon(LucideIcons.trash2));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Excluir'));
       await tester.pumpAndSettle();
@@ -231,7 +232,7 @@ void main() {
       expect(repository.deleteByIdsCalls, [
         [7],
       ]);
-      expect(find.text('1 registro excluído.'), findsOneWidget);
+      expect(find.text('Análise excluída.'), findsOneWidget);
     },
   );
 
@@ -245,13 +246,13 @@ void main() {
     await tester.longPress(find.byType(Image));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(LucideIcons.trash2));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
 
     expect(repository.deleteByIdsCalls, isEmpty);
-    expect(find.text('1 registro excluído.'), findsNothing);
+    expect(find.text('Análise excluída.'), findsNothing);
   });
 
   // SPEC 0118: selection-mode buttons are labelled, and a thumbnail is a
@@ -395,7 +396,7 @@ void main() {
     }
 
     IconButton deleteButton(WidgetTester tester) => tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.delete_outline),
+      find.widgetWithIcon(IconButton, LucideIcons.trash2),
     );
 
     testWidgets('selection_has_non_gesture_entry', (tester) async {
@@ -493,7 +494,7 @@ void main() {
     );
 
     IconButton compareButton(WidgetTester tester) => tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.compare_arrows),
+      find.widgetWithIcon(IconButton, LucideIcons.arrowLeftRight),
     );
 
     // Tall enough for all three cards in the two-column grid.
@@ -554,7 +555,7 @@ void main() {
   });
 
   group('browsing past the first page', () {
-    const showMore = 'Mostrar mais registros';
+    const showMore = 'Mostrar mais análises';
     // Ids count..1, newest first; even ids are Argilosa and odd ones Arenosa.
     final all = [
       for (var id = 400; id >= 1; id--)
@@ -631,7 +632,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(shownIds(tester), [for (var id = 400; id > 250; id--) id]);
       expect(
-        find.text('Mostrando os 150 registros mais recentes de 400.'),
+        find.text('Mostrando as 150 análises mais recentes de 400.'),
         findsOneWidget,
       );
 
@@ -639,7 +640,7 @@ void main() {
       expect(shownIds(tester), [for (var id = 400; id > 100; id--) id]);
       await scrollToTop(tester);
       expect(
-        find.text('Mostrando os 300 registros mais recentes de 400.'),
+        find.text('Mostrando as 300 análises mais recentes de 400.'),
         findsOneWidget,
       );
 

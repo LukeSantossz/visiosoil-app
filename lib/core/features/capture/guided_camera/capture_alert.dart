@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
+import 'package:visiosoil_app/core/theme/app_spacing.dart';
 import 'package:visiosoil_app/core/theme/app_typography.dart';
+import 'package:visiosoil_app/core/theme/camera_colors.dart';
 
 /// The failed chip snapshot remains legible for the full warning interval.
 /// Drawn as PNG 12 measures it (SPEC 0211); Modo Sol keeps the theme's
@@ -21,9 +23,9 @@ class CaptureAlert extends StatelessWidget {
   /// What to do about it, in the order PNG 12 lists them.
   final List<String> corrections;
 
-  static const _card = Color(0xFFFFF4E2);
-  static const _ink = Color(0xFF3A2A10);
-  static const _icon = Color(0xFFB26A00);
+  static const _card = CameraColors.alertCard;
+  static const _ink = CameraColors.alertInk;
+  static const _icon = CameraColors.alertIcon;
 
   /// [items] as a Portuguese list, "a, b e c", opening with a capital.
   static String _sentence(List<String> items) {
@@ -50,7 +52,10 @@ class CaptureAlert extends StatelessWidget {
       liveRegion: true,
       child: Container(
         key: const ValueKey('capture-alert'),
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 13),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: sun ? palette.warningContainer : _card,
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -67,7 +72,7 @@ class CaptureAlert extends StatelessWidget {
                 color: sun ? palette.onWarningContainer : _icon,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,8 +91,8 @@ class CaptureAlert extends StatelessWidget {
                     line,
                     style: AppTypography.resized(
                       text.bodyMedium!,
-                      13,
-                      height: 17.5 / 13,
+                      14,
+                      height: 17.5 / 14,
                     ).copyWith(color: ink),
                   ),
                 ],
