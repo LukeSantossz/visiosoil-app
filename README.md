@@ -53,8 +53,8 @@ flowchart LR
     DB --> UI[Home, History, Details<br/>reactive streams]
     Corpus[(Bundled corpus)] --> Tips[CorpusResearchService]
     Tips --> UI
-    ML[ml/ release fit] -. spec.json .-> Inf
-    CB[corpus/ build] -. corpus.json .-> Corpus
+    ML[ml/ release fit] -.->|"spec.json"| Inf
+    CB[corpus/ build] -.->|"corpus.json"| Corpus
 ```
 
 Screens read Riverpod providers, which depend on abstract repositories and never on Drift types. The classifier and the corpus each reach the app through one tracked file, written by its Python side-build: `assets/models/spec.json` and `assets/corpus/corpus.json`. Deletes are soft, and a tombstone keeps only what a future sync needs.
@@ -98,7 +98,7 @@ Each decision is recorded, with its alternatives and reasons, in its ADR under [
 
 ### Prerequisites
 
-- Flutter 3.44.1 with Dart 3.12.1. Another 3.x SDK rewrites `pubspec.lock` and `analysis_options.yaml` on `flutter pub get`.
+- Flutter 3.44.1 with Dart 3.12.1. Another 3.x SDK rewrites `pubspec.lock` on `flutter pub get`.
 - An Android emulator or device, or Xcode for iOS.
 - Python 3.12, only to run the `ml/` or `corpus/` tests.
 - [`mf`](https://github.com/LukeSantossz/my-framework) on `PATH`, only to commit: the hooks run its gates.
@@ -136,6 +136,11 @@ flutter test
 # Python side-builds, each in a Python 3.12 environment with its requirements.txt installed
 (cd ml && python -m pytest tests -q)
 (cd corpus && python -m pytest tests -q)
+
+# Kotlin unit tests for the camera arithmetic (SPEC 0263). They need a release
+# build first, which writes the Gradle wrapper and the plugin registrant
+flutter build apk --release
+(cd android && ./gradlew :app:testReleaseUnitTest --console=plain)
 ```
 
 ### Release Signing (Android)
@@ -215,7 +220,7 @@ visiosoil-app/
 - [x] Light, dark and "Modo Sol" themes, with text scaling and reduced motion honoured
 - [x] Drift persistence at schema v12 with cumulative, tested migrations and soft deletes
 - [x] Sync foundation: uuid, `updated_at`, tombstones, an outbox and `SyncEngine`
-- [x] CI: analysis, the Dart, `ml/` and `corpus/` test suites, the standards gates, a release APK and app bundle, an unsigned iOS build, and a smoke boot of the release APK on Android API 34, 35 and 36
+- [x] CI: analysis, the Dart, `ml/` and `corpus/` test suites, the Kotlin unit tests, the standards gates, a release APK and app bundle, an unsigned iOS build, and a smoke boot of the release APK on Android API 34, 35 and 36
 
 ### Pending
 
@@ -230,9 +235,10 @@ visiosoil-app/
 - **Real field photographs are not reliably classified yet.** The A4-sheet reader is graded on synthetic scenes and on 31 real photographs from 2026-10-05: it finds the sheet on 26, refuses the other 5 by name, and none of the 26 reach the patch grid (24 at `soilRegionTooSmall`, 2 at `photographTooCoarse`) ([sheet reader on real photographs](docs/studies/ml/sheet-reader-real-photographs.md)). A labelled field session on 2026-10-19 took 54 photographs to the capture protocol; the app classified 5 and all 5 were correct, and refused the other 49 (47 at `photographTooCoarse`) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). The limit today is not refusal alone: among photographs that score, the classifier skews toward clay. On that session, every classified photograph was Argilosa or Muito Argilosa, and upsampling the coarse photographs still reads Media and Arenosa soils as Muito Argilosa (0 of 24 right across those classes) ([classifier on field photographs](docs/studies/ml/field-photographs-2026-10-19.md)). Photographs taken fully to the [capture protocol](docs/guides/capture-protocol.md) must still validate the path before the Play release ([ADR 0026](docs/adr/0026-the-first-play-release-waits-for-classification.md)), so no general accuracy on production captures is stated.
 - **The corpus was published without human review.** Corpus `2026.10.31.3` holds five cells built by a 7B local model, and says `humanReview: false`. Three tips were removed from it by hand: two that QA rejected (SPEC 0260), and one that denied a claim instead of advising a practice, which left `Argilosa|generic` as an abstention (SPEC 0261). A grounding check can quote a real passage that does not support the tip, so every grounded cell carries the advisory disclaimer until an agronomist reviews it.
 - **The corpus cannot refresh.** There is no release endpoint yet, so a device reads only the bundled snapshot.
+- **CI is paused.** The `CI` workflow has been disabled on GitHub since 2026-11-08, so it has checked no change since then, and the badge shows its last run. Until it is enabled again, a change is checked locally with `flutter analyze`, `flutter test` and `mf check`.
 - **Records are not synced.** The sync foundation exists, but no backend is implemented and `SyncEngine` is not wired, so records live only on the device that made them.
 - **Release builds are debug-signed.** `android/key.properties` is absent and CI has no keystore step, so neither the APK nor the bundle CI builds is distributable. iOS is compiled in CI without code signing and has no development team set.
-- **Camera only.** Gallery import is not offered, so no photograph is classified without the guided frame (SPEC 0211).
+- **Camera only.** Gallery import is not offered (SPEC 0211). A photograph comes from the guided camera or, when the guided camera is unavailable on the device, from the system camera, which draws no frame and reads no chips. Either is measured from the A4 sheet the same way.
 - **`drift_flutter` is pinned to `>=0.2.0 <0.2.4`.** A newer version must be checked against the Drift code generation before the pin moves.
 
 ## Contributing
