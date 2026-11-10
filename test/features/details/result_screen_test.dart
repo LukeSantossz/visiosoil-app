@@ -23,9 +23,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
-import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
-import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
 
@@ -322,14 +320,23 @@ void main() {
     expect(tester.state(find.byType(ManagementTipsSection)), same(tips));
   });
 
-  testWidgets('details_shows_a_filled_saved_bookmark', (tester) async {
+  // The app bar holds back and share only: a bookmark there read as "saved"
+  // and deleted the analysis (SPEC 0267).
+  testWidgets('result_app_bar_has_no_bookmark', (tester) async {
     final semantics = tester.ensureSemantics();
     await _pump(tester, _classified());
 
-    expect(find.byIcon(LucideIcons.bookmark), findsOneWidget);
-    // Filled, and a way to remove the record from the saved ones
-    // (SPEC 0197).
-    expect(find.byTooltip('Remover dos salvos'), findsOneWidget);
+    final appBar = find.byType(VisioAppBar);
+    expect(
+      find.descendant(of: appBar, matching: find.byTooltip('Compartilhar')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: appBar, matching: find.byIcon(LucideIcons.bookmark)),
+      findsNothing,
+    );
+    expect(find.byTooltip('Remover dos salvos'), findsNothing);
+    expect(find.bySemanticsLabel('Remover dos salvos'), findsNothing);
     semantics.dispose();
   });
 
@@ -388,90 +395,6 @@ void main() {
       await tester.scrollUntilVisible(find.text('Corrigir'), 300, scrollable: _page);
       expect(inScroll('Corrigir'), findsOneWidget);
     });
-  });
-
-  group('saved_bookmark_pops_after_a_capture_save', () {
-    Future<ProviderContainer> pumpWithJustSaved(
-      WidgetTester tester,
-      int? justSaved,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(420, 1600));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final container = ProviderContainer(overrides: _overrides(_classified()));
-      addTearDown(container.dispose);
-      if (justSaved != null) {
-        container.read(justSavedRecordProvider.notifier).mark(justSaved);
-      }
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
-      ));
-      return container;
-    }
-
-    double scale(WidgetTester tester) => tester
-        .widget<ScaleTransition>(find.byKey(const ValueKey('saved-bookmark')))
-        .scale
-        .value;
-
-    testWidgets('the saved record pops', (tester) async {
-      final container = await pumpWithJustSaved(tester, 1);
-      await tester.pump();
-      await tester.pump();
-      var peak = 1.0;
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 20));
-        if (scale(tester) > peak) peak = scale(tester);
-      }
-      expect(peak, greaterThan(1.2));
-      await tester.pumpAndSettle();
-      expect(scale(tester), 1.0);
-      expect(container.read(justSavedRecordProvider), isNull);
-    });
-
-    testWidgets('another record does not pop', (tester) async {
-      await pumpWithJustSaved(tester, 7);
-      await tester.pumpAndSettle();
-      expect(scale(tester), 1.0);
-    });
-  });
-
-  testWidgets('filled_bookmark_removes_from_saved', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(420, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final repository = FakeSoilRecordRepository();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        ..._overrides(_classified()),
-        soilRecordRepositoryProvider.overrideWithValue(repository),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(
-          initialLocation: '/details',
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, _) => const Scaffold(body: Text('HOME_STUB')),
-            ),
-            GoRoute(
-              path: '/details',
-              builder: (_, _) => const DetailsScreen(recordId: 1),
-            ),
-          ],
-        ),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Remover dos salvos'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
-    await tester.tap(find.text('Excluir'));
-    await tester.pump();
-
-    expect(repository.deleteByIdCalls, [1]);
-    await tester.pumpAndSettle();
-    expect(find.text('HOME_STUB'), findsOneWidget);
   });
 
   testWidgets('photo_flies_from_the_details_tab', (tester) async {
@@ -780,15 +703,14 @@ void main() {
 
   // SPEC 0212: the bar's actions, the overview's triangle, and the result in
   // Modo Sol as PNG 26 measures it.
-  testWidgets('bar_actions_are_4_dp_apart', (tester) async {
+  // Share is the bar's one action since SPEC 0267. It stays where it sat
+  // beside the bookmark: SPEC 0212's 4 dp spacer after it, and 8 dp in all
+  // from the bar's end.
+  testWidgets('bar_action_keeps_its_place', (tester) async {
     await _pump(tester, _classified(), theme: AppTheme.light);
 
-    // Two 48 dp targets 4 dp apart: their centres 52 dp apart.
-    expect(
-      tester.getCenter(find.byTooltip('Compartilhar')).dx -
-          tester.getCenter(find.byTooltip(AppStrings.resultRemoveSaved)).dx,
-      52,
-    );
+    final bar = tester.getTopRight(find.byType(VisioAppBar)).dx;
+    expect(tester.getTopRight(find.byTooltip('Compartilhar')).dx, bar - 8);
   });
 
   testWidgets('sun_leading_slot_is_64_dp', (tester) async {

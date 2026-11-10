@@ -78,9 +78,6 @@ abstract final class AppStrings {
       'Não foi possível analisar esta foto. Fotografe a amostra de novo, '
       'seguindo as dicas de captura.';
   static const String resultRetake = 'Fotografar de novo';
-
-  /// The result's bookmark (SPEC 0196).
-  static const String resultRemoveSaved = 'Remover dos salvos';
   static const String resultRetry = 'Tentar de novo';
 
   /// The photo screen's title (redesign v11 §3.8, SPEC 0198).

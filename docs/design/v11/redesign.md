@@ -40,6 +40,7 @@ The redesign opened with five divergences to resolve first. All five are resolve
 | SPEC 0245 | §3.6, §3.8 | A record's date and time read `dd/MM/yyyy · HH:mm` everywhere |
 | SPEC 0246 | §3.9 | The "Dicas" tab has no back arrow |
 | SPEC 0247 | §3.7 | "Histórico" shows one line, "N análises", instead of the 3-cell summary |
+| SPEC 0267 | §3.6, §7 | The result's app bar draws no bookmark, so a save neither fills nor pops one. The "Salvo no histórico" snackbar confirms the save, and a record is deleted from its Detalhes tab |
 | `docs/agents/project.md` | §3.4 | Capture is camera-only by design, so the gallery slot stays empty |
 
 ---

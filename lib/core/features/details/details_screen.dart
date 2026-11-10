@@ -14,7 +14,6 @@ import 'package:visiosoil_app/core/features/details/widgets/result_error_block.d
 import 'package:visiosoil_app/core/features/details/widgets/result_lattice.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_overview.dart';
 import 'package:visiosoil_app/core/features/details/widgets/result_tab_bar.dart';
-import 'package:visiosoil_app/core/theme/app_haptics.dart';
 import 'package:visiosoil_app/core/theme/app_motion.dart';
 import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
@@ -28,7 +27,6 @@ import 'package:visiosoil_app/core/widgets/visio_app_bar.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
 import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
-import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/share_service_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_sample_provider.dart';
@@ -151,12 +149,6 @@ class _DetailsContentState extends ConsumerState<_DetailsContent> {
       record: record,
       appBar: resultAppBar(
         context,
-        bookmark: _SavedBookmark(
-          // A saved record's bookmark is filled (SPEC 0196), and removes the
-          // record from the saved ones (SPEC 0197).
-          recordId: record.id,
-          onRemove: () => confirmAndDeleteRecord(context, ref, record),
-        ),
         onShare: () => shareRecordWithConsent(context, ref, record),
       ),
       errorBlock: ResultErrorBlock(
@@ -169,73 +161,6 @@ class _DetailsContentState extends ConsumerState<_DetailsContent> {
       footerBuilder: (context, selectTab) => ResultFooter(
         onCorrect: _editLabels,
         onManagementTips: () => selectTab(ResultTab.management),
-      ),
-    );
-  }
-}
-
-/// The filled bookmark of a saved record (SPEC 0196). It pops once when a
-/// capture save has just landed here, and tapping it removes the record from
-/// the saved ones (redesign v11 §7, SPEC 0197).
-class _SavedBookmark extends ConsumerStatefulWidget {
-  const _SavedBookmark({required this.recordId, required this.onRemove});
-
-  final int? recordId;
-  final VoidCallback onRemove;
-
-  @override
-  ConsumerState<_SavedBookmark> createState() => _SavedBookmarkState();
-}
-
-class _SavedBookmarkState extends ConsumerState<_SavedBookmark>
-    with SingleTickerProviderStateMixin {
-  static const Duration _popDuration = Duration(milliseconds: 340);
-
-  late final AnimationController _pop = AnimationController(
-    vsync: this,
-    duration: _popDuration,
-  );
-  late final Animation<double> _scale =
-      TweenSequence<double>([
-        TweenSequenceItem(tween: Tween(begin: 1, end: 1.28), weight: 1),
-        TweenSequenceItem(tween: Tween(begin: 1.28, end: 1), weight: 1),
-      ]).animate(
-        CurvedAnimation(parent: _pop, curve: AppMotion.emphasizedDecelerate),
-      );
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final justSaved = ref.read(justSavedRecordProvider);
-      if (justSaved == null || justSaved != widget.recordId) return;
-      ref.read(justSavedRecordProvider.notifier).clear();
-      final reduce =
-          AppMotion.reduceMotion || MediaQuery.disableAnimationsOf(context);
-      if (!reduce) _pop.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _pop.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      key: const ValueKey('saved-bookmark'),
-      scale: _scale,
-      child: VisioIconButton(
-        label: AppStrings.resultRemoveSaved,
-        icon: LucideIcons.bookmark,
-        color: context.palette.onSurface,
-        onPressed: () {
-          unawaited(AppHaptics.selection());
-          widget.onRemove();
-        },
       ),
     );
   }
@@ -481,12 +406,12 @@ class _RiseIn extends StatelessWidget {
   }
 }
 
-/// The result's app bar (PNGs 14 and 32, SPEC 0202): back, then the
-/// [bookmark], then share, transparent over the lattice until content
-/// scrolls under it.
+/// The result's app bar (PNGs 14 and 32, SPEC 0202): back, then share,
+/// transparent over the lattice until content scrolls under it. It draws no
+/// bookmark: every capture is saved (SPEC 0219), and the bookmark's one action
+/// was a delete (SPEC 0267).
 PreferredSizeWidget resultAppBar(
   BuildContext context, {
-  required Widget bookmark,
   required VoidCallback onShare,
 }) {
   final background = context.palette.background;
@@ -508,8 +433,6 @@ PreferredSizeWidget resultAppBar(
     // 4 dp between the actions, as PNG 13, 14, 26 and 32 draw them
     // (SPEC 0212).
     actions: [
-      bookmark,
-      const SizedBox(width: AppSpacing.xs),
       VisioIconButton(
         label: 'Compartilhar',
         icon: LucideIcons.share2,
@@ -724,7 +647,7 @@ class _ActionButtons extends ConsumerWidget {
 }
 
 /// Asks before deleting [record], then deletes it and returns home; from
-/// "Excluir análise" and from the saved bookmark (SPEC 0197).
+/// "Excluir análise".
 Future<void> confirmAndDeleteRecord(
   BuildContext context,
   WidgetRef ref,
@@ -794,9 +717,7 @@ Future<void> shareRecordWithConsent(
         .shareRecord(record, includeLocation: includeLocation);
   } catch (_) {
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Não foi possível compartilhar a análise.'),
-      ),
+      const SnackBar(content: Text('Não foi possível compartilhar a análise.')),
     );
   }
 }

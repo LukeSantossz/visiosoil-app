@@ -34,7 +34,6 @@ import 'package:visiosoil_app/providers/capture_guide_store_provider.dart';
 import 'package:visiosoil_app/providers/capture_preferences_provider.dart';
 import 'package:visiosoil_app/providers/image_provider.dart';
 import 'package:visiosoil_app/providers/inference_provider.dart';
-import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
 import 'package:visiosoil_app/providers/soil_sample_provider.dart';
 
@@ -536,8 +535,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         ),
       ),
     );
-    // Details pops its bookmark for this record (SPEC 0197).
-    ref.read(justSavedRecordProvider.notifier).mark(recordId);
     // Capture is replaced, so back from details returns to whatever opened it
     // (SPEC 0132).
     context.pushReplacement('/details', extra: CapturedRecord(recordId));
