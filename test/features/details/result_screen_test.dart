@@ -23,9 +23,7 @@ import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
-import 'package:visiosoil_app/providers/just_saved_record_provider.dart';
 import 'package:visiosoil_app/providers/soil_record_repository_provider.dart';
-import '../../support/fake_soil_record_repository.dart';
 import '../../support/guidelines.dart';
 import '../../support/management_tips_fakes.dart';
 
@@ -705,15 +703,14 @@ void main() {
 
   // SPEC 0212: the bar's actions, the overview's triangle, and the result in
   // Modo Sol as PNG 26 measures it.
-  testWidgets('bar_actions_are_4_dp_apart', (tester) async {
+  // Share is the bar's one action since SPEC 0267. It stays where it sat
+  // beside the bookmark: SPEC 0212's 4 dp spacer after it, and 8 dp in all
+  // from the bar's end.
+  testWidgets('bar_action_keeps_its_place', (tester) async {
     await _pump(tester, _classified(), theme: AppTheme.light);
 
-    // Two 48 dp targets 4 dp apart: their centres 52 dp apart.
-    expect(
-      tester.getCenter(find.byTooltip('Compartilhar')).dx -
-          tester.getCenter(find.byTooltip(AppStrings.resultRemoveSaved)).dx,
-      52,
-    );
+    final bar = tester.getTopRight(find.byType(VisioAppBar)).dx;
+    expect(tester.getTopRight(find.byTooltip('Compartilhar')).dx, bar - 8);
   });
 
   testWidgets('sun_leading_slot_is_64_dp', (tester) async {
