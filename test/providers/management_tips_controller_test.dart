@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visiosoil_app/core/services/region/site_resolver.dart';
+import 'package:visiosoil_app/core/services/research/corpus_store.dart';
 import 'package:visiosoil_app/core/services/research/management_tips_controller.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/models/land_use.dart';
@@ -10,12 +11,14 @@ ManagementTipsController build({
   required FakeManagementTipsRepository repo,
   required FakeResearchService service,
   SiteResolver? resolver,
+  CorpusStore? corpusStore,
 }) =>
     ManagementTipsController(
       researchService: service,
       repository: repo,
       siteResolver:
           resolver ?? FakeSiteResolver(const SiteKey(unit: 'BR-SP')),
+      corpusStore: corpusStore ?? HeldCorpusStore(null),
     );
 
 void main() {
@@ -148,6 +151,57 @@ void main() {
       await controller.generate(tipsRecord());
 
       expect(service.lastLandUse, isNull);
+    });
+  });
+
+  group('isStale (SPEC 0269)', () {
+    FakeResearchService unused() =>
+        FakeResearchService((_) async => ResearchSuccess(groundedTips()));
+
+    test('stale_when_another_release_answered', () async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips(corpusVersion: 'v1'));
+      final controller = build(
+        repo: repo,
+        service: unused(),
+        corpusStore: HeldCorpusStore(corpusAt('v2')),
+      );
+
+      expect(await controller.isStale(tipsRecord()), isTrue);
+    });
+
+    test('fresh_when_the_same_release_answered', () async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips(corpusVersion: 'v2'));
+      final controller = build(
+        repo: repo,
+        service: unused(),
+        corpusStore: HeldCorpusStore(corpusAt('v2')),
+      );
+
+      expect(await controller.isStale(tipsRecord()), isFalse);
+    });
+
+    test('not_stale_without_a_cached_row', () async {
+      final controller = build(
+        repo: FakeManagementTipsRepository(),
+        service: unused(),
+        corpusStore: HeldCorpusStore(corpusAt('v2')),
+      );
+
+      expect(await controller.isStale(tipsRecord()), isFalse);
+    });
+
+    test('not_stale_without_a_held_corpus', () async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips());
+      final controller = build(
+        repo: repo,
+        service: unused(),
+        corpusStore: HeldCorpusStore(null),
+      );
+
+      expect(await controller.isStale(tipsRecord()), isFalse);
     });
   });
 }

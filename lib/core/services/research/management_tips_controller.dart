@@ -1,5 +1,6 @@
 import 'package:visiosoil_app/core/data/repositories/management_tips_repository.dart';
 import 'package:visiosoil_app/core/services/region/site_resolver.dart';
+import 'package:visiosoil_app/core/services/research/corpus_store.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
 import 'package:visiosoil_app/models/land_use.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
@@ -26,12 +27,32 @@ class ManagementTipsController {
     required ResearchService researchService,
     required this._repository,
     required SiteResolver siteResolver,
+    required this._corpusStore,
   })  : _research = researchService,
         _resolver = siteResolver;
 
   final ResearchService _research;
   final ManagementTipsRepository _repository;
   final SiteResolver _resolver;
+
+  /// The store the research service composes from, so the version [isStale]
+  /// compares is the version a recompose would write.
+  final CorpusStore _corpusStore;
+
+  /// Whether [record]'s cached tips came from a corpus other than the one held
+  /// now (SPEC 0269).
+  ///
+  /// False when nothing is cached: the empty cache generates on its own, and
+  /// there is nothing to refresh. The decision to recompose stays with the
+  /// caller, as [CachedManagementTips] asks.
+  Future<bool> isStale(SoilRecord record) async {
+    final uuid = record.uuid;
+    if (uuid == null) return false;
+    final cached = await _repository.getCached(uuid);
+    if (cached == null) return false;
+    final corpus = await _corpusStore.current();
+    return cached.isStaleAgainst(corpus?.corpusVersion);
+  }
 
   /// [landUse] is the one key part the device cannot derive. Null means the user
   /// declined, which §6 accepts.

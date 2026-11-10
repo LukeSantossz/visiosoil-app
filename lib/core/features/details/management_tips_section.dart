@@ -26,7 +26,9 @@ import 'package:visiosoil_app/providers/management_tips_repository_provider.dart
 /// Advisory "Dicas de manejo" section on the Soil Record details screen.
 /// Cache-first display via [cachedManagementTipsProvider]; generation via
 /// [managementTipsControllerProvider] runs automatically once per section state
-/// after an empty cache read. Manual generation and retry remain available; a
+/// after an empty cache read. Cached tips an older corpus release gave are
+/// recomposed once, silently, while they stay on screen (SPEC 0269). Manual
+/// generation and retry remain available; a
 /// failed refresh preserves already-cached tips. Tips compose on the device
 /// from the corpus the app holds (ADR 0022), so no action here waits on
 /// connectivity.
@@ -56,6 +58,7 @@ class ManagementTipsSection extends ConsumerStatefulWidget {
 class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
   bool _generating = false;
   bool _autoGenerationAttempted = false;
+  bool _staleCheckAttempted = false;
   ResearchFailureKind? _lastError;
 
   SoilRecord get _record => widget.record;
@@ -65,11 +68,30 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record.uuid != widget.record.uuid) {
       _autoGenerationAttempted = false;
+      _staleCheckAttempted = false;
       _lastError = null;
     }
   }
 
-  Future<void> _generate() async {
+  /// Recomposes the cached tips when another corpus release gave them.
+  ///
+  /// A store that throws counts as not stale: the cached tips stay, and a tap
+  /// on "Atualizar dicas" reports the failure as it always has.
+  Future<void> _recomposeIfStale() async {
+    final uuid = _record.uuid;
+    final bool stale;
+    try {
+      stale = await ref.read(managementTipsControllerProvider).isStale(_record);
+    } on Object {
+      return;
+    }
+    if (!mounted || !stale || _generating || _record.uuid != uuid) return;
+    await _generate(silent: true);
+  }
+
+  /// [silent] is for a recompose the user did not ask for: a failure then
+  /// keeps the cached tips without a snackbar.
+  Future<void> _generate({bool silent = false}) async {
     final uuid = _record.uuid;
     if (uuid == null) return;
     final hadTips = ref.read(cachedManagementTipsProvider(uuid)).value != null;
@@ -93,7 +115,7 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
       _generating = false;
       if (failure != null && !hadTips) _lastError = failure;
     });
-    if (failure != null && hadTips) {
+    if (failure != null && hadTips && !silent) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -142,6 +164,13 @@ class _ManagementTipsSectionState extends ConsumerState<ManagementTipsSection> {
                 return const _TipsLoading();
               }
               if (_generating && result == null) return const _TipsLoading();
+              if (result != null && !_staleCheckAttempted) {
+                _staleCheckAttempted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  _recomposeIfStale();
+                });
+              }
               if (result != null) {
                 return _TipsData(
                   textureLabel: _record.displayTextureClass,

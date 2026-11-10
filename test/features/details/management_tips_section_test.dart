@@ -18,6 +18,8 @@ import 'package:visiosoil_app/models/site_key.dart';
 import 'package:visiosoil_app/core/services/region/site_resolver.dart';
 import 'package:visiosoil_app/providers/site_resolver_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
+import 'package:visiosoil_app/providers/corpus_store_provider.dart';
+import 'package:visiosoil_app/core/services/research/corpus_store.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
 import '../../support/management_tips_fakes.dart';
@@ -28,10 +30,15 @@ Widget harness({
   required ResearchService service,
   required ConnectivityStatus connectivity,
   SiteResolver? resolver,
+  CorpusStore? corpusStore,
 }) {
   return ProviderScope(
     overrides: [
       if (resolver != null) siteResolverProvider.overrideWithValue(resolver),
+      // No corpus by default, so a seeded row without a version is not stale
+      // and the tests that predate SPEC 0269 see no automatic recompose.
+      corpusStoreProvider
+          .overrideWithValue(corpusStore ?? HeldCorpusStore(null)),
       managementTipsRepositoryProvider.overrideWithValue(repo),
       researchServiceProvider.overrideWithValue(service),
       connectivityServiceProvider
@@ -469,6 +476,93 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
   });
 
+  group('stale cache (SPEC 0269)', () {
+    Widget staleHarness({
+      required FakeManagementTipsRepository repo,
+      required FakeResearchService service,
+    }) =>
+        harness(
+          record: tipsRecord(),
+          repo: repo,
+          service: service,
+          connectivity: ConnectivityStatus.online,
+          resolver: FakeSiteResolver(const SiteKey.unresolved()),
+          corpusStore: HeldCorpusStore(corpusAt('v2')),
+        );
+
+    ManagementTipsResult tipsAt(String version, String text) =>
+        groundedTips(text: text, corpusVersion: version);
+
+    testWidgets('stale_tips_recompose_on_their_own', (tester) async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', tipsAt('v1', 'Dica antiga.'));
+      final service = FakeResearchService(
+          (_) async => ResearchSuccess(tipsAt('v2', 'Dica nova.')));
+      await tester.pumpWidget(staleHarness(repo: repo, service: service));
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 1);
+      expect(find.textContaining('Dica nova.'), findsOneWidget);
+      expect(find.textContaining('Dica antiga.'), findsNothing);
+    });
+
+    testWidgets('stale_tips_stay_on_screen_while_recomposing', (tester) async {
+      final gate = Completer<ResearchResult>();
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', tipsAt('v1', 'Dica antiga.'));
+      final service = FakeResearchService((_) => gate.future);
+      await tester.pumpWidget(staleHarness(repo: repo, service: service));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+
+      expect(service.calls, 1);
+      expect(find.textContaining('Dica antiga.'), findsOneWidget);
+      expect(find.text('Carregando dicas'), findsNothing);
+
+      gate.complete(ResearchSuccess(tipsAt('v2', 'Dica nova.')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Dica nova.'), findsOneWidget);
+    });
+
+    testWidgets('fresh_tips_do_not_recompose', (tester) async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips(corpusVersion: 'v2'));
+      final service = okService();
+      await tester.pumpWidget(staleHarness(repo: repo, service: service));
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 0);
+      expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+    });
+
+    testWidgets('a_failed_automatic_recompose_stays_silent', (tester) async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips(corpusVersion: 'v1'));
+      final service = FakeResearchService((_) async =>
+          const ResearchFailure(ResearchFailureKind.upstreamUnavailable));
+      await tester.pumpWidget(staleHarness(repo: repo, service: service));
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 1);
+      expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('the_stale_check_runs_once', (tester) async {
+      final repo = FakeManagementTipsRepository()
+        ..seed('rec-1', groundedTips(corpusVersion: 'v1'));
+      final service = FakeResearchService((_) async =>
+          const ResearchFailure(ResearchFailureKind.upstreamUnavailable));
+      await tester.pumpWidget(staleHarness(repo: repo, service: service));
+      await tester.pumpAndSettle();
+      await rebuildTipsSection(tester);
+      await tester.pumpAndSettle();
+
+      expect(service.calls, 1);
+    });
+  });
+
   testWidgets('empty disclaimer falls back to the advisory disclaimer copy',
       (tester) async {
     final repo = FakeManagementTipsRepository()
@@ -507,6 +601,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           managementTipsRepositoryProvider.overrideWithValue(repo),
+          corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
           researchServiceProvider.overrideWithValue(okService()),
           connectivityServiceProvider.overrideWithValue(
               FakeConnectivityService(ConnectivityStatus.online)),
@@ -547,6 +642,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         managementTipsRepositoryProvider.overrideWithValue(repo),
+        corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
         researchServiceProvider.overrideWithValue(okService()),
         connectivityServiceProvider.overrideWithValue(
             FakeConnectivityService(ConnectivityStatus.online)),
@@ -693,6 +789,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           managementTipsRepositoryProvider.overrideWithValue(repo),
+          corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
           researchServiceProvider.overrideWithValue(okService()),
           connectivityServiceProvider.overrideWithValue(
               FakeConnectivityService(ConnectivityStatus.online)),

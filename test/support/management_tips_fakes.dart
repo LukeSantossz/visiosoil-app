@@ -82,14 +82,15 @@ class FakeConnectivityService implements ConnectivityService {
   Stream<ConnectivityStatus> watch() => Stream.value(status);
 }
 
-/// Builds a grounded result for tests.
-ManagementTipsResult groundedTips() => ManagementTipsResult(
+/// Builds a grounded result for tests, composed by [corpusVersion] when given.
+ManagementTipsResult groundedTips({
+  String text = 'Mantenha cobertura vegetal no solo.',
+  String? corpusVersion,
+}) =>
+    ManagementTipsResult(
       status: ManagementTipsStatus.grounded,
-      tips: const [
-        ManagementTip(
-          text: 'Mantenha cobertura vegetal no solo.',
-          citations: [0],
-        ),
+      tips: [
+        ManagementTip(text: text, citations: const [0]),
       ],
       sources: const [
         TipSource(
@@ -101,6 +102,15 @@ ManagementTipsResult groundedTips() => ManagementTipsResult(
       disclaimer: 'Conteudo consultivo.',
       model: 'llama-3.3-70b',
       retrievedAt: DateTime.utc(2026, 6, 26, 12),
+      corpusVersion: corpusVersion,
+    );
+
+/// An empty corpus released as [version], for staleness tests.
+Corpus corpusAt(String version) => Corpus(
+      corpusVersion: version,
+      disclaimer: 'Conteudo consultivo.',
+      fetchedAt: DateTime.utc(2026, 10, 31),
+      substance: const {},
     );
 
 /// A test Soil Record; pass `textureClass: null` for the unclassified case.
