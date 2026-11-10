@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:visiosoil_app/core/services/classification_failure_copy.dart';
 import 'package:visiosoil_app/core/services/research/research_service.dart';
+import 'package:visiosoil_app/core/theme/app_density.dart';
 import 'package:visiosoil_app/core/theme/app_palette.dart';
 import 'package:visiosoil_app/core/theme/app_radius.dart';
 import 'package:visiosoil_app/core/theme/app_spacing.dart';
@@ -15,9 +18,11 @@ import 'package:visiosoil_app/core/widgets/collapse_on_correction.dart';
 import 'package:visiosoil_app/core/widgets/empty_state.dart';
 import 'package:visiosoil_app/core/widgets/error_state.dart';
 import 'package:visiosoil_app/core/widgets/loading_indicator.dart';
+import 'package:visiosoil_app/core/widgets/segmented_control.dart';
 import 'package:visiosoil_app/core/widgets/settings_switch_tile.dart';
 import 'package:visiosoil_app/core/widgets/settings_tile.dart';
 import 'package:visiosoil_app/core/widgets/visio_button.dart';
+import 'package:visiosoil_app/core/widgets/visio_icon_button.dart';
 import 'package:visiosoil_app/models/management_tips_result.dart';
 import 'package:visiosoil_app/models/soil_record.dart';
 import 'package:visiosoil_app/providers/management_tips_controller_provider.dart';
@@ -273,6 +278,10 @@ class _TipsData extends StatelessWidget {
     final abstained =
         result.status == ManagementTipsStatus.abstained || result.tips.isEmpty;
     final tips = shownTips(result.tips, hiddenCategories);
+    // Numbered over every tip, so the filter never renumbers (SPEC 0270).
+    final numbers = abstained
+        ? const <int, int>{}
+        : citationNumbers(result.tips, result.sources.length);
 
     // The disclaimer leads, as PNG 20 draws it (SPEC 0205).
     return Column(
@@ -308,10 +317,24 @@ class _TipsData extends StatelessWidget {
               ),
             )
           else
-            _TipsTimeline(tips: tips, sources: result.sources),
+            _TipsTimeline(tips: tips, numbers: numbers),
         ],
+        // The sources open from one button, not a list (SPEC 0270).
         if (result.sources.isNotEmpty) ...[
-          _SourcesList(sources: result.sources, consulted: abstained),
+          const SizedBox(height: AppSpacing.md),
+          VisioButton(
+            label: numbers.isEmpty
+                ? 'Ver fontes consultadas (${result.sources.length})'
+                : 'Ver fontes (${Formatters.count(numbers.length, 'citada', 'citadas')})',
+            icon: LucideIcons.bookOpen,
+            variant: VisioButtonVariant.secondary,
+            expanded: true,
+            onPressed: () => showTipSourcesSheet(
+              context,
+              sources: result.sources,
+              numbers: numbers,
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
         ],
         Text(
@@ -338,6 +361,19 @@ class _TipsData extends StatelessWidget {
     return 'Dicas de manejo consultivas, baseadas em fontes públicas. '
         'Não substituem avaliação técnica presencial.';
   }
+}
+
+/// Numbers the sources [tips] cite, from 1, in the order the tips first cite
+/// them. An index outside `0 <= i < sourceCount` is ignored (SPEC 0270).
+Map<int, int> citationNumbers(List<ManagementTip> tips, int sourceCount) {
+  final numbers = <int, int>{};
+  for (final tip in tips) {
+    for (final i in tip.citations) {
+      if (i < 0 || i >= sourceCount) continue;
+      numbers.putIfAbsent(i, () => numbers.length + 1);
+    }
+  }
+  return numbers;
 }
 
 /// [tips] without the categories in [hidden]; a tip without a category is
@@ -455,10 +491,10 @@ class _TipsFilterSheetState extends State<_TipsFilterSheet> {
 /// the first marked "Agora" and the second "Próximo". Otherwise they are the
 /// categories, in a fixed order, unmarked.
 class _TipsTimeline extends StatelessWidget {
-  const _TipsTimeline({required this.tips, required this.sources});
+  const _TipsTimeline({required this.tips, required this.numbers});
 
   final List<ManagementTip> tips;
-  final List<TipSource> sources;
+  final Map<int, int> numbers;
 
   @override
   Widget build(BuildContext context) {
@@ -554,7 +590,7 @@ class _TipsTimeline extends StatelessWidget {
                         ),
                         for (final tip in groups[g].$2) ...[
                           const SizedBox(height: AppSpacing.sm),
-                          _TipCard(tip: tip, sources: sources),
+                          _TipCard(tip: tip, numbers: numbers),
                         ],
                       ],
                     ),
@@ -608,10 +644,12 @@ class _PhaseChip extends StatelessWidget {
 }
 
 class _TipCard extends StatelessWidget {
-  const _TipCard({required this.tip, required this.sources});
+  const _TipCard({required this.tip, required this.numbers});
 
   final ManagementTip tip;
-  final List<TipSource> sources;
+
+  /// Each cited source's number (SPEC 0270).
+  final Map<int, int> numbers;
 
   static IconData iconFor(TipCategory? category) => switch (category) {
     TipCategory.preparation => LucideIcons.tractor,
@@ -620,28 +658,20 @@ class _TipCard extends StatelessWidget {
     TipCategory.other || null => LucideIcons.lightbulb,
   };
 
-  /// The first cited source, and how many more the tip cites.
-  String? _sourceLine() {
-    final cited = tip.citations
-        .where((i) => i >= 0 && i < sources.length)
-        .toList();
-    if (cited.isEmpty) return null;
-    final first = sources[cited.first];
-    final name = [
-      first.title,
-      if (first.publisher != null) first.publisher!,
-    ].join(' · ');
-    return cited.length > 1 ? '$name +${cited.length - 1}' : name;
-  }
+  /// The numbers of the sources this tip cites, in its citation order.
+  List<int> _citedNumbers() => [
+    for (final i in {...tip.citations})
+      ?numbers[i],
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = context.palette;
-    final source = _sourceLine();
+    final cited = _citedNumbers();
 
     // On surface with a divider edge, a 40 dp icon tile, the text at 15/20
-    // and the source under a bookmark (PNG 20, SPEC 0205).
+    // (PNG 20, SPEC 0205), and a chip per cited source (SPEC 0270).
     return Container(
       key: const Key('tip-card'),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -703,26 +733,20 @@ class _TipCard extends StatelessWidget {
                             : palette.onSurfaceVariant,
                       ),
                 ),
-                if (source != null) ...[
+                // Not buttons: a 28 dp chip is under the tap floor, and
+                // "Ver fontes" opens the same sheet (SPEC 0270).
+                if (cited.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Row(
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
                     children: [
-                      Icon(
-                        LucideIcons.bookmark,
-                        size: 16,
-                        color: palette.textTertiary,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          source,
-                          style: AppTypography.resized(
-                            theme.textTheme.bodySmall!,
-                            12,
-                            height: 16 / 12,
-                          ).copyWith(color: palette.textTertiary),
+                      for (final number in cited)
+                        Semantics(
+                          label: 'Fonte $number',
+                          excludeSemantics: true,
+                          child: _SourceBadge(text: '$number', cited: true),
                         ),
-                      ),
                     ],
                   ),
                 ],
@@ -735,61 +759,278 @@ class _TipCard extends StatelessWidget {
   }
 }
 
-class _SourcesList extends StatelessWidget {
-  const _SourcesList({required this.sources, required this.consulted});
+/// A source's number on a tip card or a sheet row, or "·" for a source no
+/// tip cites: 28 dp, on `selected` when cited (SPEC 0270).
+class _SourceBadge extends StatelessWidget {
+  const _SourceBadge({required this.text, required this.cited});
 
-  final List<TipSource> sources;
-
-  /// The sources were read but support no tip, so the heading says only that
-  /// they were consulted (SPEC 0233).
-  final bool consulted;
+  final String text;
+  final bool cited;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          consulted ? 'Fontes consultadas' : 'Fontes',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: context.palette.onSurfaceVariant,
+    final palette = context.palette;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: cited ? palette.selected : palette.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: palette.highContrast
+            ? Border.all(color: palette.cardBorder, width: palette.edgeWidth)
+            : null,
+      ),
+      child: Text(
+        text,
+        style: AppTypography.weighted(
+          AppTypography.resized(
+            Theme.of(context).textTheme.labelMedium!,
+            12,
+            height: 16 / 12,
           ),
+          600,
+        ).copyWith(
+          color: cited ? palette.primaryText : palette.onSurfaceVariant,
         ),
-        const SizedBox(height: AppSpacing.sm),
-        for (var i = 0; i < sources.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.sm),
-          _SourceTile(index: i + 1, source: sources[i]),
-        ],
-      ],
+      ),
     );
   }
 }
 
-class _SourceTile extends StatelessWidget {
-  const _SourceTile({required this.index, required this.source});
+/// Opens [sources] in a sheet (SPEC 0270). [numbers] maps each cited
+/// source's index to its number; with none, the sources were consulted and
+/// support no tip (SPEC 0233).
+Future<void> showTipSourcesSheet(
+  BuildContext context, {
+  required List<TipSource> sources,
+  required Map<int, int> numbers,
+}) => showModalBottomSheet<void>(
+  context: context,
+  showDragHandle: true,
+  isScrollControlled: true,
+  builder: (_) => _TipSourcesSheet(sources: sources, numbers: numbers),
+);
 
-  final int index;
-  final TipSource source;
+class _TipSourcesSheet extends StatefulWidget {
+  const _TipSourcesSheet({required this.sources, required this.numbers});
+
+  final List<TipSource> sources;
+  final Map<int, int> numbers;
+
+  @override
+  State<_TipSourcesSheet> createState() => _TipSourcesSheetState();
+}
+
+class _TipSourcesSheetState extends State<_TipSourcesSheet> {
+  bool _all = false;
+  bool _openFailed = false;
+
+  /// Opens [source] outside the app. A failure is said in the sheet, since a
+  /// snackbar would draw under it.
+  Future<void> _open(TipSource source) async {
+    final uri = Uri.tryParse(source.url);
+    var opened = false;
+    if (uri != null) {
+      try {
+        opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } on PlatformException {
+        opened = false;
+      } on MissingPluginException {
+        opened = false;
+      }
+    }
+    if (!mounted) return;
+    setState(() => _openFailed = !opened);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final sources = widget.sources;
+    final numbers = widget.numbers;
+    // A choice only when some sources are cited and others are not.
+    final choice = numbers.isNotEmpty && numbers.length < sources.length;
+    final cited = numbers.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final rows = <(int?, TipSource)>[
+      for (final entry in cited) (entry.value, sources[entry.key]),
+      if (!choice || _all)
+        for (var i = 0; i < sources.length; i++)
+          if (!numbers.containsKey(i)) (null, sources[i]),
+    ];
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.lg,
+                right: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      numbers.isEmpty ? 'Fontes consultadas' : 'Fontes',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  VisioIconButton(
+                    label: 'Fechar',
+                    icon: LucideIcons.x,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            if (choice)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  0,
+                ),
+                child: SegmentedControl<bool>(
+                  options: [
+                    SegmentedControlOption(
+                      value: false,
+                      label: 'Citadas (${numbers.length})',
+                    ),
+                    SegmentedControlOption(
+                      value: true,
+                      label: 'Todas (${sources.length})',
+                    ),
+                  ],
+                  value: _all,
+                  onChanged: (all) => setState(() => _all = all),
+                ),
+              ),
+            if (_openFailed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  0,
+                ),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    'Não foi possível abrir a fonte.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: context.palette.error,
+                    ),
+                  ),
+                ),
+              ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                ),
+                children: [
+                  for (final (number, source) in rows)
+                    _SourceRow(
+                      number: number,
+                      source: source,
+                      onTap: () => _open(source),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One source in the sheet: its badge, the title on two lines at most, the
+/// publisher, and a link to it (SPEC 0270).
+class _SourceRow extends StatelessWidget {
+  const _SourceRow({
+    required this.number,
+    required this.source,
+    required this.onTap,
+  });
+
+  final int? number;
+  final TipSource source;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = context.palette;
     final publisher = source.publisher;
-    final title = publisher == null || publisher.isEmpty
-        ? source.title
-        : '${source.title} — $publisher';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$index. $title', style: theme.textTheme.bodySmall),
-        Text(
-          source.url,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: context.palette.onSurfaceVariant,
+    return Semantics(
+      link: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.borderRadiusMd,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: context.density.tap),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SourceBadge(
+                  text: number == null ? '·' : '$number',
+                  cited: number != null,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        source.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.resized(
+                          theme.textTheme.bodyMedium!,
+                          14,
+                          height: 20 / 14,
+                        ),
+                      ),
+                      if (publisher != null && publisher.isNotEmpty)
+                        Text(
+                          publisher,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.resized(
+                            theme.textTheme.bodySmall!,
+                            12,
+                            height: 16 / 12,
+                          ).copyWith(color: palette.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  LucideIcons.externalLink,
+                  size: 18,
+                  color: palette.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

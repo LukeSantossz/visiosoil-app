@@ -20,6 +20,8 @@ import 'package:visiosoil_app/providers/site_resolver_provider.dart';
 import 'package:visiosoil_app/providers/connectivity_provider.dart';
 import 'package:visiosoil_app/providers/management_tips_repository_provider.dart';
 import 'package:visiosoil_app/providers/research_service_provider.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 import '../../support/management_tips_fakes.dart';
 
 Widget harness({
@@ -221,9 +223,17 @@ void main() {
 
     expect(find.text('Dicas de manejo'), findsOneWidget);
     expect(find.textContaining('Mantenha cobertura vegetal'), findsOneWidget);
-    // The card's source line names the cited source (SPEC 0198).
-    expect(find.text('Embrapa Solos · Embrapa'), findsOneWidget);
-    expect(find.text('Fontes'), findsOneWidget);
+    // The card numbers its cited source, and the sources open from a
+    // button rather than a list (SPEC 0270).
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('tip-card')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Embrapa Solos · Embrapa'), findsNothing);
+    expect(find.text('Ver fontes (1 citada)'), findsOneWidget);
     expect(find.textContaining('consultivo'), findsOneWidget);
     expect(find.text('Atualizar dicas'), findsOneWidget);
     expect(find.textContaining('recomenda'), findsNothing);
@@ -403,10 +413,12 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    // The sources open from a sheet (SPEC 0270).
+    expect(find.text('Ver fontes consultadas (1)'), findsOneWidget);
+    await openSources(tester, 'Ver fontes consultadas (1)');
     expect(find.text('Fontes consultadas'), findsOneWidget);
-    expect(find.text('Fontes'), findsNothing);
     for (final source in grounded.sources) {
-      expect(find.textContaining(source.title), findsWidgets);
+      expect(find.text(source.title), findsOneWidget);
     }
   });
 
@@ -628,7 +640,15 @@ void main() {
         tester.getTopLeft(find.text('Evite tráfego com solo úmido.')).dy,
         lessThan(water),
       );
-      expect(find.text('Guia de solos · Embrapa +1'), findsOneWidget);
+      // The water tip cites both sources, numbered as the sheet numbers
+      // them (SPEC 0270).
+      final waterCard = find.byKey(const Key('tip-card')).at(1);
+      for (final number in ['1', '2']) {
+        expect(
+          find.descendant(of: waterCard, matching: find.text(number)),
+          findsOneWidget,
+        );
+      }
       expect(find.byIcon(LucideIcons.tractor), findsOneWidget);
       expect(find.byIcon(LucideIcons.droplets), findsOneWidget);
     });
@@ -948,8 +968,9 @@ void main() {
       );
 
       expect(find.text('Nenhuma dica nas categorias escolhidas.'), findsOneWidget);
-      expect(find.text('Fontes'), findsOneWidget);
-      expect(find.text('Fontes consultadas'), findsNothing);
+      // The button keeps counting the citations (SPEC 0270).
+      expect(find.text('Ver fontes (1 citada)'), findsOneWidget);
+      expect(find.textContaining('Ver fontes consultadas'), findsNothing);
     });
 
     testWidgets('tipless_result_names_the_consulted_sources', (tester) async {
@@ -966,8 +987,8 @@ void main() {
         ),
       );
 
-      expect(find.text('Fontes consultadas'), findsOneWidget);
-      expect(find.text('Fontes'), findsNothing);
+      expect(find.text('Ver fontes consultadas (1)'), findsOneWidget);
+      expect(find.textContaining('citada'), findsNothing);
     });
 
     testWidgets('filter_sheet_toggles_a_category', (tester) async {
@@ -1014,5 +1035,212 @@ void main() {
         const [loose, water],
       );
     });
+
+    // SPEC 0270: numbered chips on the cards, the sources in a sheet.
+    const sheetSources = [
+      TipSource(
+        title: 'Guia de solos',
+        url: 'https://a.example/guia',
+        publisher: 'Embrapa',
+      ),
+      TipSource(
+        title: 'Manual de irrigação',
+        url: 'https://b.example/manual',
+        publisher: 'IAC',
+      ),
+      TipSource(title: 'Boletim de drenagem', url: 'https://c.example/boletim'),
+    ];
+
+    // The first tip is filed under Preparo, the others under Água, so the
+    // first card on the page is the first tip.
+    ManagementTipsResult citing(List<List<int>> citations) =>
+        ManagementTipsResult(
+          status: ManagementTipsStatus.grounded,
+          tips: [
+            for (var i = 0; i < citations.length; i++)
+              ManagementTip(
+                text: 'Dica ${i + 1}.',
+                citations: citations[i],
+                category:
+                    i == 0 ? TipCategory.preparation : TipCategory.water,
+              ),
+          ],
+          sources: sheetSources,
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        );
+
+    Finder inCard(int index, String text) => find.descendant(
+          of: find.byKey(const Key('tip-card')).at(index),
+          matching: find.text(text),
+        );
+
+    test('citation_numbers_follow_first_citation', () {
+      final numbers = citationNumbers(const [
+        ManagementTip(text: 'a', citations: [2, 0]),
+        ManagementTip(text: 'b', citations: [0, 6, -1]),
+        ManagementTip(text: 'c', citations: [5]),
+      ], 6);
+
+      expect(numbers, {2: 1, 0: 2, 5: 3});
+    });
+
+    testWidgets('tip_card_shows_citation_chips', (tester) async {
+      await pumpPage(tester, result: citing([[1, 0], [0]]));
+
+      expect(inCard(0, '1'), findsOneWidget);
+      expect(inCard(0, '2'), findsOneWidget);
+      expect(inCard(1, '2'), findsOneWidget);
+      expect(inCard(1, '1'), findsNothing);
+      expect(find.byIcon(LucideIcons.bookmark), findsNothing);
+    });
+
+    testWidgets('sources_are_not_stacked_on_the_page', (tester) async {
+      await pumpPage(tester, result: citing([[1, 0], [0]]));
+
+      for (final source in sheetSources) {
+        expect(find.textContaining(source.title), findsNothing);
+      }
+      expect(find.text('Fontes'), findsNothing);
+    });
+
+    testWidgets('button_counts_the_cited_sources (one)', (tester) async {
+      await pumpPage(tester, result: citing([[0]]));
+
+      expect(find.text('Ver fontes (1 citada)'), findsOneWidget);
+    });
+
+    testWidgets('button_counts_the_cited_sources (two)', (tester) async {
+      await pumpPage(tester, result: citing([[1, 0]]));
+
+      expect(find.text('Ver fontes (2 citadas)'), findsOneWidget);
+    });
+
+    testWidgets('sheet_opens_on_the_cited_sources', (tester) async {
+      await pumpPage(tester, result: citing([[1, 0], [0]]));
+      await openSources(tester, 'Ver fontes (2 citadas)');
+
+      expect(find.text('Fontes'), findsOneWidget);
+      expect(find.text('Citadas (2)'), findsOneWidget);
+      expect(find.text('Todas (3)'), findsOneWidget);
+      expect(find.text('Manual de irrigação'), findsOneWidget);
+      expect(find.text('Guia de solos'), findsOneWidget);
+      expect(find.text('Boletim de drenagem'), findsNothing);
+      // Numbered by first citation: the first tip cites source 1 first.
+      double top(String text) => tester.getTopLeft(find.text(text)).dy;
+      expect(top('Manual de irrigação'), lessThan(top('Guia de solos')));
+
+      await tester.tap(find.byKey(const Key('segment-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Boletim de drenagem'), findsOneWidget);
+      expect(top('Guia de solos'), lessThan(top('Boletim de drenagem')));
+      expect(find.text('·'), findsOneWidget);
+    });
+
+    testWidgets('sheet_without_a_choice_hides_the_control', (tester) async {
+      await pumpPage(tester, result: citing([[0, 1, 2]]));
+      await openSources(tester, 'Ver fontes (3 citadas)');
+
+      for (final source in sheetSources) {
+        expect(find.text(source.title), findsOneWidget);
+      }
+      expect(find.textContaining('Citadas ('), findsNothing);
+      expect(find.textContaining('Todas ('), findsNothing);
+    });
+
+    testWidgets('tipless_result_offers_the_consulted_sources', (tester) async {
+      await pumpPage(
+        tester,
+        result: ManagementTipsResult(
+          status: ManagementTipsStatus.abstained,
+          tips: const [],
+          sources: sheetSources.sublist(0, 2),
+          disclaimer: 'Conteudo consultivo.',
+          model: 'corpus',
+          retrievedAt: DateTime.utc(2026, 6, 26, 12),
+        ),
+      );
+
+      expect(find.text('Ver fontes consultadas (2)'), findsOneWidget);
+      await openSources(tester, 'Ver fontes consultadas (2)');
+
+      expect(find.text('Fontes consultadas'), findsOneWidget);
+      expect(find.text('Guia de solos'), findsOneWidget);
+      expect(find.text('Manual de irrigação'), findsOneWidget);
+      expect(find.textContaining('Citadas ('), findsNothing);
+    });
+
+    testWidgets('filter_does_not_renumber_the_chips', (tester) async {
+      await pumpPage(
+        tester,
+        result: citing([[1], [0]]),
+        hiddenCategories: const {TipCategory.preparation},
+      );
+
+      expect(inCard(0, '2'), findsOneWidget);
+      expect(inCard(0, '1'), findsNothing);
+      expect(find.text('Ver fontes (2 citadas)'), findsOneWidget);
+    });
+
+    group('launch', () {
+      late UrlLauncherPlatform original;
+      late _RecordingUrlLauncher launcher;
+
+      setUp(() {
+        original = UrlLauncherPlatform.instance;
+        launcher = _RecordingUrlLauncher();
+        UrlLauncherPlatform.instance = launcher;
+      });
+
+      tearDown(() => UrlLauncherPlatform.instance = original);
+
+      testWidgets('tapping_a_source_opens_it', (tester) async {
+        await pumpPage(tester, result: citing([[1, 0], [0]]));
+        await openSources(tester, 'Ver fontes (2 citadas)');
+        await tester.tap(find.text('Manual de irrigação'));
+        await tester.pumpAndSettle();
+
+        expect(launcher.launches, [
+          ('https://b.example/manual', PreferredLaunchMode.externalApplication),
+        ]);
+        expect(find.text('Não foi possível abrir a fonte.'), findsNothing);
+      });
+
+      testWidgets('a_failed_launch_is_said_in_the_sheet', (tester) async {
+        launcher.result = false;
+        await pumpPage(tester, result: citing([[1, 0], [0]]));
+        await openSources(tester, 'Ver fontes (2 citadas)');
+        await tester.tap(find.text('Manual de irrigação'));
+        await tester.pumpAndSettle();
+
+        expect(launcher.launches, hasLength(1));
+        expect(find.text('Não foi possível abrir a fonte.'), findsOneWidget);
+      });
+    });
   });
+}
+
+/// Scrolls [label] into view, taps it, and lets the sheet settle.
+Future<void> openSources(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.text(label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
+/// Records each launch, and answers with [result].
+class _RecordingUrlLauncher extends UrlLauncherPlatform {
+  final launches = <(String, PreferredLaunchMode)>[];
+  bool result = true;
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launches.add((url, options.mode));
+    return result;
+  }
 }
