@@ -601,6 +601,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           managementTipsRepositoryProvider.overrideWithValue(repo),
+          corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
           researchServiceProvider.overrideWithValue(okService()),
           connectivityServiceProvider.overrideWithValue(
               FakeConnectivityService(ConnectivityStatus.online)),
@@ -641,6 +642,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         managementTipsRepositoryProvider.overrideWithValue(repo),
+        corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
         researchServiceProvider.overrideWithValue(okService()),
         connectivityServiceProvider.overrideWithValue(
             FakeConnectivityService(ConnectivityStatus.online)),
@@ -787,6 +789,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           managementTipsRepositoryProvider.overrideWithValue(repo),
+          corpusStoreProvider.overrideWithValue(HeldCorpusStore(null)),
           researchServiceProvider.overrideWithValue(okService()),
           connectivityServiceProvider.overrideWithValue(
               FakeConnectivityService(ConnectivityStatus.online)),
