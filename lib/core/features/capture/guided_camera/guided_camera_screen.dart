@@ -1269,7 +1269,9 @@ class _GuidedCameraScreenState extends ConsumerState<GuidedCameraScreen>
                                         if (_guide) ...[
                                           const SizedBox(height: AppSpacing.md),
                                           Text(
-                                            'Captura liberada quando os 3 itens estiverem ok',
+                                            // Advice, not a lock: an unknown reading
+                                            // never holds the shutter (SPEC 0268).
+                                            'Para a melhor foto, espere os 3 itens ficarem ok',
                                             textAlign: TextAlign.center,
                                             style: Theme.of(context)
                                                 .textTheme
