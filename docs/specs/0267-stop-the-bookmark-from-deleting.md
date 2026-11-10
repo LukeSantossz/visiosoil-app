@@ -6,7 +6,7 @@ The result screen's app bar shows a filled bookmark, which reads as "saved", and
 
 ## Design Decision
 
-**The bookmark leaves the result app bar.** The app bar keeps back and "Compartilhar", 4 dp apart as SPEC 0212 draws them.
+**The bookmark leaves the result app bar.** The app bar keeps back and "Compartilhar". Share stays where it sat, with SPEC 0212's 4 dp spacer after it.
 
 How the bookmark came to delete:
 
@@ -28,10 +28,7 @@ What goes with it, because nothing else reads it:
 - `AppStrings.resultRemoveSaved`;
 - the `bookmark` parameter of `resultAppBar`.
 
-The v11 design documents record the departure:
-
-- `docs/design/v11/redesign.md` §0.2 gets a row for this spec.
-- `docs/design/v11/haptics.md`'s "Save (bookmark)" row says that no bookmark is drawn.
+`docs/design/v11/redesign.md` §0.2 records the departure in a row for this spec, as it does for SPEC 0219. The v11 haptics table keeps its bookmark rows, as it keeps the particles SPEC 0221 removed, because §0.2 is where the app's departures are listed.
 
 ## Alternatives Considered
 
@@ -45,7 +42,7 @@ The v11 design documents record the departure:
   - removing the bookmark, its pop, `justSavedRecordProvider` and `AppStrings.resultRemoveSaved`;
   - `resultAppBar` without its `bookmark` parameter;
   - updating the tests that pin the bookmark;
-  - the two v11 design documents above.
+  - the §0.2 row in `docs/design/v11/redesign.md`.
 - Does NOT include:
   - the delete on the Detalhes tab, its confirmation, or an undo for it (UX-11 is its own change);
   - the second share control and the other duplicated result actions (UX-05);
@@ -56,6 +53,7 @@ The v11 design documents record the departure:
 ## Acceptance Criteria
 
 - `result_app_bar_has_no_bookmark`: details for a saved record shows "Voltar" and "Compartilhar" in the app bar, and finds no `LucideIcons.bookmark` in the app bar and no "Remover dos salvos" tooltip or semantics label.
+- `bar_action_keeps_its_place`: the share button's right edge is 8 dp from the app bar's end, where it sat beside the bookmark.
 - The existing details test "confirming delete removes the record, shows a snackbar, and returns home" passes unchanged: on the Detalhes tab, "Excluir análise" opens the confirmation, and confirming deletes the record.
 - The existing capture test `capture_writes_the_classification_and_opens_details` passes unchanged: a capture shows "Salvo no histórico" and opens details for the new record.
 - `flutter analyze` reports nothing new, `flutter test` has no failures beyond those this machine has on `main`, and `mf check` passes.
