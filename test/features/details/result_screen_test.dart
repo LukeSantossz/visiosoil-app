@@ -322,14 +322,23 @@ void main() {
     expect(tester.state(find.byType(ManagementTipsSection)), same(tips));
   });
 
-  testWidgets('details_shows_a_filled_saved_bookmark', (tester) async {
+  // The app bar holds back and share only: a bookmark there read as "saved"
+  // and deleted the analysis (SPEC 0267).
+  testWidgets('result_app_bar_has_no_bookmark', (tester) async {
     final semantics = tester.ensureSemantics();
     await _pump(tester, _classified());
 
-    expect(find.byIcon(LucideIcons.bookmark), findsOneWidget);
-    // Filled, and a way to remove the record from the saved ones
-    // (SPEC 0197).
-    expect(find.byTooltip('Remover dos salvos'), findsOneWidget);
+    final appBar = find.byType(VisioAppBar);
+    expect(
+      find.descendant(of: appBar, matching: find.byTooltip('Compartilhar')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: appBar, matching: find.byIcon(LucideIcons.bookmark)),
+      findsNothing,
+    );
+    expect(find.byTooltip('Remover dos salvos'), findsNothing);
+    expect(find.bySemanticsLabel('Remover dos salvos'), findsNothing);
     semantics.dispose();
   });
 
@@ -388,90 +397,6 @@ void main() {
       await tester.scrollUntilVisible(find.text('Corrigir'), 300, scrollable: _page);
       expect(inScroll('Corrigir'), findsOneWidget);
     });
-  });
-
-  group('saved_bookmark_pops_after_a_capture_save', () {
-    Future<ProviderContainer> pumpWithJustSaved(
-      WidgetTester tester,
-      int? justSaved,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(420, 1600));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final container = ProviderContainer(overrides: _overrides(_classified()));
-      addTearDown(container.dispose);
-      if (justSaved != null) {
-        container.read(justSavedRecordProvider.notifier).mark(justSaved);
-      }
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: DetailsScreen(recordId: 1)),
-      ));
-      return container;
-    }
-
-    double scale(WidgetTester tester) => tester
-        .widget<ScaleTransition>(find.byKey(const ValueKey('saved-bookmark')))
-        .scale
-        .value;
-
-    testWidgets('the saved record pops', (tester) async {
-      final container = await pumpWithJustSaved(tester, 1);
-      await tester.pump();
-      await tester.pump();
-      var peak = 1.0;
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 20));
-        if (scale(tester) > peak) peak = scale(tester);
-      }
-      expect(peak, greaterThan(1.2));
-      await tester.pumpAndSettle();
-      expect(scale(tester), 1.0);
-      expect(container.read(justSavedRecordProvider), isNull);
-    });
-
-    testWidgets('another record does not pop', (tester) async {
-      await pumpWithJustSaved(tester, 7);
-      await tester.pumpAndSettle();
-      expect(scale(tester), 1.0);
-    });
-  });
-
-  testWidgets('filled_bookmark_removes_from_saved', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(420, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final repository = FakeSoilRecordRepository();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        ..._overrides(_classified()),
-        soilRecordRepositoryProvider.overrideWithValue(repository),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(
-          initialLocation: '/details',
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, _) => const Scaffold(body: Text('HOME_STUB')),
-            ),
-            GoRoute(
-              path: '/details',
-              builder: (_, _) => const DetailsScreen(recordId: 1),
-            ),
-          ],
-        ),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Remover dos salvos'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
-    await tester.tap(find.text('Excluir'));
-    await tester.pump();
-
-    expect(repository.deleteByIdCalls, [1]);
-    await tester.pumpAndSettle();
-    expect(find.text('HOME_STUB'), findsOneWidget);
   });
 
   testWidgets('photo_flies_from_the_details_tab', (tester) async {
